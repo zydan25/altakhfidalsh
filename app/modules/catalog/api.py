@@ -119,6 +119,48 @@ def add_product_option(product_id):
         return {"error": "invalid_option", "detail": str(exc)}, 400
 
 
+@api_bp.patch("/products/<int:product_id>/variants/<int:variant_id>")
+@admin_api_required("product.edit")
+def update_product_variant(product_id, variant_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CatalogService.update_variant(product_id, variant_id, payload)}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_variant", "detail": str(exc)}, 400
+
+
+@api_bp.delete("/products/<int:product_id>/variants/<int:variant_id>")
+@admin_api_required("product.edit")
+def archive_product_variant(product_id, variant_id):
+    try:
+        return {"item": CatalogService.archive_variant(product_id, variant_id)}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+
+
+@api_bp.patch("/products/<int:product_id>/options/<int:option_id>")
+@admin_api_required("product.edit")
+def update_product_option(product_id, option_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CatalogService.update_option(product_id, option_id, payload)}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_option", "detail": str(exc)}, 400
+
+
+@api_bp.delete("/products/<int:product_id>/options/<int:option_id>")
+@admin_api_required("product.edit")
+def delete_product_option(product_id, option_id):
+    try:
+        return {"item": CatalogService.remove_option(product_id, option_id)}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+
+
 @api_bp.post("/products/<int:product_id>/variants")
 @admin_api_required("product.edit")
 def add_product_variant(product_id):
