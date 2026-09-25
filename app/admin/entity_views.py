@@ -351,28 +351,106 @@ def register_entity_views(admin_bp):
             **build_admin_context(),
         )
 
-    @admin_bp.get("/returns")
+    @admin_bp.route("/returns", methods=["GET", "POST"])
     def returns():
-        from ..models import ReturnRequest
+        from ..models import ReturnRequest, ReturnItem, Order, Currency
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                action = request.form.get("action")
+                row = db.session.get(ReturnRequest, request.form.get("return_id", type=int))
+                if row is None:
+                    raise ValueError("طلب الإرجاع غير موجود.")
+                if action in {"approve", "reject"}:
+                    row.status = "approved" if action == "approve" else "rejected"
+                    if action == "approve":
+                        row.approved_at = __import__("datetime").datetime.now(__import__("datetime").timezone.utc)
+                    db.session.commit()
+                    success = "تم تحديث حالة الإرجاع."
+                elif action == "refund":
+                    from ..modules.after_sales.services import AfterSalesService
+                    amount = (request.form.get("amount") or "").strip()
+                    currency_id = request.form.get("currency_id", type=int)
+                    if not amount or not currency_id:
+                        raise ValueError("المبلغ والعملة مطلوبان.")
+                    result = AfterSalesService.process_refund({
+                        "order_id": row.order_id,
+                        "return_request_id": row.id,
+                        "amount": amount,
+                        "currency_id": currency_id,
+                        "method": (request.form.get("method") or "wallet").strip(),
+                        "status": "processed",
+                    })
+                    success = f"تم إنشاء الاسترداد #{result['id']}."
+                else:
+                    raise ValueError("إجراء الإرجاع غير معروف.")
+            except (ValueError, LookupError) as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = ReturnRequest.query.order_by(ReturnRequest.id.desc()).limit(200).all()
-        return _render("الإرجاع والاسترداد", ["ID", "الطلب", "العميل", "السبب", "الحالة"],
-                       [[x.id, x.order_id, x.customer_id, x.reason, x.status] for x in rows],
-                       "المبيعات والطلبات")
+        currencies = Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
+        return render_template(
+            "admin/returns.html",
+            title="الإرجاع والاسترداد",
+            returns=rows,
+            currencies=currencies,
+            success=success,
+            error=error,
+            **build_admin_context(),
+        )
 
-    @admin_bp.get("/warranty")
+    @admin_bp.route("/warranty", methods=["GET", "POST"])
     def warranty():
         from ..models import WarrantyClaim
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                row = db.session.get(WarrantyClaim, request.form.get("claim_id", type=int))
+                if row is None:
+                    raise ValueError("مطالبة الضمان غير موجودة.")
+                row.status = (request.form.get("status") or row.status).strip()
+                row.resolution = (request.form.get("resolution") or "").strip() or None
+                db.session.commit()
+                success = "تم تحديث مطالبة الضمان."
+            except ValueError as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = WarrantyClaim.query.order_by(WarrantyClaim.id.desc()).limit(200).all()
-        return _render("الضمان", ["ID", "الطلب", "الصنف", "المشكلة", "الحالة"],
-                       [[x.id, x.order_id, x.order_item_id, x.issue, x.status] for x in rows],
-                       "المبيعات والطلبات")
+        return render_template(
+            "admin/warranty.html",
+            title="الضمان",
+            claims=rows,
+            success=success,
+            error=error,
+            **build_admin_context(),
+        )
 
-    @admin_bp.get("/reviews")
+    @admin_bp.route("/reviews", methods=["GET", "POST"])
     def reviews():
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                row = db.session.get(Review, request.form.get("review_id", type=int))
+                if row is None:
+                    raise ValueError("التقييم غير موجود.")
+                row.status = (request.form.get("status") or row.status).strip()
+                db.session.commit()
+                success = "تم تحديث حالة التقييم."
+            except ValueError as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = Review.query.order_by(Review.id.desc()).limit(200).all()
-        return _render("التقييمات", ["ID", "المنتج", "العميل", "التقييم", "الحالة"],
-                       [[x.id, x.product_id, x.customer_id, x.rating, x.status] for x in rows],
-                       "المبيعات والطلبات")
+        return render_template(
+            "admin/reviews.html",
+            title="التقييمات",
+            reviews=rows,
+            success=success,
+            error=error,
+            **build_admin_context(),
+        )
 
     @admin_bp.get("/promotions/coupons")
     def coupons():
