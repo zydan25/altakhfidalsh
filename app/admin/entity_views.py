@@ -539,20 +539,58 @@ def register_entity_views(admin_bp):
         currencies = __import__("app.models", fromlist=["Currency"]).Currency.query.filter_by(is_active=True).order_by(__import__("app.models", fromlist=["Currency"]).Currency.code).all()
         return render_template("admin/wallets.html", title="محافظ العملاء", wallets=rows, customers=customers, currencies=currencies, success=success, error=error, **build_admin_context())
 
-    @admin_bp.get("/system/admins")
+    @admin_bp.route("/system/admins", methods=["GET", "POST"])
     def admins():
-        from ..models import Admin
+        from ..models import Admin, AdminRole, Role
+        from ..admin.auth import AdminAuthService
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                action = request.form.get("action")
+                if action == "create":
+                    username = (request.form.get("username") or "").strip()
+                    password = request.form.get("password") or ""
+                    phone = (request.form.get("phone") or "").strip()
+                    email = (request.form.get("email") or "").strip() or None
+                    created = AdminAuthService.bootstrap(username, password)
+                    row = db.session.get(Admin, created["id"])
+                    row.phone = phone or None
+                    row.email = email
+                    db.session.commit()
+                    role_id = request.form.get("role_id", type=int)
+                    if role_id:
+                        db.session.add(AdminRole(admin_id=row.id, role_id=role_id))
+                        db.session.commit()
+                    success = "تم إنشاء حساب المدير وربط الدور."
+                else:
+                    raise ValueError("إجراء المستخدم غير معروف.")
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = Admin.query.order_by(Admin.username).all()
-        return _render("المستخدمون", ["ID", "المستخدم", "البريد", "الهاتف", "الحالة"],
-                       [[x.id, x.username, x.email or "—", x.phone or "—", x.status] for x in rows],
-                       "النظام")
+        roles_rows = Role.query.filter_by(is_active=True).order_by(Role.name).all()
+        return render_template("admin/admins.html", title="المستخدمون", admins=rows, roles=roles_rows, success=success, error=error, **build_admin_context())
 
-    @admin_bp.get("/system/roles")
+    @admin_bp.route("/system/roles", methods=["GET", "POST"])
     def roles():
+        from ..models import Permission, Role
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                code = (request.form.get("code") or "").strip()
+                name = (request.form.get("name") or "").strip()
+                permission_ids = [int(x) for x in request.form.getlist("permission_ids")]
+                from ..modules.system.services import SystemService
+                SystemService.create_role({"code": code, "name": name, "permission_ids": permission_ids})
+                success = "تم إنشاء الدور وصلاحياته."
+            except (ValueError, KeyError, LookupError) as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = Role.query.order_by(Role.name).all()
-        return _render("الأدوار والصلاحيات", ["ID", "الدور", "الكود"],
-                       [[x.id, x.name, x.code] for x in rows],
-                       "النظام")
+        permissions = Permission.query.filter_by(is_active=True).order_by(Permission.code).all()
+        return render_template("admin/roles.html", title="الأدوار والصلاحيات", roles=rows, permissions=permissions, success=success, error=error, **build_admin_context())
 
     @admin_bp.get("/system/audit")
     def audit():
