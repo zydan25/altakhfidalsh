@@ -4,15 +4,15 @@ set -Eeuo pipefail
 export PM2_HOME="/home/root/.pm2"
 
 APP_ROOT="/home/root/projects/takhfid1"
-REPO_URL="\${REPO_URL:-https://github.com/zydan25/altakhfidalsh.git}"
+REPO_URL="${REPO_URL:-https://github.com/zydan25/altakhfidalsh.git}"
 DOMAIN="takhfidsh.alattab.site"
 PORT="4006"
 DB_NAME="takhfid1"
 DB_USER="takhfid1"
-DB_PASSWORD="\${TAKHFID1_DB_PASSWORD:-takhfid1}"
-ADMIN_PHONE="\${ADMIN_PHONE:-967774952665}"
-WHATSAPP_BASE_URL="\${WHATSAPP_BASE_URL:-https://whatsapp.alattab.site}"
-WHATSAPP_SESSION="\${WHATSAPP_SESSION:-basheer}"
+DB_PASSWORD="${TAKHFID1_DB_PASSWORD:-takhfid1}"
+ADMIN_PHONE="${ADMIN_PHONE:-967774952665}"
+WHATSAPP_BASE_URL="${WHATSAPP_BASE_URL:-https://whatsapp.alattab.site}"
+WHATSAPP_SESSION="${WHATSAPP_SESSION:-basheer}"
 
 log() { printf '\n[takhfid1] %s\n' "$*"; }
 die() { echo "[takhfid1][ERROR] $*" >&2; exit 1; }
@@ -49,18 +49,24 @@ python3 -m venv "$APP_ROOT/.venv"
 mkdir -p "$APP_ROOT/storage/media"
 chmod 755 "$APP_ROOT/storage" "$APP_ROOT/storage/media"
 
-log "إدخال مفتاح WhatsApp..."
-if [ -t 0 ]; then
+log "تحميل مفتاح WhatsApp..."
+if [ -z "${WHATSAPP_API_KEY:-}" ] && [ -f "$APP_ROOT/.env" ]; then
+  EXISTING_WHATSAPP_API_KEY="$(grep -E '^WHATSAPP_API_KEY=' "$APP_ROOT/.env" | tail -n 1 | cut -d= -f2- || true)"
+  EXISTING_WHATSAPP_API_KEY="${EXISTING_WHATSAPP_API_KEY#'}"
+  EXISTING_WHATSAPP_API_KEY="${EXISTING_WHATSAPP_API_KEY%'}"
+  EXISTING_WHATSAPP_API_KEY="${EXISTING_WHATSAPP_API_KEY#\"}"
+  EXISTING_WHATSAPP_API_KEY="${EXISTING_WHATSAPP_API_KEY%\"}"
+  WHATSAPP_API_KEY="$EXISTING_WHATSAPP_API_KEY"
+fi
+if [ -z "${WHATSAPP_API_KEY:-}" ] && [ -t 0 ]; then
   read -rsp "WHATSAPP_API_KEY: " WHATSAPP_API_KEY
   echo
-else
-  WHATSAPP_API_KEY="\${WHATSAPP_API_KEY:-}"
 fi
-[ -n "\${WHATSAPP_API_KEY:-}" ] || die "WHATSAPP_API_KEY مطلوب."
+[ -n "${WHATSAPP_API_KEY:-}" ] || die "WHATSAPP_API_KEY غير موجود في .env ولم يتم إدخاله."
 
-TAKHIFID1_SECRET_KEY="\${TAKHIFID1_SECRET_KEY:-}"
-TAKHIFID1_ADMIN_PASSWORD="\${TAKHIFID1_ADMIN_PASSWORD:-}"
-WHATSAPP_WEBHOOK_SECRET="\${WHATSAPP_WEBHOOK_SECRET:-}"
+TAKHIFID1_SECRET_KEY="${TAKHIFID1_SECRET_KEY:-}"
+TAKHIFID1_ADMIN_PASSWORD="${TAKHIFID1_ADMIN_PASSWORD:-}"
+WHATSAPP_WEBHOOK_SECRET="${WHATSAPP_WEBHOOK_SECRET:-}"
 
 [ -n "$TAKHIFID1_SECRET_KEY" ] || TAKHIFID1_SECRET_KEY="$(openssl rand -hex 32)"
 [ -n "$TAKHIFID1_ADMIN_PASSWORD" ] || TAKHIFID1_ADMIN_PASSWORD="$(openssl rand -hex 24)"
