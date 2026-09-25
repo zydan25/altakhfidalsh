@@ -4,6 +4,7 @@ from flask import render_template, request
 from sqlalchemy import func
 
 from .context import build_admin_context
+from ..modules.catalog.services import MediaService
 from ..extensions import db
 from ..models import (
     Category,
@@ -97,46 +98,117 @@ def register_admin_routes(admin_bp):
     def categories():
         context = _navigation_context()
         error = None
-        if request.method == "POST":
-            name = (request.form.get("name") or "").strip()
-            slug = (request.form.get("slug") or "").strip().lower()
-            parent_id = request.form.get("parent_id", type=int)
-            display_style = (request.form.get("display_style") or "circle").strip()
+        success = None
 
-            if not name or not slug:
-                error = "اسم الفئة وSlug مطلوبان."
-            else:
-                duplicate = Category.query.filter_by(parent_id=parent_id, slug=slug).first()
-                if duplicate:
-                    error = "الـSlug مستخدم داخل هذا المستوى."
-                else:
+        if request.method == "POST":
+            action = (request.form.get("action") or "create").strip()
+            try:
+                name = (request.form.get("name") or "").strip()
+                slug = (request.form.get("slug") or "").strip().lower()
+                parent_id = request.form.get("parent_id", type=int)
+                display_style = (request.form.get("display_style") or "circle").strip()
+
+                if action == "create":
+                    if not name or not slug:
+                        raise ValueError("اسم الفئة وSlug مطلوبان.")
+                    duplicate = Category.query.filter_by(parent_id=parent_id, slug=slug).first()
+                    if duplicate:
+                        raise ValueError("الـSlug مستخدم داخل هذا المستوى.")
+
+                    icon_asset_id = None
+                    icon_file = request.files.get("icon_file")
+                    if icon_file and icon_file.filename:
+                        assets = MediaService.save_generic_files([icon_file], "categories")
+                        icon_asset_id = assets[0]["id"] if assets else None
+
                     category = Category(
                         name=name,
                         slug=slug,
                         parent_id=parent_id,
                         display_style=display_style,
+                        sort_order=request.form.get("sort_order", 0, type=int),
+                        is_featured=request.form.get("is_featured") == "on",
+                        icon_asset_id=icon_asset_id,
+                        badge_id=request.form.get("badge_id", type=int),
                     )
                     db.session.add(category)
                     db.session.commit()
-                    return (
-                        render_template(
-                            "admin/categories.html",
-                            title="التصنيفات",
-                            rows=_category_tree_rows(),
-                            parents=Category.query.filter_by(is_active=True).order_by(Category.name).all(),
-                            success="تم إنشاء الفئة بنجاح.",
-                            error=None,
-                            **context,
-                        )
+                    success = "تم إنشاء الفئة."
+
+                elif action == "update":
+                    category_id = request.form.get("category_id", type=int)
+                    category = db.session.get(Category, category_id)
+                    if category is None:
+                        raise ValueError("الفئة غير موجودة.")
+                    if not name or not slug:
+                        raise ValueError("اسم الفئة وSlug مطلوبان.")
+                    if parent_id == category.id:
+                        raise ValueError("لا يمكن أن تكون الفئة أبًا لنفسها.")
+
+                    cursor = parent_id
+                    seen = set()
+                    while cursor is not None:
+                        if cursor in seen:
+                            raise ValueError("سلسلة الأب غير صالحة.")
+                        seen.add(cursor)
+                        if cursor == category.id:
+                            raise ValueError("لا يمكن نقل الفئة إلى أحد فروعها.")
+                        parent = db.session.get(Category, cursor)
+                        cursor = parent.parent_id if parent else None
+
+                    duplicate = (
+                        Category.query
+                        .filter(Category.id != category.id)
+                        .filter(Category.parent_id == parent_id, Category.slug == slug)
+                        .first()
                     )
+                    if duplicate:
+                        raise ValueError("الـSlug مستخدم داخل هذا المستوى.")
+
+                    category.name = name
+                    category.slug = slug
+                    category.parent_id = parent_id
+                    category.display_style = display_style
+                    category.sort_order = request.form.get("sort_order", 0, type=int)
+                    category.is_featured = request.form.get("is_featured") == "on"
+                    category.badge_id = request.form.get("badge_id", type=int)
+                    icon_file = request.files.get("icon_file")
+                    if icon_file and icon_file.filename:
+                        assets = MediaService.save_generic_files([icon_file], "categories")
+                        category.icon_asset_id = assets[0]["id"] if assets else category.icon_asset_id
+                    db.session.commit()
+                    success = "تم تحديث الفئة."
+
+                elif action == "delete":
+                    category_id = request.form.get("category_id", type=int)
+                    category = db.session.get(Category, category_id)
+                    if category is None:
+                        raise ValueError("الفئة غير موجودة.")
+                    has_children = Category.query.filter_by(parent_id=category.id, is_active=True).first()
+                    product_count = ProductCategory.query.filter_by(category_id=category.id).count()
+                    if has_children:
+                        raise ValueError("لا يمكن حذف فئة لها فروع. انقل الفروع أولًا.")
+                    if product_count:
+                        raise ValueError("لا يمكن حذف فئة مرتبطة بمنتجات. أزل الربط أولًا.")
+                    category.is_active = False
+                    db.session.commit()
+                    success = "تم أرشفة الفئة."
+
+                else:
+                    raise ValueError("إجراء التصنيف غير معروف.")
+
+            except (ValueError, OSError) as exc:
+                db.session.rollback()
+                error = str(exc)
 
         try:
             rows = _category_tree_rows()
             parents = Category.query.filter_by(is_active=True).order_by(Category.name).all()
+            from ..models import Badge
+            badges = Badge.query.filter_by(is_active=True).order_by(Badge.priority.desc(), Badge.name).all()
         except Exception:
             db.session.rollback()
-            rows = []
-            parents = []
+            rows, parents, badges = [], [], []
             error = error or "قاعدة البيانات غير متاحة حاليًا."
 
         return render_template(
@@ -144,10 +216,44 @@ def register_admin_routes(admin_bp):
             title="التصنيفات",
             rows=rows,
             parents=parents,
-            success=None,
+            badges=badges,
+            success=success,
             error=error,
             **context,
         )
+
+    @admin_bp.post("/categories/<int:category_id>")
+    def category_update(category_id):
+        request.form  # keep route explicit in the navigation and browser history
+        context = _navigation_context()
+        category = db.session.get(Category, category_id)
+        if category is None:
+            return render_template(
+                "admin/module.html",
+                title="الفئة غير موجودة",
+                section="الكتالوج",
+                requested_path=request.path,
+                **context,
+            ), 404
+        form = request.form.to_dict(flat=True)
+        form["action"] = form.get("action", "update")
+        # Reuse the canonical categories handler by posting through a compact redirect-safe path.
+        name = (form.get("name") or "").strip()
+        slug = (form.get("slug") or "").strip().lower()
+        parent_id = int(form["parent_id"]) if form.get("parent_id") else None
+        category.name = name
+        category.slug = slug
+        category.parent_id = parent_id
+        category.display_style = (form.get("display_style") or "circle").strip()
+        category.sort_order = int(form.get("sort_order") or 0)
+        category.is_featured = form.get("is_featured") == "on"
+        category.badge_id = int(form["badge_id"]) if form.get("badge_id") else None
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+        return __import__("flask").redirect("/admin/categories")
 
     @admin_bp.get("/products")
     def products():
