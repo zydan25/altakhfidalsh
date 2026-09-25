@@ -1,4 +1,4 @@
-from flask import redirect, render_template, request
+from flask import redirect, render_template, request, session
 
 from ..extensions import db
 from ..models import (
@@ -87,7 +87,7 @@ def register_entity_views(admin_bp):
                         order.id,
                         str(request.form["status"]),
                         actor_type="admin",
-                        actor_id=request.environ.get("admin_id"),
+                        actor_id=session.get("admin_id"),
                         note=(request.form.get("note") or "").strip() or None,
                     )
                     success = "تم تحديث حالة الطلب."
