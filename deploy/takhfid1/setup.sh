@@ -18,7 +18,7 @@ log(){ printf '\n[takhfid1] %s\n' "$*"; }
 die(){ echo "ERROR: $*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "شغّل السكربت كـroot عبر sudo bash deploy/takhfid1/setup.sh"
-for cmd in git python3 psql nginx node pm2 openssl curl; do
+for cmd in git python3 psql nginx node pm2 openssl curl runuser; do
   command -v "$cmd" >/dev/null 2>&1 || die "الأمر غير موجود: $cmd"
 done
 
@@ -31,7 +31,7 @@ else
 fi
 
 log "إنشاء PostgreSQL"
-psql -v ON_ERROR_STOP=1 -v db_password="$DB_PASSWORD" -U postgres -f "$APP_ROOT/deploy/takhfid1/postgres/init_takhfid1.sql"
+runuser -u postgres -- psql -v ON_ERROR_STOP=1 -v db_password="$DB_PASSWORD" -f "$APP_ROOT/deploy/takhfid1/postgres/init_takhfid1.sql"
 
 log "Python environment"
 python3 -m venv "$APP_ROOT/.venv"
