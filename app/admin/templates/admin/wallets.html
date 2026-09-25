@@ -1,0 +1,11 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">الترويج والمالية</span><h2>محافظ العملاء</h2><p class="muted">تعديل الرصيد مع تسجيل حركة مالية مرتبطة بالمدير.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="two-panel">
+<article class="panel"><div class="panel-heading"><div><span class="eyebrow">تعديل</span><h3>حركة محفظة</h3></div></div>
+<form method="post" class="form-stack"><label>العميل<select name="customer_id">{% for row in customers %}<option value="{{ row.id }}">{{ row.name or row.phone_normalized }}</option>{% endfor %}</select></label><label>العملة<select name="currency_id">{% for row in currencies %}<option value="{{ row.id }}">{{ row.code }}</option>{% endfor %}</select></label><label>المبلغ<input name="amount" type="number" step="0.0001" required></label><label>النوع<input name="type" value="adjustment"></label><button class="primary-button">حفظ الحركة</button></form>
+</article>
+<article class="panel"><div class="panel-heading"><div><span class="eyebrow">السجل</span><h3>المحافظ</h3></div><span class="status-pill">{{ wallets|length }}</span></div><div class="stack-list">{% for row in wallets %}<div class="stack-row"><strong>عميل #{{ row.customer_id }}</strong><span>عملة #{{ row.currency_id }} · {{ row.balance }} · {{ row.status }}</span></div>{% else %}<span class="muted">لا توجد محافظ.</span>{% endfor %}</div></article>
+</section>
+{% endblock %}
