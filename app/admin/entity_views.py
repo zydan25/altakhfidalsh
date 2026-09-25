@@ -283,7 +283,7 @@ def register_entity_views(admin_bp):
     @admin_bp.route("/payments", methods=["GET", "POST"])
     def payments():
         from ..models import Currency, Order, PaymentMethod
-        error=None; success=None
+        error=None; success=request.args.get("success")
         if request.method=="POST":
             try:
                 action=(request.form.get("action") or "").strip(); row=db.session.get(PaymentMethod,request.form.get("id",type=int))
@@ -864,6 +864,7 @@ def register_entity_views(admin_bp):
                         else: row.item_type=item_type; row.item_id=item_id; row.sort_order=request.form.get("sort_order",0,type=int); row.custom_label=(request.form.get("custom_label") or "").strip() or None; success="تم تحديث عنصر القسم."
                 else: raise ValueError("إجراء صفحات المتجر غير معروف.")
                 db.session.commit()
+                return redirect(url_for("admin.storefront_pages", success=success))
             except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
         pages=StorefrontPage.query.filter_by(is_active=True).order_by(StorefrontPage.id).all()
         sections=StorefrontSection.query.order_by(StorefrontSection.page_id,StorefrontSection.sort_order).limit(1000).all()
