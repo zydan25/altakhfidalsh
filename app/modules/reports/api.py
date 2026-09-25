@@ -1,6 +1,7 @@
 from sqlalchemy import func
 
 from . import api_bp
+from ...security import admin_api_required
 from ...extensions import db
 from ...models import Customer, Order, Product, ProductVariant, StockInventory
 
