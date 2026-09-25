@@ -400,7 +400,6 @@ class CatalogService:
         return {"id": option.id, "name": option.name, "values": values}
 
     @staticmethod
-    @staticmethod
     def remove_product_media(product_id, media_id):
         media = db.session.get(ProductMedia, media_id)
         if media is None or media.product_id != product_id:
@@ -413,6 +412,7 @@ class CatalogService:
         db.session.commit()
         return {"id": media_id}
 
+    @staticmethod
     def add_variant(product_id, payload):
         if db.session.get(Product, product_id) is None:
             raise LookupError("product not found")
