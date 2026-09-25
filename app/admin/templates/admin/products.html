@@ -1,0 +1,43 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<section class="module-header">
+  <div class="split-heading">
+    <div>
+      <span class="eyebrow">الكتالوج</span>
+      <h2>المنتجات</h2>
+      <p class="muted">المنتج الأساسي مستقل عن المتغيرات والصور والمخزون، وسيتم توسيع المعالج على هذا الأساس.</p>
+    </div>
+    <a class="primary-button" href="/admin/products/new">+ إضافة منتج</a>
+  </div>
+</section>
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+
+<section class="product-list">
+  {% for product in products %}
+  <article class="product-card panel">
+    <div class="product-main">
+      <div class="product-avatar">{{ product.name[:1] }}</div>
+      <div>
+        <strong>{{ product.name }}</strong>
+        <span>SKU: {{ product.sku }}</span>
+        <small>{{ product.status }}</small>
+      </div>
+    </div>
+    <div class="product-price">
+      <span>سعر الأساس</span>
+      <strong>{{ product.base_price }}</strong>
+      <small>SAR / {{ product.base_currency_id }}</small>
+    </div>
+  </article>
+  {% else %}
+  <section class="empty-state panel">
+    <div class="empty-icon">▣</div>
+    <h3>لا توجد منتجات</h3>
+    <p class="muted">ابدأ بإنشاء أول مسودة، ثم نكمل صور المنتج وألوانه ومقاساته والـVariants والمخزون.</p>
+    <a class="primary-button" href="/admin/products/new">إنشاء أول منتج</a>
+  </section>
+  {% endfor %}
+</section>
+{% endblock %}
