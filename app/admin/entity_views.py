@@ -383,14 +383,22 @@ def register_entity_views(admin_bp):
 
     @admin_bp.get("/storefront/pages")
     def storefront_pages():
-        from ..models import StorefrontPage, StorefrontSection
+        from ..models import StorefrontPage, StorefrontSection, StorefrontSectionItem
         pages = StorefrontPage.query.filter_by(is_active=True).order_by(StorefrontPage.id).all()
         sections = StorefrontSection.query.order_by(StorefrontSection.page_id, StorefrontSection.sort_order).limit(1000).all()
+        section_ids = [row.id for row in sections]
+        items = StorefrontSectionItem.query.filter(
+            StorefrontSectionItem.section_id.in_(section_ids)
+        ).order_by(StorefrontSectionItem.section_id, StorefrontSectionItem.sort_order, StorefrontSectionItem.id).all() if section_ids else []
+        items_by_section = {}
+        for item in items:
+            items_by_section.setdefault(item.section_id, []).append(item)
         return render_template(
             "admin/storefront_pages.html",
             title="صفحات المتجر",
             pages=pages,
             sections=sections,
+            items_by_section=items_by_section,
             **build_admin_context(),
         )
 
