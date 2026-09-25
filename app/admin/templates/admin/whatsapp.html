@@ -1,0 +1,142 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">التكاملات</span>
+  <div class="split-heading">
+    <div><h2>WhatsApp · {{ whatsapp_session }}</h2><p class="muted">تحكم مباشر في الجلسة، الحالة، QR، الرسائل، الأخطاء والتنبيهات، مع إرسال نص أو ملف من داخل لوحة الإدارة.</p></div>
+    <span id="waStatusPill" class="status-pill">جاري القراءة…</span>
+  </div>
+</section>
+<div id="waMessage" class="alert" hidden></div>
+
+<section class="metric-grid">
+  <article class="metric-card panel"><div class="metric-icon">●</div><div><span class="metric-label">الحالة</span><strong id="waStatus">—</strong></div></article>
+  <article class="metric-card panel"><div class="metric-icon">↓</div><div><span class="metric-label">الوارد</span><strong id="waIncoming">0</strong></div></article>
+  <article class="metric-card panel"><div class="metric-icon">↑</div><div><span class="metric-label">الصادر</span><strong id="waOutgoing">0</strong></div></article>
+  <article class="metric-card panel"><div class="metric-icon">!</div><div><span class="metric-label">آخر نشاط</span><strong id="waLastMessage">—</strong></div></article>
+</section>
+
+<section class="two-panel">
+<article class="panel">
+  <div class="panel-heading"><div><span class="eyebrow">جلسة</span><h3>التحكم</h3></div></div>
+  <div class="form-actions" style="margin-bottom:12px">
+    <button class="primary-button" data-wa-action="connect">تشغيل</button>
+    <button class="ghost-button" data-wa-action="disconnect">إيقاف</button>
+    <button class="ghost-button" data-wa-action="logout">تسجيل خروج</button>
+    <button class="ghost-button" id="refreshWa">تحديث</button>
+  </div>
+  <div class="mini-callout"><span>Base URL</span><strong dir="ltr">{{ whatsapp_base_url }}</strong></div>
+  <div class="mini-callout"><span>Webhook المتوقع</span><strong dir="ltr">/api/v1/notifications/webhook/whatsapp</strong></div>
+</article>
+
+<article class="panel">
+  <div class="panel-heading"><div><span class="eyebrow">QR</span><h3>ربط الهاتف</h3></div></div>
+  <div id="waQrBox" class="empty-state compact"><strong>لا يوجد QR حاليًا.</strong></div>
+</article>
+</section>
+
+<section class="two-panel" style="margin-top:12px">
+<article class="panel">
+  <div class="panel-heading"><div><span class="eyebrow">إرسال</span><h3>رسالة WhatsApp</h3></div></div>
+  <form id="waSendForm" class="form-stack">
+    <label>رقم المستلم<input name="phoneNumber" required dir="ltr" inputmode="tel" placeholder="9677XXXXXXX"></label>
+    <label>الرسالة<textarea name="message" rows="5" placeholder="اكتب الرسالة…"></textarea></label>
+    <label>ملف اختياري<input name="media" type="file"></label>
+    <button class="primary-button">إرسال</button>
+  </form>
+</article>
+<article class="panel">
+  <div class="panel-heading"><div><span class="eyebrow">API الخارجي</span><h3>Webhook Base URL</h3></div></div>
+  <form id="waApiUrlForm" class="form-stack">
+    <label>عنوان النظام<input name="apiBaseUrl" dir="ltr" placeholder="https://takhfidsh.alattab.site"></label>
+    <button class="ghost-button">حفظ عنوان الـWebhook</button>
+  </form>
+  <p class="muted">الدليل الحالي يعرّف أحداث الرسائل والحالة وQR على مسارات webhook مستقلة؛ الشاشة تحفظ العنوان في جلسة WhatsApp.</p>
+</article>
+</section>
+
+<section class="panel" style="margin-top:12px">
+<div class="panel-heading"><div><span class="eyebrow">السجل</span><h3>آخر الرسائل</h3></div><span class="status-pill" id="waMessageCount">0</span></div>
+<div id="waMessages" class="stack-list"></div>
+</section>
+
+<section class="two-panel" style="margin-top:12px">
+<article class="panel"><div class="panel-heading"><div><span class="eyebrow">الأخطاء</span><h3>آخر الأخطاء</h3></div></div><div id="waErrors" class="stack-list"></div></article>
+<article class="panel"><div class="panel-heading"><div><span class="eyebrow">التنبيهات</span><h3>آخر التنبيهات</h3></div></div><div id="waNotifications" class="stack-list"></div></article>
+</section>
+
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+<script>
+(() => {
+  const messageBox = document.getElementById("waMessage");
+  const show = (text, type="success") => { messageBox.textContent = text; messageBox.className = "alert " + type; messageBox.hidden = false; };
+  const esc = (v) => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+  const api = async (url, options={}) => {
+    const res = await fetch(url, options);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || data.error || "تعذر تنفيذ العملية");
+    return data;
+  };
+  const renderList = (id, items, mapper) => document.getElementById(id).innerHTML =
+    (items || []).map(mapper).join("") || '<span class="muted">لا توجد بيانات.</span>';
+
+  const load = async () => {
+    try {
+      const data = await api("/api/v1/notifications/whatsapp/console");
+      const s = data.status?.data || data.status || {};
+      const stats = s.stats || {};
+      document.getElementById("waStatus").textContent = s.status || "—";
+      document.getElementById("waStatusPill").textContent = s.status || "—";
+      document.getElementById("waIncoming").textContent = stats.incomingCount ?? 0;
+      document.getElementById("waOutgoing").textContent = stats.outgoingCount ?? 0;
+      document.getElementById("waLastMessage").textContent = stats.lastMessageAt || "—";
+      const qr = data.qr?.data?.qrCode || data.qr?.qrCode;
+      document.getElementById("waQrBox").innerHTML = qr
+        ? '<img alt="QR" style="max-width:260px;width:100%;image-rendering:pixelated;border:1px solid var(--border);border-radius:16px" src="' +
+          'data:image/png;base64,' + esc(qr) + '">'
+        : '<strong>لا يوجد QR حاليًا.</strong>';
+      const messages = data.messages?.items || data.messages?.data || [];
+      document.getElementById("waMessageCount").textContent = messages.length;
+      renderList("waMessages", messages, x => '<div class="stack-row" style="align-items:flex-start;flex-direction:column"><strong>' + esc(x.from || x.to || "—") + '</strong><span>' + esc(x.body || "") + '</span><small class="muted">' + esc(x.timestamp || "") + ' · ' + esc(x.direction || "") + '</small></div>');
+      const errors = data.errors?.items || data.errors?.data || [];
+      renderList("waErrors", errors, x => '<div class="stack-row" style="align-items:flex-start;flex-direction:column"><strong>' + esc(x.message || x.error || "خطأ") + '</strong><small class="muted">' + esc(x.timestamp || x.at || "") + '</small></div>');
+      const notifications = data.notifications?.items || data.notifications?.data || [];
+      renderList("waNotifications", notifications, x => '<div class="stack-row" style="align-items:flex-start;flex-direction:column"><strong>' + esc(x.title || x.type || "تنبيه") + '</strong><span>' + esc(x.body || x.message || "") + '</span></div>');
+    } catch (error) { show(error.message, "error"); }
+  };
+
+  document.querySelectorAll("[data-wa-action]").forEach(button => button.addEventListener("click", async () => {
+    try { await api("/api/v1/notifications/whatsapp/" + button.dataset.waAction, {method:"POST",headers:{"Content-Type":"application/json"},body:"{}"}); show("تم تنفيذ العملية."); await load(); }
+    catch(error){ show(error.message,"error"); }
+  }));
+  document.getElementById("refreshWa").addEventListener("click", load);
+  document.getElementById("waSendForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    try {
+      const res = await fetch("/api/v1/notifications/whatsapp/send", {method:"POST",body:new FormData(e.currentTarget)});
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.detail || data.error || "فشل الإرسال");
+      e.currentTarget.reset(); show("تم الإرسال."); await load();
+    } catch(error){ show(error.message,"error"); }
+  });
+  document.getElementById("waApiUrlForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    try {
+      await api("/api/v1/notifications/whatsapp/api-url",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({apiBaseUrl:new FormData(e.currentTarget).get("apiBaseUrl")})});
+      show("تم حفظ Webhook Base URL.");
+    } catch(error){ show(error.message,"error"); }
+  });
+
+  load();
+  setInterval(load, 15000);
+
+  if (window.io) {
+    try {
+      const socket = io("{{ whatsapp_base_url }}", {transports:["websocket","polling"]});
+      const refreshEvents = ["session:update:{{ whatsapp_session }}","session:notification:{{ whatsapp_session }}","session:update","session:notification"];
+      refreshEvents.forEach(name => socket.on(name, load));
+    } catch (_) {}
+  }
+})();
+</script>
+{% endblock %}
