@@ -161,6 +161,161 @@ def register_entity_views(admin_bp):
                        [[x.id, x.name, x.code, "نشط" if x.is_active else "متوقف"] for x in rows],
                        "النظام")
 
+
+
+    @admin_bp.get("/tasks")
+    def tasks():
+        from ..models import PaymentProof, ReturnRequest, WarrantyClaim
+        rows = []
+        for x in PaymentProof.query.filter_by(status="pending").limit(50).all():
+            rows.append(["دفع", x.id, x.order_id, x.status])
+        for x in ReturnRequest.query.filter_by(status="requested").limit(50).all():
+            rows.append(["إرجاع", x.id, x.order_id, x.status])
+        for x in WarrantyClaim.query.filter_by(status="submitted").limit(50).all():
+            rows.append(["ضمان", x.id, x.order_id, x.status])
+        return _render("الأعمال المعلقة", ["النوع", "ID", "الطلب", "الحالة"], rows, "الرئيسية")
+
+    @admin_bp.get("/notifications")
+    def notifications():
+        from ..models import Notification
+        rows = Notification.query.order_by(Notification.id.desc()).limit(200).all()
+        return _render("الإشعارات", ["ID", "العميل", "النوع", "العنوان", "الحالة"],
+                       [[x.id, x.customer_id, x.type, x.title, x.status] for x in rows], "العملاء والتواصل")
+
+    @admin_bp.get("/products/drafts")
+    def product_drafts():
+        from ..models import Product
+        rows = Product.query.filter_by(status="draft").order_by(Product.id.desc()).limit(200).all()
+        return _render("مسودات المنتجات", ["ID", "SKU", "الاسم", "السعر", "الحالة"],
+                       [[x.id, x.sku, x.name, x.base_price, x.status] for x in rows], "الكتالوج")
+
+    @admin_bp.get("/brands")
+    def brands():
+        from ..models import Brand
+        rows = Brand.query.filter_by(is_active=True).order_by(Brand.name).all()
+        return _render("العلامات التجارية", ["ID", "الاسم", "Slug", "Logo"],
+                       [[x.id, x.name, x.slug, x.logo_asset_id or "—"] for x in rows], "الكتالوج")
+
+    @admin_bp.get("/options")
+    def options():
+        from ..models import Color, Size
+        colors = Color.query.filter_by(is_active=True).order_by(Color.sort_order, Color.name).limit(200).all()
+        sizes = Size.query.filter_by(is_active=True).order_by(Size.group, Size.sort_order, Size.label).limit(200).all()
+        rows = (
+            [["لون", x.id, x.name, x.hex_code or "—", x.sort_order] for x in colors]
+            + [["مقاس", x.id, f"{x.group} / {x.code}", x.label, x.sort_order] for x in sizes]
+        )
+        return _render("الألوان والمقاسات", ["النوع", "ID", "الاسم/الكود", "القيمة", "الترتيب"], rows, "الكتالوج")
+
+    @admin_bp.get("/category-strip")
+    def category_strip():
+        from ..models import CategoryNavigationItem
+        rows = CategoryNavigationItem.query.filter_by(is_active=True).order_by(CategoryNavigationItem.sort_order).limit(200).all()
+        return _render("شريط الأقسام", ["ID", "الفئة", "Slot", "الترتيب", "ظاهر"],
+                       [[x.id, x.category_id, x.slot, x.sort_order, "نعم" if x.visible else "لا"] for x in rows], "الكتالوج")
+
+    @admin_bp.get("/storefront/pages")
+    def storefront_pages():
+        from ..models import StorefrontPage
+        rows = StorefrontPage.query.filter_by(is_active=True).order_by(StorefrontPage.id).all()
+        return _render("صفحات المتجر", ["ID", "الكود", "الاسم", "المسار"],
+                       [[x.id, x.code, x.name, x.route] for x in rows], "المحتوى والمتجر")
+
+    @admin_bp.get("/storefront/sections")
+    def storefront_sections():
+        from ..models import StorefrontSection
+        rows = StorefrontSection.query.order_by(StorefrontSection.page_id, StorefrontSection.sort_order).limit(500).all()
+        return _render("أقسام الصفحة", ["ID", "Page", "النوع", "العنوان", "الترتيب"],
+                       [[x.id, x.page_id, x.section_type, x.title or "—", x.sort_order] for x in rows], "المحتوى والمتجر")
+
+    @admin_bp.get("/banner-targets")
+    def banner_targets():
+        from ..models import BannerTarget
+        rows = BannerTarget.query.order_by(BannerTarget.banner_id, BannerTarget.priority.desc()).limit(500).all()
+        return _render("أهداف البانرات", ["ID", "Banner", "النوع", "الهدف", "الرابط"],
+                       [[x.id, x.banner_id, x.target_type, x.target_id or "—", x.url or "—"] for x in rows], "المحتوى والمتجر")
+
+    @admin_bp.get("/category-circles")
+    def category_circles():
+        from ..models import Category
+        rows = Category.query.filter(Category.is_active.is_(True), Category.display_style == "circle").order_by(Category.sort_order, Category.name).limit(200).all()
+        return _render("دوائر الفئات", ["ID", "الفئة", "الأب", "الترتيب"],
+                       [[x.id, x.name, x.parent_id or "—", x.sort_order] for x in rows], "المحتوى والمتجر")
+
+    @admin_bp.get("/trends")
+    def trends():
+        from ..models import Hashtag
+        rows = Hashtag.query.filter_by(is_active=True).order_by(Hashtag.sort_order, Hashtag.id.desc()).limit(300).all()
+        return _render("الترندات والهاشتاجات", ["ID", "الاسم", "Slug", "الترتيب"],
+                       [[x.id, x.display_name or x.name, x.slug, x.sort_order] for x in rows], "المحتوى والمتجر")
+
+    @admin_bp.get("/storefront/collections")
+    def storefront_collections():
+        from ..models import PromotionalStrip
+        rows = PromotionalStrip.query.filter_by(is_active=True).order_by(PromotionalStrip.id.desc()).limit(200).all()
+        return _render("جديدنا والعروض", ["ID", "الاسم", "النص", "الخلفية"],
+                       [[x.id, x.name, x.text_body, x.background_color or "—"] for x in rows], "المحتوى والمتجر")
+
+    @admin_bp.get("/geo")
+    def geo():
+        from ..models import City, Country, Region
+        rows = (
+            [["دولة", x.id, x.code, x.name_ar] for x in Country.query.filter_by(is_active=True).all()]
+            + [["منطقة", x.id, x.code, x.name] for x in Region.query.filter_by(is_active=True).all()]
+            + [["مدينة", x.id, x.code, x.name] for x in City.query.filter_by(is_active=True).all()]
+        )
+        return _render("المناطق والمدن", ["النوع", "ID", "الكود", "الاسم"], rows, "التسعير")
+
+    @admin_bp.get("/payments/proofs")
+    def payment_proofs():
+        from ..models import PaymentProof
+        rows = PaymentProof.query.order_by(PaymentProof.id.desc()).limit(200).all()
+        return _render("إثباتات الدفع", ["ID", "الطلب", "المعاملة", "Asset", "الحالة"],
+                       [[x.id, x.order_id, x.transaction_id or "—", x.asset_id, x.status] for x in rows], "المبيعات والطلبات")
+
+    @admin_bp.get("/customers/addresses")
+    def customer_addresses():
+        from ..models import CustomerAddress
+        rows = CustomerAddress.query.order_by(CustomerAddress.id.desc()).limit(300).all()
+        return _render("عناوين العملاء", ["ID", "العميل", "المستلم", "الهاتف", "المدينة"],
+                       [[x.id, x.customer_id, x.recipient_name, x.phone, x.city_id or "—"] for x in rows], "العملاء والتواصل")
+
+    @admin_bp.get("/attachments")
+    def attachments():
+        from ..models import MessageAttachment
+        rows = MessageAttachment.query.order_by(MessageAttachment.id.desc()).limit(300).all()
+        return _render("مرفقات المحادثات", ["ID", "الرسالة", "Asset", "النوع"],
+                       [[x.id, x.message_id, x.asset_id, x.mime_type] for x in rows], "العملاء والتواصل")
+
+    @admin_bp.get("/finance/wallet-ledger")
+    def wallet_ledger():
+        from ..models import WalletTransaction
+        rows = WalletTransaction.query.order_by(WalletTransaction.id.desc()).limit(300).all()
+        return _render("دفتر حركات المحافظ", ["ID", "المحفظة", "النوع", "المبلغ", "بعد الحركة"],
+                       [[x.id, x.wallet_id, x.type, x.amount, x.balance_after] for x in rows], "الترويج والمالية")
+
+    @admin_bp.get("/reports")
+    def reports():
+        from ..models import Order, Product, ProductVariant, StockInventory
+        orders_total = db.session.query(func.coalesce(func.sum(Order.total), 0)).filter(Order.status != "cancelled").scalar()
+        products_count = db.session.query(func.count(Product.id)).scalar() or 0
+        variants_count = db.session.query(func.count(ProductVariant.id)).scalar() or 0
+        available_stock = db.session.query(func.coalesce(func.sum(StockInventory.available), 0)).scalar() or 0
+        rows = [
+            ["مبيعات", "إجمالي الطلبات غير الملغاة", orders_total],
+            ["كتالوج", "المنتجات", products_count],
+            ["كتالوج", "المتغيرات", variants_count],
+            ["مخزون", "المتاح", available_stock],
+        ]
+        return _render("التقارير", ["المجال", "المؤشر", "القيمة"], rows, "الترويج والمالية")
+
+    @admin_bp.get("/system/settings")
+    def settings():
+        from ..models import AppSetting
+        rows = AppSetting.query.order_by(AppSetting.group_code, AppSetting.key).limit(500).all()
+        return _render("الإعدادات", ["المجموعة", "المفتاح", "القيمة", "النوع"],
+                       [[x.group_code, x.key, x.value or "—", x.value_type] for x in rows], "النظام")
+
     @admin_bp.get("/system/features")
     def features():
         rows = FeatureFlag.query.order_by(FeatureFlag.key).all()
