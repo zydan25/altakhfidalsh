@@ -83,8 +83,8 @@
               value="{{ field.value or '' }}"
               {% if field.required %}required{% endif %}
               {% if field.dir %}dir="{{ field.dir }}"{% endif %}
-              {% if field.min is not none %}min="{{ field.min }}"{% endif %}
-              {% if field.step %}step="{{ field.step }}"{% endif %}
+              {% if field.min is defined %}min="{{ field.min }}"{% endif %}
+              {% if field.step is defined and field.step %}step="{{ field.step }}"{% endif %}
               placeholder="{{ field.placeholder or '' }}"
               {% if field.autocomplete == false %}autocomplete="off"{% endif %}
               {% if field.auto_slug_source %}data-slug-source="{{ field.auto_slug_source }}"{% endif %}
