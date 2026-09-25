@@ -1,6 +1,18 @@
+import os
+
 from app import create_app
 from app.extensions import db
-from app.models import Country, Currency, PricingGroup, PricingGroupRule, Region
+from app.models import (
+    AdminRole,
+    Country,
+    Currency,
+    Permission,
+    PricingGroup,
+    PricingGroupRule,
+    Region,
+    Role,
+    RolePermission,
+)
 
 
 def seed():
@@ -68,6 +80,53 @@ def seed():
         for code, name in (("NORTH", "الشمال"), ("SOUTH", "الجنوب")):
             if Region.query.filter_by(country_id=country.id, code=code).first() is None:
                 db.session.add(Region(country_id=country.id, code=code, name=name))
+
+        permissions = [
+            ("dashboard.view", "عرض لوحة التحكم"),
+            ("product.view", "عرض المنتجات"),
+            ("product.create", "إنشاء المنتجات"),
+            ("product.edit", "تعديل المنتجات"),
+            ("category.view", "عرض التصنيفات"),
+            ("category.manage", "إدارة التصنيفات"),
+            ("pricing.view", "عرض التسعير"),
+            ("pricing.manage", "إدارة التسعير"),
+            ("content.view", "عرض المحتوى"),
+            ("banner.manage", "إدارة البانرات"),
+            ("campaign.view", "عرض الحملات"),
+            ("campaign.manage", "إدارة الحملات"),
+            ("hashtag.view", "عرض الهاشتاجات"),
+            ("hashtag.manage", "إدارة الهاشتاجات"),
+            ("order.view", "عرض الطلبات"),
+            ("order.manage", "إدارة الطلبات"),
+            ("customer.view", "عرض العملاء"),
+            ("customer.manage", "إدارة العملاء"),
+        ]
+        permission_rows = []
+        for code, name in permissions:
+            row = Permission.query.filter_by(code=code).first()
+            if row is None:
+                row = Permission(code=code, name=name)
+                db.session.add(row)
+                db.session.flush()
+            permission_rows.append(row)
+
+        role = Role.query.filter_by(code="super_admin").first()
+        if role is None:
+            role = Role(name="مدير النظام", code="super_admin")
+            db.session.add(role)
+            db.session.flush()
+        for permission in permission_rows:
+            if RolePermission.query.filter_by(role_id=role.id, permission_id=permission.id).first() is None:
+                db.session.add(RolePermission(role_id=role.id, permission_id=permission.id))
+
+        admin_username = os.getenv("ADMIN_USERNAME")
+        admin_password = os.getenv("ADMIN_PASSWORD")
+        if admin_username and admin_password:
+            from app.admin.auth import AdminAuthService
+            admin = AdminAuthService.bootstrap(admin_username, admin_password)
+            admin_row = AdminRole.query.filter_by(admin_id=admin["id"], role_id=role.id).first()
+            if admin_row is None:
+                db.session.add(AdminRole(admin_id=admin["id"], role_id=role.id))
 
         db.session.commit()
         print("Seed completed.")
