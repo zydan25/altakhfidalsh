@@ -208,9 +208,13 @@
       '</form></details>'
     )).join("");
 
+    const colorMap = new Map((configRefs?.colors || optionRefs?.colors || []).map(x => [Number(x.id), x]));
+    const sizeMap = new Map((configRefs?.sizes || optionRefs?.sizes || []).map(x => [Number(x.id), x]));
     document.getElementById("variantsList").innerHTML = (snapshot.variants || []).map(variant => (
       '<details class="panel" style="padding:12px">' +
-      '<summary><strong>' + escapeHtml(variant.sku) + '</strong><span class="muted"> · Color ' + (variant.color_id || "—") + ' · Size ' + (variant.size_id || "—") + '</span></summary>' +
+      '<summary><strong>' + escapeHtml(variant.sku) + '</strong><span class="muted"> · اللون: ' +
+        escapeHtml(colorMap.get(Number(variant.color_id))?.name || "بدون لون") + ' · المقاس: ' +
+        escapeHtml(sizeMap.get(Number(variant.size_id))?.label || "بدون مقاس") + '</span></summary>' +
       '<form class="form-stack variant-edit-form" data-variant-id="' + variant.id + '" style="margin-top:10px">' +
       '<label>SKU<input name="sku" value="' + escapeHtml(variant.sku) + '" required dir="ltr"></label>' +
       '<label>اللون<select name="color_id" data-current="' + (variant.color_id || "") + '"></select></label>' +
@@ -268,9 +272,12 @@
     variantSelect.innerHTML = (snapshot.variants || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.sku) + '</option>').join("");
     const locationSelect = document.getElementById("inventoryLocation");
     locationSelect.innerHTML = (snapshot.locations || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + ' · ' + escapeHtml(x.code) + '</option>').join("");
-    document.getElementById("inventoryList").innerHTML = (snapshot.inventory || []).map(x => (
-      '<div class="stack-row"><strong>Variant #' + x.variant_id + '</strong><span>المتاح ' + x.available + ' · الفعلي ' + x.on_hand + ' · محجوز ' + x.reserved + '</span></div>'
-    )).join("");
+    const variantMap = new Map((snapshot.variants || []).map(x => [Number(x.id), x]));
+    document.getElementById("inventoryList").innerHTML = (snapshot.inventory || []).map(x => {
+      const variant = variantMap.get(Number(x.variant_id));
+      return '<div class="stack-row"><strong>' + escapeHtml(variant?.sku || ("Variant #" + x.variant_id)) +
+        '</strong><span>المتاح ' + x.available + ' · الفعلي ' + x.on_hand + ' · محجوز ' + x.reserved + '</span></div>';
+    }).join("");
 
     document.getElementById("showRating").checked = snapshot.display?.show_rating ?? true;
     document.getElementById("showSoldBadge").checked = snapshot.display?.show_sold_badge ?? true;
@@ -395,6 +402,9 @@
   };
 
   steps.forEach(step => step.addEventListener("click", () => activate(step.dataset.step)));
+  document.querySelectorAll("[data-go-step]").forEach(button => {
+    button.addEventListener("click", () => activate(button.dataset.goStep));
+  });
 
   const closeModal = (name) => {
     const modal = document.querySelector('[data-modal="' + name + '"]');
@@ -490,12 +500,7 @@
         renderDimensionChoices();
         syncVariantSelectors();
       }
-      const select = document.getElementById("variantColor");
-      if (created.item?.id) {
-        select.value = String(created.item.id);
-        activate("variants");
-      }
-      notify("تم إنشاء اللون وإضافته لقائمة المتغيرات.");
+      notify("تم إنشاء اللون وإضافته إلى قائمة خصائص المنتج. اضغط حفظ الألوان والمقاسات لاعتماد الاختيار.");
     } catch (error) { notify(error.message, "error"); }
   });
 
