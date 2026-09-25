@@ -418,12 +418,37 @@ def register_entity_views(admin_bp):
                        [[x.id, x.action, x.entity_type, x.entity_id or "—", x.admin_id or "—"] for x in rows],
                        "النظام")
 
-    @admin_bp.get("/system/theme")
+    @admin_bp.route("/system/theme", methods=["GET", "POST"])
     def theme():
-        rows = Theme.query.order_by(Theme.name).all()
-        return _render("الثيم", ["ID", "الاسم", "الكود", "الحالة"],
-                       [[x.id, x.name, x.code, "نشط" if x.is_active else "متوقف"] for x in rows],
-                       "النظام")
+        from ..models import AppSetting
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                for key in ("accent", "accent_soft", "bg", "surface", "border", "text", "muted"):
+                    value = (request.form.get(key) or "").strip()
+                    if not value:
+                        continue
+                    row = AppSetting.query.filter_by(group_code="theme", key=key).first()
+                    if row is None:
+                        row = AppSetting(group_code="theme", key=key, value=value, value_type="css")
+                        db.session.add(row)
+                    else:
+                        row.value = value
+                db.session.commit()
+                success = "تم حفظ ألوان الواجهة."
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
+        values = {row.key: row.value for row in AppSetting.query.filter_by(group_code="theme").all()}
+        return render_template(
+            "admin/system_theme.html",
+            title="الثيم",
+            values=values,
+            error=error,
+            success=success,
+            **build_admin_context(),
+        )
 
 
 
