@@ -1,5 +1,4 @@
-from decimal import Decimal
-
+from datetime import datetime, timezone
 from ...extensions import db
 from ...models import (
     Currency,
@@ -10,6 +9,14 @@ from ...models import (
     PricingGroupRule,
 )
 from ...services.pricing import price_for_customer
+
+
+def _dt(value):
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value
+    return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
 
 
 class PricingAdminService:
@@ -47,8 +54,8 @@ class PricingAdminService:
             quote_currency_id=quote_id,
             rate=rate,
             source=payload.get("source"),
-            valid_from=payload["valid_from"],
-            valid_to=payload.get("valid_to"),
+            valid_from=_dt(payload["valid_from"]),
+            valid_to=_dt(payload.get("valid_to")),
         )
         db.session.add(row)
         db.session.commit()
@@ -61,8 +68,8 @@ class PricingAdminService:
             description=(payload.get("description") or "").strip() or None,
             default_currency_id=payload.get("default_currency_id"),
             priority=int(payload.get("priority", 0)),
-            starts_at=payload.get("starts_at"),
-            ends_at=payload.get("ends_at"),
+            starts_at=_dt(payload.get("starts_at")),
+            ends_at=_dt(payload.get("ends_at")),
             is_default=bool(payload.get("is_default", False)),
         )
         db.session.add(group)
@@ -104,8 +111,8 @@ class PricingAdminService:
             region_id=int(region_id) if region_id is not None else None,
             pricing_group_id=group_id,
             priority=int(payload.get("priority", 0)),
-            starts_at=payload.get("starts_at"),
-            ends_at=payload.get("ends_at"),
+            starts_at=_dt(payload.get("starts_at")),
+            ends_at=_dt(payload.get("ends_at")),
         )
         db.session.add(row)
         db.session.commit()
