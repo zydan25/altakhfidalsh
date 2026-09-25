@@ -33,6 +33,16 @@
       {% for target in targets if target.banner_id == b.id %}
       <div class="stack-row" style="align-items:flex-start;flex-wrap:wrap">
         <span><strong>{{ target.target_type }}</strong> · {% if target.url %}{{ target.url }}{% else %}#{{ target.target_id }}{% endif %}</span>
+        <details><summary class="ghost-button">تعديل الهدف</summary>
+          <form method="post" class="form-stack" style="margin-top:8px">
+            <input type="hidden" name="action" value="update_target"><input type="hidden" name="target_id" value="{{ target.id }}">
+            <label>النوع<select name="target_type"><option value="category" {% if target.target_type=="category" %}selected{% endif %}>فئة</option><option value="product" {% if target.target_type=="product" %}selected{% endif %}>منتج</option><option value="campaign" {% if target.target_type=="campaign" %}selected{% endif %}>حملة</option><option value="url" {% if target.target_type=="url" %}selected{% endif %}>رابط</option></select></label>
+            <label>معرّف الهدف<input name="target_id_value" type="number" value="{{ target.target_id or '' }}"></label>
+            <label>الرابط<input name="target_url" type="url" value="{{ target.url or '' }}" dir="ltr"></label>
+            <label>الأولوية<input name="target_priority" type="number" value="{{ target.priority }}"></label>
+            <button class="primary-button">حفظ الهدف</button>
+          </form>
+        </details>
         <form method="post"><input type="hidden" name="action" value="delete_target"><input type="hidden" name="id" value="{{ target.id }}"><button class="ghost-button">حذف الهدف</button></form>
       </div>
       {% else %}
