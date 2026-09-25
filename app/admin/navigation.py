@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 
+
 @dataclass(frozen=True)
 class NavItem:
     label: str
@@ -7,11 +8,14 @@ class NavItem:
     icon: str
     badge_key: str | None = None
 
-@dataclass(frozen=True)
+
+@dataclass
 class NavSection:
     label: str
     icon: str
     children: list[NavItem] = field(default_factory=list)
+    active: bool = False
+
 
 NAVIGATION = [
     NavSection("الرئيسية", "⌂", [
