@@ -11,6 +11,8 @@
   let marketingRefs = null;
   let optionRefs = null;
   let configRefs = null;
+  let draftColorIds = new Set();
+  let draftSizeIds = new Set();
 
   const notify = (text, type = "success") => {
     message.textContent = text;
@@ -53,25 +55,98 @@
     }
   };
 
+  const renderCategoryTree = (rows, selectedIds) => {
+    const byParent = new Map();
+    rows.forEach(row => {
+      const key = row.parent_id == null ? null : Number(row.parent_id);
+      if (!byParent.has(key)) byParent.set(key, []);
+      byParent.get(key).push(row);
+    });
+    byParent.forEach(list => list.sort((a, b) => {
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.name).localeCompare(String(b.name), "ar");
+    }));
+
+    const walk = (parentId, depth = 0, trail = new Set()) => {
+      const rowsAtLevel = byParent.get(parentId) || [];
+      return rowsAtLevel.map(category => {
+        if (trail.has(category.id)) return "";
+        const nextTrail = new Set(trail);
+        nextTrail.add(category.id);
+        const children = walk(category.id, depth + 1, nextTrail);
+        const hasChildren = Boolean(children);
+        return '<div class="category-picker-node" style="--depth:' + depth + '">' +
+          '<label class="category-picker-choice">' +
+          '<input type="checkbox" value="' + category.id + '" data-category-checkbox ' +
+            (selectedIds.has(String(category.id)) ? 'checked' : '') +
+            (category.is_active ? '' : ' disabled') + '>' +
+          '<span class="category-picker-marker">' + (hasChildren ? "▾" : "•") + '</span>' +
+          '<span class="category-picker-copy"><strong>' + escapeHtml(category.name) + '</strong><small>' +
+            escapeHtml(category.slug) + (!category.is_active ? ' · مؤرشف' : '') +
+          '</small></span></label>' + children + '</div>';
+      }).join("");
+    };
+    return walk(null);
+  };
+
+  const renderDimensionChoices = () => {
+    const colors = (configRefs?.colors || []).slice();
+    const sizes = (configRefs?.sizes || []).slice();
+    const colorQuery = (document.getElementById("colorSearch")?.value || "").trim().toLocaleLowerCase();
+    const sizeQuery = (document.getElementById("sizeSearch")?.value || "").trim().toLocaleLowerCase();
+
+    const matchingColors = colors.filter(color =>
+      !colorQuery || String(color.name).toLocaleLowerCase().includes(colorQuery)
+    );
+    const matchingSizes = sizes.filter(size =>
+      !sizeQuery ||
+      String(size.label).toLocaleLowerCase().includes(sizeQuery) ||
+      String(size.code).toLocaleLowerCase().includes(sizeQuery) ||
+      String(size.group).toLocaleLowerCase().includes(sizeQuery)
+    );
+
+    document.getElementById("productColors").innerHTML = matchingColors.length
+      ? matchingColors.map(color => {
+          const checked = draftColorIds.has(Number(color.id));
+          return '<label class="reference-choice-card ' + (checked ? "is-selected" : "") + (!color.is_active ? " is-archived" : "") + '">' +
+            '<input type="checkbox" value="' + color.id + '" data-color-ref-checkbox ' +
+              (checked ? 'checked' : '') + (color.is_active ? '' : ' disabled') + '>' +
+            '<span class="color-swatch large" style="background:' + escapeHtml(color.hex_code || "#111827") + '"></span>' +
+            '<span class="reference-choice-copy"><strong>' + escapeHtml(color.name) + '</strong><small>' +
+              (color.is_active ? (checked ? "متاح لهذا المنتج" : "متاح للاختيار") : "مؤرشف — أعده من جدول الألوان") +
+            '</small></span><span class="reference-choice-check">' + (checked ? "✓" : "○") + '</span></label>';
+        }).join("")
+      : '<div class="empty-state compact"><strong>لا توجد ألوان مطابقة.</strong><span class="muted">ابحث باسم آخر أو أضف لونًا جديدًا من الزر.</span></div>';
+
+    document.getElementById("sizeReferencePreview").innerHTML = matchingSizes.length
+      ? matchingSizes.map(size => {
+          const checked = draftSizeIds.has(Number(size.id));
+          return '<label class="reference-choice-card ' + (checked ? "is-selected" : "") + (!size.is_active ? " is-archived" : "") + '">' +
+            '<input type="checkbox" value="' + size.id + '" data-size-ref-checkbox ' +
+              (checked ? 'checked' : '') + (size.is_active ? '' : ' disabled') + '>' +
+            '<span class="size-choice-badge">' + escapeHtml(size.code) + '</span>' +
+            '<span class="reference-choice-copy"><strong>' + escapeHtml(size.label) + '</strong><small>' +
+              escapeHtml(size.group) + (!size.is_active ? ' · مؤرشف' : '') +
+            '</small></span><span class="reference-choice-check">' + (checked ? "✓" : "○") + '</span></label>';
+        }).join("")
+      : '<div class="empty-state compact"><strong>لا توجد مقاسات مطابقة.</strong><span class="muted">ابحث باسم أو كود آخر أو أضف مقاسًا جديدًا.</span></div>';
+
+    document.getElementById("productColorCount").textContent = draftColorIds.size + " محدد";
+    document.getElementById("availableSizeCount").textContent = draftSizeIds.size + " محدد";
+    const colorSummary = document.getElementById("colorSelectionSummary");
+    const sizeSummary = document.getElementById("sizeSelectionSummary");
+    if (colorSummary) colorSummary.textContent = draftColorIds.size + " محدد";
+    if (sizeSummary) sizeSummary.textContent = draftSizeIds.size + " محدد";
+  };
+
   const hydrate = () => {
     const categories = configRefs?.categories || [];
     const categoryParent = document.querySelector('#quickCategoryForm select[name="parent_id"]');
     if (categoryParent) {
       categoryParent.innerHTML = '<option value="">بدون أب</option>' +
-        categories.filter(x => x.is_active).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+        categories.filter(x => x.is_active).map(x => '<option value="' + x.id + '">↳ ' + escapeHtml(x.name) + '</option>').join("");
     }
     const selectedCategories = new Set((snapshot.categories || []).map(x => String(x.id)));
-    document.getElementById("categorySelection").innerHTML = categories.length
-      ? categories.map(category =>
-          '<label class="check-row">' +
-          '<input type="checkbox" value="' + category.id + '" data-category-checkbox ' +
-            (selectedCategories.has(String(category.id)) ? 'checked' : '') +
-            (category.is_active ? '' : 'disabled') + '>' +
-          '<span><strong>' + escapeHtml(category.name) + '</strong><small>' +
-            escapeHtml(category.slug) + (!category.is_active ? ' · مؤرشف' : '') +
-          '</small></span></label>'
-        ).join("")
-      : '<div class="empty-state compact"><strong>لا توجد تصنيفات متاحة.</strong><span class="muted">أضف تصنيفًا جديدًا من الزر أعلاه.</span></div>';
+    document.getElementById("categorySelection").innerHTML = renderCategoryTree(categories, selectedCategories);
 
     document.getElementById("optionsList").innerHTML = (snapshot.options || []).map(option => (
       '<details class="panel" style="padding:12px">' +
@@ -108,30 +183,24 @@
     document.getElementById("mediaPreview").innerHTML = mediaRows.map(mediaCard).join("");
     document.getElementById("mediaTotalCount").textContent = mediaRows.length + " صورة";
 
-    const colors = optionRefs?.colors || [];
-    const usedColorIds = new Set((snapshot.variants || []).map(v => v.color_id).filter(Boolean).map(Number));
-    document.getElementById("productColorCount").textContent = usedColorIds.size;
-    document.getElementById("productColors").innerHTML = colors.length
-      ? colors.map(color => {
-          const used = usedColorIds.has(Number(color.id));
-          const bg = color.hex_code || "#111827";
-          return '<div class="swatch-card ' + (used ? "is-used" : "") + '">' +
-            '<span class="color-swatch large" style="background:' + escapeHtml(bg) + '"></span>' +
-            '<div class="swatch-copy"><strong>' + escapeHtml(color.name) + '</strong><small>' + (used ? "مستخدم في متغير" : "متاح") + '</small></div>' +
-            '<button class="ghost-button use-color-button" type="button" data-use-color="' + color.id + '">' + (used ? "استخدام" : "＋ إضافة للمتغير") + '</button>' +
-          '</div>';
-        }).join("")
-      : '<div class="empty-state compact"><strong>لا توجد ألوان.</strong><span class="muted">أضف أول لون من الزر أعلاه.</span></div>';
+    configRefs = configRefs || optionRefs || {};
+    if (!draftColorIds.size) {
+      draftColorIds = new Set((snapshot.reference_colors || []).map(x => Number(x.id)));
+      if (!draftColorIds.size) {
+        draftColorIds = new Set((configRefs.colors || []).filter(x => x.selected).map(x => Number(x.id)));
+      }
+    }
+    if (!draftSizeIds.size) {
+      draftSizeIds = new Set((snapshot.reference_sizes || []).map(x => Number(x.id)));
+      if (!draftSizeIds.size) {
+        draftSizeIds = new Set((configRefs.sizes || []).filter(x => x.selected).map(x => Number(x.id)));
+      }
+    }
+    renderDimensionChoices();
 
-    document.getElementById("availableSizeCount").textContent = (optionRefs?.sizes || []).length;
-    document.getElementById("sizeReferencePreview").innerHTML = (optionRefs?.sizes || []).slice(0, 40).map(size => (
-      '<div class="size-reference-item">' +
-      '<span class="size-chip"><strong>' + escapeHtml(size.label) + '</strong><small>' + escapeHtml(size.group) + ' · ' + escapeHtml(size.code) + '</small></span>' +
-      '<button type="button" class="ghost-button use-size-button" data-use-size="' + size.id + '"' +
-        (!size.is_active ? ' disabled' : '') + '>اختيار</button>' +
-      '</div>'
-    )).join("") || '<span class="muted">لا توجد مقاسات مرجعية.</span>';
-
+    const colors = (configRefs?.colors || optionRefs?.colors || []).filter(color =>
+      color.is_active && (draftColorIds.has(Number(color.id)) || mediaRows.some(x => Number(x.color_id) === Number(color.id)))
+    );
     document.getElementById("mediaColorGroups").innerHTML = colors.length
       ? colors.map(color => {
           const rows = mediaRows.filter(x => String(x.color_id || "") === String(color.id));
@@ -204,13 +273,13 @@
         escapeHtml(x.name) + (!x.is_active ? ' · مؤرشف' : '') + '</option>').join("");
     if (snapshot.product?.brand_id) brand.value = String(snapshot.product.brand_id);
 
-    const activeColorOptions = (optionRefs?.colors || []).map(x =>
-      '<option value="' + x.id + '"' + (!x.is_active ? ' disabled' : '') + '>' +
-      escapeHtml(x.name) + (!x.is_active ? ' · مؤرشف (استعده من الأرشيف)' : '') + '</option>'
+    const selectableColors = (configRefs?.colors || optionRefs?.colors || []).filter(x => x.is_active && draftColorIds.has(Number(x.id)));
+    const selectableSizes = (configRefs?.sizes || optionRefs?.sizes || []).filter(x => x.is_active && draftSizeIds.has(Number(x.id)));
+    const activeColorOptions = (selectableColors.length ? selectableColors : (configRefs?.colors || optionRefs?.colors || []).filter(x => x.is_active)).map(x =>
+      '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>'
     ).join("");
-    const activeSizeOptions = (optionRefs?.sizes || []).map(x =>
-      '<option value="' + x.id + '"' + (!x.is_active ? ' disabled' : '') + '>' +
-      escapeHtml(x.label) + ' · ' + escapeHtml(x.group) + (!x.is_active ? ' · مؤرشف' : '') + '</option>'
+    const activeSizeOptions = (selectableSizes.length ? selectableSizes : (configRefs?.sizes || optionRefs?.sizes || []).filter(x => x.is_active)).map(x =>
+      '<option value="' + x.id + '">' + escapeHtml(x.label) + ' · ' + escapeHtml(x.group) + '</option>'
     ).join("");
 
     const color = document.getElementById("variantColor");
@@ -238,11 +307,9 @@
 
     const mediaColor = document.getElementById("mediaColor");
     if (mediaColor) {
+      const mediaColors = (configRefs?.colors || optionRefs?.colors || []).filter(x => x.is_active && (draftColorIds.has(Number(x.id)) || (snapshot.media || []).some(m => Number(m.color_id) === Number(x.id))));
       mediaColor.innerHTML = '<option value="">صور عامة للمنتج</option>' +
-        (optionRefs?.colors || []).map(x =>
-          '<option value="' + x.id + '"' + (!x.is_active ? ' disabled' : '') + '>' +
-          escapeHtml(x.name) + (!x.is_active ? ' · مؤرشف' : '') + '</option>'
-        ).join("");
+        mediaColors.map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
     }
     const size = document.getElementById("variantSize");
     size.innerHTML = '<option value="">بدون مقاس</option>' + activeSizeOptions;
