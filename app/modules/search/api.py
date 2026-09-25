@@ -1,7 +1,8 @@
 from flask import request
-from sqlalchemy import and_, or_
+from sqlalchemy import func, or_
 
 from . import api_bp
+from ...extensions import db
 from ...extensions import db
 from ...models import (
     Category,
@@ -56,11 +57,16 @@ def search_products():
         descendants = _category_descendants(category_id)
         query = query.join(ProductCategory).filter(ProductCategory.category_id.in_(descendants))
 
-    for value_id in filter_values:
-        query = query.join(
-            ProductFilterValue,
-            ProductFilterValue.product_id == Product.id,
-        ).filter(ProductFilterValue.filter_value_id == value_id)
+    if filter_values:
+        unique_filter_values = sorted(set(filter_values))
+        matching_products = (
+            db.session.query(ProductFilterValue.product_id)
+            .filter(ProductFilterValue.filter_value_id.in_(unique_filter_values))
+            .group_by(ProductFilterValue.product_id)
+            .having(func.count(func.distinct(ProductFilterValue.filter_value_id)) == len(unique_filter_values))
+            .subquery()
+        )
+        query = query.filter(Product.id.in_(matching_products))
 
     rows = query.distinct().order_by(Product.id.desc()).limit(100).all()
     return {"items": [
