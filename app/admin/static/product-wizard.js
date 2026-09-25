@@ -167,17 +167,6 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const slugInput = document.getElementById("productSlug");
-  const nameInput = document.getElementById("productName");
-  let slugTouched = Boolean(slugInput?.value.trim());
-  slugInput?.addEventListener("input", () => { slugTouched = true; });
-  nameInput?.addEventListener("input", () => {
-    if (!slugTouched && slugInput) slugInput.value = String(nameInput.value || "").toLowerCase().trim()
-      .normalize("NFKD").replace(/[\u064B-\u065F\u0670]/g, "")
-      .replace(/[أإآ]/g, "a").replace(/ة/g, "h").replace(/ى/g, "a")
-      .replace(/[ءؤئ]/g, "a").replace(/[ابتثجحخدذرزسشصضطظعغفقكلمنهوي]/g, ch => ch)
-      .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 220);
-  });
   steps.forEach(step => step.addEventListener("click", () => activate(step.dataset.step)));
 
   document.getElementById("basicsForm").addEventListener("submit", async (event) => {
