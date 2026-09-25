@@ -22,7 +22,7 @@ def test_module_blueprints_are_registered(client):
         "/api/v1/support/conversations": 401,
         "/api/v1/promotions/campaigns": 200,
         "/api/v1/after_sales/reviews/product/1": 200,
-        "/api/v1/notifications/notifications/1": 200,
+        "/api/v1/notifications/notifications/1": 401,
         "/api/v1/reports/sales": 200,
         "/api/v1/search/products": 200,
     }
