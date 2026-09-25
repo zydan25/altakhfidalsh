@@ -26,6 +26,9 @@ from ..models import (
     Role,
     ShippingMethod,
     ShippingPolicy,
+    ReturnPolicy,
+    WarrantyPolicy,
+    Badge,
     Theme,
     Wallet,
 )
