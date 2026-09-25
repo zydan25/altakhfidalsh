@@ -31,8 +31,12 @@
     <form id="basicsForm" class="form-stack">
       <label>SKU<input id="productSku" name="sku" value="{{ product.sku or '' }}" required dir="ltr"></label>
       <label>الاسم<input id="productName" name="name" value="{{ product.name or '' }}" required></label>
+      <label>Slug <small class="muted">(يُولد تلقائيًا ويمكن تعديله)</small><input id="productSlug" name="slug" value="{{ product.slug or '' }}" dir="ltr" data-slug-manual></label>
       <label>الوصف<textarea id="productDescription" name="description" rows="5">{{ product.description or '' }}</textarea></label>
       <label>السعر الأساسي SAR<input id="productPrice" name="base_price" value="{{ product.base_price }}" required type="number" min="0" step="0.0001" inputmode="decimal"></label>
+      <label>السعر قبل الخصم<input id="productCompareAtPrice" name="compare_at_price" value="{{ product.compare_at_price or '' }}" type="number" min="0" step="0.0001" inputmode="decimal"></label>
+      <label>العلامة التجارية<select id="productBrand" name="brand_id"><option value="">بدون علامة تجارية</option></select></label>
+      <label>نوع المنتج<input id="productType" name="product_type" value="{{ product.product_type or '' }}" placeholder="قميص / فستان / إلكترونيات"></label>
       <label>المادة<input id="productMaterial" name="material" value="{{ product.material or '' }}"></label>
       <label>تعليمات الغسيل<textarea id="productCare" name="care_instructions" rows="3">{{ product.care_instructions or '' }}</textarea></label>
       <button class="primary-button" type="submit">حفظ البيانات الأساسية</button>
@@ -54,6 +58,9 @@
 
   <div class="wizard-panel" data-panel="media" hidden>
     <div class="panel-heading"><div><span class="eyebrow">الصور</span><h3>وسائط المنتج</h3></div></div>
+    <div class="form-grid">
+      <label>ربط الصور باللون<select id="mediaColor"><option value="">صور عامة للمنتج</option></select><small class="field-help">يمكن رفع مجموعة صور مستقلة لكل لون، وسيتم عرضها عند اختيار اللون في تطبيق العميل.</small></label>
+    </div>
     <label class="upload-zone">
       <span class="upload-icon">＋</span>
       <strong>اختر صورًا متعددة</strong>
@@ -61,11 +68,13 @@
       <input id="productMedia" type="file" accept="image/*" multiple>
     </label>
     <div id="mediaPreview" class="media-grid"></div>
+    <div id="mediaColorGroups" class="stack-list"></div>
     <button id="uploadMedia" class="primary-button" type="button">رفع الصور</button>
   </div>
 
   <div class="wizard-panel" data-panel="options" hidden>
     <div class="panel-heading"><div><span class="eyebrow">الخصائص</span><h3>ألوان ومقاسات وخيارات</h3></div></div>
+    <p class="muted">أنشئ اللون والمقاس من «الشارات والسياسات»/إعدادات الكتالوج ثم اربطهما بالمتغيرات. صور اللون تدار من خطوة الصور.</p>
     <form id="optionForm" class="form-stack">
       <label>اسم الخيار<input name="name" required placeholder="اللون / المقاس / الخامة"></label>
       <label>نوع الخيار
