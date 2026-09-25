@@ -136,3 +136,27 @@ def shipment_event(shipment_id):
         return {"item": PaymentShippingService.add_shipment_event(shipment_id, request.get_json(silent=True) or {})}, 201
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "shipment_event_failed", "detail": str(exc)}, 400
+
+
+from .cart import CartService
+
+
+@api_bp.get("/cart/<int:customer_id>")
+def get_cart(customer_id):
+    try:
+        return {"item": CartService.get_cart(customer_id, request.args.get("currency_id", type=int))}
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "cart_read_failed", "detail": str(exc)}, 400
+
+
+@api_bp.delete("/cart/<int:customer_id>/items/<int:item_id>")
+def remove_cart_item(customer_id, item_id):
+    try:
+        return {"item": CartService.remove_item(customer_id, item_id)}
+    except LookupError as exc:
+        return {"error": "cart_item_not_found", "detail": str(exc)}, 404
+
+
+@api_bp.delete("/cart/<int:customer_id>")
+def clear_cart(customer_id):
+    return {"item": CartService.clear_cart(customer_id)}
