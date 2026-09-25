@@ -31,11 +31,32 @@
     <div class="entity-field"><span class="entity-label">المدة</span><strong>{{ b.duration or "—" }} ثانية</strong></div>
     <div class="stack-list">
       {% for target in targets if target.banner_id == b.id %}
-      <div class="stack-row"><strong>{{ target.target_type }}</strong><span>{% if target.url %}{{ target.url }}{% else %}#{{ target.target_id }}{% endif %}</span></div>
+      <div class="stack-row" style="align-items:flex-start;flex-wrap:wrap">
+        <span><strong>{{ target.target_type }}</strong> · {% if target.url %}{{ target.url }}{% else %}#{{ target.target_id }}{% endif %}</span>
+        <form method="post"><input type="hidden" name="action" value="delete_target"><input type="hidden" name="id" value="{{ target.id }}"><button class="ghost-button">حذف الهدف</button></form>
+      </div>
       {% else %}
       <span class="muted">لا يوجد هدف حتى الآن.</span>
       {% endfor %}
     </div>
+    <details style="margin-top:10px">
+      <summary class="ghost-button">تعديل البانر</summary>
+      <form method="post" enctype="multipart/form-data" class="form-stack" style="margin-top:10px">
+        <input type="hidden" name="action" value="update_banner"><input type="hidden" name="id" value="{{ b.id }}">
+        <label>الاسم<input name="name" value="{{ b.name }}" required></label>
+        <div class="form-layout">
+          <label>المقاس<input name="size_spec" value="{{ b.size_spec or '' }}"></label>
+          <label>موضع النص<input name="position_text" value="{{ b.position_text or '' }}"></label>
+          <label>المدة<input name="duration" type="number" min="1" value="{{ b.duration or 8 }}"></label>
+          <label>الحالة<select name="status"><option value="draft" {% if b.status=="draft" %}selected{% endif %}>مسودة</option><option value="active" {% if b.status=="active" %}selected{% endif %}>نشط</option></select></label>
+        </div>
+        <label>النص فوق الصورة<textarea name="overlay_text" rows="3">{{ b.overlay_text or '' }}</textarea></label>
+        <label>استبدال الصورة الأساسية<input name="image_file" type="file" accept="image/*"></label>
+        <label>استبدال صورة الهاتف<input name="mobile_image_file" type="file" accept="image/*"></label>
+        <button class="primary-button">حفظ التعديلات</button>
+      </form>
+    </details>
+    <form method="post" style="margin-top:8px"><input type="hidden" name="action" value="archive_banner"><input type="hidden" name="id" value="{{ b.id }}"><button class="ghost-button">أرشفة البانر</button></form>
   </article>
   {% else %}
   <section class="empty-state panel" style="grid-column:1/-1">
