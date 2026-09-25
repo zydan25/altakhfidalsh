@@ -44,6 +44,19 @@
     return data;
   };
 
+  const syncColorTextInputs = () => {
+    document.querySelectorAll('.color-input-row').forEach(row => {
+      const picker = row.querySelector('input[type="color"]');
+      const text = row.querySelector('.color-text-input');
+      if (!picker || !text) return;
+      picker.addEventListener("input", () => { text.value = picker.value; });
+      text.addEventListener("input", () => {
+        const value = text.value.trim();
+        if (/^#[0-9a-fA-F]{6}$/.test(value)) picker.value = value;
+      });
+    });
+  };
+
   const load = async () => {
     const requests = await Promise.allSettled([
       requestJson("/api/v1/catalog/products/" + productId + "/wizard"),
@@ -506,7 +519,7 @@
         method: "POST",
         body: JSON.stringify({
           name: form.get("name"),
-          hex_code: form.get("hex_code"),
+          hex_code: (form.get("hex_code_text") || form.get("hex_code") || "").trim(),
           sort_order: Number(form.get("sort_order") || 0),
         }),
       });
@@ -962,5 +975,6 @@
     } catch (error) { notify(error.message, "error"); }
   });
 
+  syncColorTextInputs();
   load();
 })();
