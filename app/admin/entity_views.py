@@ -430,13 +430,19 @@ def register_entity_views(admin_bp):
                 row = db.session.get(Review, request.form.get("review_id", type=int))
                 if row is None:
                     raise ValueError("التقييم غير موجود.")
-                row.status = (request.form.get("status") or row.status).strip()
+                action = (request.form.get("action") or "update").strip()
+                if action == "archive":
+                    row.is_active = False
+                    row.status = "archived"
+                    success = "تمت أرشفة التقييم."
+                else:
+                    row.status = (request.form.get("status") or row.status).strip()
+                    success = "تم تحديث حالة التقييم."
                 db.session.commit()
-                success = "تم تحديث حالة التقييم."
             except ValueError as exc:
                 db.session.rollback()
                 error = str(exc)
-        rows = Review.query.order_by(Review.id.desc()).limit(200).all()
+        rows = Review.query.filter_by(is_active=True).order_by(Review.id.desc()).limit(200).all()
         return render_template(
             "admin/reviews.html",
             title="التقييمات",
