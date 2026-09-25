@@ -61,6 +61,17 @@
       <strong>{{ item.name }} · {{ item.sku }}</strong>
       <span>Variant #{{ item.variant_id }} · كمية {{ item.qty }} · سعر العرض {{ item.sale_price_display }} · الإجمالي {{ item.total }}</span>
       <span>السعر الأساسي SAR {{ item.base_price_sar }} · FX {{ item.fx_rate }} · زيادة {{ item.markup_percent }}% + {{ item.markup_fixed }}</span>
+      <span>
+        {% if item.variant_display.color %}اللون: {{ item.variant_display.color.name }}{% endif %}
+        {% if item.variant_display.size %} · المقاس: {{ item.variant_display.size.label }}{% endif %}
+      </span>
+      {% if item.media %}
+      <div class="media-grid">
+        {% for media in item.media if media.url %}
+        <a href="{{ media.url }}" target="_blank" rel="noreferrer"><img src="{{ media.url }}" alt="{{ item.name }}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px"></a>
+        {% endfor %}
+      </div>
+      {% endif %}
       <div class="rule-summary">
         {% for option in item.options %}
         <span class="status-pill">{{ option.name }}: {{ option.value }}</span>
