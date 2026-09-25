@@ -384,98 +384,58 @@ def register_operation_routes(admin_bp):
     @admin_bp.route("/campaigns", methods=["GET", "POST"])
     def campaigns():
         from .entity_views import _unique_slug
-        context = _ctx()
-        error = None
-        success = None
-        if request.method == "POST":
+        context=_ctx(); error=None; success=None
+        if request.method=="POST":
             try:
-                name = (request.form.get("name") or "").strip()
-                if not name:
-                    raise ValueError("اسم الحملة مطلوب.")
-                slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(Campaign, name, fallback="campaign")
-                if Campaign.query.filter_by(slug=slug).first():
-                    raise ValueError("الـSlug مستخدم مسبقًا.")
-                db.session.add(Campaign(
-                    name=name,
-                    slug=slug,
-                    start_at=None,
-                    end_at=None,
-                    status=(request.form.get("status") or "draft").strip(),
-                    display_priority=request.form.get("display_priority", 0, type=int),
-                ))
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(Campaign,request.form.get("id",type=int))
+                if action=="create":
+                    name=(request.form.get("name") or "").strip()
+                    if not name: raise ValueError("اسم الحملة مطلوب.")
+                    slug=(request.form.get("slug") or "").strip().lower() or _unique_slug(Campaign,name,fallback="campaign")
+                    if Campaign.query.filter_by(slug=slug).first(): raise ValueError("الـSlug مستخدم مسبقًا.")
+                    db.session.add(Campaign(name=name,slug=slug,start_at=None,end_at=None,status=(request.form.get("status") or "draft").strip(),display_priority=request.form.get("display_priority",0,type=int))); success="تم إنشاء الحملة."
+                elif row is None: raise ValueError("الحملة غير موجودة.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة الحملة."
+                elif action=="update":
+                    name=(request.form.get("name") or "").strip(); slug=(request.form.get("slug") or "").strip().lower() or _unique_slug(Campaign,name,exclude_id=row.id,fallback="campaign")
+                    if not name: raise ValueError("اسم الحملة مطلوب.")
+                    if Campaign.query.filter(Campaign.id!=row.id,Campaign.slug==slug).first(): raise ValueError("الـSlug مستخدم مسبقًا.")
+                    row.name=name; row.slug=slug; row.status=(request.form.get("status") or row.status).strip(); row.display_priority=request.form.get("display_priority",0,type=int); success="تم تحديث الحملة."
+                else: raise ValueError("إجراء الحملة غير معروف.")
                 db.session.commit()
-                success = "تم إنشاء الحملة كمسودة."
-            except (ValueError, TypeError) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = Campaign.query.order_by(Campaign.id.desc()).limit(100).all()
-        records = [{
-            "title": row.name,
-            "badge": row.status,
-            "fields": [
-                {"label": "Slug", "value": row.slug, "dir": "ltr"},
-                {"label": "الأولوية", "value": row.display_priority},
-            ],
-        } for row in rows]
-        return render_template(
-            "admin/manage.html", title="الحملات", section="المحتوى والمتجر",
-            description="أنشئ الحملة من الزر، والـSlug يُولد تلقائيًا ويمكن تعديله.",
-            fields=[
-                {"name": "name", "label": "اسم الحملة", "required": True, "placeholder": "مثال: تخفيضات الخريف"},
-                {"name": "slug", "label": "Slug", "dir": "ltr", "placeholder": "يُولد تلقائيًا"},
-                {"name": "status", "label": "الحالة", "type": "select", "options": [
-                    {"value": "draft", "label": "مسودة", "selected": True},
-                    {"value": "scheduled", "label": "مجدولة"},
-                    {"value": "active", "label": "نشطة"},
-                ]},
-                {"name": "display_priority", "label": "الأولوية", "type": "number", "value": 0, "min": 0},
-            ],
-            records=records, modal_id="campaignAddModal", success=success, error=error, **context,
-        )
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=Campaign.query.filter_by(is_active=True).order_by(Campaign.id.desc()).limit(100).all()
+        records=[{"id":x.id,"title":x.name,"badge":x.status,"edit_action":"update","archive_action":"archive","edit_fields":[{"name":"name","label":"اسم الحملة","required":True,"value":x.name},{"name":"slug","label":"Slug","dir":"ltr","value":x.slug},{"name":"status","label":"الحالة","type":"select","options":[{"value":"draft","label":"مسودة","selected":x.status=="draft"},{"value":"scheduled","label":"مجدولة","selected":x.status=="scheduled"},{"value":"active","label":"نشطة","selected":x.status=="active"}]},{"name":"display_priority","label":"الأولوية","type":"number","value":x.display_priority}],"fields":[{"label":"Slug","value":x.slug,"dir":"ltr"},{"label":"الأولوية","value":x.display_priority}]} for x in rows]
+        return render_template("admin/manage.html",title="الحملات",section="المحتوى والمتجر",description="إضافة وتعديل وأرشفة الحملات، مع Slug تلقائي.",fields=[{"name":"name","label":"اسم الحملة","required":True},{"name":"slug","label":"Slug","dir":"ltr"},{"name":"status","label":"الحالة","type":"select","options":[{"value":"draft","label":"مسودة","selected":True},{"value":"scheduled","label":"مجدولة"},{"value":"active","label":"نشطة"}]},{"name":"display_priority","label":"الأولوية","type":"number","value":0}],records=records,modal_id="campaignAddModal",success=success,error=error,**context)
+
 
     @admin_bp.route("/hashtags", methods=["GET", "POST"])
     def hashtags():
         from .entity_views import _unique_slug
-        context = _ctx()
-        error = None
-        success = None
-        if request.method == "POST":
+        context=_ctx(); error=None; success=None
+        if request.method=="POST":
             try:
-                name = (request.form.get("name") or "").strip()
-                if not name:
-                    raise ValueError("اسم الوسم مطلوب.")
-                display_name = (request.form.get("display_name") or "").strip() or name
-                slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(Hashtag, display_name, fallback="tag")
-                if Hashtag.query.filter_by(slug=slug).first():
-                    raise ValueError("الـSlug مستخدم مسبقًا.")
-                db.session.add(Hashtag(name=name, slug=slug, display_name=display_name,
-                                       sort_order=request.form.get("sort_order", 0, type=int)))
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(Hashtag,request.form.get("id",type=int))
+                if action=="create":
+                    name=(request.form.get("name") or "").strip(); display=(request.form.get("display_name") or "").strip() or name
+                    if not name: raise ValueError("اسم الوسم مطلوب.")
+                    slug=(request.form.get("slug") or "").strip().lower() or _unique_slug(Hashtag,display,fallback="tag")
+                    if Hashtag.query.filter_by(slug=slug).first(): raise ValueError("الـSlug مستخدم مسبقًا.")
+                    db.session.add(Hashtag(name=name,slug=slug,display_name=display,sort_order=request.form.get("sort_order",0,type=int))); success="تم إنشاء الوسم."
+                elif row is None: raise ValueError("الوسم غير موجود.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة الوسم."
+                elif action=="update":
+                    name=(request.form.get("name") or "").strip(); display=(request.form.get("display_name") or "").strip() or name; slug=(request.form.get("slug") or "").strip().lower() or _unique_slug(Hashtag,display,exclude_id=row.id,fallback="tag")
+                    if not name: raise ValueError("اسم الوسم مطلوب.")
+                    if Hashtag.query.filter(Hashtag.id!=row.id,Hashtag.slug==slug).first(): raise ValueError("الـSlug مستخدم مسبقًا.")
+                    row.name=name; row.display_name=display; row.slug=slug; row.sort_order=request.form.get("sort_order",0,type=int); success="تم تحديث الوسم."
+                else: raise ValueError("إجراء الوسم غير معروف.")
                 db.session.commit()
-                success = "تم إنشاء الوسم."
-            except (ValueError, TypeError) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = Hashtag.query.order_by(Hashtag.sort_order, Hashtag.id.desc()).limit(200).all()
-        records = [{
-            "title": row.display_name or row.name,
-            "badge": f"#{row.id}",
-            "fields": [
-                {"label": "Slug", "value": row.slug, "dir": "ltr"},
-                {"label": "الاسم الداخلي", "value": row.name},
-                {"label": "الترتيب", "value": row.sort_order},
-            ],
-        } for row in rows]
-        return render_template(
-            "admin/manage.html", title="الهاشتاجات", section="المحتوى والمتجر",
-            description="قائمة الهاشتاجات أولًا، والإضافة من نافذة مستقلة مع Slug تلقائي.",
-            fields=[
-                {"name": "name", "label": "الاسم", "required": True, "placeholder": "مثال: عروض_العيد"},
-                {"name": "slug", "label": "Slug", "dir": "ltr", "placeholder": "يُولد تلقائيًا"},
-                {"name": "display_name", "label": "اسم العرض", "placeholder": "#عروض_العيد"},
-                {"name": "sort_order", "label": "الترتيب", "type": "number", "value": 0, "min": 0},
-            ],
-            records=records, modal_id="hashtagLegacyAddModal", success=success, error=error, **context,
-        )
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=Hashtag.query.filter_by(is_active=True).order_by(Hashtag.sort_order,Hashtag.id.desc()).limit(300).all()
+        records=[{"id":x.id,"title":x.display_name or x.name,"badge":f"#{x.id}","edit_action":"update","archive_action":"archive","edit_fields":[{"name":"name","label":"الاسم","required":True,"value":x.name},{"name":"slug","label":"Slug","dir":"ltr","value":x.slug},{"name":"display_name","label":"اسم العرض","value":x.display_name or x.name},{"name":"sort_order","label":"الترتيب","type":"number","value":x.sort_order}],"fields":[{"label":"Slug","value":x.slug,"dir":"ltr"},{"label":"الترتيب","value":x.sort_order}]} for x in rows]
+        return render_template("admin/manage.html",title="الهاشتاجات",section="المحتوى والمتجر",description="إضافة وتعديل وأرشفة الهاشتاجات مع Slug تلقائي.",fields=[{"name":"name","label":"الاسم","required":True},{"name":"slug","label":"Slug","dir":"ltr"},{"name":"display_name","label":"اسم العرض"},{"name":"sort_order","label":"الترتيب","type":"number","value":0}],records=records,modal_id="hashtagAddModal",success=success,error=error,**context)
+
 
 
 def _ctx():
