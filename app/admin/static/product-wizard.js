@@ -13,6 +13,7 @@
   let configRefs = null;
   let draftColorIds = new Set();
   let draftSizeIds = new Set();
+  let draftsInitialized = false;
 
   const notify = (text, type = "success") => {
     message.textContent = text;
@@ -56,20 +57,38 @@
   };
 
   const renderCategoryTree = (rows, selectedIds) => {
+    const query = (document.getElementById("categorySearch")?.value || "").trim().toLocaleLowerCase();
     const byParent = new Map();
     rows.forEach(row => {
       const key = row.parent_id == null ? null : Number(row.parent_id);
       if (!byParent.has(key)) byParent.set(key, []);
       byParent.get(key).push(row);
     });
-    byParent.forEach(list => list.sort((a, b) => {
-      return (a.sort_order ?? 0) - (b.sort_order ?? 0) || String(a.name).localeCompare(String(b.name), "ar");
-    }));
+    byParent.forEach(list => list.sort((a, b) =>
+      (a.sort_order ?? 0) - (b.sort_order ?? 0) ||
+      String(a.name).localeCompare(String(b.name), "ar")
+    ));
+
+    const matches = row =>
+      !query ||
+      String(row.name).toLocaleLowerCase().includes(query) ||
+      String(row.slug).toLocaleLowerCase().includes(query);
+
+    const hasMatchingDescendant = (row, trail = new Set()) => {
+      if (trail.has(row.id)) return false;
+      const nextTrail = new Set(trail);
+      nextTrail.add(row.id);
+      return (byParent.get(row.id) || []).some(child =>
+        matches(child) || hasMatchingDescendant(child, nextTrail)
+      );
+    };
 
     const walk = (parentId, depth = 0, trail = new Set()) => {
       const rowsAtLevel = byParent.get(parentId) || [];
       return rowsAtLevel.map(category => {
         if (trail.has(category.id)) return "";
+        const include = !query || matches(category) || hasMatchingDescendant(category);
+        if (!include) return "";
         const nextTrail = new Set(trail);
         nextTrail.add(category.id);
         const children = walk(category.id, depth + 1, nextTrail);
@@ -85,7 +104,8 @@
           '</small></span></label>' + children + '</div>';
       }).join("");
     };
-    return walk(null);
+    const tree = walk(null);
+    return tree || '<div class="empty-state compact"><strong>لا توجد نتائج.</strong><span class="muted">عدّل كلمة البحث أو أضف تصنيفًا جديدًا.</span></div>';
   };
 
   const renderDimensionChoices = () => {
@@ -138,6 +158,31 @@
     if (sizeSummary) sizeSummary.textContent = draftSizeIds.size + " محدد";
   };
 
+  const syncVariantSelectors = () => {
+    const colors = (configRefs?.colors || optionRefs?.colors || []).filter(x =>
+      x.is_active && draftColorIds.has(Number(x.id))
+    );
+    const sizes = (configRefs?.sizes || optionRefs?.sizes || []).filter(x =>
+      x.is_active && draftSizeIds.has(Number(x.id))
+    );
+
+    const colorOptions = colors.map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+    const sizeOptions = sizes.map(x => '<option value="' + x.id + '">' + escapeHtml(x.label) + ' · ' + escapeHtml(x.group) + '</option>').join("");
+
+    const colorSelect = document.getElementById("variantColor");
+    const sizeSelect = document.getElementById("variantSize");
+    if (colorSelect) {
+      const current = colorSelect.value;
+      colorSelect.innerHTML = '<option value="">' + (colors.length ? "اختر اللون" : "لا توجد ألوان مختارة — اذهب إلى خطوة الألوان") + '</option>' + colorOptions;
+      if (current && colors.some(x => String(x.id) === current)) colorSelect.value = current;
+    }
+    if (sizeSelect) {
+      const current = sizeSelect.value;
+      sizeSelect.innerHTML = '<option value="">' + (sizes.length ? "اختر المقاس" : "لا توجد مقاسات مختارة — اذهب إلى خطوة المقاسات") + '</option>' + sizeOptions;
+      if (current && sizes.some(x => String(x.id) === current)) sizeSelect.value = current;
+    }
+  };
+
   const hydrate = () => {
     const categories = configRefs?.categories || [];
     const categoryParent = document.querySelector('#quickCategoryForm select[name="parent_id"]');
@@ -184,25 +229,24 @@
     document.getElementById("mediaTotalCount").textContent = mediaRows.length + " صورة";
 
     configRefs = configRefs || optionRefs || {};
-    if (!draftColorIds.size) {
+    if (!draftsInitialized) {
       draftColorIds = new Set((snapshot.reference_colors || []).map(x => Number(x.id)));
+      draftSizeIds = new Set((snapshot.reference_sizes || []).map(x => Number(x.id)));
       if (!draftColorIds.size) {
         draftColorIds = new Set((configRefs.colors || []).filter(x => x.selected).map(x => Number(x.id)));
       }
-    }
-    if (!draftSizeIds.size) {
-      draftSizeIds = new Set((snapshot.reference_sizes || []).map(x => Number(x.id)));
       if (!draftSizeIds.size) {
         draftSizeIds = new Set((configRefs.sizes || []).filter(x => x.selected).map(x => Number(x.id)));
       }
+      draftsInitialized = true;
     }
     renderDimensionChoices();
 
-    const colors = (configRefs?.colors || optionRefs?.colors || []).filter(color =>
+    const mediaColors = (configRefs?.colors || optionRefs?.colors || []).filter(color =>
       color.is_active && (draftColorIds.has(Number(color.id)) || mediaRows.some(x => Number(x.color_id) === Number(color.id)))
     );
-    document.getElementById("mediaColorGroups").innerHTML = colors.length
-      ? colors.map(color => {
+    document.getElementById("mediaColorGroups").innerHTML = mediaColors.length
+      ? mediaColors.map(color => {
           const rows = mediaRows.filter(x => String(x.color_id || "") === String(color.id));
           const bg = color.hex_code || "#111827";
           return '<article class="color-media-card">' +
@@ -273,36 +317,24 @@
         escapeHtml(x.name) + (!x.is_active ? ' · مؤرشف' : '') + '</option>').join("");
     if (snapshot.product?.brand_id) brand.value = String(snapshot.product.brand_id);
 
-    const selectableColors = (configRefs?.colors || optionRefs?.colors || []).filter(x => x.is_active && draftColorIds.has(Number(x.id)));
-    const selectableSizes = (configRefs?.sizes || optionRefs?.sizes || []).filter(x => x.is_active && draftSizeIds.has(Number(x.id)));
-    const activeColorOptions = (selectableColors.length ? selectableColors : (configRefs?.colors || optionRefs?.colors || []).filter(x => x.is_active)).map(x =>
-      '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>'
-    ).join("");
-    const activeSizeOptions = (selectableSizes.length ? selectableSizes : (configRefs?.sizes || optionRefs?.sizes || []).filter(x => x.is_active)).map(x =>
-      '<option value="' + x.id + '">' + escapeHtml(x.label) + ' · ' + escapeHtml(x.group) + '</option>'
-    ).join("");
-
-    const color = document.getElementById("variantColor");
-    color.innerHTML = '<option value="">بدون لون</option>' + activeColorOptions;
+    syncVariantSelectors();
     document.querySelectorAll(".variant-edit-form").forEach(form => {
       const colorSelect = form.querySelector('select[name="color_id"]');
       const sizeSelect = form.querySelector('select[name="size_id"]');
-      colorSelect.innerHTML = '<option value="">بدون لون</option>' + activeColorOptions;
-      sizeSelect.innerHTML = '<option value="">بدون مقاس</option>' + activeSizeOptions;
-      if (colorSelect.dataset.current) {
-        colorSelect.value = colorSelect.dataset.current;
-      }
-      if (sizeSelect.dataset.current) {
-        sizeSelect.value = sizeSelect.dataset.current;
-      }
-      if (colorSelect.dataset.current && !colorSelect.value) {
-        colorSelect.insertAdjacentHTML("beforeend", '<option value="' + colorSelect.dataset.current + '">لون حالي مؤرشف</option>');
-        colorSelect.value = colorSelect.dataset.current;
-      }
-      if (sizeSelect.dataset.current && !sizeSelect.value) {
-        sizeSelect.insertAdjacentHTML("beforeend", '<option value="' + sizeSelect.dataset.current + '">مقاس حالي مؤرشف</option>');
-        sizeSelect.value = sizeSelect.dataset.current;
-      }
+      const currentColor = colorSelect.dataset.current || "";
+      const currentSize = sizeSelect.dataset.current || "";
+      const colors = (configRefs?.colors || optionRefs?.colors || []).filter(x => x.is_active || Number(x.id) === Number(currentColor));
+      const sizes = (configRefs?.sizes || optionRefs?.sizes || []).filter(x => x.is_active || Number(x.id) === Number(currentSize));
+      colorSelect.innerHTML = '<option value="">بدون لون</option>' + colors.map(x =>
+        '<option value="' + x.id + '"' + (!x.is_active ? ' disabled' : '') + '>' +
+        escapeHtml(x.name) + (!x.is_active ? ' · مؤرشف' : '') + '</option>'
+      ).join("");
+      sizeSelect.innerHTML = '<option value="">بدون مقاس</option>' + sizes.map(x =>
+        '<option value="' + x.id + '"' + (!x.is_active ? ' disabled' : '') + '>' +
+        escapeHtml(x.label) + ' · ' + escapeHtml(x.group) + (!x.is_active ? ' · مؤرشف' : '') + '</option>'
+      ).join("");
+      if (currentColor) colorSelect.value = currentColor;
+      if (currentSize) sizeSelect.value = currentSize;
     });
 
     const mediaColor = document.getElementById("mediaColor");
@@ -369,23 +401,43 @@
     document.body.classList.remove("modal-open");
   };
 
-  document.getElementById("productColors").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-use-color]");
-    if (!button || button.disabled) return;
-    const select = document.getElementById("variantColor");
-    select.value = button.dataset.useColor;
-    activate("variants");
-    select.focus();
+  document.getElementById("categorySelection").addEventListener("change", (event) => {
+    if (!event.target.matches("[data-category-checkbox]")) return;
+    const checked = new Set([...document.querySelectorAll("[data-category-checkbox]:checked")].map(input => input.value));
+    // Keep the current category state in the DOM; the save button commits it.
+    event.target.closest(".category-picker-choice")?.classList.toggle("is-selected", event.target.checked);
   });
 
-  document.getElementById("sizeReferencePreview").addEventListener("click", (event) => {
-    const button = event.target.closest("[data-use-size]");
-    if (!button || button.disabled) return;
-    const select = document.getElementById("variantSize");
-    select.value = button.dataset.useSize;
-    activate("variants");
-    select.focus();
+  document.getElementById("productColors").addEventListener("change", (event) => {
+    const input = event.target.closest("[data-color-ref-checkbox]");
+    if (!input) return;
+    const id = Number(input.value);
+    if (input.checked) draftColorIds.add(id);
+    else draftColorIds.delete(id);
+    renderDimensionChoices();
+    syncVariantSelectors();
   });
+
+  document.getElementById("sizeReferencePreview").addEventListener("change", (event) => {
+    const input = event.target.closest("[data-size-ref-checkbox]");
+    if (!input) return;
+    const id = Number(input.value);
+    if (input.checked) draftSizeIds.add(id);
+    else draftSizeIds.delete(id);
+    renderDimensionChoices();
+    syncVariantSelectors();
+  });
+
+  const dimensionAction = (type) => {
+    const rows = type.startsWith("colors")
+      ? (configRefs?.colors || []).filter(x => x.is_active)
+      : (configRefs?.sizes || []).filter(x => x.is_active);
+    const target = type.endsWith("all");
+    const set = type.startsWith("colors") ? draftColorIds : draftSizeIds;
+    rows.forEach(row => target ? set.add(Number(row.id)) : set.delete(Number(row.id)));
+    renderDimensionChoices();
+    syncVariantSelectors();
+  };
 
   document.getElementById("mediaColorGroups").addEventListener("click", async (event) => {
     const deleteButton = event.target.closest("[data-delete-media]");
@@ -431,6 +483,11 @@
       closeModal("quickColorModal");
       event.currentTarget.reset();
       await load();
+      if (created.item?.id) {
+        draftColorIds.add(Number(created.item.id));
+        renderDimensionChoices();
+        syncVariantSelectors();
+      }
       const select = document.getElementById("variantColor");
       if (created.item?.id) {
         select.value = String(created.item.id);
@@ -444,7 +501,7 @@
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     try {
-      await requestJson("/api/v1/catalog/reference/sizes", {
+      const created = await requestJson("/api/v1/catalog/reference/sizes", {
         method: "POST",
         body: JSON.stringify({
           group: form.get("group"),
@@ -456,7 +513,12 @@
       closeModal("quickSizeModal");
       event.currentTarget.reset();
       await load();
-      notify("تم إنشاء المقاس وتحديث القائمة.");
+      if (created.item?.id) {
+        draftSizeIds.add(Number(created.item.id));
+        renderDimensionChoices();
+        syncVariantSelectors();
+      }
+      notify("تم إنشاء المقاس وإضافته لاختيار هذا المنتج. اضغط حفظ الألوان والمقاسات لاعتماد الاختيار.");
     } catch (error) { notify(error.message, "error"); }
   });
 
@@ -609,6 +671,33 @@
     form => ({ name: form.get("name"), duration_days: Number(form.get("duration_days") || 0), coverage: form.get("coverage"),
       exclusions: form.get("exclusions"), claim_method: form.get("claim_method") }),
     "warrantyPolicyId", "تم إنشاء سياسة الضمان واختيارها للمنتج.");
+
+  document.getElementById("colorSearch").addEventListener("input", renderDimensionChoices);
+  document.getElementById("sizeSearch").addEventListener("input", renderDimensionChoices);
+  document.getElementById("categorySearch").addEventListener("input", () => {
+    const selected = new Set([...document.querySelectorAll("[data-category-checkbox]:checked")].map(x => x.value));
+    document.getElementById("categorySelection").innerHTML = renderCategoryTree(configRefs?.categories || [], selected);
+  });
+
+  document.querySelectorAll("[data-dimension-action]").forEach(button => {
+    button.addEventListener("click", () => {
+      dimensionAction(button.dataset.dimensionAction);
+    });
+  });
+
+  document.getElementById("saveDimensions").addEventListener("click", async () => {
+    try {
+      await requestJson("/api/v1/catalog/products/" + productId + "/reference-dimensions", {
+        method: "POST",
+        body: JSON.stringify({
+          color_ids: [...draftColorIds],
+          size_ids: [...draftSizeIds],
+        }),
+      });
+      await load();
+      notify("تم حفظ ألوان ومقاسات المنتج. يمكنك الآن إنشاء الـVariants منها.");
+    } catch (error) { notify(error.message, "error"); }
+  });
 
   document.getElementById("basicsForm").addEventListener("submit", async (event) => {
     event.preventDefault();
