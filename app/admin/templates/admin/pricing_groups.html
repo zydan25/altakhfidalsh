@@ -64,10 +64,23 @@
         <div class="rule-summary">
           {% for rule in rules if rule.group_id == group.id %}
           <span class="status-pill">{{ currency_map.get(rule.currency_id).code if currency_map.get(rule.currency_id) else rule.currency_id }} · {{ rule.percent_markup }}% + {{ rule.fixed_markup }} · {{ rule.decimals }} منازل</span>
-          {% else %}
-          <span class="muted">لا توجد قواعد عملة.</span>
-          {% endfor %}
+          {% else %}<span class="muted">لا توجد قواعد عملة.</span>{% endfor %}
         </div>
+        <details style="margin-top:10px"><summary class="ghost-button">تعديل المجموعة والقواعد</summary>
+          <form method="post" class="form-stack" style="margin-top:10px">
+            <input type="hidden" name="action" value="update_group"><input type="hidden" name="id" value="{{ group.id }}">
+            <label>اسم المجموعة<input name="name" value="{{ group.name }}" required></label>
+            <label>الوصف<textarea name="description" rows="3">{{ group.description or "" }}</textarea></label>
+            <label>العملة الافتراضية<select name="default_currency_id">{% for c in currencies %}<option value="{{ c.id }}" {% if c.id==group.default_currency_id %}selected{% endif %}>{{ c.code }} — {{ c.name_ar }}</option>{% endfor %}</select></label>
+            <label>الأولوية<input name="priority" type="number" value="{{ group.priority }}"></label>
+            <label class="check-row"><input name="is_default" type="checkbox" {% if group.is_default %}checked{% endif %}><span><strong>افتراضية</strong></span></label>
+            {% for rule in rules if rule.group_id == group.id %}
+            <div class="rule-row panel"><label>العملة<select name="rule_currency_id">{% for c in currencies %}<option value="{{ c.id }}" {% if c.id==rule.currency_id %}selected{% endif %}>{{ c.code }}</option>{% endfor %}</select></label><label>زيادة %<input name="rule_percent_markup" value="{{ rule.percent_markup }}" type="number" step="0.0001"></label><label>ثابت<input name="rule_fixed_markup" value="{{ rule.fixed_markup }}" type="number" step="0.0001"></label><label>الكسور<input name="rule_decimals" value="{{ rule.decimals }}" type="number" min="0" max="6"></label><label>التقريب<select name="rule_rounding_rule"><option value="nearest" {% if rule.rounding_rule=="nearest" %}selected{% endif %}>أقرب</option><option value="up" {% if rule.rounding_rule=="up" %}selected{% endif %}>لأعلى</option><option value="down" {% if rule.rounding_rule=="down" %}selected{% endif %}>لأسفل</option></select></label></div>
+            {% endfor %}
+            <button class="primary-button">حفظ التعديل</button>
+          </form>
+        </details>
+        <form method="post" style="margin-top:8px"><input type="hidden" name="action" value="archive_group"><input type="hidden" name="id" value="{{ group.id }}"><button class="ghost-button">أرشفة المجموعة</button></form>
       </article>
       {% else %}
       <div class="empty-state compact"><div class="empty-icon">¤</div><strong>لا توجد مجموعات تسعير</strong></div>
@@ -107,6 +120,7 @@
           {% endif %}
           · أولوية {{ row.priority }}
         </span>
+        <form method="post"><input type="hidden" name="action" value="delete_location_assignment"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button">حذف الربط</button></form>
       </div>
       {% else %}
       <span class="muted">لا توجد تعيينات موقع.</span>
@@ -137,6 +151,7 @@
       <div class="stack-row">
         <strong>#{{ row.customer_id }} · {{ customer_map.get(row.customer_id).name if customer_map.get(row.customer_id) else "عميل" }}</strong>
         <span>{{ group_map.get(row.pricing_group_id).name if group_map.get(row.pricing_group_id) else row.pricing_group_id }} · {{ row.percent_override if row.percent_override is not none else "قاعدة المجموعة" }}{% if row.percent_override is not none %}%{% endif %} · {{ row.fixed_override if row.fixed_override is not none else 0 }}</span>
+        <form method="post"><input type="hidden" name="action" value="delete_customer_assignment"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button">حذف التعيين</button></form>
       </div>
       {% else %}
       <span class="muted">لا توجد تعيينات عملاء.</span>
