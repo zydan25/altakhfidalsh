@@ -792,9 +792,26 @@ class CatalogService:
             {"id": row.hashtag_id}
             for row in ProductHashtag.query.filter_by(product_id=product_id).order_by(ProductHashtag.id).all()
         ]
+        media_rows = (
+            db.session.query(ProductMedia, MediaAsset, Color)
+            .join(MediaAsset, MediaAsset.id == ProductMedia.asset_id)
+            .outerjoin(Color, Color.id == ProductMedia.color_id)
+            .filter(ProductMedia.product_id == product_id)
+            .order_by(ProductMedia.sort_order, ProductMedia.id)
+            .all()
+        )
         media = [
-            {"id": media.id, "asset_id": media.asset_id, "role": media.role, "sort_order": media.sort_order}
-            for media in ProductMedia.query.filter_by(product_id=product_id).order_by(ProductMedia.sort_order, ProductMedia.id).all()
+            {
+                "id": media_row.id,
+                "asset_id": media_row.asset_id,
+                "url": asset.url,
+                "role": media_row.role,
+                "sort_order": media_row.sort_order,
+                "color_id": media_row.color_id,
+                "color_name": color.name if color else None,
+                "color_hex": color.hex_code if color else None,
+            }
+            for media_row, asset, color in media_rows
         ]
         inventory = [
             {
