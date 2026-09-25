@@ -341,6 +341,16 @@ class CatalogService:
             if size_id not in normalized_sizes:
                 normalized_sizes.append(size_id)
 
+        active_variants = ProductVariant.query.filter_by(product_id=product_id, is_active=True).all()
+        used_color_ids = {int(v.color_id) for v in active_variants if v.color_id is not None}
+        used_size_ids = {int(v.size_id) for v in active_variants if v.size_id is not None}
+        removed_colors = used_color_ids.difference(normalized_colors)
+        removed_sizes = used_size_ids.difference(normalized_sizes)
+        if removed_colors:
+            raise ValueError("لا يمكن إزالة لون مستخدم في Variant نشط.")
+        if removed_sizes:
+            raise ValueError("لا يمكن إزالة مقاس مستخدم في Variant نشط.")
+
         ProductColorReference.query.filter_by(product_id=product_id).delete()
         for position, color_id in enumerate(normalized_colors):
             db.session.add(ProductColorReference(product_id=product_id, color_id=color_id, sort_order=position))
@@ -1141,7 +1151,7 @@ class CatalogService:
                 "basics": True,
                 "categories": bool(categories),
                 "media": bool(media),
-                "options": bool(options),
+                "options": bool(reference_colors or reference_sizes or options),
                 "variants": bool(variants),
                 "inventory": bool(inventory),
                 "publish": bool(categories and variants and media),
