@@ -3,6 +3,7 @@ from decimal import Decimal
 from flask import request
 
 from . import api_bp
+from ...security import admin_api_required
 from .services import PricingAdminService
 from ...models import Currency, ExchangeRate, PricingGroup, PricingGroupRule
 
@@ -47,6 +48,7 @@ def currencies():
 
 
 @api_bp.post("/currencies")
+@admin_api_required("pricing.manage")
 def create_currency():
     try:
         return {"item": PricingAdminService.create_currency(request.get_json(silent=True) or {})}, 201
@@ -80,6 +82,7 @@ def groups():
 
 
 @api_bp.post("/groups")
+@admin_api_required("pricing.manage")
 def create_group():
     try:
         return {"item": PricingAdminService.create_group(request.get_json(silent=True) or {})}, 201
@@ -88,6 +91,7 @@ def create_group():
 
 
 @api_bp.post("/exchange-rates")
+@admin_api_required("pricing.manage")
 def exchange_rate():
     try:
         return {"item": PricingAdminService.create_exchange_rate(request.get_json(silent=True) or {})}, 201
@@ -96,6 +100,7 @@ def exchange_rate():
 
 
 @api_bp.post("/location-assignments")
+@admin_api_required("pricing.manage")
 def location_assignment():
     try:
         return {"item": PricingAdminService.assign_location(request.get_json(silent=True) or {})}, 201
@@ -104,6 +109,7 @@ def location_assignment():
 
 
 @api_bp.post("/customer-assignments")
+@admin_api_required("pricing.manage")
 def customer_assignment():
     try:
         return {"item": PricingAdminService.assign_customer(request.get_json(silent=True) or {})}, 201
