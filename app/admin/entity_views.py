@@ -749,12 +749,29 @@ def register_entity_views(admin_bp):
         sizes=Size.query.filter_by(is_active=True).order_by(Size.group,Size.sort_order,Size.label).limit(300).all()
         return render_template("admin/options.html",title="الألوان والمقاسات",colors=colors,sizes=sizes,success=success,error=error,**build_admin_context())
 
-    @admin_bp.get("/category-strip")
+    @admin_bp.route("/category-strip", methods=["GET", "POST"])
     def category_strip():
-        from ..models import CategoryNavigationItem
-        rows = CategoryNavigationItem.query.filter_by(is_active=True).order_by(CategoryNavigationItem.sort_order).limit(200).all()
-        return _render("شريط الأقسام", ["ID", "الفئة", "Slot", "الترتيب", "ظاهر"],
-                       [[x.id, x.category_id, x.slot, x.sort_order, "نعم" if x.visible else "لا"] for x in rows], "الكتالوج")
+        from ..models import CategoryNavigationItem, Category
+        error=None; success=None
+        if request.method=="POST":
+            try:
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(CategoryNavigationItem,request.form.get("id",type=int))
+                if action=="create":
+                    category_id=request.form.get("category_id",type=int)
+                    if db.session.get(Category,category_id) is None: raise ValueError("الفئة غير موجودة.")
+                    db.session.add(CategoryNavigationItem(category_id=category_id,slot=(request.form.get("slot") or "top").strip(),visible=request.form.get("visible")=="on",sort_order=request.form.get("sort_order",0,type=int),label_override=(request.form.get("label_override") or "").strip() or None)); success="تمت إضافة عنصر الشريط."
+                elif row is None: raise ValueError("عنصر الشريط غير موجود.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة عنصر الشريط."
+                elif action=="update":
+                    category_id=request.form.get("category_id",type=int)
+                    if db.session.get(Category,category_id) is None: raise ValueError("الفئة غير موجودة.")
+                    row.category_id=category_id; row.slot=(request.form.get("slot") or row.slot).strip(); row.visible=request.form.get("visible")=="on"; row.sort_order=request.form.get("sort_order",0,type=int); row.label_override=(request.form.get("label_override") or "").strip() or None; success="تم تحديث عنصر الشريط."
+                else: raise ValueError("إجراء شريط الأقسام غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=CategoryNavigationItem.query.filter_by(is_active=True).order_by(CategoryNavigationItem.sort_order,CategoryNavigationItem.id).limit(300).all()
+        categories=Category.query.filter_by(is_active=True).order_by(Category.sort_order,Category.name).limit(300).all()
+        return render_template("admin/category_strip.html",title="شريط الأقسام",rows=rows,categories=categories,success=success,error=error,**build_admin_context())
 
     @admin_bp.route("/storefront/pages", methods=["GET", "POST"])
     def storefront_pages():
