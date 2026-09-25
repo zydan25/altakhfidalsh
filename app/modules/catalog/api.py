@@ -161,6 +161,56 @@ def option_references():
     return {"item": CatalogService.option_references()}
 
 
+@api_bp.get("/reference/marketing")
+def marketing_references():
+    from ...models import Badge, Brand, Hashtag
+    return {
+        "brands": [
+            {"id": x.id, "name": x.name, "slug": x.slug, "logo_asset_id": x.logo_asset_id}
+            for x in Brand.query.filter_by(is_active=True).order_by(Brand.name).all()
+        ],
+        "badges": [
+            {
+                "id": x.id,
+                "name": x.name,
+                "code": x.code,
+                "bg_color": x.bg_color,
+                "text_color": x.text_color,
+                "style": x.style,
+            }
+            for x in Badge.query.filter_by(is_active=True).order_by(Badge.priority.desc(), Badge.name).all()
+        ],
+        "hashtags": [
+            {"id": x.id, "name": x.name, "slug": x.slug, "display_name": x.display_name}
+            for x in Hashtag.query.filter_by(is_active=True).order_by(Hashtag.sort_order, Hashtag.name).all()
+        ],
+    }
+
+
+@api_bp.post("/products/<int:product_id>/badges")
+@admin_api_required("product.edit")
+def set_product_badges(product_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"items": CatalogService.set_product_badges(product_id, payload.get("badge_ids", []))}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_badges", "detail": str(exc)}, 400
+
+
+@api_bp.post("/products/<int:product_id>/hashtags")
+@admin_api_required("product.edit")
+def set_product_hashtags(product_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"items": CatalogService.set_product_hashtags(product_id, payload.get("hashtag_ids", []))}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_hashtags", "detail": str(exc)}, 400
+
+
 @api_bp.get("/inventory-locations")
 def inventory_locations():
     return {"items": CatalogService.list_inventory_locations()}
