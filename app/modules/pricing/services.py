@@ -64,6 +64,9 @@ class PricingAdminService:
 
     @staticmethod
     def create_group(payload):
+        if bool(payload.get("is_default", False)) and PricingGroup.query.filter_by(is_default=True, is_active=True).first():
+            raise ValueError("an active default pricing group already exists")
+
         group = PricingGroup(
             name=str(payload["name"]).strip(),
             description=(payload.get("description") or "").strip() or None,
