@@ -17,6 +17,7 @@
       ("media","الصور"),
       ("options","الخيارات"),
       ("variants","المتغيرات"),
+      ("inventory","المخزون"),
       ("policies","السياسات"),
       ("publish","المراجعة")
     ] %}
@@ -93,6 +94,26 @@
     <div id="variantsList" class="stack-list"></div>
   </div>
 
+  <div class="wizard-panel" data-panel="inventory" hidden>
+    <div class="panel-heading"><div><span class="eyebrow">المخزون</span><h3>مواقع التخزين والكميات</h3></div></div>
+    <form id="inventoryForm" class="form-stack">
+      <label>المتغير<select id="inventoryVariant" name="variant_id" required></select></label>
+      <label>موقع التخزين<select id="inventoryLocation" name="location_id" required></select></label>
+      <label>الكمية الفعلية<input name="on_hand" type="number" min="0" value="0" required inputmode="numeric"></label>
+      <label>المحجوز<input name="reserved" type="number" min="0" value="0" required inputmode="numeric"></label>
+      <label>حد إعادة الطلب<input name="reorder_level" type="number" min="0" value="0" required inputmode="numeric"></label>
+      <button class="primary-button" type="submit">حفظ المخزون</button>
+    </form>
+    <div class="split-heading inventory-location-heading"><div><span class="eyebrow">موقع جديد</span><strong>أضف مخزنًا أو فرعًا</strong></div></div>
+    <form id="locationForm" class="form-stack compact-form">
+      <label>اسم الموقع<input name="name" required placeholder="المخزن الرئيسي"></label>
+      <label>الكود<input name="code" required dir="ltr" placeholder="MAIN"></label>
+      <label>City ID<input name="city_id" type="number" min="1"></label>
+      <button class="ghost-button" type="submit">إضافة الموقع</button>
+    </form>
+    <div id="inventoryList" class="stack-list"></div>
+  </div>
+
   <div class="wizard-panel" data-panel="policies" hidden>
     <div class="panel-heading"><div><span class="eyebrow">الثقة والعرض</span><h3>السياسات وإعدادات بطاقة المنتج</h3></div></div>
     <div class="settings-list">
@@ -101,8 +122,13 @@
       <label class="check-row"><input id="showShipping" type="checkbox" checked><span><strong>إظهار شريط الشحن</strong><small>بيانات الشحن تأتي من سياسة المنتج</small></span></label>
       <label class="check-row"><input id="showReturn" type="checkbox" checked><span><strong>إظهار الإرجاع</strong><small>إظهار نافذة الإرجاع وشروطها</small></span></label>
     </div>
-    <p class="muted policy-note">إنشاء سياسات الشحن والإرجاع والضمان وربطها بالمنتج سيكون من وحدة السياسات، ثم يقرأ هذا المنتج التعيين ديناميكيًا.</p>
-    <button id="saveDisplay" class="primary-button" type="button">حفظ إعدادات العرض</button>
+    <div class="form-stack policy-selects">
+      <label>سياسة الشحن<select id="shippingPolicyId"><option value="">بدون سياسة</option></select></label>
+      <label>سياسة الإرجاع<select id="returnPolicyId"><option value="">بدون سياسة</option></select></label>
+      <label>سياسة الضمان<select id="warrantyPolicyId"><option value="">بدون سياسة</option></select></label>
+    </div>
+    <p class="muted policy-note">السياسات كيانات مستقلة قابلة لإعادة الاستخدام. اختيارها هنا يربط المنتج بها ولا ينسخ نص السياسة داخل المنتج.</p>
+    <button id="saveDisplay" class="primary-button" type="button">حفظ العرض والسياسات</button>
   </div>
 
   <div class="wizard-panel" data-panel="publish" hidden>
