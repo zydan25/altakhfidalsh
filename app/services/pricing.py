@@ -170,7 +170,10 @@ def resolve_pricing_context(
             .first()
         )
 
-    if group is None:
+    if group is None or not group.is_active or not (
+        (group.starts_at is None or group.starts_at <= now)
+        and (group.ends_at is None or group.ends_at >= now)
+    ):
         raise LookupError("No active pricing group is configured")
 
     target_currency_id = currency_id or group.default_currency_id
