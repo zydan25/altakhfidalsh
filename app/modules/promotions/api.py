@@ -2,6 +2,7 @@ from flask import request
 from ...extensions import db
 
 from . import api_bp
+from ..customer.security import customer_required, current_customer
 from ...security import admin_api_required
 from .services import PromotionService
 from ...extensions import db
@@ -21,12 +22,13 @@ def coupons():
 
 
 @api_bp.post("/coupons/redeem")
+@customer_required
 def redeem_coupon():
     payload = request.get_json(silent=True) or {}
     try:
         return {"item": PromotionService.redeem_coupon(
             str(payload["code"]).strip(),
-            int(payload["customer_id"]),
+            current_customer().id,
             payload.get("order_id"),
             payload["order_subtotal"],
         )}
