@@ -2,6 +2,7 @@ from flask import request
 
 from . import api_bp
 from .auth import CustomerAuthService
+from .security import customer_required, current_customer
 from .services import CustomerService
 from .wishlist import CustomerEngagementService
 from ...extensions import db
@@ -29,6 +30,20 @@ def verify_otp():
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "otp_verification_failed", "detail": str(exc)}, 400
     return {"item": result}
+
+
+@api_bp.post("/auth/logout")
+@customer_required
+def logout():
+    auth = request.headers.get("Authorization", "")
+    CustomerAuthService.revoke_access(auth[7:].strip())
+    return {"ok": True}
+
+
+@api_bp.get("/me")
+@customer_required
+def me():
+    return {"item": CustomerService.serialize(current_customer())}
 
 
 @api_bp.get("/customers/<int:customer_id>")
