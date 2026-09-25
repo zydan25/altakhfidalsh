@@ -143,6 +143,47 @@ def upload_product_media(product_id):
     return {"items": items}, 201
 
 
+
+@api_bp.get("/reference/options")
+def option_references():
+    return {"item": CatalogService.option_references()}
+
+
+@api_bp.get("/inventory-locations")
+def inventory_locations():
+    return {"items": CatalogService.list_inventory_locations()}
+
+
+@api_bp.post("/inventory-locations")
+def create_inventory_location():
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CatalogService.create_inventory_location(payload)}, 201
+    except ValueError as exc:
+        return {"error": "invalid_inventory_location", "detail": str(exc)}, 400
+
+@api_bp.post("/products/<int:product_id>/display-settings")
+def display_settings(product_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CatalogService.set_display_settings(product_id, payload)}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_display_settings", "detail": str(exc)}, 400
+
+
+@api_bp.post("/products/<int:product_id>/policies")
+def product_policies(product_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CatalogService.set_policies(product_id, payload)}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_policy_assignment", "detail": str(exc)}, 400
+
+
 @api_bp.get("/products/<int:product_id>/wizard")
 def product_wizard(product_id):
     try:
