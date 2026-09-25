@@ -447,57 +447,58 @@ def register_entity_views(admin_bp):
         )
 
     @admin_bp.route("/promotions/coupons", methods=["GET", "POST"])
+    @admin_bp.route("/promotions/coupons", methods=["GET", "POST"])
     def coupons():
-        error = None
-        success = None
-        if request.method == "POST":
+        error=None; success=None
+        if request.method=="POST":
             try:
-                code = (request.form.get("code") or "").strip().upper()
-                ctype = (request.form.get("type") or "percent").strip()
-                value = Decimal(request.form.get("value") or "0")
-                if not code or value < 0:
-                    raise ValueError("الكود والقيمة مطلوبان.")
-                if Coupon.query.filter_by(code=code).first():
-                    raise ValueError("الكود مستخدم مسبقًا.")
-                db.session.add(Coupon(
-                    code=code,
-                    type=ctype,
-                    value=value,
-                    min_order=Decimal(request.form.get("min_order") or "0"),
-                    max_discount=Decimal(request.form.get("max_discount") or "0") or None,
-                    usage_limit=request.form.get("usage_limit", type=int),
-                ))
+                action=(request.form.get("action") or "create").strip()
+                row=db.session.get(Coupon,request.form.get("id",type=int))
+                code=(request.form.get("code") or "").strip().upper()
+                ctype=(request.form.get("type") or "percent").strip()
+                value=Decimal(request.form.get("value") or "0")
+                if action=="create":
+                    if not code or value<0: raise ValueError("الكود والقيمة مطلوبان.")
+                    if Coupon.query.filter_by(code=code).first(): raise ValueError("الكود مستخدم مسبقًا.")
+                    db.session.add(Coupon(code=code,type=ctype,value=value,min_order=Decimal(request.form.get("min_order") or "0"),max_discount=Decimal(request.form.get("max_discount") or "0") or None,usage_limit=request.form.get("usage_limit",type=int))); success="تم إنشاء الكوبون."
+                elif row is None: raise ValueError("الكوبون غير موجود.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة الكوبون."
+                elif action=="update":
+                    if not code: raise ValueError("كود الكوبون مطلوب.")
+                    if Coupon.query.filter(Coupon.id!=row.id,Coupon.code==code).first(): raise ValueError("الكود مستخدم مسبقًا.")
+                    row.code=code; row.type=ctype; row.value=value; row.min_order=Decimal(request.form.get("min_order") or "0"); row.max_discount=Decimal(request.form.get("max_discount") or "0") or None; row.usage_limit=request.form.get("usage_limit",type=int); success="تم تحديث الكوبون."
+                else: raise ValueError("إجراء الكوبون غير معروف.")
                 db.session.commit()
-                success = "تم إنشاء الكوبون."
-            except (ValueError, InvalidOperation) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = Coupon.query.order_by(Coupon.id.desc()).limit(200).all()
-        return render_template("admin/coupons.html", title="الكوبونات", coupons=rows, success=success, error=error, **build_admin_context())
+            except (ValueError,InvalidOperation) as exc: db.session.rollback(); error=str(exc)
+        rows=Coupon.query.filter_by(is_active=True).order_by(Coupon.id.desc()).limit(200).all()
+        return render_template("admin/coupons.html",title="الكوبونات",coupons=rows,success=success,error=error,**build_admin_context())
+
 
     @admin_bp.route("/promotions/gifts", methods=["GET", "POST"])
     def gifts():
         from ..models import GiftCampaign
-        error = None
-        success = None
-        if request.method == "POST":
+        error=None; success=None
+        if request.method=="POST":
             try:
-                db.session.add(GiftCampaign(
-                    name=(request.form.get("name") or "").strip(),
-                    gift_type=(request.form.get("gift_type") or "credit").strip(),
-                    value=Decimal(request.form.get("value") or "0"),
-                    expires_at=None,
-                ))
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(GiftCampaign,request.form.get("id",type=int))
+                if action=="create":
+                    name=(request.form.get("name") or "").strip()
+                    if not name: raise ValueError("اسم حملة الهدية مطلوب.")
+                    db.session.add(GiftCampaign(name=name,gift_type=(request.form.get("gift_type") or "credit").strip(),value=Decimal(request.form.get("value") or "0"),expires_at=None)); success="تم إنشاء حملة الهدية."
+                elif row is None: raise ValueError("حملة الهدية غير موجودة.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة حملة الهدية."
+                elif action=="update":
+                    name=(request.form.get("name") or "").strip()
+                    if not name: raise ValueError("اسم حملة الهدية مطلوب.")
+                    row.name=name; row.gift_type=(request.form.get("gift_type") or row.gift_type).strip(); row.value=Decimal(request.form.get("value") or "0"); success="تم تحديث حملة الهدية."
+                else: raise ValueError("إجراء الهدايا غير معروف.")
                 db.session.commit()
-                success = "تم إنشاء حملة الهدية."
-            except (ValueError, InvalidOperation) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = GiftCampaign.query.order_by(GiftCampaign.id.desc()).limit(200).all()
-        customers = Customer.query.filter_by(is_active=True).order_by(Customer.id.desc()).limit(200).all()
-        return render_template("admin/gifts.html", title="الهدايا", campaigns=rows, customers=customers, success=success, error=error, **build_admin_context())
+            except (ValueError,InvalidOperation) as exc: db.session.rollback(); error=str(exc)
+        rows=GiftCampaign.query.filter_by(is_active=True).order_by(GiftCampaign.id.desc()).limit(200).all()
+        customers=Customer.query.filter_by(is_active=True).order_by(Customer.id.desc()).limit(200).all()
+        return render_template("admin/gifts.html",title="الهدايا",campaigns=rows,customers=customers,success=success,error=error,**build_admin_context())
 
-    @admin_bp.post("/promotions/gifts/issue")
+
     def issue_gift_admin():
         from ..modules.promotions.services import PromotionService
         try:
