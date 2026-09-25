@@ -222,39 +222,6 @@ def register_admin_routes(admin_bp):
             **context,
         )
 
-    @admin_bp.post("/categories/<int:category_id>")
-    def category_update(category_id):
-        request.form  # keep route explicit in the navigation and browser history
-        context = _navigation_context()
-        category = db.session.get(Category, category_id)
-        if category is None:
-            return render_template(
-                "admin/module.html",
-                title="الفئة غير موجودة",
-                section="الكتالوج",
-                requested_path=request.path,
-                **context,
-            ), 404
-        form = request.form.to_dict(flat=True)
-        form["action"] = form.get("action", "update")
-        # Reuse the canonical categories handler by posting through a compact redirect-safe path.
-        name = (form.get("name") or "").strip()
-        slug = (form.get("slug") or "").strip().lower()
-        parent_id = int(form["parent_id"]) if form.get("parent_id") else None
-        category.name = name
-        category.slug = slug
-        category.parent_id = parent_id
-        category.display_style = (form.get("display_style") or "circle").strip()
-        category.sort_order = int(form.get("sort_order") or 0)
-        category.is_featured = form.get("is_featured") == "on"
-        category.badge_id = int(form["badge_id"]) if form.get("badge_id") else None
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            raise
-        return __import__("flask").redirect("/admin/categories")
-
     @admin_bp.get("/products")
     def products():
         context = _navigation_context()
