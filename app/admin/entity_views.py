@@ -794,88 +794,80 @@ def register_entity_views(admin_bp):
         return _render("شريط الأقسام", ["ID", "الفئة", "Slot", "الترتيب", "ظاهر"],
                        [[x.id, x.category_id, x.slot, x.sort_order, "نعم" if x.visible else "لا"] for x in rows], "الكتالوج")
 
-    @admin_bp.get("/storefront/pages")
+    @admin_bp.route("/storefront/pages", methods=["GET", "POST"])
     def storefront_pages():
-        from ..models import StorefrontPage, StorefrontSection, StorefrontSectionItem
-        pages = StorefrontPage.query.filter_by(is_active=True).order_by(StorefrontPage.id).all()
-        sections = StorefrontSection.query.order_by(StorefrontSection.page_id, StorefrontSection.sort_order).limit(1000).all()
-        section_ids = [row.id for row in sections]
-        items = StorefrontSectionItem.query.filter(
-            StorefrontSectionItem.section_id.in_(section_ids)
-        ).order_by(StorefrontSectionItem.section_id, StorefrontSectionItem.sort_order, StorefrontSectionItem.id).all() if section_ids else []
-        items_by_section = {}
-        for item in items:
-            items_by_section.setdefault(item.section_id, []).append(item)
-        return render_template(
-            "admin/storefront_pages.html",
-            title="صفحات المتجر",
-            pages=pages,
-            sections=sections,
-            items_by_section=items_by_section,
-            **build_admin_context(),
-        )
+        from ..models import StorefrontPage, StorefrontSection, StorefrontSectionItem, Product, Category, Banner, Campaign, Hashtag, PromotionalStrip
+        error=None; success=None
+        if request.method=="POST":
+            try:
+                action=(request.form.get("action") or "").strip()
+                if action.startswith("page_"):
+                    row=db.session.get(StorefrontPage,request.form.get("id",type=int))
+                    if action=="page_create":
+                        code=(request.form.get("code") or "").strip().lower(); name=(request.form.get("name") or "").strip(); route=(request.form.get("route") or "").strip()
+                        if not code or not name or not route: raise ValueError("Code والاسم وRoute مطلوبة.")
+                        if StorefrontPage.query.filter((StorefrontPage.code==code)|(StorefrontPage.route==route)).first(): raise ValueError("Code أو Route مستخدم مسبقًا.")
+                        db.session.add(StorefrontPage(code=code,name=name,route=route)); success="تم إنشاء الصفحة."
+                    elif row is None: raise ValueError("الصفحة غير موجودة.")
+                    elif action=="page_archive": row.is_active=False; success="تمت أرشفة الصفحة."
+                    else:
+                        code=(request.form.get("code") or "").strip().lower(); name=(request.form.get("name") or "").strip(); route=(request.form.get("route") or "").strip()
+                        if not code or not name or not route: raise ValueError("Code والاسم وRoute مطلوبة.")
+                        if StorefrontPage.query.filter(StorefrontPage.id!=row.id,((StorefrontPage.code==code)|(StorefrontPage.route==route))).first(): raise ValueError("Code أو Route مستخدم مسبقًا.")
+                        row.code=code; row.name=name; row.route=route; success="تم تحديث الصفحة."
+                elif action.startswith("section_"):
+                    row=db.session.get(StorefrontSection,request.form.get("id",type=int))
+                    if action=="section_create":
+                        page_id=request.form.get("page_id",type=int); page=db.session.get(StorefrontPage,page_id)
+                        if page is None: raise ValueError("الصفحة غير موجودة.")
+                        db.session.add(StorefrontSection(page_id=page_id,section_type=(request.form.get("section_type") or "product_grid").strip(),title=(request.form.get("title") or "").strip() or None,sort_order=request.form.get("sort_order",0,type=int),settings={},visible_rules={})); success="تم إنشاء القسم."
+                    elif row is None: raise ValueError("القسم غير موجود.")
+                    elif action=="section_archive": db.session.delete(row); success="تم حذف القسم وأغراضه التابعة."
+                    else:
+                        row.section_type=(request.form.get("section_type") or row.section_type).strip(); row.title=(request.form.get("title") or "").strip() or None; row.sort_order=request.form.get("sort_order",0,type=int); success="تم تحديث القسم."
+                elif action in {"item_create","item_update","item_delete"}:
+                    row=db.session.get(StorefrontSectionItem,request.form.get("id",type=int))
+                    if action=="item_delete":
+                        if row is None: raise ValueError("عنصر القسم غير موجود.")
+                        db.session.delete(row); success="تم حذف عنصر القسم."
+                    else:
+                        section_id=request.form.get("section_id",type=int) if action=="item_create" else (row.section_id if row else None)
+                        section=db.session.get(StorefrontSection,section_id)
+                        if section is None: raise ValueError("القسم غير موجود.")
+                        item_type=(request.form.get("item_type") or "product").strip(); item_id=request.form.get("item_id",type=int)
+                        models={"product":Product,"category":Category,"banner":Banner,"campaign":Campaign,"hashtag":Hashtag,"promotional_strip":PromotionalStrip}
+                        model=models.get(item_type)
+                        if model is None or db.session.get(model,item_id) is None: raise ValueError("نوع أو معرّف عنصر القسم غير صحيح.")
+                        if action=="item_create": db.session.add(StorefrontSectionItem(section_id=section.id,item_type=item_type,item_id=item_id,sort_order=request.form.get("sort_order",0,type=int),custom_label=(request.form.get("custom_label") or "").strip() or None)); success="تمت إضافة عنصر القسم."
+                        else: row.item_type=item_type; row.item_id=item_id; row.sort_order=request.form.get("sort_order",0,type=int); row.custom_label=(request.form.get("custom_label") or "").strip() or None; success="تم تحديث عنصر القسم."
+                else: raise ValueError("إجراء صفحات المتجر غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        pages=StorefrontPage.query.filter_by(is_active=True).order_by(StorefrontPage.id).all()
+        sections=StorefrontSection.query.order_by(StorefrontSection.page_id,StorefrontSection.sort_order).limit(1000).all()
+        section_ids=[x.id for x in sections]
+        items=StorefrontSectionItem.query.filter(StorefrontSectionItem.section_id.in_(section_ids)).order_by(StorefrontSectionItem.section_id,StorefrontSectionItem.sort_order,StorefrontSectionItem.id).all() if section_ids else []
+        items_by_section={}
+        for item in items: items_by_section.setdefault(item.section_id,[]).append(item)
+        products=Product.query.filter(Product.is_active.is_(True),Product.status!="archived").order_by(Product.id.desc()).limit(300).all()
+        categories=Category.query.filter_by(is_active=True).order_by(Category.sort_order,Category.name).limit(300).all()
+        banners=Banner.query.filter_by(is_active=True).order_by(Banner.id.desc()).limit(300).all()
+        campaigns=Campaign.query.filter_by(is_active=True).order_by(Campaign.display_priority.desc(),Campaign.name).limit(200).all()
+        hashtags=Hashtag.query.filter_by(is_active=True).order_by(Hashtag.sort_order,Hashtag.name).limit(200).all()
+        strips=PromotionalStrip.query.filter_by(is_active=True).order_by(PromotionalStrip.id.desc()).limit(200).all()
+        return render_template("admin/storefront_pages.html",title="صفحات المتجر",pages=pages,sections=sections,items_by_section=items_by_section,products=products,categories=categories,banners=banners,campaigns=campaigns,hashtags=hashtags,strips=strips,success=success,error=error,**build_admin_context())
 
     @admin_bp.post("/storefront/pages")
     def storefront_create_page():
-        from ..models import StorefrontPage
-        code = (request.form.get("code") or "").strip().lower()
-        name = (request.form.get("name") or "").strip()
-        route = (request.form.get("route") or "").strip()
-        if not code or not name or not route:
-            return render_template(
-                "admin/module.html",
-                title="بيانات الصفحة ناقصة",
-                section="المحتوى والمتجر",
-                requested_path="/admin/storefront/pages",
-                **build_admin_context(),
-            ), 400
-        if StorefrontPage.query.filter(
-            (StorefrontPage.code == code) | (StorefrontPage.route == route)
-        ).first():
-            return render_template(
-                "admin/module.html",
-                title="الصفحة موجودة مسبقًا",
-                section="المحتوى والمتجر",
-                requested_path="/admin/storefront/pages",
-                **build_admin_context(),
-            ), 400
-        db.session.add(StorefrontPage(code=code, name=name, route=route))
-        db.session.commit()
+        request.form.get("action")
         return __import__("flask").redirect("/admin/storefront/pages")
 
     @admin_bp.post("/storefront/sections")
     def storefront_create_section():
-        from ..models import StorefrontPage, StorefrontSection
-        page_id = request.form.get("page_id", type=int)
-        section_type = (request.form.get("section_type") or "product_grid").strip()
-        title = (request.form.get("title") or "").strip() or None
-        if db.session.get(StorefrontPage, page_id) is None:
-            return {"error": "page_not_found"}, 404
-        db.session.add(StorefrontSection(
-            page_id=page_id,
-            section_type=section_type,
-            title=title,
-            sort_order=request.form.get("sort_order", 0, type=int),
-            settings={},
-            visible_rules={},
-        ))
-        db.session.commit()
         return __import__("flask").redirect("/admin/storefront/pages")
 
     @admin_bp.post("/storefront/sections/<int:section_id>/items")
     def storefront_add_item(section_id):
-        from ..models import StorefrontSection, StorefrontSectionItem
-        section = db.session.get(StorefrontSection, section_id)
-        if section is None:
-            return {"error": "section_not_found"}, 404
-        db.session.add(StorefrontSectionItem(
-            section_id=section.id,
-            item_type=(request.form.get("item_type") or "product").strip(),
-            item_id=request.form.get("item_id", type=int),
-            sort_order=request.form.get("sort_order", 0, type=int),
-            custom_label=(request.form.get("custom_label") or "").strip() or None,
-        ))
-        db.session.commit()
         return __import__("flask").redirect("/admin/storefront/pages")
 
     @admin_bp.get("/banner-targets")
