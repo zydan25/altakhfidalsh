@@ -71,3 +71,12 @@ def warranty_claim_detail(claim_id):
         "status": row.status,
         "resolution": row.resolution,
     }}
+
+
+@api_bp.post("/refunds")
+def process_refund():
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": AfterSalesService.process_refund(payload)}, 201
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "refund_failed", "detail": str(exc)}, 400
