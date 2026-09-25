@@ -606,6 +606,44 @@ class PromotionalStrip(TimestampMixin, ActiveMixin, db.Model):
     text_color = db.Column(String(20))
 
 
+class ProductPromotionalStrip(TimestampMixin, db.Model):
+    __tablename__ = "product_promotional_strips"
+
+    id = db.Column(Integer, primary_key=True)
+    product_id = db.Column(ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    strip_id = db.Column(ForeignKey("promotional_strips.id", ondelete="CASCADE"), nullable=False)
+    starts_at = db.Column(db.DateTime(timezone=True))
+    ends_at = db.Column(db.DateTime(timezone=True))
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("product_id", "strip_id", name="uq_product_promotional_strip"),
+    )
+
+
+class CategoryBadge(TimestampMixin, db.Model):
+    __tablename__ = "category_badges"
+
+    id = db.Column(Integer, primary_key=True)
+    category_id = db.Column(ForeignKey("categories.id", ondelete="CASCADE"), nullable=False)
+    badge_id = db.Column(ForeignKey("badges.id", ondelete="CASCADE"), nullable=False)
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("category_id", "badge_id", name="uq_category_badge"),
+    )
+
+
+class BannerBadge(TimestampMixin, db.Model):
+    __tablename__ = "banner_badges"
+
+    id = db.Column(Integer, primary_key=True)
+    banner_id = db.Column(ForeignKey("banners.id", ondelete="CASCADE"), nullable=False)
+    badge_id = db.Column(ForeignKey("badges.id", ondelete="CASCADE"), nullable=False)
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("banner_id", "badge_id", name="uq_banner_badge"),
+    )
+
+
 class Hashtag(TimestampMixin, ActiveMixin, db.Model):
     __tablename__ = "hashtags"
 
