@@ -1,6 +1,7 @@
 from flask import request
 
 from . import api_bp
+from ...security import admin_api_required
 from ...extensions import db
 from ...models import Banner, BannerTarget, StorefrontPage, StorefrontSection, StorefrontSectionItem
 
@@ -12,6 +13,7 @@ def pages():
 
 
 @api_bp.post("/pages")
+@admin_api_required("content.manage")
 def create_page():
     payload = request.get_json(silent=True) or {}
     code = str(payload.get("code", "")).strip()
@@ -28,6 +30,7 @@ def create_page():
 
 
 @api_bp.post("/pages/<int:page_id>/sections")
+@admin_api_required("content.manage")
 def create_section(page_id):
     payload = request.get_json(silent=True) or {}
     if db.session.get(StorefrontPage, page_id) is None:
@@ -46,6 +49,7 @@ def create_section(page_id):
 
 
 @api_bp.post("/sections/<int:section_id>/items")
+@admin_api_required("content.manage")
 def add_section_item(section_id):
     payload = request.get_json(silent=True) or {}
     if db.session.get(StorefrontSection, section_id) is None:
@@ -63,6 +67,7 @@ def add_section_item(section_id):
 
 
 @api_bp.post("/banners")
+@admin_api_required("banner.manage")
 def create_banner():
     payload = request.get_json(silent=True) or {}
     try:
@@ -84,6 +89,7 @@ def create_banner():
 
 
 @api_bp.post("/banners/<int:banner_id>/targets")
+@admin_api_required("banner.manage")
 def add_banner_target(banner_id):
     payload = request.get_json(silent=True) or {}
     if db.session.get(Banner, banner_id) is None:
@@ -138,6 +144,7 @@ def banners():
 
 
 @api_bp.post("/navigation-actions")
+@admin_api_required("content.manage")
 def create_navigation_action():
     payload = request.get_json(silent=True) or {}
     from ...models import NavigationAction
@@ -165,6 +172,7 @@ def navigation_actions():
 
 
 @api_bp.post("/category-navigation")
+@admin_api_required("content.manage")
 def category_navigation():
     payload = request.get_json(silent=True) or {}
     from ...models import CategoryNavigationItem
