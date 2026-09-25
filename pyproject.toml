@@ -1,8 +1,17 @@
 [project]
 name = "altakhfidalsh"
-version = "0.1.0"
+version = "0.2.0"
 description = "Mobile-first Arabic e-commerce administration platform"
 requires-python = ">=3.11"
+dependencies = [
+  "Flask>=3.1,<4",
+  "Flask-SQLAlchemy>=3.1,<4",
+  "Flask-Migrate>=4,<5",
+  "psycopg[binary]>=3.2,<4",
+  "python-dotenv>=1,<2",
+  "gunicorn>=23,<24",
+  "Pillow>=11,<12",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
