@@ -3,6 +3,7 @@ from decimal import Decimal, InvalidOperation
 from flask import request
 
 from . import api_bp
+from ...security import admin_api_required
 from .services import CatalogService, MediaService
 
 
@@ -12,6 +13,7 @@ def categories():
 
 
 @api_bp.post("/categories")
+@admin_api_required("category.manage")
 def create_category():
     payload = request.get_json(silent=True) or {}
     try:
@@ -22,6 +24,7 @@ def create_category():
 
 
 @api_bp.patch("/categories/<int:category_id>")
+@admin_api_required("category.manage")
 def update_category(category_id):
     payload = request.get_json(silent=True) or {}
     try:
@@ -34,6 +37,7 @@ def update_category(category_id):
 
 
 @api_bp.delete("/categories/<int:category_id>")
+@admin_api_required("category.manage")
 def delete_category(category_id):
     try:
         CatalogService.delete_category(category_id)
@@ -50,6 +54,7 @@ def products():
 
 
 @api_bp.post("/products/drafts")
+@admin_api_required("product.create")
 def create_draft_product():
     payload = request.get_json(silent=True) or {}
     try:
@@ -68,6 +73,7 @@ def product_detail(product_id):
 
 
 @api_bp.patch("/products/<int:product_id>")
+@admin_api_required("product.edit")
 def update_product(product_id):
     payload = request.get_json(silent=True) or {}
     try:
@@ -79,6 +85,7 @@ def update_product(product_id):
 
 
 @api_bp.post("/products/<int:product_id>/publish")
+@admin_api_required("product.publish")
 def publish_product(product_id):
     try:
         return {"item": CatalogService.publish_product(product_id)}
@@ -89,6 +96,7 @@ def publish_product(product_id):
 
 
 @api_bp.post("/products/<int:product_id>/categories")
+@admin_api_required("product.edit")
 def set_product_categories(product_id):
     payload = request.get_json(silent=True) or {}
     try:
@@ -100,6 +108,7 @@ def set_product_categories(product_id):
 
 
 @api_bp.post("/products/<int:product_id>/options")
+@admin_api_required("product.edit")
 def add_product_option(product_id):
     payload = request.get_json(silent=True) or {}
     try:
@@ -111,6 +120,7 @@ def add_product_option(product_id):
 
 
 @api_bp.post("/products/<int:product_id>/variants")
+@admin_api_required("product.edit")
 def add_product_variant(product_id):
     payload = request.get_json(silent=True) or {}
     try:
@@ -122,6 +132,7 @@ def add_product_variant(product_id):
 
 
 @api_bp.post("/products/<int:product_id>/inventory")
+@admin_api_required("inventory.manage")
 def set_inventory(product_id):
     payload = request.get_json(silent=True) or {}
     try:
@@ -133,6 +144,7 @@ def set_inventory(product_id):
 
 
 @api_bp.post("/products/<int:product_id>/media")
+@admin_api_required("product.edit")
 def upload_product_media(product_id):
     try:
         items = MediaService.attach_product_files(product_id, request.files.getlist("files"))
@@ -155,6 +167,7 @@ def inventory_locations():
 
 
 @api_bp.post("/inventory-locations")
+@admin_api_required("inventory.manage")
 def create_inventory_location():
     payload = request.get_json(silent=True) or {}
     try:
@@ -163,6 +176,7 @@ def create_inventory_location():
         return {"error": "invalid_inventory_location", "detail": str(exc)}, 400
 
 @api_bp.post("/products/<int:product_id>/display-settings")
+@admin_api_required("product.edit")
 def display_settings(product_id):
     payload = request.get_json(silent=True) or {}
     try:
@@ -174,6 +188,7 @@ def display_settings(product_id):
 
 
 @api_bp.post("/products/<int:product_id>/policies")
+@admin_api_required("product.edit")
 def product_policies(product_id):
     payload = request.get_json(silent=True) or {}
     try:
@@ -186,6 +201,7 @@ def product_policies(product_id):
 
 
 @api_bp.post("/categories/<int:category_id>/filters")
+@admin_api_required("category.manage")
 def create_filter(category_id):
     payload = request.get_json(silent=True) or {}
     try:
@@ -205,6 +221,7 @@ def category_filters(category_id):
 
 
 @api_bp.post("/filters/<int:filter_id>/values")
+@admin_api_required("category.manage")
 def create_filter_value(filter_id):
     payload = request.get_json(silent=True) or {}
     try:
@@ -216,6 +233,7 @@ def create_filter_value(filter_id):
 
 
 @api_bp.post("/products/<int:product_id>/filter-values")
+@admin_api_required("product.edit")
 def set_product_filter_values(product_id):
     payload = request.get_json(silent=True) or {}
     try:
@@ -234,6 +252,7 @@ def product_wizard(product_id):
 
 
 @api_bp.post("/reference/colors")
+@admin_api_required("product.edit")
 def create_color():
     payload = request.get_json(silent=True) or {}
     try:
@@ -252,6 +271,7 @@ def create_color():
 
 
 @api_bp.post("/reference/sizes")
+@admin_api_required("product.edit")
 def create_size():
     payload = request.get_json(silent=True) or {}
     try:
@@ -280,6 +300,7 @@ def policy_references():
 
 
 @api_bp.post("/policies/shipping")
+@admin_api_required("policy.manage")
 def create_shipping_policy():
     from ...extensions import db
     from ...models import ShippingPolicy
@@ -297,6 +318,7 @@ def create_shipping_policy():
 
 
 @api_bp.post("/policies/return")
+@admin_api_required("policy.manage")
 def create_return_policy():
     from ...extensions import db
     from ...models import ReturnPolicy
@@ -314,6 +336,7 @@ def create_return_policy():
 
 
 @api_bp.post("/policies/warranty")
+@admin_api_required("policy.manage")
 def create_warranty_policy():
     from ...extensions import db
     from ...models import WarrantyPolicy
@@ -331,6 +354,7 @@ def create_warranty_policy():
 
 
 @api_bp.post("/badges")
+@admin_api_required("product.edit")
 def create_badge():
     from ...extensions import db
     from ...models import Badge
@@ -350,6 +374,7 @@ def create_badge():
 
 
 @api_bp.post("/size-guides")
+@admin_api_required("product.edit")
 def create_size_guide():
     from ...extensions import db
     from ...models import SizeGuide, SizeGuideRow
@@ -399,6 +424,7 @@ def size_guides():
 
 
 @api_bp.post("/products/<int:product_id>/garment-size-settings")
+@admin_api_required("product.edit")
 def garment_size_settings(product_id):
     from ...extensions import db
     from ...models import GarmentSizeSetting
