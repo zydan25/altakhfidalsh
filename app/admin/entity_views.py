@@ -702,50 +702,42 @@ def register_entity_views(admin_bp):
     @admin_bp.route("/brands", methods=["GET", "POST"])
     def brands():
         from ..models import Brand
-        error = None
-        success = None
-        if request.method == "POST":
+        error=None; success=None
+        if request.method=="POST":
             try:
-                name = (request.form.get("name") or "").strip()
-                if not name:
-                    raise ValueError("اسم العلامة التجارية مطلوب.")
-                slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(Brand, name, fallback="brand")
-                if Brand.query.filter_by(slug=slug).first():
-                    raise ValueError("الـSlug مستخدم مسبقًا.")
-                logo_asset_id = None
-                logo_file = request.files.get("logo_file")
-                if logo_file and logo_file.filename:
-                    assets = MediaService.save_generic_files([logo_file], "brands")
-                    logo_asset_id = assets[0]["id"] if assets else None
-                db.session.add(Brand(name=name, slug=slug, logo_asset_id=logo_asset_id))
+                action=(request.form.get("action") or "create").strip()
+                row=db.session.get(Brand,request.form.get("id",type=int))
+                if action=="create":
+                    name=(request.form.get("name") or "").strip()
+                    if not name: raise ValueError("اسم العلامة التجارية مطلوب.")
+                    slug=(request.form.get("slug") or "").strip().lower() or _unique_slug(Brand,name,fallback="brand")
+                    if Brand.query.filter_by(slug=slug).first(): raise ValueError("الـSlug مستخدم مسبقًا.")
+                    logo_id=None; f=request.files.get("logo_file")
+                    if f and f.filename:
+                        a=MediaService.save_generic_files([f],"brands"); logo_id=a[0]["id"] if a else None
+                    db.session.add(Brand(name=name,slug=slug,logo_asset_id=logo_id)); success="تم إنشاء العلامة التجارية."
+                elif row is None: raise ValueError("العلامة التجارية غير موجودة.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة العلامة التجارية."
+                elif action=="update":
+                    name=(request.form.get("name") or "").strip(); slug=(request.form.get("slug") or "").strip().lower() or _unique_slug(Brand,name,exclude_id=row.id,fallback="brand")
+                    if not name: raise ValueError("اسم العلامة التجارية مطلوب.")
+                    if Brand.query.filter(Brand.id!=row.id,Brand.slug==slug).first(): raise ValueError("الـSlug مستخدم مسبقًا.")
+                    row.name=name; row.slug=slug
+                    f=request.files.get("logo_file")
+                    if f and f.filename:
+                        a=MediaService.save_generic_files([f],"brands")
+                        if a: row.logo_asset_id=a[0]["id"]
+                    success="تم تحديث العلامة التجارية."
+                else: raise ValueError("إجراء العلامة التجارية غير معروف.")
                 db.session.commit()
-                success = "تم إنشاء العلامة التجارية."
-            except (ValueError, OSError) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = Brand.query.filter_by(is_active=True).order_by(Brand.name).all()
-        records = [
-            {
-                "title": row.name,
-                "badge": f"#{row.id}",
-                "fields": [
-                    {"label": "Slug", "value": row.slug, "dir": "ltr"},
-                    {"label": "الشعار", "value": f"Asset #{row.logo_asset_id}" if row.logo_asset_id else "بدون شعار"},
-                ],
-            }
-            for row in rows
-        ]
-        return render_template(
-            "admin/manage.html", title="العلامات التجارية", section="الكتالوج",
-            description="أضف العلامات التجارية من نافذة واحدة، مع توليد Slug تلقائيًا ورفع الشعار من الهاتف.",
-            fields=[
-                {"name": "name", "label": "اسم العلامة", "required": True, "placeholder": "مثال: Nike"},
-                {"name": "slug", "label": "Slug", "dir": "ltr", "placeholder": "يُولد تلقائيًا — ويمكن تعديله", "help": "اتركه فارغًا ليتم توليده تلقائيًا من الاسم."},
-                {"name": "logo_file", "label": "الشعار", "type": "file", "accept": "image/*"},
-            ],
-            records=records, modal_id="brandAddModal", success=success, error=error,
-            **_ctx(),
-        )
+            except (ValueError,OSError) as exc:
+                db.session.rollback(); error=str(exc)
+        rows=Brand.query.filter_by(is_active=True).order_by(Brand.name).all()
+        records=[{"id":x.id,"title":x.name,"badge":f"#{x.id}","edit_action":"update","archive_action":"archive",
+            "edit_fields":[{"name":"name","label":"اسم العلامة","required":True,"value":x.name},{"name":"slug","label":"Slug","dir":"ltr","value":x.slug},{"name":"logo_file","label":"استبدال الشعار","type":"file","accept":"image/*"}],
+            "fields":[{"label":"Slug","value":x.slug,"dir":"ltr"},{"label":"الشعار","value":f"Asset #{x.logo_asset_id}" if x.logo_asset_id else "بدون شعار"}]} for x in rows]
+        return render_template("admin/manage.html",title="العلامات التجارية",section="الكتالوج",description="إضافة وتعديل وأرشفة العلامات التجارية مع Slug تلقائي.",fields=[{"name":"name","label":"اسم العلامة","required":True},{"name":"slug","label":"Slug","dir":"ltr"},{"name":"logo_file","label":"الشعار","type":"file","accept":"image/*"}],records=records,modal_id="brandAddModal",success=success,error=error,**_ctx())
+
 
     @admin_bp.route("/options", methods=["GET", "POST"])
     def options():
