@@ -1,0 +1,115 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">معالج المنتج</span>
+  <h2>{{ product.name }}</h2>
+  <p class="muted">احفظ كل مرحلة مستقلة. لا تنتقل للنشر قبل اكتمال المتطلبات الأساسية.</p>
+</section>
+
+<div id="wizardMessage" class="alert" hidden></div>
+
+<section class="wizard-shell panel" data-product-id="{{ product_id }}">
+  <div class="wizard-steps" role="tablist">
+    {% for key, label in [
+      ("basics","الأساس"),
+      ("categories","التصنيفات"),
+      ("media","الصور"),
+      ("options","الخيارات"),
+      ("variants","المتغيرات"),
+      ("policies","السياسات"),
+      ("publish","المراجعة")
+    ] %}
+    <button class="wizard-step {% if loop.first %}is-active{% endif %}" type="button" data-step="{{ key }}" role="tab">{{ loop.index }}. {{ label }}</button>
+    {% endfor %}
+  </div>
+
+  <div class="wizard-panel is-active" data-panel="basics">
+    <div class="panel-heading"><div><span class="eyebrow">الهوية والسعر</span><h3>بيانات المنتج الأساسية</h3></div></div>
+    <form id="basicsForm" class="form-stack">
+      <label>SKU<input id="productSku" name="sku" value="{{ product.sku or '' }}" required dir="ltr"></label>
+      <label>الاسم<input id="productName" name="name" value="{{ product.name or '' }}" required></label>
+      <label>الوصف<textarea id="productDescription" name="description" rows="5">{{ product.description or '' }}</textarea></label>
+      <label>السعر الأساسي SAR<input id="productPrice" name="base_price" value="{{ product.base_price }}" required type="number" min="0" step="0.0001" inputmode="decimal"></label>
+      <label>المادة<input id="productMaterial" name="material" value="{{ product.material or '' }}"></label>
+      <label>تعليمات الغسيل<textarea id="productCare" name="care_instructions" rows="3">{{ product.care_instructions or '' }}</textarea></label>
+      <button class="primary-button" type="submit">حفظ البيانات الأساسية</button>
+    </form>
+  </div>
+
+  <div class="wizard-panel" data-panel="categories" hidden>
+    <div class="panel-heading"><div><span class="eyebrow">الربط</span><h3>التصنيفات</h3></div></div>
+    <div class="selection-list">
+      {% for category in categories %}
+      <label class="check-row">
+        <input type="checkbox" value="{{ category.id }}" data-category-checkbox>
+        <span><strong>{{ category.name }}</strong><small>{{ category.slug }}</small></span>
+      </label>
+      {% endfor %}
+    </div>
+    <button id="saveCategories" class="primary-button" type="button">حفظ التصنيفات</button>
+  </div>
+
+  <div class="wizard-panel" data-panel="media" hidden>
+    <div class="panel-heading"><div><span class="eyebrow">الصور</span><h3>وسائط المنتج</h3></div></div>
+    <label class="upload-zone">
+      <span class="upload-icon">＋</span>
+      <strong>اختر صورًا متعددة</strong>
+      <small>سيتم تحسينها وتصغيرها وتحويلها إلى WebP على الخادم.</small>
+      <input id="productMedia" type="file" accept="image/*" multiple>
+    </label>
+    <div id="mediaPreview" class="media-grid"></div>
+    <button id="uploadMedia" class="primary-button" type="button">رفع الصور</button>
+  </div>
+
+  <div class="wizard-panel" data-panel="options" hidden>
+    <div class="panel-heading"><div><span class="eyebrow">الخصائص</span><h3>ألوان ومقاسات وخيارات</h3></div></div>
+    <form id="optionForm" class="form-stack">
+      <label>اسم الخيار<input name="name" required placeholder="اللون / المقاس / الخامة"></label>
+      <label>نوع الخيار
+        <select name="option_type">
+          <option value="color">لون</option>
+          <option value="size">مقاس</option>
+          <option value="custom">مخصص</option>
+        </select>
+      </label>
+      <label>القيم — قيمة في كل سطر<textarea name="values_text" rows="5" placeholder="أسود&#10;أبيض&#10;بيج"></textarea></label>
+      <label class="check-row"><input name="required" type="checkbox"><span><strong>إجباري</strong><small>يجب اختيار القيمة قبل إضافة المنتج للعربة</small></span></label>
+      <button class="primary-button" type="submit">إضافة الخيار</button>
+    </form>
+    <div id="optionsList" class="stack-list"></div>
+  </div>
+
+  <div class="wizard-panel" data-panel="variants" hidden>
+    <div class="panel-heading"><div><span class="eyebrow">SKU فعلي</span><h3>المتغيرات والمخزون</h3></div></div>
+    <form id="variantForm" class="form-stack">
+      <label>SKU للمتغير<input name="sku" required dir="ltr" placeholder="SHP-10001-BLK-M"></label>
+      <label>Color ID<input name="color_id" type="number" min="1" inputmode="numeric"></label>
+      <label>Size ID<input name="size_id" type="number" min="1" inputmode="numeric"></label>
+      <label>Barcode<input name="barcode" dir="ltr"></label>
+      <label>الوزن<input name="weight" type="number" min="0" step="0.0001" inputmode="decimal"></label>
+      <button class="primary-button" type="submit">إضافة Variant</button>
+    </form>
+    <div id="variantsList" class="stack-list"></div>
+  </div>
+
+  <div class="wizard-panel" data-panel="policies" hidden>
+    <div class="panel-heading"><div><span class="eyebrow">الثقة والعرض</span><h3>السياسات وإعدادات بطاقة المنتج</h3></div></div>
+    <div class="settings-list">
+      <label class="check-row"><input id="showRating" type="checkbox" checked><span><strong>إظهار التقييم</strong><small>عرض التقييم وعدد المراجعات</small></span></label>
+      <label class="check-row"><input id="showSoldBadge" type="checkbox" checked><span><strong>إظهار شارة تم البيع</strong><small>يمكن التحكم بها لاحقًا حسب الحملة</small></span></label>
+      <label class="check-row"><input id="showShipping" type="checkbox" checked><span><strong>إظهار شريط الشحن</strong><small>بيانات الشحن تأتي من سياسة المنتج</small></span></label>
+      <label class="check-row"><input id="showReturn" type="checkbox" checked><span><strong>إظهار الإرجاع</strong><small>إظهار نافذة الإرجاع وشروطها</small></span></label>
+    </div>
+    <p class="muted policy-note">إنشاء سياسات الشحن والإرجاع والضمان وربطها بالمنتج سيكون من وحدة السياسات، ثم يقرأ هذا المنتج التعيين ديناميكيًا.</p>
+    <button id="saveDisplay" class="primary-button" type="button">حفظ إعدادات العرض</button>
+  </div>
+
+  <div class="wizard-panel" data-panel="publish" hidden>
+    <div class="panel-heading"><div><span class="eyebrow">جاهزية النشر</span><h3>مراجعة المنتج</h3></div></div>
+    <div id="publishChecklist" class="checklist"></div>
+    <button id="publishProduct" class="primary-button" type="button">نشر المنتج</button>
+  </div>
+</section>
+<script src="{{ url_for('admin.static', filename='product-wizard.js') }}" defer></script>
+{% endblock %}
