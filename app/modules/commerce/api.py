@@ -1,6 +1,7 @@
 from flask import request
 
 from . import api_bp
+from ...security import admin_api_required
 from .services import CommerceService
 from ...extensions import db
 from ...models import Order
@@ -44,6 +45,7 @@ def create_order():
 
 
 @api_bp.post("/orders/<int:order_id>/status")
+@admin_api_required("order.manage")
 def transition_order(order_id):
     payload = request.get_json(silent=True) or {}
     try:
@@ -84,6 +86,7 @@ def payment_methods():
 
 
 @api_bp.post("/payment-methods")
+@admin_api_required("payment.manage")
 def create_payment_method():
     try:
         return {"item": PaymentShippingService.create_payment_method(request.get_json(silent=True) or {})}, 201
@@ -92,6 +95,7 @@ def create_payment_method():
 
 
 @api_bp.post("/payments")
+@admin_api_required("payment.manage")
 def record_payment():
     try:
         return {"item": PaymentShippingService.record_payment(request.get_json(silent=True) or {})}, 201
@@ -100,6 +104,7 @@ def record_payment():
 
 
 @api_bp.post("/payments/proofs")
+@admin_api_required("payment.manage")
 def payment_proof():
     try:
         return {"item": PaymentShippingService.attach_payment_proof(request.get_json(silent=True) or {})}, 201
@@ -115,6 +120,7 @@ def shipping_methods():
 
 
 @api_bp.post("/shipping-methods")
+@admin_api_required("shipping.manage")
 def create_shipping_method():
     try:
         return {"item": PaymentShippingService.create_shipping_method(request.get_json(silent=True) or {})}, 201
@@ -123,6 +129,7 @@ def create_shipping_method():
 
 
 @api_bp.post("/shipments")
+@admin_api_required("shipping.manage")
 def create_shipment():
     try:
         return {"item": PaymentShippingService.create_shipment(request.get_json(silent=True) or {})}, 201
@@ -131,6 +138,7 @@ def create_shipment():
 
 
 @api_bp.post("/shipments/<int:shipment_id>/events")
+@admin_api_required("shipping.manage")
 def shipment_event(shipment_id):
     try:
         return {"item": PaymentShippingService.add_shipment_event(shipment_id, request.get_json(silent=True) or {})}, 201
