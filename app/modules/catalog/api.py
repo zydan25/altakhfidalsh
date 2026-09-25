@@ -273,6 +273,22 @@ def set_product_campaigns(product_id):
         return {"error": "invalid_campaigns", "detail": str(exc)}, 400
 
 
+@api_bp.post("/products/<int:product_id>/reference-dimensions")
+@admin_api_required("product.edit")
+def set_product_reference_dimensions(product_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CatalogService.set_product_reference_dimensions(
+            product_id,
+            payload.get("color_ids", []),
+            payload.get("size_ids", []),
+        )}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_reference_dimensions", "detail": str(exc)}, 400
+
+
 @api_bp.post("/products/<int:product_id>/badges")
 @admin_api_required("product.edit")
 def set_product_badges(product_id):
