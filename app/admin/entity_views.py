@@ -1,7 +1,7 @@
 import re
 import unicodedata
 
-from flask import render_template, request, session
+from flask import redirect, render_template, request, session, url_for
 
 from ..extensions import db
 from ..models import (
@@ -283,7 +283,7 @@ def register_entity_views(admin_bp):
     @admin_bp.route("/payments", methods=["GET", "POST"])
     def payments():
         from ..models import Currency, Order, PaymentMethod
-        error=None; success=None
+        error=None; success=request.args.get("success")
         if request.method=="POST":
             try:
                 action=(request.form.get("action") or "").strip(); row=db.session.get(PaymentMethod,request.form.get("id",type=int))
@@ -783,6 +783,39 @@ def register_entity_views(admin_bp):
         categories=Category.query.filter_by(is_active=True).order_by(Category.sort_order,Category.name).limit(300).all()
         return render_template("admin/category_strip.html",title="شريط الأقسام",rows=rows,categories=categories,success=success,error=error,**build_admin_context())
 
+    @admin_bp.post("/storefront/sections/<int:section_id>/items")
+    def storefront_section_item_create(section_id):
+        from ..models import StorefrontSection, StorefrontSectionItem, Product, Category, Banner, Campaign, Hashtag, PromotionalStrip
+
+        section = db.session.get(StorefrontSection, section_id)
+        if section is None:
+            return redirect(url_for("admin.storefront_pages"))
+        try:
+            item_type = (request.form.get("item_type") or "product").strip()
+            item_id = request.form.get("item_id", type=int)
+            models = {
+                "product": Product,
+                "category": Category,
+                "banner": Banner,
+                "campaign": Campaign,
+                "hashtag": Hashtag,
+                "promotional_strip": PromotionalStrip,
+            }
+            model = models.get(item_type)
+            if model is None or item_id is None or db.session.get(model, item_id) is None:
+                raise ValueError("نوع أو معرّف عنصر القسم غير صحيح.")
+            db.session.add(StorefrontSectionItem(
+                section_id=section.id,
+                item_type=item_type,
+                item_id=item_id,
+                sort_order=request.form.get("sort_order", 0, type=int),
+                custom_label=(request.form.get("custom_label") or "").strip() or None,
+            ))
+            db.session.commit()
+        except (ValueError, TypeError):
+            db.session.rollback()
+        return redirect(url_for("admin.storefront_pages"))
+
     @admin_bp.route("/storefront/pages", methods=["GET", "POST"])
     def storefront_pages():
         from ..models import StorefrontPage, StorefrontSection, StorefrontSectionItem, Product, Category, Banner, Campaign, Hashtag, PromotionalStrip
@@ -831,6 +864,7 @@ def register_entity_views(admin_bp):
                         else: row.item_type=item_type; row.item_id=item_id; row.sort_order=request.form.get("sort_order",0,type=int); row.custom_label=(request.form.get("custom_label") or "").strip() or None; success="تم تحديث عنصر القسم."
                 else: raise ValueError("إجراء صفحات المتجر غير معروف.")
                 db.session.commit()
+                return redirect(url_for("admin.storefront_pages", success=success))
             except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
         pages=StorefrontPage.query.filter_by(is_active=True).order_by(StorefrontPage.id).all()
         sections=StorefrontSection.query.order_by(StorefrontSection.page_id,StorefrontSection.sort_order).limit(1000).all()
