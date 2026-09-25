@@ -207,6 +207,16 @@ def product_config_references():
         return {"error": "not_found", "detail": str(exc)}, 404
 
 
+@api_bp.post("/reference/categories")
+@admin_api_required("category.manage")
+def create_category_reference():
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CatalogService.create_category(payload)}, 201
+    except (LookupError, ValueError, TypeError) as exc:
+        return {"error": "invalid_category", "detail": str(exc)}, 400
+
+
 @api_bp.get("/reference/options")
 def option_references():
     product_id = request.args.get("product_id", type=int)
