@@ -11,15 +11,15 @@ def register_module_blueprints(app: Flask) -> None:
     from .promotions import api_bp as promotions_api_bp
     from .system import api_bp as system_api_bp
 
-    api_blueprints = (
-        catalog_api_bp,
-        pricing_api_bp,
-        storefront_api_bp,
-        commerce_api_bp,
-        customer_api_bp,
-        support_api_bp,
-        promotions_api_bp,
-        system_api_bp,
+    modules = (
+        ("catalog", catalog_api_bp),
+        ("pricing", pricing_api_bp),
+        ("storefront", storefront_api_bp),
+        ("commerce", commerce_api_bp),
+        ("customer", customer_api_bp),
+        ("support", support_api_bp),
+        ("promotions", promotions_api_bp),
+        ("system", system_api_bp),
     )
-    for blueprint in api_blueprints:
-        app.register_blueprint(blueprint, url_prefix="/api/v1")
+    for name, blueprint in modules:
+        app.register_blueprint(blueprint, url_prefix=f"/api/v1/admin/{name}")
