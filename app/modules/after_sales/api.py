@@ -73,6 +73,22 @@ def warranty_claim_detail(claim_id):
     }}
 
 
+@api_bp.post("/reviews/<int:review_id>/media")
+def review_media_upload(review_id):
+    from ..catalog.services import MediaService
+    review = db.session.get(Review, review_id)
+    if review is None:
+        return {"error": "review_not_found"}, 404
+    try:
+        assets = MediaService.save_generic_files(request.files.getlist("files"), f"reviews/{review_id}")
+        for asset in assets:
+            db.session.add(ReviewMedia(review_id=review_id, asset_id=asset["id"]))
+        db.session.commit()
+        return {"items": assets}, 201
+    except ValueError as exc:
+        return {"error": "review_media_failed", "detail": str(exc)}, 400
+
+
 @api_bp.post("/refunds")
 def process_refund():
     payload = request.get_json(silent=True) or {}
