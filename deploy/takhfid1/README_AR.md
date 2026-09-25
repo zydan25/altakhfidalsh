@@ -20,10 +20,10 @@ Python وPostgreSQL وNginx وNode.js وPM2 وGit موجودة مسبقًا حس
 
 من داخل نسخة المشروع:
 
-sudo bash deploy/takhfid1/setup.sh
+sudo -E bash deploy/takhfid1/setup.sh
 
 السكربت:
-1. ينشئ قاعدة PostgreSQL باسم takhfid1 والمستخدم takhfid1 وكلمة المرور takhfid1.
+1. ينشئ قاعدة PostgreSQL باسم takhfid1 والمستخدم takhfid1 وكلمة المرور الافتراضية takhfid1 (ويمكن تجاوزها عبر TAKHFID1_DB_PASSWORD).
 2. ينشئ البيئة الافتراضية ويثبت requirements.
 3. يكتب .env الإنتاجي داخل المشروع.
 4. يشغّل migrations وseed.
@@ -67,3 +67,42 @@ media اختياري
 ## أمان
 
 لا تترك API الخاص بواتساب مكشوفًا للعامة دون حماية مناسبة. دليل التكامل الحالي يذكر صراحة غياب Authorization مخصص في الواجهة الحالية ويوصي بطبقة API Key/Bearer أو تقييد IP وHTTPS وrate limiting لمسار /send وعدم تسجيل QR في سجلات عامة. fileciteturn368file0L840-L849
+
+## سحب المشروع وتشغيله
+
+من الخادم كـroot:
+
+```bash
+mkdir -p /home/root/projects
+cd /home/root/projects
+git clone --branch main --single-branch https://github.com/zydan25/altakhfidalsh.git takhfid1
+cd /home/root/projects/takhfid1
+sudo -E bash deploy/takhfid1/setup.sh
+```
+
+إذا كان المجلد موجودًا بالفعل، فالسكربت يسحب `main` ويعمل `reset --hard origin/main` قبل الإعداد. لا تضع `.env` أو مفاتيح WhatsApp في Git.
+
+## DNS وNginx وSSL
+
+اربط `takhfidsh.alattab.site` بعنوان الخادم. إعداد Nginx الموجود في `deploy/takhfid1/nginx/takhfidsh.alattab.site.conf` يوجه إلى `127.0.0.1:4006`.
+
+بعد التأكد من نجاح HTTP:
+
+```bash
+certbot --nginx -d takhfidsh.alattab.site
+nginx -t
+systemctl reload nginx
+curl -fsS https://takhfidsh.alattab.site/health
+```
+
+## PM2
+
+اسم العملية `takhfid1`، وحالة التشغيل:
+
+```bash
+pm2 status
+pm2 logs takhfid1 --lines 100
+pm2 save
+```
+
+السكربت يحاول تفعيل `pm2-root` لإعادة الإحياء بعد إعادة تشغيل Ubuntu.
