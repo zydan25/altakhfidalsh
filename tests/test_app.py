@@ -19,7 +19,7 @@ def test_module_blueprints_are_registered(client):
         "/api/v1/geo/countries": 200,
         "/api/v1/storefront/pages": 200,
         "/api/v1/commerce/orders": 200,
-        "/api/v1/support/conversations": 200,
+        "/api/v1/support/conversations": 401,
         "/api/v1/promotions/campaigns": 200,
         "/api/v1/after_sales/reviews/product/1": 404,
         "/api/v1/notifications/notifications/1": 200,
