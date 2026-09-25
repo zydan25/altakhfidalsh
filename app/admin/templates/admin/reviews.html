@@ -1,0 +1,17 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المبيعات والطلبات</span><h2>التقييمات</h2><p class="muted">اعتماد أو رفض تقييمات العملاء قبل ظهورها في المنتج.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="entity-grid">
+{% for row in reviews %}
+<article class="panel"><div class="panel-heading"><div><span class="eyebrow">تقييم #{{ row.id }}</span><h3>منتج #{{ row.product_id }}</h3></div><span class="status-pill">{{ row.rating }}/5 · {{ row.status }}</span></div>
+<div class="stack-list"><div class="stack-row"><strong>العميل</strong><span>#{{ row.customer_id }}</span></div><div class="stack-row"><strong>العنوان</strong><span>{{ row.title or "—" }}</span></div><div class="stack-row"><strong>النص</strong><span>{{ row.body or "—" }}</span></div></div>
+<form method="post" class="form-actions" style="margin-top:10px">
+<input type="hidden" name="review_id" value="{{ row.id }}">
+<select name="status"><option value="pending" {% if row.status=="pending" %}selected{% endif %}>pending</option><option value="approved" {% if row.status=="approved" %}selected{% endif %}>approved</option><option value="rejected" {% if row.status=="rejected" %}selected{% endif %}>rejected</option></select>
+<button class="primary-button">حفظ</button>
+</form>
+</article>
+{% else %}<section class="empty-state panel"><strong>لا توجد تقييمات.</strong></section>{% endfor %}
+</section>
+{% endblock %}
