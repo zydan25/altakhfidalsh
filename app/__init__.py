@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from flask import Flask, send_from_directory
+from flask_cors import CORS
 
 from config import Config
 from .extensions import db, migrate
@@ -13,6 +14,11 @@ def create_app(config_class=Config):
         static_folder="static",
     )
     app.config.from_object(config_class)
+    CORS(
+        app,
+        resources={r"/api/*": {"origins": app.config.get("CORS_ORIGINS", "*")}},
+        supports_credentials=True,
+    )
 
     db.init_app(app)
     migrate.init_app(app, db)
