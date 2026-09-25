@@ -303,9 +303,12 @@ def register_admin_routes(admin_bp):
                     error = "SKU مستخدم مسبقًا."
 
             if error is None:
+                from .entity_views import _unique_slug
+                slug = (request.form.get("slug") or "").strip() or _unique_slug(Product, name, fallback="product")
                 product = Product(
                     sku=sku,
                     name=name,
+                    slug=slug,
                     description=description or None,
                     base_currency_id=base_currency_id,
                     base_price=base_price,
