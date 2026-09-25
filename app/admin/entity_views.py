@@ -583,35 +583,31 @@ def register_entity_views(admin_bp):
     def admins():
         from ..models import Admin, AdminRole, Role
         from ..admin.auth import AdminAuthService
-        error = None
-        success = None
-        if request.method == "POST":
+        error=None; success=None
+        if request.method=="POST":
             try:
-                action = request.form.get("action")
-                if action == "create":
-                    username = (request.form.get("username") or "").strip()
-                    password = request.form.get("password") or ""
-                    phone = (request.form.get("phone") or "").strip()
-                    email = (request.form.get("email") or "").strip() or None
-                    created = AdminAuthService.bootstrap(username, password)
-                    row = db.session.get(Admin, created["id"])
-                    row.phone = phone or None
-                    row.email = email
-                    db.session.commit()
-                    role_id = request.form.get("role_id", type=int)
-                    if role_id:
-                        db.session.add(AdminRole(admin_id=row.id, role_id=role_id))
-                        db.session.commit()
-                    success = "تم إنشاء حساب المدير وربط الدور."
-                else:
-                    raise ValueError("إجراء المستخدم غير معروف.")
-            except (ValueError, TypeError) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = Admin.query.order_by(Admin.username).all()
-        roles_rows = Role.query.filter_by(is_active=True).order_by(Role.name).all()
-        return render_template("admin/admins.html", title="المستخدمون", admins=rows, roles=roles_rows, success=success, error=error, **build_admin_context())
-
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(Admin,request.form.get("id",type=int))
+                if action=="create":
+                    username=(request.form.get("username") or "").strip(); password=request.form.get("password") or ""
+                    if not username or len(password)<8: raise ValueError("اسم المستخدم وكلمة المرور (8 أحرف على الأقل) مطلوبان.")
+                    created=AdminAuthService.bootstrap(username,password); row=db.session.get(Admin,created["id"])
+                    row.phone=(request.form.get("phone") or "").strip() or None; row.email=(request.form.get("email") or "").strip() or None
+                    db.session.flush(); role_id=request.form.get("role_id",type=int)
+                    if role_id: db.session.add(AdminRole(admin_id=row.id,role_id=role_id))
+                    success="تم إنشاء حساب المدير."
+                elif row is None: raise ValueError("حساب المدير غير موجود.")
+                elif action=="archive": row.is_active=False; row.status="disabled"; success="تم تعطيل حساب المدير."
+                elif action=="update":
+                    row.phone=(request.form.get("phone") or "").strip() or None; row.email=(request.form.get("email") or "").strip() or None; row.status=(request.form.get("status") or row.status).strip()
+                    AdminRole.query.filter_by(admin_id=row.id).delete(); role_id=request.form.get("role_id",type=int)
+                    if role_id: db.session.add(AdminRole(admin_id=row.id,role_id=role_id))
+                    success="تم تحديث حساب المدير."
+                else: raise ValueError("إجراء المستخدم غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=Admin.query.filter_by(is_active=True).order_by(Admin.username).all(); roles_rows=Role.query.filter_by(is_active=True).order_by(Role.name).all()
+        admin_roles={row.id:(AdminRole.query.filter_by(admin_id=row.id).first().role_id if AdminRole.query.filter_by(admin_id=row.id).first() else None) for row in rows}
+        return render_template("admin/admins.html",title="المستخدمون",admins=rows,roles=roles_rows,admin_roles=admin_roles,success=success,error=error,**build_admin_context())
     @admin_bp.route("/system/roles", methods=["GET", "POST"])
     def roles():
         from ..models import Permission, Role
