@@ -38,6 +38,7 @@
             <label>{{ "لون الخلفية" if f == "bg_color" else "لون النص" }}
               <span class="color-input-row"><input name="{{ f }}" type="color" value="{{ "#111827" if f == "bg_color" else "#ffffff" }}"><input class="color-text-input" data-color-text type="text" value="{{ "#111827" if f == "bg_color" else "#ffffff" }}" dir="ltr"></span>
             </label>
+          {% elif f == "icon_file" %}<label>أيقونة اختيارية<input name="icon_file" type="file" accept="image/*"></label>
           {% elif f in ["conditions","coverage","exclusions","promo_text"] %}
             <label>{{ {"conditions":"الشروط","coverage":"التغطية","exclusions":"الاستثناءات","promo_text":"النص الترويجي"}[f] }}<textarea name="{{ f }}" rows="4"></textarea></label>
           {% else %}
