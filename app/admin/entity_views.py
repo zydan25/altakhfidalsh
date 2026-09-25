@@ -51,9 +51,109 @@ def register_entity_views(admin_bp):
     @admin_bp.get("/customers")
     def customers():
         rows = Customer.query.order_by(Customer.id.desc()).limit(200).all()
-        return _render("العملاء", ["ID", "الهاتف", "الاسم", "المدينة", "الحالة"],
-                       [[x.id, x.phone_normalized, x.name or "—", x.city_id or "—", x.status] for x in rows],
-                       "العملاء والتواصل")
+        return render_template(
+            "admin/customers.html",
+            title="العملاء",
+            customers=rows,
+            **build_admin_context(),
+        )
+
+    @admin_bp.route("/customers/<int:customer_id>", methods=["GET", "POST"])
+    def customer_detail_page(customer_id):
+        customer = db.session.get(Customer, customer_id)
+        if customer is None:
+            return render_template(
+                "admin/module.html",
+                title="العميل غير موجود",
+                section="العملاء والتواصل",
+                requested_path=request.path,
+                **build_admin_context(),
+            ), 404
+
+        from ..models import (
+            CustomerAddress, CustomerPricingAssignment, Order,
+            Conversation, Wallet, CustomerNotification, Notification,
+        )
+
+        error = None
+        success = None
+        if request.method == "POST":
+            action = (request.form.get("action") or "").strip()
+            try:
+                if action == "profile":
+                    customer.name = (request.form.get("name") or "").strip() or None
+                    customer.email = (request.form.get("email") or "").strip() or None
+                    customer.status = (request.form.get("status") or customer.status).strip()
+                    customer.city_id = request.form.get("city_id", type=int)
+                    db.session.commit()
+                    success = "تم حفظ بيانات العميل."
+                elif action == "address":
+                    address = CustomerAddress(
+                        customer_id=customer.id,
+                        recipient_name=(request.form.get("recipient_name") or "").strip(),
+                        phone=(request.form.get("address_phone") or "").strip(),
+                        city_id=request.form.get("address_city_id", type=int),
+                        district=(request.form.get("district") or "").strip() or None,
+                        street=(request.form.get("street") or "").strip() or None,
+                        landmark=(request.form.get("landmark") or "").strip() or None,
+                        is_default=request.form.get("is_default") == "on",
+                    )
+                    if not address.recipient_name or not address.phone:
+                        raise ValueError("اسم المستلم ورقم الهاتف مطلوبان.")
+                    if address.is_default:
+                        CustomerAddress.query.filter_by(customer_id=customer.id, is_active=True).update(
+                            {CustomerAddress.is_default: False}, synchronize_session=False
+                        )
+                    db.session.add(address)
+                    db.session.commit()
+                    success = "تمت إضافة العنوان."
+                else:
+                    raise ValueError("إجراء العميل غير معروف.")
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+        orders = Order.query.filter_by(customer_id=customer.id).order_by(Order.id.desc()).limit(50).all()
+        conversations = Conversation.query.filter_by(customer_id=customer.id).order_by(
+            Conversation.last_message_at.desc(), Conversation.id.desc()
+        ).limit(50).all()
+        addresses = CustomerAddress.query.filter_by(
+            customer_id=customer.id, is_active=True
+        ).order_by(CustomerAddress.is_default.desc(), CustomerAddress.id).all()
+        assignments = CustomerPricingAssignment.query.filter_by(
+            customer_id=customer.id, is_active=True
+        ).order_by(CustomerPricingAssignment.priority.desc(), CustomerPricingAssignment.id.desc()).all()
+        wallets = Wallet.query.filter_by(customer_id=customer.id, is_active=True).all()
+        notifications = (
+            db.session.query(CustomerNotification, Notification)
+            .join(Notification, Notification.id == CustomerNotification.notification_id)
+            .filter(CustomerNotification.customer_id == customer.id)
+            .order_by(CustomerNotification.id.desc())
+            .limit(50).all()
+        )
+
+        cities = []
+        try:
+            from ..models import City
+            cities = City.query.filter_by(is_active=True).order_by(City.name).all()
+        except Exception:
+            db.session.rollback()
+
+        return render_template(
+            "admin/customer_detail.html",
+            title=f"العميل · {customer.name or customer.phone_normalized}",
+            customer=customer,
+            orders=orders,
+            conversations=conversations,
+            addresses=addresses,
+            pricing_assignments=assignments,
+            wallets=wallets,
+            notifications=notifications,
+            cities=cities,
+            error=error,
+            success=success,
+            **build_admin_context(),
+        )
 
     @admin_bp.get("/orders")
     def orders():
