@@ -19,6 +19,10 @@ from ..models import (
     Product,
     BannerTarget,
     MediaAsset,
+    Badge,
+    ShippingPolicy,
+    ReturnPolicy,
+    WarrantyPolicy,
 )
 from ..services.pricing import PricingRule, calculate_customer_price
 from .context import build_admin_context
@@ -26,6 +30,57 @@ from ..modules.catalog.services import MediaService
 
 
 def register_operation_routes(admin_bp):
+    @admin_bp.route("/catalog/policies", methods=["GET", "POST"])
+    def catalog_policies():
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                action = (request.form.get("action") or "").strip()
+                if action.startswith("badge_"):
+                    row = db.session.get(Badge, request.form.get("id", type=int))
+                    if action == "badge_create":
+                        name = (request.form.get("name") or "").strip(); code = (request.form.get("code") or "").strip().lower()
+                        if not name or not code: raise ValueError("اسم الشارة والكود مطلوبان.")
+                        if Badge.query.filter_by(code=code).first(): raise ValueError("كود الشارة مستخدم مسبقًا.")
+                        icon_id = None; file = request.files.get("icon_file")
+                        if file and file.filename:
+                            assets = MediaService.save_generic_files([file], "badges"); icon_id = assets[0]["id"] if assets else None
+                        db.session.add(Badge(name=name, code=code, icon_asset_id=icon_id, bg_color=request.form.get("bg_color") or None, text_color=request.form.get("text_color") or None, style=request.form.get("style") or "solid", priority=request.form.get("priority", 0, type=int)))
+                        success = "تمت إضافة الشارة."
+                    elif row is None: raise ValueError("الشارة غير موجودة.")
+                    elif action == "badge_archive": row.is_active = False; success = "تمت أرشفة الشارة."
+                    else:
+                        name=(request.form.get("name") or "").strip(); code=(request.form.get("code") or "").strip().lower()
+                        if not name or not code: raise ValueError("اسم الشارة والكود مطلوبان.")
+                        if Badge.query.filter(Badge.id != row.id, Badge.code == code).first(): raise ValueError("كود الشارة مستخدم مسبقًا.")
+                        row.name=name; row.code=code; row.bg_color=request.form.get("bg_color") or None; row.text_color=request.form.get("text_color") or None; row.style=request.form.get("style") or "solid"; row.priority=request.form.get("priority", 0, type=int); success="تم تحديث الشارة."
+                else:
+                    kind = action.split("_", 1)[0]
+                    model = {"shipping": ShippingPolicy, "return": ReturnPolicy, "warranty": WarrantyPolicy}.get(kind)
+                    if model is None: raise ValueError("إجراء السياسة غير معروف.")
+                    row = db.session.get(model, request.form.get("id", type=int))
+                    if action.endsWith("_create"):
+                        name=(request.form.get("name") or "").strip()
+                        if not name: raise ValueError("اسم السياسة مطلوب.")
+                        if kind == "shipping": row=ShippingPolicy(name=name, free_shipping_enabled=request.form.get("free_shipping_enabled")=="on", min_order_amount=request.form.get("min_order_amount") or None, promo_text=request.form.get("promo_text") or None, delivery_window=request.form.get("delivery_window") or None)
+                        elif kind == "return": row=ReturnPolicy(name=name, return_window_days=request.form.get("return_window_days",0,type=int), conditions=request.form.get("conditions") or None, fee_rule=request.form.get("fee_rule") or None, refund_method=request.form.get("refund_method") or None)
+                        else: row=WarrantyPolicy(name=name, duration_days=request.form.get("duration_days",0,type=int), coverage=request.form.get("coverage") or None, exclusions=request.form.get("exclusions") or None, claim_method=request.form.get("claim_method") or None)
+                        db.session.add(row); success="تمت إضافة السياسة."
+                    elif row is None: raise ValueError("السياسة غير موجودة.")
+                    elif action.endsWith("_archive"): row.is_active=False; success="تمت أرشفة السياسة."
+                    else:
+                        row.name=(request.form.get("name") or "").strip()
+                        if not row.name: raise ValueError("اسم السياسة مطلوب.")
+                        if kind == "shipping": row.free_shipping_enabled=request.form.get("free_shipping_enabled")=="on"; row.min_order_amount=request.form.get("min_order_amount") or None; row.promo_text=request.form.get("promo_text") or None; row.delivery_window=request.form.get("delivery_window") or None
+                        elif kind == "return": row.return_window_days=request.form.get("return_window_days",0,type=int); row.conditions=request.form.get("conditions") or None; row.fee_rule=request.form.get("fee_rule") or None; row.refund_method=request.form.get("refund_method") or None
+                        else: row.duration_days=request.form.get("duration_days",0,type=int); row.coverage=request.form.get("coverage") or None; row.exclusions=request.form.get("exclusions") or None; row.claim_method=request.form.get("claim_method") or None
+                        success="تم تحديث السياسة."
+                db.session.commit()
+            except (ValueError, TypeError, OSError) as exc:
+                db.session.rollback(); error=str(exc)
+        return render_template("admin/catalog_policies.html", title="الشارات والسياسات", badges=Badge.query.filter_by(is_active=True).order_by(Badge.priority.desc(),Badge.name).all(), shipping_policies=ShippingPolicy.query.filter_by(is_active=True).order_by(ShippingPolicy.name).all(), return_policies=ReturnPolicy.query.filter_by(is_active=True).order_by(ReturnPolicy.name).all(), warranty_policies=WarrantyPolicy.query.filter_by(is_active=True).order_by(WarrantyPolicy.name).all(), success=success, error=error, **build_admin_context())
+
     @admin_bp.route("/pricing/groups", methods=["GET", "POST"])
     def pricing_groups():
         context = _ctx()
