@@ -1,0 +1,62 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<section class="hero-row">
+  <div>
+    <p class="eyebrow">نواة التشغيل</p>
+    <h2>لوحة إدارة Mobile-First</h2>
+    <p class="muted">البيانات والتسعير والمحتوى والطلبات مبنية كـ domains مستقلة، والواجهة الإدارية قابلة للتوسع دون إعادة تصميم.</p>
+  </div>
+  <a class="primary-button" href="/admin/products/new">إضافة منتج</a>
+</section>
+
+<section class="metric-grid" aria-label="المؤشرات">
+  {% for key, label, icon in [
+    ("products", "المنتجات", "▣"),
+    ("categories", "التصنيفات", "◫"),
+    ("orders", "الطلبات", "↗"),
+    ("customers", "العملاء", "◎"),
+    ("conversations", "المحادثات", "…")
+  ] %}
+  <article class="metric-card">
+    <div class="metric-icon">{{ icon }}</div>
+    <div>
+      <span class="metric-label">{{ label }}</span>
+      <strong>{{ metrics[key] }}</strong>
+    </div>
+  </article>
+  {% endfor %}
+</section>
+
+<section class="content-grid">
+  <article class="panel">
+    <div class="panel-heading">
+      <div>
+        <span class="eyebrow">التشغيل التالي</span>
+        <h3>نواة الإدارة جاهزة للتوسع</h3>
+      </div>
+      <span class="status-pill">Foundation</span>
+    </div>
+    <div class="task-list">
+      <div class="task-row"><span class="task-dot"></span><span>شجرة التصنيفات متعددة العمق</span><small>جاهز كنموذج بيانات</small></div>
+      <div class="task-row"><span class="task-dot"></span><span>التسعير حسب المدينة والعميل</span><small>خدمة Decimal</small></div>
+      <div class="task-row"><span class="task-dot"></span><span>المحتوى والبانرات والحملات</span><small>نموذج مرن</small></div>
+      <div class="task-row"><span class="task-dot"></span><span>الطلبات والدفعات والإرجاع والضمان</span><small>Domain schema</small></div>
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-heading">
+      <div>
+        <span class="eyebrow">مبدأ النظام</span>
+        <h3>كل زر له مصدر بيانات</h3>
+      </div>
+    </div>
+    <p class="muted">الواجهة لا تحمل قواعد التسعير ولا منطق الطلبات. الـAPI والخدمات الخلفية هي المصدر الوحيد للحسابات والحالات، بينما تحفظ الطلبات لقطات تاريخية ثابتة.</p>
+    <div class="mini-callout">
+      <strong>السعر الأساسي</strong>
+      <span>SAR → FX → نسبة الزيادة → الزيادة الثابتة → التقريب</span>
+    </div>
+  </article>
+</section>
+{% endblock %}

@@ -1,0 +1,10 @@
+# Flask-Migrate
+
+هذا المجلد مخصص لنسخ Alembic الخاصة بالمخطط.
+
+بعد ضبط DATABASE_URL:
+
+    flask --app wsgi.py db migrate -m "initial ecommerce schema"
+    flask --app wsgi.py db upgrade
+
+لا تعدل قاعدة الإنتاج مباشرة. كل تغيير schema يجب أن يمر عبر migration مراجعة ومختبرة.

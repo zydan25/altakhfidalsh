@@ -1,0 +1,162 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">ملف الطلب الكامل</span>
+  <div class="split-heading">
+    <div>
+      <h2>{{ order.order_no }}</h2>
+      <p class="muted">سجل تاريخي للطلب كما استلمه النظام، بما في ذلك السعر وقت الشراء والاختيارات والمحادثة والأحداث.</p>
+    </div>
+    <a class="ghost-button" href="/admin/orders">العودة للطلبات</a>
+  </div>
+</section>
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="metric-grid">
+  <article class="metric-card"><div><span class="metric-label">الإجمالي</span><strong>{{ order.total }}</strong></div></article>
+  <article class="metric-card"><div><span class="metric-label">الحالة</span><strong>{{ order.status }}</strong></div></article>
+  <article class="metric-card"><div><span class="metric-label">الدفع</span><strong>{{ order.payment_status }}</strong></div></article>
+  <article class="metric-card"><div><span class="metric-label">الشحن</span><strong>{{ order.shipping_status }}</strong></div></article>
+  <article class="metric-card"><div><span class="metric-label">مجموعة التسعير</span><strong>#{{ order.pricing_group_id or "—" }}</strong></div></article>
+</section>
+
+<section class="two-panel">
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">العميل</span><h3>{{ order.customer.name or "بدون اسم" }}</h3></div></div>
+    <div class="entity-grid">
+      <div class="entity-field"><span class="entity-label">الهاتف</span><strong dir="ltr">{{ order.customer.phone or "—" }}</strong></div>
+      <div class="entity-field"><span class="entity-label">البريد</span><strong>{{ order.customer.email or "—" }}</strong></div>
+      <div class="entity-field"><span class="entity-label">المدينة</span><strong>#{{ order.city_id or "—" }}</strong></div>
+      <div class="entity-field"><span class="entity-label">العملة</span><strong>#{{ order.currency_id }}</strong></div>
+    </div>
+    <div class="mini-callout">
+      <strong>عنوان الشحن وقت الطلب</strong>
+      <span>{{ order.address_snapshot.recipient_name or "—" }} · {{ order.address_snapshot.phone or "—" }}</span>
+      <span>{{ order.address_snapshot.district or "" }} {{ order.address_snapshot.street or "" }} {{ order.address_snapshot.landmark or "" }}</span>
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">إدارة الحالة</span><h3>تشغيل الطلب</h3></div></div>
+    <form method="post" class="form-stack">
+      <input type="hidden" name="action" value="status">
+      <label>الحالة
+        <select name="status">
+          {% for status in status_choices %}<option value="{{ status }}" {% if order.status == status %}selected{% endif %}>{{ status }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>ملاحظة داخلية<textarea name="note" rows="3" placeholder="سبب التغيير أو ملاحظة للمراجعة"></textarea></label>
+      <button class="primary-button" type="submit">حفظ الحالة</button>
+    </form>
+  </article>
+</section>
+
+<section class="panel" style="margin-top:12px">
+  <div class="panel-heading"><div><span class="eyebrow">الأصناف</span><h3>ما طلبه العميل فعليًا</h3></div><span class="status-pill">{{ order.items|length }}</span></div>
+  <div class="stack-list">
+    {% for item in order.items %}
+    <article class="stack-row" style="align-items:flex-start;flex-direction:column">
+      <strong>{{ item.name }} · {{ item.sku }}</strong>
+      <span>Variant #{{ item.variant_id }} · كمية {{ item.qty }} · سعر العرض {{ item.sale_price_display }} · الإجمالي {{ item.total }}</span>
+      <span>السعر الأساسي SAR {{ item.base_price_sar }} · FX {{ item.fx_rate }} · زيادة {{ item.markup_percent }}% + {{ item.markup_fixed }}</span>
+      <span>
+        {% if item.variant_display.color %}اللون: {{ item.variant_display.color.name }}{% endif %}
+        {% if item.variant_display.size %} · المقاس: {{ item.variant_display.size.label }}{% endif %}
+      </span>
+      {% if item.media %}
+      <div class="media-grid">
+        {% for media in item.media if media.url %}
+        <a href="{{ media.url }}" target="_blank" rel="noreferrer"><img src="{{ media.url }}" alt="{{ item.name }}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px"></a>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="rule-summary">
+        {% for option in item.options %}
+        <span class="status-pill">{{ option.name }}: {{ option.value }}</span>
+        {% else %}
+        <span class="muted">لا توجد اختيارات إضافية محفوظة لهذا السطر.</span>
+        {% endfor %}
+      </div>
+    </article>
+    {% else %}<span class="muted">لا توجد أصناف.</span>{% endfor %}
+  </div>
+</section>
+
+<section class="two-panel" style="margin-top:12px">
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">التسلسل الزمني</span><h3>كل ما حدث للطلب</h3></div></div>
+    <div class="stack-list">
+      {% for row in order.status_history %}
+      <div class="stack-row"><strong>{{ row.to_status }}</strong><span>{{ row.from_status or "بداية" }} · {{ row.actor_type }}{% if row.note %} · {{ row.note }}{% endif %}</span></div>
+      {% else %}<span class="muted">لا يوجد تاريخ حالات.</span>{% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">الدفع</span><h3>العمليات والإثباتات</h3></div></div>
+    <div class="stack-list">
+      {% for payment in order.payments %}
+      <div class="stack-row"><strong>{{ payment.method_name or ("طريقة #" ~ payment.method_id) }}</strong><span>{{ payment.amount }} · {{ payment.status }}{% if payment.provider_ref %} · {{ payment.provider_ref }}{% endif %}</span></div>
+      {% else %}<span class="muted">لا توجد عملية دفع.</span>{% endfor %}
+      {% for proof in order.payment_proofs %}
+      <div class="stack-row"><strong>إثبات #{{ proof.id }}</strong><span>{{ proof.status }} {% if proof.url %}· <a class="inline-link" href="{{ proof.url }}" target="_blank">فتح الملف</a>{% endif %}</span></div>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+<section class="two-panel" style="margin-top:12px">
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">الشحن</span><h3>التتبع والأحداث</h3></div></div>
+    <div class="stack-list">
+      {% for shipment in order.shipments %}
+      <div class="stack-row" style="align-items:flex-start;flex-direction:column">
+        <strong>شحنة #{{ shipment.id }} · {{ shipment.status }}</strong>
+        <span>Tracking: {{ shipment.tracking_no or "—" }}</span>
+        {% for event in shipment.events %}<small class="muted">{{ event.status }} · {{ event.location or "—" }} · {{ event.description or "" }}</small>{% endfor %}
+      </div>
+      {% else %}<span class="muted">لا توجد شحنات.</span>{% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">بعد البيع</span><h3>الإرجاع والاسترداد والضمان</h3></div></div>
+    <div class="stack-list">
+      {% for row in order.returns %}<div class="stack-row"><strong>إرجاع #{{ row.id }}</strong><span>{{ row.reason }} · {{ row.status }}</span></div>{% endfor %}
+      {% for row in order.refunds %}<div class="stack-row"><strong>استرداد #{{ row.id }}</strong><span>{{ row.amount }} · {{ row.status }}</span></div>{% endfor %}
+      {% for row in order.warranty_claims %}<div class="stack-row"><strong>ضمان #{{ row.id }}</strong><span>{{ row.issue }} · {{ row.status }}</span></div>{% endfor %}
+      {% if not order.returns and not order.refunds and not order.warranty_claims %}<span class="muted">لا توجد حالات بعد البيع.</span>{% endif %}
+    </div>
+  </article>
+</section>
+
+<section class="panel" style="margin-top:12px">
+  <div class="panel-heading"><div><span class="eyebrow">المحادثة</span><h3>محادثة الطلب</h3></div></div>
+  {% for conversation in order.conversations %}
+    <div class="stack-list">
+      <div class="mini-callout"><strong>{{ conversation.subject or "محادثة الطلب" }}</strong><span>{{ conversation.status }}</span></div>
+      {% for message in conversation.messages %}
+      <article class="stack-row" style="align-items:flex-start;flex-direction:column">
+        <strong>{{ message.sender_type }} · {{ message.created_at }}</strong>
+        <span>{{ message.body or "ملف مرفق" }}</span>
+        {% for attachment in message.attachments %}{% if attachment.url %}<a class="inline-link" href="{{ attachment.url }}" target="_blank">فتح المرفق</a>{% endif %}{% endfor %}
+      </article>
+      {% endfor %}
+      <form method="post" class="form-stack">
+        <input type="hidden" name="action" value="message">
+        <label>رد الإدارة<textarea name="body" rows="3" required placeholder="اكتب ردًا للعميل"></textarea></label>
+        <button class="primary-button" type="submit">إرسال الرسالة</button>
+      </form>
+    </div>
+  {% else %}
+    <div class="mini-callout"><strong>لا توجد محادثة مرتبطة بعد.</strong><span>أرسل أول رسالة لإنشاء محادثة مرتبطة بهذا الطلب.</span></div>
+    <form method="post" class="form-stack">
+      <input type="hidden" name="action" value="message">
+      <label>رسالة للعميل<textarea name="body" rows="3" required placeholder="مرحبًا، بخصوص طلبك..."></textarea></label>
+      <button class="primary-button" type="submit">إنشاء محادثة وإرسال</button>
+    </form>
+  {% endfor %}
+</section>
+{% endblock %}

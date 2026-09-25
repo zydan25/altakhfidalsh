@@ -1,0 +1,25 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">المبيعات والطلبات</span>
+  <div class="split-heading">
+    <div><h2>الطلبات</h2><p class="muted">كل طلب يفتح كسجل تشغيل كامل يحتوي الأصناف والاختيارات والسعر والدفع والشحن والمحادثة والتاريخ.</p></div>
+  </div>
+</section>
+
+<section class="entity-grid">
+  {% for order in orders %}
+  <article class="entity-card panel">
+    <div class="entity-field"><span class="entity-label">رقم الطلب</span><strong>{{ order.order_no }}</strong></div>
+    <div class="entity-field"><span class="entity-label">العميل</span><strong>#{{ order.customer_id }}</strong></div>
+    <div class="entity-field"><span class="entity-label">الإجمالي</span><strong>{{ order.total }} · العملة #{{ order.currency_id }}</strong></div>
+    <div class="entity-field"><span class="entity-label">الحالة</span><strong>{{ order.status }}</strong></div>
+    <div class="entity-field"><span class="entity-label">الدفع</span><strong>{{ order.payment_status }}</strong></div>
+    <div class="entity-field"><span class="entity-label">الشحن</span><strong>{{ order.shipping_status }}</strong></div>
+    <a class="primary-button" href="/admin/orders/{{ order.id }}">فتح الطلب بالكامل</a>
+  </article>
+  {% else %}
+  <section class="empty-state panel"><div class="empty-icon">▣</div><h3>لا توجد طلبات</h3><p class="muted">ستظهر الطلبات هنا فور وصولها.</p></section>
+  {% endfor %}
+</section>
+{% endblock %}

@@ -1,0 +1,5 @@
+{% extends "admin/base.html" %}{% block content %}
+<section class="module-header"><span class="eyebrow">الترويج</span><h2>الحملات</h2></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="two-panel"><article class="panel"><form method="post" class="form-stack"><label>اسم الحملة<input name="name" required></label><label>Slug<input name="slug" required dir="ltr"></label><button class="primary-button">إنشاء حملة</button></form></article><article class="panel"><div class="stack-list">{% for x in campaigns %}<div class="stack-row"><strong>{{ x.name }}</strong><span>{{ x.slug }} · {{ x.status }}</span></div>{% else %}<div class="empty-state compact"><div class="empty-icon">✦</div><strong>لا توجد حملات</strong></div>{% endfor %}</div></article></section>
+{% endblock %}

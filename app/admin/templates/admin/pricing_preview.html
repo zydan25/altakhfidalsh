@@ -1,0 +1,17 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">التسعير</span><h2>معاينة السعر</h2><p class="muted">استخدمها لاختبار معادلة التسعير قبل ربطها بعميل أو مدينة.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+<section class="two-panel">
+  <article class="panel"><form method="post" class="form-stack">
+    <label>سعر الأساس SAR<input name="base_price_sar" type="number" step="0.0001" required></label>
+    <label>سعر الصرف<input name="fx_rate" type="number" step="0.000000000001" required></label>
+    <label>نسبة الزيادة %<input name="percent_markup" type="number" step="0.0001" value="0"></label>
+    <label>الزيادة الثابتة<input name="fixed_markup" type="number" step="0.0001" value="0"></label>
+    <label>الكسور<input name="decimals" type="number" value="2" min="0" max="6"></label>
+    <label>التقريب<select name="rounding_rule"><option value="nearest">أقرب</option><option value="up">لأعلى</option><option value="down">لأسفل</option></select></label>
+    <button class="primary-button" type="submit">احسب</button>
+  </form></article>
+  <article class="panel">{% if result %}<div class="price-result"><span>التحويل</span><strong>{{ result.converted }}</strong><span>زيادة نسبية</span><strong>{{ result.percent_add }}</strong><span>زيادة ثابتة</span><strong>{{ result.fixed_add }}</strong><span>السعر النهائي</span><strong class="final-price">{{ result.final }}</strong></div>{% else %}<div class="empty-state compact"><div class="empty-icon">≈</div><strong>أدخل القيم للمعاينة</strong></div>{% endif %}</article>
+</section>
+{% endblock %}

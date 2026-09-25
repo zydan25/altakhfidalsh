@@ -1,0 +1,126 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">المحتوى المتجر</span>
+  <h2>البانرات والشاشات</h2>
+  <p class="muted">ارفع الصور من الهاتف مباشرة. الصور تُحفظ كـ Assets مستقلة، ثم اربط البانر بهدف ديناميكي بدل كتابة أسماء نصية داخل المحتوى.</p>
+</section>
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="two-panel">
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">1 · إنشاء</span><h3>رفع بانر جديد</h3></div></div>
+    <form method="post" enctype="multipart/form-data" class="form-stack">
+      <input type="hidden" name="action" value="create_banner">
+      <label>الاسم الداخلي<input name="name" required placeholder="عرض العودة للمدارس"></label>
+      <label class="upload-zone">
+        <input name="image_file" type="file" accept="image/*" required>
+        <span class="upload-icon">▧</span>
+        <strong>الصورة الأساسية</strong>
+        <small>اختر صورة من الهاتف — سيتم تصغيرها وحفظها WebP</small>
+      </label>
+      <label class="upload-zone">
+        <input name="mobile_image_file" type="file" accept="image/*">
+        <span class="upload-icon">▧</span>
+        <strong>صورة الهاتف الاختيارية</strong>
+        <small>اتركها فارغة ليستخدم النظام الصورة الأساسية</small>
+      </label>
+      <label>المقاس المستهدف<input name="size_spec" placeholder="1080×706"></label>
+      <label>النص فوق الصورة<textarea name="overlay_text" rows="3" placeholder="نص اختياري"></textarea></label>
+      <label>موضع النص<input name="position_text" placeholder="center"></label>
+      <label>مدة الظهور بالثواني<input name="duration" type="number" min="1" placeholder="8"></label>
+      <button class="primary-button" type="submit">رفع وإنشاء مسودة</button>
+    </form>
+  </article>
+
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">2 · الاستهداف</span><h3>ربط البانر بهدف</h3></div></div>
+    {% if banners %}
+    <form method="post" class="form-stack">
+      <input type="hidden" name="action" value="add_target">
+      <label>البانر<select name="banner_id" required>{% for b in banners %}<option value="{{ b.id }}">{{ b.name }} · #{{ b.id }}</option>{% endfor %}</select></label>
+      <label>نوع الهدف
+        <select id="bannerTargetType" name="target_type">
+          <option value="category">فئة</option>
+          <option value="product">منتج</option>
+          <option value="campaign">حملة</option>
+          <option value="url">رابط</option>
+        </select>
+      </label>
+      <label id="bannerTargetSelectField">الهدف
+        <select id="bannerTargetSelect" name="target_id"></select>
+      </label>
+      <label id="bannerTargetUrlField" hidden>الرابط
+        <input id="bannerTargetUrl" name="target_url" type="url" placeholder="https://example.com">
+      </label>
+      <label>الأولوية<input name="target_priority" type="number" value="0"></label>
+      <button class="primary-button" type="submit">حفظ هدف البانر</button>
+    </form>
+    {% else %}
+    <div class="empty-state compact"><div class="empty-icon">▧</div><strong>أنشئ أول بانر ثم أضف له هدفًا.</strong></div>
+    {% endif %}
+  </article>
+</section>
+
+<section class="media-grid" style="margin-top:12px">
+  {% for b in banners %}
+  {% set asset = asset_map.get(b.image_asset_id) %}
+  <article class="panel" style="padding:10px">
+    {% if asset %}<img src="{{ asset.url }}" alt="{{ b.name }}" style="width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px">{% else %}<div class="media-thumb">▧</div>{% endif %}
+    <strong style="display:block;margin-top:8px">{{ b.name }}</strong>
+    <small class="muted">{{ b.status }} · #{{ b.id }}</small>
+    {% if b.mobile_asset_id %}<small class="muted" style="display:block">صورة هاتف منفصلة</small>{% endif %}
+    <div class="stack-list" style="margin-top:8px">
+      {% for target in targets if target.banner_id == b.id %}
+      <div class="stack-row">
+        <strong>{{ target.target_type }}</strong>
+        <span>{% if target.url %}{{ target.url }}{% else %}#{{ target.target_id }}{% endif %}</span>
+      </div>
+      {% else %}
+      <span class="muted">لا يوجد هدف حتى الآن.</span>
+      {% endfor %}
+    </div>
+  </article>
+  {% else %}
+  <section class="empty-state panel" style="grid-column:1/-1"><div class="empty-icon">▧</div><strong>لا توجد بانرات</strong></section>
+  {% endfor %}
+</section>
+
+<script>
+(() => {
+  const type = document.getElementById("bannerTargetType");
+  const select = document.getElementById("bannerTargetSelect");
+  const field = document.getElementById("bannerTargetSelectField");
+  const urlField = document.getElementById("bannerTargetUrlField");
+  const url = document.getElementById("bannerTargetUrl");
+
+  const sets = {
+    category: [{% for x in categories %}{id:"{{ x.id }}",label:"فئة: {{ x.name|e }}"}{% if not loop.last %},{% endif %}{% endfor %}],
+    product: [{% for x in products %}{id:"{{ x.id }}",label:"منتج: #{{ x.id }} · {{ x.name|e }}"}{% if not loop.last %},{% endif %}{% endfor %}],
+    campaign: [{% for x in campaigns %}{id:"{{ x.id }}",label:"حملة: {{ x.name|e }}"}{% if not loop.last %},{% endif %}{% endfor %}]
+  };
+
+  const sync = () => {
+    const kind = type.value;
+    const needsUrl = kind === "url";
+    field.hidden = needsUrl;
+    urlField.hidden = !needsUrl;
+    select.disabled = needsUrl;
+    select.required = !needsUrl;
+    url.disabled = !needsUrl;
+    url.required = needsUrl;
+
+    if (needsUrl) return;
+
+    select.innerHTML = (sets[kind] || []).map(function(item) {
+      return "<option value=\"" + item.id + "\">" + item.label + "</option>";
+    }).join("");
+  };
+
+  type?.addEventListener("change", sync);
+  sync();
+})();
+</script>
+{% endblock %}

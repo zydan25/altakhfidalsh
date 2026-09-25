@@ -1,0 +1,12 @@
+{
+  "name": "التخفيض - لوحة الإدارة",
+  "short_name": "التخفيض",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "dir": "rtl",
+  "lang": "ar",
+  "background_color": "#f5f7fb",
+  "theme_color": "#111827",
+  "icons": []
+}
