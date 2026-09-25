@@ -8,22 +8,36 @@ def seed():
     with app.app_context():
         sar = Currency.query.filter_by(code="SAR").first()
         if sar is None:
-            sar = Currency(code="SAR", symbol="ر.س", name_ar="الريال السعودي", decimals=2, is_base=True)
+            sar = Currency(
+                code="SAR",
+                symbol="ر.س",
+                name_ar="الريال السعودي",
+                decimals=2,
+                is_base=True,
+            )
             db.session.add(sar)
 
-        yer = Currency.query.filter_by(code="YER").first()
-        if yer is None:
-            yer = Currency(code="YER", symbol="﷼", name_ar="الريال اليمني", decimals=0, is_base=False)
-            db.session.add(yer)
-
-        usd = Currency.query.filter_by(code="USD").first()
-        if usd is None:
-            usd = Currency(code="USD", symbol="$", name_ar="الدولار الأمريكي", decimals=2, is_base=False)
-            db.session.add(usd)
+        for code, symbol, name_ar, decimals in (
+            ("YER", "﷼", "الريال اليمني", 0),
+            ("USD", "$", "الدولار الأمريكي", 2),
+        ):
+            if Currency.query.filter_by(code=code).first() is None:
+                db.session.add(Currency(
+                    code=code,
+                    symbol=symbol,
+                    name_ar=name_ar,
+                    decimals=decimals,
+                    is_base=False,
+                ))
 
         db.session.flush()
 
-        group = PricingGroup.query.filter_by(code="default").first() if hasattr(PricingGroup, "code") else None
+        group = (
+            PricingGroup.query
+            .filter(PricingGroup.is_default.is_(True))
+            .order_by(PricingGroup.priority.desc(), PricingGroup.id)
+            .first()
+        )
         if group is None:
             group = PricingGroup(
                 name="المجموعة الافتراضية",
@@ -34,6 +48,8 @@ def seed():
             )
             db.session.add(group)
             db.session.flush()
+
+        if PricingGroupRule.query.filter_by(group_id=group.id, currency_id=sar.id).first() is None:
             db.session.add(PricingGroupRule(
                 group_id=group.id,
                 currency_id=sar.id,
@@ -54,7 +70,7 @@ def seed():
                 db.session.add(Region(country_id=country.id, code=code, name=name))
 
         db.session.commit()
-        print("Seed completed: SAR/YER/USD, default pricing group, Yemen North/South regions.")
+        print("Seed completed.")
 
 
 if __name__ == "__main__":
