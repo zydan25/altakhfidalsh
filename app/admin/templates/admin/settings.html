@@ -7,7 +7,7 @@
 <article class="panel">
 <div class="panel-heading"><div><span class="eyebrow">إضافة</span><h3>إعداد جديد</h3></div></div>
 <form method="post" class="form-stack">
-<input type="hidden" name="action" value="save">
+<input type="hidden" name="action" value="create">
 <label>المجموعة<input name="group_code" required dir="ltr" placeholder="store"></label>
 <label>المفتاح<input name="key" required dir="ltr" placeholder="support_phone"></label>
 <label>القيمة<textarea name="value" rows="3"></textarea></label>
@@ -17,15 +17,9 @@
 </article>
 <article class="panel">
 <div class="panel-heading"><div><span class="eyebrow">القيم</span><h3>الإعدادات الحالية</h3></div></div>
-<div class="stack-list">
-{% for row in settings %}
-<div class="stack-row" style="align-items:flex-start;flex-direction:column">
-<strong>{{ row.group_code }} · {{ row.key }}</strong>
-<span>{{ row.value_type }}</span>
-<pre style="white-space:pre-wrap;max-width:100%;margin:0">{{ row.value or '' }}</pre>
-</div>
-{% else %}<span class="muted">لا توجد إعدادات.</span>{% endfor %}
-</div>
+<div class="stack-list">{% for row in settings %}<details class="panel" style="padding:12px"><summary><strong>{{ row.group_code }} · {{ row.key }}</strong> <span class="muted">· {{ row.value_type }}</span></summary>
+<form method="post" class="form-stack" style="margin-top:10px"><input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ row.id }}"><label>المجموعة<input name="group_code" value="{{ row.group_code }}" required dir="ltr"></label><label>المفتاح<input name="key" value="{{ row.key }}" required dir="ltr"></label><label>القيمة<textarea name="value" rows="4">{{ row.value or '' }}</textarea></label><label>نوع القيمة<select name="value_type"><option {% if row.value_type=="text" %}selected{% endif %}>text</option><option {% if row.value_type=="number" %}selected{% endif %}>number</option><option {% if row.value_type=="json" %}selected{% endif %}>json</option><option {% if row.value_type=="boolean" %}selected{% endif %}>boolean</option></select></label><button class="primary-button">حفظ التعديل</button></form>
+<form method="post" style="margin-top:8px"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button">حذف</button></form></details>{% else %}<span class="muted">لا توجد إعدادات.</span>{% endfor %}</div>
 </article>
 </section>
 {% endblock %}
