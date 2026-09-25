@@ -135,3 +135,56 @@ def page(code):
 def banners():
     rows = Banner.query.filter_by(is_active=True).order_by(Banner.id.desc()).all()
     return {"items": [{"id": x.id, "name": x.name, "image_asset_id": x.image_asset_id, "mobile_asset_id": x.mobile_asset_id, "status": x.status} for x in rows]}
+
+
+@api_bp.post("/navigation-actions")
+def create_navigation_action():
+    payload = request.get_json(silent=True) or {}
+    from ...models import NavigationAction
+    code = str(payload["code"]).strip().lower()
+    if NavigationAction.query.filter_by(code=code).first():
+        return {"error": "duplicate_code"}, 400
+    row = NavigationAction(
+        code=code,
+        label=str(payload["label"]).strip(),
+        icon=payload.get("icon"),
+        route=payload.get("route"),
+        sort_order=int(payload.get("sort_order", 0)),
+        visibility_rule=payload.get("visibility_rule") or {},
+    )
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "code": row.code, "label": row.label, "route": row.route}}, 201
+
+
+@api_bp.get("/navigation-actions")
+def navigation_actions():
+    from ...models import NavigationAction
+    rows = NavigationAction.query.filter_by(is_active=True).order_by(NavigationAction.sort_order, NavigationAction.id).all()
+    return {"items": [{"id": x.id, "code": x.code, "label": x.label, "icon": x.icon, "route": x.route, "visibility_rule": x.visibility_rule} for x in rows]}
+
+
+@api_bp.post("/category-navigation")
+def category_navigation():
+    payload = request.get_json(silent=True) or {}
+    from ...models import CategoryNavigationItem
+    category_id = int(payload["category_id"])
+    if db.session.get(__import__("app.models", fromlist=["Category"]).Category, category_id) is None:
+        return {"error": "category_not_found"}, 404
+    row = CategoryNavigationItem(
+        category_id=category_id,
+        slot=str(payload.get("slot", "top")),
+        visible=bool(payload.get("visible", True)),
+        sort_order=int(payload.get("sort_order", 0)),
+        label_override=payload.get("label_override"),
+    )
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "category_id": row.category_id, "sort_order": row.sort_order}}, 201
+
+
+@api_bp.get("/category-navigation")
+def category_navigation_list():
+    from ...models import CategoryNavigationItem
+    rows = CategoryNavigationItem.query.filter_by(is_active=True, visible=True).order_by(CategoryNavigationItem.sort_order, CategoryNavigationItem.id).all()
+    return {"items": [{"id": x.id, "category_id": x.category_id, "slot": x.slot, "sort_order": x.sort_order, "label_override": x.label_override} for x in rows]}
