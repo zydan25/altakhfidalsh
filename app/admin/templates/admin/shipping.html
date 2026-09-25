@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المبيعات والطلبات</span><h2>الشحن والتتبع</h2><p class="muted">أنشئ طريقة الشحن، أنشئ شحنة للطلب، ثم أضف أحداث التتبع حتى التسليم.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="two-panel">
+<article class="panel"><div class="panel-heading"><div><span class="eyebrow">طريقة</span><h3>إضافة طريقة شحن</h3></div></div>
+<form method="post" class="form-stack">
+<input type="hidden" name="action" value="method">
+<label>الاسم<input name="name" required placeholder="التوصيل داخل المدينة"></label>
+<label>Code<input name="code" required dir="ltr" placeholder="local_delivery"></label>
+<label>أقل مدة<input name="delivery_days_min" type="number" min="0"></label>
+<label>أقصى مدة<input name="delivery_days_max" type="number" min="0"></label>
+<label class="check-row"><input name="supports_cod" type="checkbox"><span><strong>الدفع عند الاستلام</strong></span></label>
+<button class="primary-button">حفظ الطريقة</button>
+</form></article>
+
+<article class="panel"><div class="panel-heading"><div><span class="eyebrow">شحنة</span><h3>إنشاء شحنة</h3></div></div>
+<form method="post" class="form-stack">
+<input type="hidden" name="action" value="shipment">
+<label>الطلب<select name="order_id" required>{% for order in orders %}<option value="{{ order.id }}">{{ order.order_no }} · {{ order.shipping_status }}</option>{% endfor %}</select></label>
+<label>طريقة الشحن<select name="shipping_method_id">{% for method in methods %}<option value="{{ method.id }}">{{ method.name }}</option>{% endfor %}</select></label>
+<label>رقم التتبع<input name="tracking_no" dir="ltr"></label>
+<label>الحالة<select name="status"><option value="pending">pending</option><option value="shipped">shipped</option><option value="delivered">delivered</option></select></label>
+<label>موقع الحدث<input name="event_location"></label>
+<label>وصف الحدث<textarea name="event_description" rows="2"></textarea></label>
+<button class="primary-button">إنشاء الشحنة</button>
+</form></article>
+</section>
+
+<section class="panel" style="margin-top:12px"><div class="panel-heading"><div><span class="eyebrow">تتبع</span><h3>إضافة حدث لشحنة</h3></div></div>
+<form method="post" class="form-stack">
+<input type="hidden" name="action" value="event">
+<label>الشحنة<select name="shipment_id" required>{% for shipment in shipments %}<option value="{{ shipment.id }}">#{{ shipment.id }} · {{ shipment.tracking_no or "بدون تتبع" }} · {{ shipment.status }}</option>{% endfor %}</select></label>
+<label>الحالة<select name="event_status"><option value="picked_up">picked_up</option><option value="in_transit">in_transit</option><option value="out_for_delivery">out_for_delivery</option><option value="delivered">delivered</option><option value="exception">exception</option></select></label>
+<label>الموقع<input name="event_location"></label>
+<label>الوصف<textarea name="event_description" rows="3"></textarea></label>
+<button class="primary-button">حفظ حدث التتبع</button>
+</form></section>
+
+<section class="panel" style="margin-top:12px"><div class="panel-heading"><div><span class="eyebrow">السجل</span><h3>الشحنات</h3></div><span class="status-pill">{{ shipments|length }}</span></div>
+<div class="stack-list">{% for row in shipments %}<div class="stack-row"><strong>#{{ row.id }} · طلب #{{ row.order_id }}</strong><span>{{ row.status }} · {{ row.tracking_no or "—" }}</span></div>{% else %}<span class="muted">لا توجد شحنات.</span>{% endfor %}</div></section>
+{% endblock %}
