@@ -1,5 +1,5 @@
 from ...extensions import db
-from ...models import Conversation, Message, MessageAttachment, MediaAsset
+from ...models import Conversation, Message, MessageAttachment
 
 
 class SupportService:
@@ -24,7 +24,7 @@ class SupportService:
         }
 
     @staticmethod
-    def send_message(conversation_id, sender_type, sender_id, body, message_type="text"):
+    def send_message(conversation_id, sender_type, sender_id, body, message_type="text", attachments=None):
         conversation = db.session.get(Conversation, conversation_id)
         if conversation is None:
             raise LookupError("conversation not found")
@@ -40,6 +40,15 @@ class SupportService:
         db.session.add(message)
         db.session.flush()
         conversation.last_message_at = db.func.now()
+        attachment_rows = []
+        for asset in attachments or []:
+            attachment_rows.append(MessageAttachment(
+                message_id=message.id,
+                asset_id=asset["id"],
+                mime_type=asset["mime_type"],
+                sort_order=asset.get("sort_order", 0),
+            ))
+        db.session.add_all(attachment_rows)
         db.session.commit()
         return {
             "id": message.id,
@@ -50,3 +59,17 @@ class SupportService:
             "body": message.body,
             "created_at": message.created_at.isoformat(),
         }
+
+
+    @staticmethod
+    def send_message_with_files(conversation_id, sender_type, sender_id, body, files):
+        from ..catalog.services import MediaService
+        assets = MediaService.save_generic_files(files, f"conversations/{conversation_id}")
+        return SupportService.send_message(
+            conversation_id,
+            sender_type,
+            sender_id,
+            body,
+            "attachment",
+            assets,
+        )
