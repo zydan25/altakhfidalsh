@@ -946,54 +946,26 @@ def register_entity_views(admin_bp):
     @admin_bp.route("/storefront/collections", methods=["GET", "POST"])
     def storefront_collections():
         from ..models import PromotionalStrip
-        error = None
-        success = None
-        if request.method == "POST":
+        error=None; success=None
+        if request.method=="POST":
             try:
-                name = (request.form.get("name") or "").strip()
-                text_body = (request.form.get("text_body") or "").strip()
-                if not name or not text_body:
-                    raise ValueError("اسم الشريط ونصه مطلوبان.")
-                db.session.add(PromotionalStrip(
-                    name=name,
-                    text_prefix=(request.form.get("text_prefix") or "").strip() or None,
-                    text_body=text_body,
-                    background_color=(request.form.get("background_color") or "").strip() or None,
-                    text_color=(request.form.get("text_color") or "").strip() or None,
-                ))
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(PromotionalStrip,request.form.get("id",type=int))
+                if action=="create":
+                    name=(request.form.get("name") or "").strip(); text_body=(request.form.get("text_body") or "").strip()
+                    if not name or not text_body: raise ValueError("اسم الشريط ونصه مطلوبان.")
+                    db.session.add(PromotionalStrip(name=name,text_prefix=(request.form.get("text_prefix") or "").strip() or None,text_body=text_body,background_color=(request.form.get("background_color") or "").strip() or None,text_color=(request.form.get("text_color") or "").strip() or None)); success="تمت إضافة شريط العرض."
+                elif row is None: raise ValueError("شريط العرض غير موجود.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة شريط العرض."
+                elif action=="update":
+                    name=(request.form.get("name") or "").strip(); text_body=(request.form.get("text_body") or "").strip()
+                    if not name or not text_body: raise ValueError("اسم الشريط ونصه مطلوبان.")
+                    row.name=name; row.text_prefix=(request.form.get("text_prefix") or "").strip() or None; row.text_body=text_body; row.background_color=(request.form.get("background_color") or "").strip() or None; row.text_color=(request.form.get("text_color") or "").strip() or None; success="تم تحديث شريط العرض."
+                else: raise ValueError("إجراء شريط العرض غير معروف.")
                 db.session.commit()
-                success = "تمت إضافة شريط العرض."
-            except (ValueError, TypeError) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = PromotionalStrip.query.filter_by(is_active=True).order_by(PromotionalStrip.id.desc()).limit(200).all()
-        records = [
-            {
-                "title": row.name,
-                "badge": f"#{row.id}",
-                "color": row.background_color,
-                "fields": [
-                    {"label": "النص", "value": row.text_body},
-                    {"label": "النص التمهيدي", "value": row.text_prefix or "—"},
-                    {"label": "الخلفية", "value": row.background_color or "—", "dir": "ltr"},
-                    {"label": "لون النص", "value": row.text_color or "—", "dir": "ltr"},
-                ],
-            }
-            for row in rows
-        ]
-        return render_template(
-            "admin/manage.html", title="جديدنا والعروض", section="المحتوى والمتجر",
-            description="أنشئ شرائط العروض مع ألوان الخلفية والنص، وتظهر السجلات أولًا ثم زر الإضافة بالأعلى.",
-            fields=[
-                {"name": "name", "label": "الاسم", "required": True, "placeholder": "مثال: شحن مجاني"},
-                {"name": "text_prefix", "label": "مقدمة قصيرة", "placeholder": "لفترة محدودة"},
-                {"name": "text_body", "label": "نص العرض", "required": True, "type": "textarea", "wide": True},
-                {"name": "background_color", "label": "لون الخلفية", "type": "color", "value": "#111827"},
-                {"name": "text_color", "label": "لون النص", "type": "color", "value": "#ffffff"},
-            ],
-            records=records, modal_id="promoStripAddModal", success=success, error=error,
-            **_ctx(),
-        )
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=PromotionalStrip.query.filter_by(is_active=True).order_by(PromotionalStrip.id.desc()).limit(200).all()
+        records=[{"id":x.id,"title":x.name,"badge":f"#{x.id}","color":x.background_color,"edit_action":"update","archive_action":"archive","edit_fields":[{"name":"name","label":"الاسم","required":True,"value":x.name},{"name":"text_prefix","label":"مقدمة قصيرة","value":x.text_prefix},{"name":"text_body","label":"نص العرض","required":True,"type":"textarea","value":x.text_body},{"name":"background_color","label":"لون الخلفية","type":"color","value":x.background_color or "#111827"},{"name":"text_color","label":"لون النص","type":"color","value":x.text_color or "#ffffff"}],"fields":[{"label":"النص","value":x.text_body},{"label":"الخلفية","value":x.background_color or "—","dir":"ltr"},{"label":"لون النص","value":x.text_color or "—","dir":"ltr"}]} for x in rows]
+        return render_template("admin/manage.html",title="جديدنا والعروض",section="المحتوى والمتجر",description="إضافة وتعديل وأرشفة شرائط العروض.",fields=[{"name":"name","label":"الاسم","required":True},{"name":"text_prefix","label":"مقدمة قصيرة"},{"name":"text_body","label":"نص العرض","required":True,"type":"textarea"},{"name":"background_color","label":"لون الخلفية","type":"color","value":"#111827"},{"name":"text_color","label":"لون النص","type":"color","value":"#ffffff"}],records=records,modal_id="promoStripAddModal",success=success,error=error,**_ctx())
 
     @admin_bp.get("/geo")
     def geo():
