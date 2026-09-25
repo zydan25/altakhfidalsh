@@ -298,6 +298,18 @@ class CategoryFilterValue(TimestampMixin, ActiveMixin, db.Model):
     sort_order = db.Column(Integer, nullable=False, default=0)
 
 
+class ProductFilterValue(TimestampMixin, db.Model):
+    __tablename__ = "product_filter_values"
+
+    id = db.Column(Integer, primary_key=True)
+    product_id = db.Column(ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    filter_value_id = db.Column(ForeignKey("category_filter_values.id", ondelete="CASCADE"), nullable=False)
+    __table_args__ = (
+        UniqueConstraint("product_id", "filter_value_id", name="uq_product_filter_value"),
+        Index("ix_product_filter_value_lookup", "product_id", "filter_value_id"),
+    )
+
+
 class Brand(TimestampMixin, ActiveMixin, db.Model):
     __tablename__ = "brands"
 
