@@ -162,10 +162,7 @@ def register_admin_routes(admin_bp):
                     success = "تم إنشاء الفئة."
 
                 elif action == "update":
-                    category_ids = request.form.getlist("category_ids", type=int)
-            legacy_category_id = request.form.get("category_id", type=int)
-            if not category_ids and legacy_category_id:
-                category_ids = [legacy_category_id]
+                    category_id = request.form.get("category_id", type=int)
                     category = db.session.get(Category, category_id)
                     if category is None:
                         raise ValueError("الفئة غير موجودة.")
