@@ -569,7 +569,7 @@ def register_entity_views(admin_bp):
                 else: raise ValueError("إجراء المستخدم غير معروف.")
                 db.session.commit()
             except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
-        rows=Admin.query.filter_by(is_active=True).order_by(Admin.username).all(); roles_rows=Role.query.filter_by(is_active=True).order_by(Role.name).all()
+        rows=Admin.query.order_by(Admin.username).all(); roles_rows=Role.query.filter_by(is_active=True).order_by(Role.name).all()
         admin_roles={row.id:(AdminRole.query.filter_by(admin_id=row.id).first().role_id if AdminRole.query.filter_by(admin_id=row.id).first() else None) for row in rows}
         return render_template("admin/admins.html",title="المستخدمون",admins=rows,roles=roles_rows,admin_roles=admin_roles,success=success,error=error,**build_admin_context())
 
