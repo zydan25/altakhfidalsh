@@ -6,41 +6,35 @@ from ..extensions import db
 from ..models import Category, Conversation, Customer, Order, Product
 
 
-def _flatten_navigation():
-    items = []
-    for section in NAVIGATION:
-        for child in section.children:
-            items.append(
-                {
-                    "label": child.label,
-                    "route": child.route,
-                    "section": section.label,
-                }
-            )
-    return items
-
-
-def _navigation_context():
-    current_path = request.path
-    for section in NAVIGATION:
-        section.active = any(
-            current_path == child.route or current_path.startswith(child.route + "/")
-            for child in section.children
-        )
-    return {
-        "navigation": NAVIGATION,
-        "current_path": current_path,
-        "page_item_map": _flatten_navigation(),
-    }
-
-
-@staticmethod
 def _safe_count(model):
     try:
         return db.session.query(func.count(model.id)).scalar() or 0
     except Exception:
         db.session.rollback()
         return 0
+
+
+def _navigation_context():
+    current_path = request.path
+    page_item_map = []
+    for section in NAVIGATION:
+        section.active = any(
+            current_path == child.route or current_path.startswith(child.route + "/")
+            for child in section.children
+        )
+        for child in section.children:
+            page_item_map.append(
+                {
+                    "label": child.label,
+                    "route": child.route,
+                    "section": section.label,
+                }
+            )
+    return {
+        "navigation": NAVIGATION,
+        "current_path": current_path,
+        "page_item_map": page_item_map,
+    }
 
 
 def register_admin_routes(admin_bp):
