@@ -1,18 +1,14 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+export PM2_HOME="${PM2_HOME:-/home/root/.pm2}"
 APP_ROOT="/home/root/projects/takhfid1"
 REPO_URL="${REPO_URL:-https://github.com/zydan25/altakhfidalsh.git}"
 DOMAIN="takhfidsh.alattab.site"
 PORT="4006"
 DB_NAME="takhfid1"
 DB_USER="takhfid1"
-DB_PASSWORD="${TAKHFID1_DB_PASSWORD:-}"
-if [ -z "$DB_PASSWORD" ]; then
-  echo "ضع كلمة مرور قاعدة takhfid1 في TAKHFID1_DB_PASSWORD ثم أعد التشغيل." >&2
-  echo "مثال: export TAKHFID1_DB_PASSWORD='YOUR_DB_PASSWORD'" >&2
-  exit 2
-fi
+DB_PASSWORD="${TAKHFID1_DB_PASSWORD:-takhfid1}"
 
 log(){ printf '\n[takhfid1] %s\n' "$*"; }
 die(){ echo "ERROR: $*" >&2; exit 1; }
@@ -46,6 +42,7 @@ else
   SECRET_KEY="${TAKHIFID1_SECRET_KEY:-$(openssl rand -hex 32)}"
   ADMIN_PASSWORD="${TAKHIFID1_ADMIN_PASSWORD:-$(openssl rand -hex 24)}"
   WHATSAPP_API_KEY="${WHATSAPP_API_KEY:-}"
+  WHATSAPP_WEBHOOK_SECRET="${WHATSAPP_WEBHOOK_SECRET:-}"
   cat > "$ENV_FILE" <<EOF
 FLASK_APP=app:create_app
 FLASK_ENV=production
@@ -71,6 +68,7 @@ ADMIN_OTP_MESSAGE=رمز دخول لوحة إدارة التخفيض: {code}
 WHATSAPP_BASE_URL=https://whatsapp.alattab.site
 WHATSAPP_SESSION=basheer
 WHATSAPP_API_KEY=$WHATSAPP_API_KEY
+WHATSAPP_WEBHOOK_SECRET=$WHATSAPP_WEBHOOK_SECRET
 WHATSAPP_TIMEOUT=20
 WHATSAPP_EXTERNAL_URL=https://$DOMAIN
 EOF
@@ -96,12 +94,25 @@ pm2 delete takhfid1 >/dev/null 2>&1 || true
 pm2 start "$APP_ROOT/ecosystem.config.cjs"
 pm2 save
 
+# Enable PM2 resurrection on Ubuntu if the startup unit is not already active.
+if command -v systemctl >/dev/null 2>&1; then
+  pm2 startup systemd -u root --hp /home/root >/tmp/takhfid1-pm2-startup.txt 2>&1 || true
+  systemctl enable pm2-root >/dev/null 2>&1 || true
+  systemctl start pm2-root >/dev/null 2>&1 || true
+fi
+
 sleep 3
 curl -fsS "http://127.0.0.1:$PORT/health"
 
 cat <<EOF
 
 takhfid1 deployed
+APP_ROOT=$APP_ROOT
+PORT=$PORT
+DOMAIN=https://$DOMAIN
+PM2=takhfid1
+DB_NAME=$DB_NAME
+DB_USER=$DB_USER
 APP_ROOT=$APP_ROOT
 PORT=$PORT
 DOMAIN=https://$DOMAIN
