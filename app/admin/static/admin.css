@@ -400,6 +400,44 @@ body.modal-open { overflow:hidden; }
 .wa-console .stack-row > * { min-width:0; max-width:100%; overflow-wrap:anywhere; }
 
 
+/* Product wizard: shared reference pickers + explicit product dimensions. */
+.category-picker-tree { display:grid; gap:3px; max-height:560px; overflow:auto; padding:4px; border:1px solid var(--border); border-radius:14px; background:var(--surface-soft); margin-bottom:14px; }
+.category-picker-node { min-width:0; }
+.category-picker-node .category-picker-node { margin-inline-start:18px; }
+.category-picker-choice { min-height:50px; display:grid; grid-template-columns:24px 18px minmax(0,1fr); gap:8px; align-items:center; padding:6px 10px; margin-inline-start:calc(var(--depth) * 8px); border:1px solid transparent; border-radius:10px; cursor:pointer; }
+.category-picker-choice:hover { background:var(--surface); border-color:var(--border); }
+.category-picker-choice.is-selected, .category-picker-choice:has(input:checked) { background:var(--surface); border-color:#cbd5e1; }
+.category-picker-choice input { width:19px; height:19px; accent-color:var(--accent); }
+.category-picker-marker { color:var(--muted); text-align:center; font-size:12px; }
+.category-picker-copy { min-width:0; }
+.category-picker-copy strong, .category-picker-copy small { display:block; overflow-wrap:anywhere; }
+.category-picker-copy small { color:var(--muted); font-size:11px; margin-top:2px; }
+
+.dimension-grid { display:grid; gap:12px; margin-bottom:12px; }
+.dimension-card { padding:14px; border:1px solid var(--border); border-radius:16px; background:var(--surface-soft); min-width:0; }
+.dimension-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:12px; }
+.dimension-head > div:first-child { display:flex; gap:10px; min-width:0; align-items:flex-start; }
+.dimension-head > div:first-child > div { display:grid; gap:2px; }
+.dimension-head strong, .dimension-head small { display:block; }
+.dimension-head small { color:var(--muted); font-size:12px; }
+.dimension-selection-tools { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center; margin-bottom:10px; }
+.inline-search { min-width:170px; min-height:44px; padding:0 12px; border:1px solid var(--border); border-radius:11px; background:var(--surface); color:var(--text); }
+.reference-choice-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; max-height:390px; overflow:auto; }
+.reference-choice-card { min-width:0; display:grid; grid-template-columns:24px auto minmax(0,1fr) auto; gap:9px; align-items:center; min-height:64px; padding:8px 10px; border:1px solid var(--border); border-radius:13px; background:var(--surface); cursor:pointer; }
+.reference-choice-card.is-selected, .reference-choice-card:has(input:checked) { border-color:#94a3b8; box-shadow:inset 0 0 0 1px #e2e8f0; }
+.reference-choice-card.is-archived { opacity:.7; }
+.reference-choice-card input { width:19px; height:19px; accent-color:var(--accent); }
+.reference-choice-copy { min-width:0; }
+.reference-choice-copy strong, .reference-choice-copy small { display:block; overflow-wrap:anywhere; }
+.reference-choice-copy small { color:var(--muted); font-size:11px; margin-top:2px; }
+.reference-choice-check { font-weight:900; color:var(--muted); }
+.reference-choice-card.is-selected .reference-choice-check { color:var(--success); }
+.size-choice-badge { min-width:38px; padding:7px 6px; border-radius:10px; background:var(--accent-soft); text-align:center; font-weight:900; font-size:12px; direction:ltr; }
+.dimension-save-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; margin-bottom:14px; }
+.dimension-save-bar > div { min-width:0; display:grid; gap:2px; }
+.dimension-save-bar small { font-size:12px; }
+.variant-context-bar, .inventory-help { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 14px; margin-bottom:12px; background:var(--surface-soft); }
+.variant-context-bar > div, .inventory-help > div { min-width:0; display:grid; gap:2px; }
 /* Product wizard: shared reference pickers + compact catalog controls. */
 .reference-field { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:stretch; }
 .reference-field select { min-width:0; }
@@ -504,4 +542,20 @@ body.modal-open { overflow:hidden; }
   .option-record-actions { justify-content:stretch; }
   .option-record-actions > *, .option-record-actions details { width:100%; min-width:0; }
   .option-record-actions button, .option-record-actions .ghost-button, .option-record-actions .primary-button { width:100%; }
+}
+
+@media (min-width: 760px) {
+  .dimension-grid { grid-template-columns:1fr 1fr; }
+}
+@media (max-width: 759px) {
+  .dimension-head { flex-direction:column; }
+  .dimension-head .reference-actions { width:100%; justify-content:stretch; }
+  .dimension-head .reference-actions .quick-add-button { flex:1; min-width:0; }
+  .reference-choice-grid { grid-template-columns:1fr; }
+  .dimension-selection-tools { grid-template-columns:1fr; }
+  .dimension-save-bar, .variant-context-bar, .inventory-help { align-items:stretch; flex-direction:column; }
+  .dimension-save-bar .primary-button, .variant-context-bar .ghost-button { width:100%; }
+  .selection-toolbar { align-items:stretch; flex-direction:column; }
+  .selection-toolbar .reference-actions { justify-content:stretch; }
+  .inline-search { width:100%; min-width:0; }
 }
