@@ -9,17 +9,32 @@ from ...models import (
     Cart,
     CartItem,
     City,
+    Conversation,
     Customer,
     CustomerAddress,
+    ExchangeRate,
     InventoryLocation,
+    MediaAsset,
+    Message,
+    MessageAttachment,
     Order,
     OrderItem,
+    OrderItemOption,
     OrderStatusHistory,
+    PaymentMethod,
+    PaymentProof,
+    PaymentTransaction,
     Product,
     ProductVariant,
+    Refund,
+    ReturnItem,
+    ReturnRequest,
+    Shipment,
+    ShipmentEvent,
     ShippingMethod,
     ShippingRate,
     StockInventory,
+    WarrantyClaim,
 )
 from ...services.pricing import price_for_customer
 
@@ -196,30 +211,46 @@ class CommerceService:
                 product = item["product"]
                 price = item["price"]
                 context = item["context"]
-                db.session.add(
-                    OrderItem(
-                        order_id=order.id,
-                        product_id=product.id,
-                        variant_id=item["variant"].id,
-                        sku_snapshot=item["variant"].sku,
-                        name_snapshot=product.name,
-                        base_price_sar=price.base_sar,
-                        fx_rate=price.fx_rate,
-                        markup_percent=(
-                            context.override_percent
-                            if context.override_percent is not None
-                            else context.rule.percent_markup
-                        ),
-                        markup_fixed=(
-                            context.override_fixed
-                            if context.override_fixed is not None
-                            else context.rule.fixed_markup
-                        ),
-                        sale_price_display=price.final,
-                        qty=item["qty"],
-                        total=price.final * item["qty"],
-                    )
+                order_item = OrderItem(
+                    order_id=order.id,
+                    product_id=product.id,
+                    variant_id=item["variant"].id,
+                    sku_snapshot=item["variant"].sku,
+                    name_snapshot=product.name,
+                    base_price_sar=price.base_sar,
+                    fx_rate=price.fx_rate,
+                    markup_percent=(
+                        context.override_percent
+                        if context.override_percent is not None
+                        else context.rule.percent_markup
+                    ),
+                    markup_fixed=(
+                        context.override_fixed
+                        if context.override_fixed is not None
+                        else context.rule.fixed_markup
+                    ),
+                    sale_price_display=price.final,
+                    qty=item["qty"],
+                    total=price.final * item["qty"],
                 )
+                db.session.add(order_item)
+                db.session.flush()
+
+                selected_options = item.get("selected_options") or {}
+                if isinstance(selected_options, dict):
+                    selected_options = [{"name": key, "value": value} for key, value in selected_options.items()]
+                for option in selected_options:
+                    if isinstance(option, dict):
+                        option_name = str(option.get("name") or option.get("option_name") or "").strip()
+                        option_value = str(option.get("value") or option.get("option_value") or "").strip()
+                    else:
+                        option_name, option_value = "اختيار", str(option).strip()
+                    if option_name and option_value:
+                        db.session.add(OrderItemOption(
+                            order_item_id=order_item.id,
+                            option_name=option_name,
+                            option_value=option_value,
+                        ))
 
             db.session.add(
                 OrderStatusHistory(
@@ -234,6 +265,191 @@ class CommerceService:
 
         db.session.commit()
         return CommerceService.serialize_order(order)
+
+    @staticmethod
+    def serialize_order_detail(order):
+        data = CommerceService.serialize_order(order)
+
+        customer = db.session.get(Customer, order.customer_id)
+        data["customer"] = {
+            "id": customer.id if customer else order.customer_id,
+            "name": customer.name if customer else None,
+            "phone": customer.phone_normalized if customer else None,
+            "email": customer.email if customer else None,
+        }
+
+        order_items = OrderItem.query.filter_by(order_id=order.id).order_by(OrderItem.id).all()
+        data["items"] = []
+        for item in order_items:
+            data["items"].append({
+                "id": item.id,
+                "product_id": item.product_id,
+                "variant_id": item.variant_id,
+                "sku": item.sku_snapshot,
+                "name": item.name_snapshot,
+                "base_price_sar": str(item.base_price_sar),
+                "fx_rate": str(item.fx_rate),
+                "markup_percent": str(item.markup_percent),
+                "markup_fixed": str(item.markup_fixed),
+                "sale_price_display": str(item.sale_price_display),
+                "qty": item.qty,
+                "total": str(item.total),
+                "options": [
+                    {"name": option.option_name, "value": option.option_value}
+                    for option in OrderItemOption.query.filter_by(order_item_id=item.id).order_by(OrderItemOption.id).all()
+                ],
+            })
+
+        data["status_history"] = [
+            {
+                "id": row.id,
+                "from_status": row.from_status,
+                "to_status": row.to_status,
+                "actor_type": row.actor_type,
+                "actor_id": row.actor_id,
+                "note": row.note,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+            }
+            for row in OrderStatusHistory.query.filter_by(order_id=order.id).order_by(OrderStatusHistory.created_at, OrderStatusHistory.id).all()
+        ]
+
+        payments = (
+            PaymentTransaction.query
+            .filter_by(order_id=order.id)
+            .order_by(PaymentTransaction.id)
+            .all()
+        )
+        data["payments"] = []
+        for row in payments:
+            method = db.session.get(PaymentMethod, row.method_id)
+            data["payments"].append({
+                "id": row.id,
+                "method_id": row.method_id,
+                "method_name": method.name if method else None,
+                "amount": str(row.amount),
+                "currency_id": row.currency_id,
+                "provider_ref": row.provider_ref,
+                "status": row.status,
+                "paid_at": row.paid_at.isoformat() if row.paid_at else None,
+            })
+
+        proofs = PaymentProof.query.filter_by(order_id=order.id).order_by(PaymentProof.id).all()
+        data["payment_proofs"] = []
+        for proof in proofs:
+            asset = db.session.get(MediaAsset, proof.asset_id)
+            data["payment_proofs"].append({
+                "id": proof.id,
+                "asset_id": proof.asset_id,
+                "url": asset.url if asset else None,
+                "status": proof.status,
+                "submitted_by": proof.submitted_by,
+                "reviewed_by": proof.reviewed_by,
+                "reviewed_at": proof.reviewed_at.isoformat() if proof.reviewed_at else None,
+            })
+
+        shipments = Shipment.query.filter_by(order_id=order.id).order_by(Shipment.id).all()
+        data["shipments"] = []
+        for shipment in shipments:
+            events = ShipmentEvent.query.filter_by(shipment_id=shipment.id).order_by(ShipmentEvent.occurred_at, ShipmentEvent.id).all()
+            data["shipments"].append({
+                "id": shipment.id,
+                "shipping_method_id": shipment.shipping_method_id,
+                "tracking_no": shipment.tracking_no,
+                "status": shipment.status,
+                "shipped_at": shipment.shipped_at.isoformat() if shipment.shipped_at else None,
+                "delivered_at": shipment.delivered_at.isoformat() if shipment.delivered_at else None,
+                "events": [
+                    {
+                        "status": event.status,
+                        "location": event.location,
+                        "description": event.description,
+                        "occurred_at": event.occurred_at.isoformat() if event.occurred_at else None,
+                    }
+                    for event in events
+                ],
+            })
+
+        conversations = Conversation.query.filter_by(order_id=order.id).order_by(Conversation.id).all()
+        data["conversations"] = []
+        for conversation in conversations:
+            messages = Message.query.filter_by(conversation_id=conversation.id).order_by(Message.created_at, Message.id).all()
+            data["conversations"].append({
+                "id": conversation.id,
+                "customer_id": conversation.customer_id,
+                "type": conversation.type,
+                "subject": conversation.subject,
+                "status": conversation.status,
+                "last_message_at": conversation.last_message_at.isoformat() if conversation.last_message_at else None,
+                "messages": [
+                    {
+                        "id": message.id,
+                        "sender_type": message.sender_type,
+                        "sender_id": message.sender_id,
+                        "message_type": message.message_type,
+                        "body": message.body,
+                        "created_at": message.created_at.isoformat() if message.created_at else None,
+                        "read_at": message.read_at.isoformat() if message.read_at else None,
+                        "attachments": [
+                            {
+                                "id": attachment.id,
+                                "asset_id": attachment.asset_id,
+                                "url": (
+                                    db.session.get(MediaAsset, attachment.asset_id).url
+                                    if db.session.get(MediaAsset, attachment.asset_id)
+                                    else None
+                                ),
+                            }
+                            for attachment in MessageAttachment.query.filter_by(message_id=message.id).order_by(MessageAttachment.sort_order, MessageAttachment.id).all()
+                        ],
+                    }
+                    for message in messages
+                ],
+            })
+
+        data["returns"] = []
+        for row in ReturnRequest.query.filter_by(order_id=order.id).order_by(ReturnRequest.id).all():
+            data["returns"].append({
+                "id": row.id,
+                "customer_id": row.customer_id,
+                "reason": row.reason,
+                "description": row.description,
+                "status": row.status,
+                "requested_at": row.requested_at.isoformat() if row.requested_at else None,
+                "approved_at": row.approved_at.isoformat() if row.approved_at else None,
+                "items": [
+                    {"order_item_id": item.order_item_id, "qty": item.qty, "condition": item.condition}
+                    for item in ReturnItem.query.filter_by(return_request_id=row.id).order_by(ReturnItem.id).all()
+                ],
+            })
+
+        data["refunds"] = [
+            {
+                "id": row.id,
+                "return_request_id": row.return_request_id,
+                "amount": str(row.amount),
+                "currency_id": row.currency_id,
+                "method": row.method,
+                "status": row.status,
+                "processed_at": row.processed_at.isoformat() if row.processed_at else None,
+            }
+            for row in Refund.query.filter_by(order_id=order.id).order_by(Refund.id).all()
+        ]
+
+        data["warranty_claims"] = [
+            {
+                "id": row.id,
+                "customer_id": row.customer_id,
+                "order_item_id": row.order_item_id,
+                "issue": row.issue,
+                "description": row.description,
+                "status": row.status,
+                "resolution": row.resolution,
+            }
+            for row in WarrantyClaim.query.filter_by(order_id=order.id).order_by(WarrantyClaim.id).all()
+        ]
+
+        return data
+
 
     @staticmethod
     def serialize_order(order):
