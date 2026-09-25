@@ -364,6 +364,32 @@ class Product(TimestampMixin, ActiveMixin, db.Model):
     )
 
 
+class ProductColorReference(TimestampMixin, db.Model):
+    __tablename__ = "product_color_references"
+
+    id = db.Column(Integer, primary_key=True)
+    product_id = db.Column(ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    color_id = db.Column(ForeignKey("colors.id", ondelete="RESTRICT"), nullable=False)
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("product_id", "color_id", name="uq_product_color_reference"),
+        Index("ix_product_color_reference_product", "product_id", "sort_order"),
+    )
+
+
+class ProductSizeReference(TimestampMixin, db.Model):
+    __tablename__ = "product_size_references"
+
+    id = db.Column(Integer, primary_key=True)
+    product_id = db.Column(ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    size_id = db.Column(ForeignKey("sizes.id", ondelete="RESTRICT"), nullable=False)
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("product_id", "size_id", name="uq_product_size_reference"),
+        Index("ix_product_size_reference_product", "product_id", "sort_order"),
+    )
+
+
 class ProductCategory(TimestampMixin, db.Model):
     __tablename__ = "product_categories"
 

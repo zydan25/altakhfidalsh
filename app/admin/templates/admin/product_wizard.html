@@ -55,9 +55,12 @@
         <strong>اختيار من التصنيفات الموجودة</strong>
         <small class="muted">هذه نفس السجلات الموجودة في جدول التصنيفات في القائمة الجانبية.</small>
       </div>
-      <button class="ghost-button" type="button" data-open-modal="quickCategoryModal">＋ إضافة تصنيف جديد</button>
+      <div class="reference-actions">
+        <input id="categorySearch" type="search" class="inline-search" placeholder="بحث في التصنيفات…">
+        <button class="ghost-button" type="button" data-open-modal="quickCategoryModal">＋ إضافة تصنيف جديد</button>
+      </div>
     </div>
-    <div id="categorySelection" class="selection-list"></div>
+    <div id="categorySelection" class="category-picker-tree"></div>
     <button id="saveCategories" class="primary-button" type="button">حفظ التصنيفات</button>
   </div>
 
@@ -95,38 +98,52 @@
       <div><span class="eyebrow">الخصائص</span><h3>الألوان والمقاسات وخيارات المنتج</h3></div>
     </div>
 
-    <div class="quick-config-grid">
-      <article class="quick-config-card">
-        <div class="quick-config-head">
-          <div class="quick-config-title">
+    <div class="dimension-grid">
+      <article class="dimension-card">
+        <div class="dimension-head">
+          <div>
             <span id="productColorCount" class="status-pill">0</span>
-            <div><strong>ألوان المنتج</strong><small>الألوان المستخدمة في الـVariants</small></div>
+            <div><span class="eyebrow">البعد الأول</span><strong>ألوان المنتج</strong><small>حدد الألوان المتاحة لهذا المنتج من جدول الألوان.</small></div>
           </div>
           <div class="reference-actions">
-            <span class="muted">اختيار من جدول الألوان أو إضافة جديد</span>
-            <button class="primary-button quick-add-button" type="button" data-open-modal="quickColorModal">＋ إضافة لون جديد</button>
+            <button class="ghost-button quick-add-button" type="button" data-dimension-action="colors-all">تحديد الكل</button>
+            <button class="ghost-button quick-add-button" type="button" data-dimension-action="colors-none">مسح</button>
+            <button class="primary-button quick-add-button" type="button" data-open-modal="quickColorModal">＋ لون جديد</button>
           </div>
         </div>
-        <div id="productColors" class="swatch-list"></div>
-        <div class="mini-callout">
-          <strong>كيف يعمل اللون؟</strong>
-          <span>أضف اللون من هنا، ثم استخدمه في المتغير. ويمكن رفع صور مستقلة له من خطوة الصور.</span>
+        <div class="dimension-selection-tools">
+          <input id="colorSearch" type="search" placeholder="ابحث باسم اللون…">
+          <span id="colorSelectionSummary" class="muted">0 محدد</span>
         </div>
+        <div id="productColors" class="reference-choice-grid"></div>
       </article>
 
-      <article class="quick-config-card">
-        <div class="quick-config-head">
-          <div class="quick-config-title">
+      <article class="dimension-card">
+        <div class="dimension-head">
+          <div>
             <span id="availableSizeCount" class="status-pill">0</span>
-            <div><strong>المقاسات</strong><small>مرجع المقاسات المتاح للمتغيرات</small></div>
+            <div><span class="eyebrow">البعد الثاني</span><strong>مقاسات المنتج</strong><small>حدد المقاسات المتاحة لهذا المنتج من جدول المقاسات.</small></div>
           </div>
           <div class="reference-actions">
-            <span class="muted">اختيار من جدول المقاسات أو إضافة جديد</span>
-            <button class="ghost-button quick-add-button" type="button" data-open-modal="quickSizeModal">＋ إضافة مقاس جديد</button>
+            <button class="ghost-button quick-add-button" type="button" data-dimension-action="sizes-all">تحديد الكل</button>
+            <button class="ghost-button quick-add-button" type="button" data-dimension-action="sizes-none">مسح</button>
+            <button class="ghost-button quick-add-button" type="button" data-open-modal="quickSizeModal">＋ مقاس جديد</button>
           </div>
         </div>
-        <div id="sizeReferencePreview" class="size-chip-list"></div>
+        <div class="dimension-selection-tools">
+          <input id="sizeSearch" type="search" placeholder="ابحث بالاسم أو الكود…">
+          <span id="sizeSelectionSummary" class="muted">0 محدد</span>
+        </div>
+        <div id="sizeReferencePreview" class="reference-choice-grid"></div>
       </article>
+    </div>
+
+    <div class="dimension-save-bar panel">
+      <div>
+        <strong>خصائص المنتج الأساسية</strong>
+        <small class="muted">اختر الألوان والمقاسات أولًا. بعد ذلك تُستخدم هذه الاختيارات عند إنشاء الـVariants ورفع صور كل لون.</small>
+      </div>
+      <button id="saveDimensions" class="primary-button" type="button">حفظ الألوان والمقاسات</button>
     </div>
 
     <form id="optionForm" class="form-stack quick-option-form">
@@ -195,11 +212,22 @@
 
   <div class="wizard-panel" data-panel="variants" hidden>
     <div class="panel-heading"><div><span class="eyebrow">SKU فعلي</span><h3>المتغيرات والمخزون</h3></div></div>
+    <div class="variant-context-bar">
+      <div>
+        <span class="eyebrow">يبنى من خصائص المنتج</span>
+        <strong>الألوان والمقاسات المختارة تظهر هنا فقط للاختيار داخل الـVariant.</strong>
+      </div>
+      <button class="ghost-button" type="button" data-go-step="options">تعديل الألوان والمقاسات</button>
+    </div>
     <form id="variantForm" class="form-stack">
-      <label>SKU للمتغير<input name="sku" required dir="ltr" placeholder="SHP-10001-BLK-M"></label>
-      <label>اللون<select id="variantColor" name="color_id"><option value="">بدون لون</option></select></label>
-      <label>المقاس<select id="variantSize" name="size_id"><option value="">بدون مقاس</option></select></label>
-      <label>Barcode<input name="barcode" dir="ltr"></label>
+      <div class="form-grid">
+        <label>SKU للمتغير<input name="sku" required dir="ltr" placeholder="SHP-10001-BLK-M"></label>
+        <label>Barcode<input name="barcode" dir="ltr"></label>
+      </div>
+      <div class="form-grid">
+        <label>اللون<select id="variantColor" name="color_id"><option value="">بدون لون</option></select></label>
+        <label>المقاس<select id="variantSize" name="size_id"><option value="">بدون مقاس</option></select></label>
+      </div>
       <label>الوزن<input name="weight" type="number" min="0" step="0.0001" inputmode="decimal"></label>
       <button class="primary-button" type="submit">إضافة Variant</button>
     </form>
@@ -223,6 +251,10 @@
       <label>City ID<input name="city_id" type="number" min="1"></label>
       <button class="ghost-button" type="submit">إضافة الموقع</button>
     </form>
+    <div class="inventory-help panel">
+      <strong>المخزون مرتبط بالـVariant</strong>
+      <span class="muted">أنشئ المتغيرات أولًا من الألوان والمقاسات المحددة، ثم أدخل كميات كل متغير وموقع.</span>
+    </div>
     <div id="inventoryList" class="stack-list"></div>
   </div>
 

@@ -399,3 +399,75 @@ def test_product_wizard_uses_existing_reference_tables_and_supports_quick_create
     assert snapshot["promotional_strips"][0]["id"] == config["promotional_strips"][0]["id"]
     assert snapshot["campaigns"][0]["id"] == config["campaigns"][0]["id"]
     assert brand_id != 0
+
+
+def test_product_dimension_references_and_variant_integrity(client, app):
+    with client.session_transaction() as session:
+        session["admin_id"] = 1
+
+    with app.app_context():
+        from app.models import ProductColorReference, ProductSizeReference, ProductVariant, Size
+
+        currency = Currency(code="SAR", name_ar="ريال", is_base=True)
+        color_a = Color(name="أزرق المنتج", hex_code="#123456")
+        color_b = Color(name="أحمر المنتج", hex_code="#ef4444")
+        size_a = Size(group="EU", code="M", label="متوسط")
+        size_b = Size(group="EU", code="L", label="كبير")
+        product = Product(
+            sku="DIMENSION-TEST-001",
+            name="منتج الأبعاد",
+            slug="dimension-test-001",
+            base_currency_id=1,
+            base_price=100,
+            status="draft",
+        )
+        db.session.add(currency)
+        db.session.flush()
+        product.base_currency_id = currency.id
+        db.session.add_all([color_a, color_b, size_a, size_b, product])
+        db.session.flush()
+        db.session.commit()
+        product_id = product.id
+        color_a_id, color_b_id = color_a.id, color_b.id
+        size_a_id, size_b_id = size_a.id, size_b.id
+
+    response = client.post(
+        f"/api/v1/catalog/products/{product_id}/reference-dimensions",
+        json={"color_ids": [color_a_id, color_b_id], "size_ids": [size_a_id, size_b_id]},
+    )
+    assert response.status_code == 200
+
+    response = client.get(f"/api/v1/catalog/reference/product-config?product_id={product_id}")
+    assert response.status_code == 200
+    config = response.get_json()["item"]
+    assert [x["id"] for x in config["colors"] if x["selected"]] == [color_a_id, color_b_id]
+    assert [x["id"] for x in config["sizes"] if x["selected"]] == [size_a_id, size_b_id]
+
+    response = client.post(
+        f"/api/v1/catalog/products/{product_id}/variants",
+        json={"sku": "DIMENSION-TEST-001-M", "color_id": color_a_id, "size_id": size_a_id},
+    )
+    assert response.status_code == 201
+
+    response = client.post(
+        f"/api/v1/catalog/products/{product_id}/variants",
+        json={"sku": "DIMENSION-TEST-001-X", "color_id": 999999, "size_id": size_a_id},
+    )
+    assert response.status_code == 400
+    assert "غير مرتبط" in response.get_json()["detail"]
+
+    response = client.get(f"/api/v1/catalog/products/{product_id}/wizard")
+    assert response.status_code == 200
+    snapshot = response.get_json()["item"]
+    assert snapshot["reference_colors"]
+    assert snapshot["reference_sizes"]
+
+    with app.app_context():
+        assert ProductColorReference.query.filter_by(product_id=product_id).count() == 2
+        assert ProductSizeReference.query.filter_by(product_id=product_id).count() == 2
+
+    response = client.post(
+        f"/api/v1/catalog/products/{product_id}/reference-dimensions",
+        json={"color_ids": [color_b_id], "size_ids": [size_a_id, size_b_id]},
+    )
+    assert response.status_code == 400

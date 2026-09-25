@@ -39,6 +39,8 @@ from ...models import (
     Campaign,
     CampaignProduct,
     SizeGuide,
+    ProductColorReference,
+    ProductSizeReference,
 )
 
 
@@ -318,6 +320,49 @@ class CatalogService:
         return CatalogService._serialize_product(product)
 
     @staticmethod
+    def set_product_reference_dimensions(product_id, color_ids, size_ids):
+        if db.session.get(Product, product_id) is None:
+            raise LookupError("product not found")
+
+        normalized_colors = []
+        for raw in color_ids or []:
+            color_id = int(raw)
+            if db.session.get(Color, color_id) is None:
+                raise ValueError(f"color {color_id} not found")
+            if color_id not in normalized_colors:
+                normalized_colors.append(color_id)
+
+        from ...models import Size
+        normalized_sizes = []
+        for raw in size_ids or []:
+            size_id = int(raw)
+            if db.session.get(Size, size_id) is None:
+                raise ValueError(f"size {size_id} not found")
+            if size_id not in normalized_sizes:
+                normalized_sizes.append(size_id)
+
+        active_variants = ProductVariant.query.filter_by(product_id=product_id, is_active=True).all()
+        used_color_ids = {int(v.color_id) for v in active_variants if v.color_id is not None}
+        used_size_ids = {int(v.size_id) for v in active_variants if v.size_id is not None}
+        removed_colors = used_color_ids.difference(normalized_colors)
+        removed_sizes = used_size_ids.difference(normalized_sizes)
+        if removed_colors:
+            raise ValueError("لا يمكن إزالة لون مستخدم في Variant نشط.")
+        if removed_sizes:
+            raise ValueError("لا يمكن إزالة مقاس مستخدم في Variant نشط.")
+
+        ProductColorReference.query.filter_by(product_id=product_id).delete()
+        for position, color_id in enumerate(normalized_colors):
+            db.session.add(ProductColorReference(product_id=product_id, color_id=color_id, sort_order=position))
+
+        ProductSizeReference.query.filter_by(product_id=product_id).delete()
+        for position, size_id in enumerate(normalized_sizes):
+            db.session.add(ProductSizeReference(product_id=product_id, size_id=size_id, sort_order=position))
+
+        db.session.commit()
+        return {"color_ids": normalized_colors, "size_ids": normalized_sizes}
+
+    @staticmethod
     def set_product_badges(product_id, badge_ids):
         if db.session.get(Product, product_id) is None:
             raise LookupError("product not found")
@@ -467,9 +512,17 @@ class CatalogService:
         duplicate = ProductVariant.query.filter(ProductVariant.id != variant_id, ProductVariant.sku == sku).first()
         if duplicate:
             raise ValueError("variant sku already exists")
+        color_id = int(payload["color_id"]) if payload.get("color_id") not in (None, "") else None
+        size_id = int(payload["size_id"]) if payload.get("size_id") not in (None, "") else None
+        color_ref = ProductColorReference.query.filter_by(product_id=product_id, color_id=color_id).first() if color_id else None
+        size_ref = ProductSizeReference.query.filter_by(product_id=product_id, size_id=size_id).first() if size_id else None
+        if color_id and color_ref is None and color_id != variant.color_id:
+            raise ValueError("اختر اللون أولًا ضمن ألوان المنتج.")
+        if size_id and size_ref is None and size_id != variant.size_id:
+            raise ValueError("اختر المقاس أولًا ضمن مقاسات المنتج.")
         variant.sku = sku
-        variant.color_id = payload.get("color_id")
-        variant.size_id = payload.get("size_id")
+        variant.color_id = color_id
+        variant.size_id = size_id
         variant.barcode = (payload.get("barcode") or "").strip() or None
         variant.weight = Decimal(str(payload["weight"])) if payload.get("weight") not in (None, "") else None
         variant.status = (payload.get("status") or variant.status).strip()
@@ -532,11 +585,23 @@ class CatalogService:
             raise ValueError("variant sku is required")
         if ProductVariant.query.filter_by(sku=sku).first():
             raise ValueError("variant sku already exists")
+        color_id = int(payload["color_id"]) if payload.get("color_id") not in (None, "") else None
+        size_id = int(payload["size_id"]) if payload.get("size_id") not in (None, "") else None
+        selected_color_count = ProductColorReference.query.filter_by(product_id=product_id).count()
+        selected_size_count = ProductSizeReference.query.filter_by(product_id=product_id).count()
+        if selected_color_count and color_id is None:
+            raise ValueError("اختر لونًا من ألوان المنتج أولًا.")
+        if selected_size_count and size_id is None:
+            raise ValueError("اختر مقاسًا من مقاسات المنتج أولًا.")
+        if color_id and ProductColorReference.query.filter_by(product_id=product_id, color_id=color_id).first() is None:
+            raise ValueError("اللون المختار غير مرتبط بهذا المنتج.")
+        if size_id and ProductSizeReference.query.filter_by(product_id=product_id, size_id=size_id).first() is None:
+            raise ValueError("المقاس المختار غير مرتبط بهذا المنتج.")
         variant = ProductVariant(
             product_id=product_id,
             sku=sku,
-            color_id=payload.get("color_id"),
-            size_id=payload.get("size_id"),
+            color_id=color_id,
+            size_id=size_id,
             barcode=(payload.get("barcode") or "").strip() or None,
             weight=Decimal(str(payload["weight"])) if payload.get("weight") not in (None, "") else None,
             status=(payload.get("status") or "active").strip(),
@@ -721,10 +786,13 @@ class CatalogService:
             ("warranty_policy_id", WarrantyPolicy),
         )
         for field, model in mappings:
-            if field in payload and payload[field] is not None:
-                if db.session.get(model, int(payload[field])) is None:
-                    raise ValueError(f"{field} not found")
-                setattr(policy, field, int(payload[field]))
+            if field in payload:
+                if payload[field] in (None, ""):
+                    setattr(policy, field, None)
+                else:
+                    if db.session.get(model, int(payload[field])) is None:
+                        raise ValueError(f"{field} not found")
+                    setattr(policy, field, int(payload[field]))
         db.session.commit()
         return {
             "product_id": product_id,
@@ -819,6 +887,25 @@ class CatalogService:
         current_hashtag_ids = {int(x.hashtag_id) for x in ProductHashtag.query.filter_by(product_id=product_id).all()} if product_id else set()
         current_strip_ids = {int(x.strip_id) for x in ProductPromotionalStrip.query.filter_by(product_id=product_id).all()} if product_id else set()
         current_campaign_ids = {int(x.campaign_id) for x in CampaignProduct.query.filter_by(product_id=product_id).all()} if product_id else set()
+        current_color_ids = {int(x.color_id) for x in ProductColorReference.query.filter_by(product_id=product_id).all()} if product_id else set()
+        current_size_ids = {int(x.size_id) for x in ProductSizeReference.query.filter_by(product_id=product_id).all()} if product_id else set()
+
+        # Products created before product-level dimension references are backfilled
+        # from their variants the first time this endpoint is read.
+        if product_id and not current_color_ids:
+            current_color_ids = {
+                int(x)
+                for (x,) in db.session.query(ProductVariant.color_id)
+                .filter(ProductVariant.product_id == int(product_id), ProductVariant.color_id.isnot(None))
+                .all()
+            }
+        if product_id and not current_size_ids:
+            current_size_ids = {
+                int(x)
+                for (x,) in db.session.query(ProductVariant.size_id)
+                .filter(ProductVariant.product_id == int(product_id), ProductVariant.size_id.isnot(None))
+                .all()
+            }
 
         def active_or_current(model, ids, order_by):
             condition = or_(model.is_active.is_(True), model.id.in_(ids) if ids else False)
@@ -830,6 +917,10 @@ class CatalogService:
         hashtags = active_or_current(Hashtag, current_hashtag_ids, (Hashtag.sort_order, Hashtag.name))
         strips = active_or_current(PromotionalStrip, current_strip_ids, (PromotionalStrip.id.desc(),))
         campaigns = active_or_current(Campaign, current_campaign_ids, (Campaign.display_priority.desc(), Campaign.name))
+        colors = active_or_current(Color, current_color_ids, (Color.sort_order, Color.name))
+
+        from ...models import Size
+        sizes = active_or_current(Size, current_size_ids, (Size.group, Size.sort_order, Size.label))
 
         assignment = db.session.get(ProductPolicyAssignment, int(product_id)) if product_id else None
         policy_specs = (
@@ -863,6 +954,21 @@ class CatalogService:
                     "parent_id": row.parent_id, "is_active": bool(row.is_active),
                 }
                 for row in categories
+            ],
+            "colors": [
+                {
+                    "id": row.id, "name": row.name, "hex_code": row.hex_code,
+                    "swatch_asset_id": row.swatch_asset_id, "is_active": bool(row.is_active),
+                    "selected": row.id in current_color_ids,
+                }
+                for row in colors
+            ],
+            "sizes": [
+                {
+                    "id": row.id, "group": row.group, "code": row.code, "label": row.label,
+                    "is_active": bool(row.is_active), "selected": row.id in current_size_ids,
+                }
+                for row in sizes
             ],
             "brands": [
                 {
@@ -1007,6 +1113,15 @@ class CatalogService:
             }
             for media_row, asset, color in media_rows
         ]
+        reference_colors = [
+            {"id": row.color_id}
+            for row in ProductColorReference.query.filter_by(product_id=product_id).order_by(ProductColorReference.sort_order, ProductColorReference.id).all()
+        ]
+        reference_sizes = [
+            {"id": row.size_id}
+            for row in ProductSizeReference.query.filter_by(product_id=product_id).order_by(ProductSizeReference.sort_order, ProductSizeReference.id).all()
+        ]
+
         inventory = [
             {
                 "id": stock.id,
@@ -1035,6 +1150,8 @@ class CatalogService:
             "hashtags": hashtags,
             "promotional_strips": promotional_strips,
             "campaigns": campaigns,
+            "reference_colors": reference_colors,
+            "reference_sizes": reference_sizes,
             "inventory": inventory,
             "locations": CatalogService.list_inventory_locations(),
             "display": {
@@ -1054,7 +1171,7 @@ class CatalogService:
                 "basics": True,
                 "categories": bool(categories),
                 "media": bool(media),
-                "options": bool(options),
+                "options": bool(reference_colors or reference_sizes or options),
                 "variants": bool(variants),
                 "inventory": bool(inventory),
                 "publish": bool(categories and variants and media),
