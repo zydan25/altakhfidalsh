@@ -452,27 +452,92 @@ def register_entity_views(admin_bp):
             **build_admin_context(),
         )
 
-    @admin_bp.get("/promotions/coupons")
+    @admin_bp.route("/promotions/coupons", methods=["GET", "POST"])
     def coupons():
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                code = (request.form.get("code") or "").strip().upper()
+                ctype = (request.form.get("type") or "percent").strip()
+                value = Decimal(request.form.get("value") or "0")
+                if not code or value < 0:
+                    raise ValueError("الكود والقيمة مطلوبان.")
+                if Coupon.query.filter_by(code=code).first():
+                    raise ValueError("الكود مستخدم مسبقًا.")
+                db.session.add(Coupon(
+                    code=code,
+                    type=ctype,
+                    value=value,
+                    min_order=Decimal(request.form.get("min_order") or "0"),
+                    max_discount=Decimal(request.form.get("max_discount") or "0") or None,
+                    usage_limit=request.form.get("usage_limit", type=int),
+                ))
+                db.session.commit()
+                success = "تم إنشاء الكوبون."
+            except (ValueError, InvalidOperation) as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = Coupon.query.order_by(Coupon.id.desc()).limit(200).all()
-        return _render("الكوبونات", ["ID", "الكود", "النوع", "القيمة", "حد الاستخدام"],
-                       [[x.id, x.code, x.type, x.value, x.usage_limit or "غير محدد"] for x in rows],
-                       "الترويج والمالية")
+        return render_template("admin/coupons.html", title="الكوبونات", coupons=rows, success=success, error=error, **build_admin_context())
 
-    @admin_bp.get("/promotions/gifts")
+    @admin_bp.route("/promotions/gifts", methods=["GET", "POST"])
     def gifts():
         from ..models import GiftCampaign
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                db.session.add(GiftCampaign(
+                    name=(request.form.get("name") or "").strip(),
+                    gift_type=(request.form.get("gift_type") or "credit").strip(),
+                    value=Decimal(request.form.get("value") or "0"),
+                    expires_at=None,
+                ))
+                db.session.commit()
+                success = "تم إنشاء حملة الهدية."
+            except (ValueError, InvalidOperation) as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = GiftCampaign.query.order_by(GiftCampaign.id.desc()).limit(200).all()
-        return _render("الهدايا", ["ID", "الاسم", "النوع", "القيمة"],
-                       [[x.id, x.name, x.gift_type, x.value or "—"] for x in rows],
-                       "الترويج والمالية")
+        customers = Customer.query.filter_by(is_active=True).order_by(Customer.id.desc()).limit(200).all()
+        return render_template("admin/gifts.html", title="الهدايا", campaigns=rows, customers=customers, success=success, error=error, **build_admin_context())
 
-    @admin_bp.get("/finance/wallets")
+    @admin_bp.post("/promotions/gifts/issue")
+    def issue_gift_admin():
+        from ..modules.promotions.services import PromotionService
+        try:
+            result = PromotionService.issue_gift(
+                request.form.get("campaign_id", type=int),
+                request.form.get("customer_id", type=int),
+            )
+            return __import__("flask").redirect("/admin/promotions/gifts")
+        except (ValueError, LookupError):
+            return {"error": "gift_issue_failed"}, 400
+
+    @admin_bp.route("/finance/wallets", methods=["GET", "POST"])
     def wallets():
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                from ..modules.promotions.services import PromotionService
+                PromotionService.adjust_wallet(
+                    request.form.get("customer_id", type=int),
+                    request.form.get("currency_id", type=int),
+                    request.form.get("amount"),
+                    request.form.get("type") or "adjustment",
+                    "admin",
+                    session.get("admin_id"),
+                )
+                success = "تم تعديل المحفظة."
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = Wallet.query.order_by(Wallet.id.desc()).limit(200).all()
-        return _render("محافظ العملاء", ["ID", "العميل", "العملة", "الرصيد", "الحالة"],
-                       [[x.id, x.customer_id, x.currency_id, x.balance, x.status] for x in rows],
-                       "الترويج والمالية")
+        customers = Customer.query.filter_by(is_active=True).order_by(Customer.id.desc()).limit(200).all()
+        currencies = __import__("app.models", fromlist=["Currency"]).Currency.query.filter_by(is_active=True).order_by(__import__("app.models", fromlist=["Currency"]).Currency.code).all()
+        return render_template("admin/wallets.html", title="محافظ العملاء", wallets=rows, customers=customers, currencies=currencies, success=success, error=error, **build_admin_context())
 
     @admin_bp.get("/system/admins")
     def admins():
