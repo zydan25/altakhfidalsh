@@ -24,3 +24,10 @@ class Config:
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "0") == "1"
     CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
+    WHATSAPP_BASE_URL = os.getenv("WHATSAPP_BASE_URL", "https://whatsapp.alattab.site")
+    WHATSAPP_SESSION = os.getenv("WHATSAPP_SESSION", "basheer")
+    WHATSAPP_API_KEY = os.getenv("WHATSAPP_API_KEY")
+    WHATSAPP_TIMEOUT = int(os.getenv("WHATSAPP_TIMEOUT", "20"))
+    WHATSAPP_EXTERNAL_URL = os.getenv("WHATSAPP_EXTERNAL_URL", "https://takhfidsh.alattab.site")
+    ADMIN_PHONE = os.getenv("ADMIN_PHONE", "967774952665")
+    ADMIN_OTP_MESSAGE = os.getenv("ADMIN_OTP_MESSAGE", "رمز دخول لوحة إدارة التخفيض: {code}")
