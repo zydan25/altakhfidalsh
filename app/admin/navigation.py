@@ -33,7 +33,7 @@ NAVIGATION = [
         NavItem("الألوان والمقاسات", "/admin/options", "●"),
         NavItem("المتغيرات والمخزون", "/admin/inventory", "L"),
         NavItem("مكتبة الوسائط", "/admin/media", "▧"),
-        NavItem("الشارات والسياسات", "/admin/product-settings", "✓"),
+        NavItem("الشارات والسياسات", "/admin/catalog/policies", "✓"),
     ]),
     NavSection("المحتوى والمتجر", "◇", [
         NavItem("صفحات المتجر", "/admin/storefront/pages", "□"),
