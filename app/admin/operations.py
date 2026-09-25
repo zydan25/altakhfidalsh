@@ -12,7 +12,7 @@ from ..models import (
     Hashtag,
 )
 from ..services.pricing import PricingRule, calculate_customer_price
-from .navigation import NAVIGATION
+from .context import build_admin_context
 
 
 def register_operation_routes(admin_bp):
@@ -153,10 +153,4 @@ def register_operation_routes(admin_bp):
 
 
 def _ctx():
-    current_path = request.path
-    page_item_map = []
-    for section in NAVIGATION:
-        section.active = any(current_path == child.route or current_path.startswith(child.route + "/") for child in section.children)
-        for child in section.children:
-            page_item_map.append({"label": child.label, "route": child.route, "section": section.label})
-    return {"navigation": NAVIGATION, "current_path": current_path, "page_item_map": page_item_map}
+    return build_admin_context()
