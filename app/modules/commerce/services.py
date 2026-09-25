@@ -172,6 +172,7 @@ class CommerceService:
                         "price": price,
                         "context": context,
                         "qty": qty,
+                        "selected_options": raw.get("selected_options") or raw.get("options") or {},
                     }
                 )
 
