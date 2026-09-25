@@ -67,7 +67,10 @@ class CustomerAuthService:
             raise LookupError("OTP request not found")
         if otp.status != "pending":
             raise ValueError("OTP request is no longer pending")
-        if otp.expires_at < now:
+        expires_at = otp.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < now:
             otp.status = "expired"
             db.session.commit()
             raise ValueError("OTP has expired")
