@@ -1,0 +1,30 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">النظام</span><h2>الثيم والهوية</h2><p class="muted">ألوان الواجهة محفوظة في قاعدة البيانات وتطبق مباشرة على لوحة الإدارة. يمكنك تغييرها من الهاتف دون تعديل ملفات CSS.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<form method="post" class="two-panel">
+<article class="panel">
+<div class="panel-heading"><div><span class="eyebrow">ألوان أساسية</span><h3>واجهة التطبيق</h3></div></div>
+<div class="form-stack">
+<label>الخلفية<input name="bg" type="color" value="{{ values.get('bg','#f5f7fb') }}"></label>
+<label>الخلفية الثانوية<input name="surface" type="color" value="{{ values.get('surface','#ffffff') }}"></label>
+<label>اللون الأساسي<input name="accent" type="color" value="{{ values.get('accent','#111827') }}"></label>
+<label>اللون الأساسي الخفيف<input name="accent_soft" type="color" value="{{ values.get('accent_soft','#eef2f7') }}"></label>
+</div>
+</article>
+<article class="panel">
+<div class="panel-heading"><div><span class="eyebrow">النصوص والحواف</span><h3>الوضوح</h3></div></div>
+<div class="form-stack">
+<label>النص<input name="text" type="color" value="{{ values.get('text','#111827') }}"></label>
+<label>النص الثانوي<input name="muted" type="color" value="{{ values.get('muted','#6b7280') }}"></label>
+<label>الحواف<input name="border" type="color" value="{{ values.get('border','#e5e7eb') }}"></label>
+<button class="primary-button">حفظ الثيم</button>
+</div>
+</article>
+</form>
+<section class="panel" style="margin-top:12px">
+<div class="panel-heading"><div><span class="eyebrow">تثبيت</span><h3>التطبيق على الهاتف</h3></div></div>
+<p class="muted">ملف PWA وmanifest والأيقونة موجودة داخل لوحة الإدارة. من متصفح الهاتف يمكن استخدام "إضافة إلى الشاشة الرئيسية" لتثبيت لوحة الإدارة كتطبيق.</p>
+</section>
+{% endblock %}
