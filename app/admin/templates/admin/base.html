@@ -8,7 +8,7 @@
   <title>{{ title }} · التخفيض</title>
   <link rel="stylesheet" href="{{ url_for('admin.static', filename='admin.css') }}">
 </head>
-<body>
+<body{% if theme_css_vars %} style="{{ theme_css_vars }}"{% endif %}>
   <div class="app-shell">
     <div id="drawerOverlay" class="drawer-overlay" hidden></div>
 
