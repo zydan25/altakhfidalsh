@@ -1,4 +1,4 @@
-from flask import redirect, render_template, request, session
+from flask import render_template, request, session
 
 from ..extensions import db
 from ..models import (
@@ -106,7 +106,7 @@ def register_entity_views(admin_bp):
                     SupportService.send_message(
                         conversation.id,
                         "admin",
-                        request.environ.get("admin_id") or 0,
+                        session.get("admin_id") or 0,
                         (request.form.get("body") or "").strip(),
                         "text",
                     )
