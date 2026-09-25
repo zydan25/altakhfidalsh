@@ -552,7 +552,7 @@ def register_entity_views(admin_bp):
                 elif row is None: raise ValueError("حساب المدير غير موجود.")
                 elif action=="archive": row.is_active=False; row.status="disabled"; success="تم تعطيل حساب المدير."
                 elif action=="update":
-                    row.phone=(request.form.get("phone") or "").strip() or None; row.email=(request.form.get("email") or "").strip() or None; row.status=(request.form.get("status") or row.status).strip()
+                    row.phone=(request.form.get("phone") or "").strip() or None; row.email=(request.form.get("email") or "").strip() or None; row.status=(request.form.get("status") or row.status).strip(); row.is_active = row.status == "active"
                     AdminRole.query.filter_by(admin_id=row.id).delete(); role_id=request.form.get("role_id",type=int)
                     if role_id: db.session.add(AdminRole(admin_id=row.id,role_id=role_id))
                     success="تم تحديث حساب المدير."
