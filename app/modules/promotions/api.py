@@ -1,4 +1,5 @@
 from flask import request
+from ...extensions import db
 
 from . import api_bp
 from .services import PromotionService
@@ -61,3 +62,43 @@ def wallet_adjust():
         )}
     except (KeyError, ValueError) as exc:
         return {"error": "wallet_adjust_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/campaigns/<int:campaign_id>/products/<int:product_id>")
+def attach_campaign_product(campaign_id, product_id):
+    from ...models import Campaign, CampaignProduct, Product
+    if db.session.get(Campaign, campaign_id) is None or db.session.get(Product, product_id) is None:
+        return {"error": "not_found"}, 404
+    from ...extensions import db
+    if CampaignProduct.query.filter_by(campaign_id=campaign_id, product_id=product_id).first():
+        return {"ok": True, "already_attached": True}
+    row = CampaignProduct(campaign_id=campaign_id, product_id=product_id, sort_order=0)
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "campaign_id": campaign_id, "product_id": product_id}}, 201
+
+
+@api_bp.post("/campaigns/<int:campaign_id>/categories/<int:category_id>")
+def attach_campaign_category(campaign_id, category_id):
+    from ...models import Campaign, CampaignCategory, Category
+    if db.session.get(Campaign, campaign_id) is None or db.session.get(Category, category_id) is None:
+        return {"error": "not_found"}, 404
+    if CampaignCategory.query.filter_by(campaign_id=campaign_id, category_id=category_id).first():
+        return {"ok": True, "already_attached": True}
+    row = CampaignCategory(campaign_id=campaign_id, category_id=category_id, sort_order=0)
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "campaign_id": campaign_id, "category_id": category_id}}, 201
+
+
+@api_bp.post("/campaigns/<int:campaign_id>/hashtags/<int:hashtag_id>")
+def attach_campaign_hashtag(campaign_id, hashtag_id):
+    from ...models import Campaign, CampaignHashtag, Hashtag
+    if db.session.get(Campaign, campaign_id) is None or db.session.get(Hashtag, hashtag_id) is None:
+        return {"error": "not_found"}, 404
+    if CampaignHashtag.query.filter_by(campaign_id=campaign_id, hashtag_id=hashtag_id).first():
+        return {"ok": True, "already_attached": True}
+    row = CampaignHashtag(campaign_id=campaign_id, hashtag_id=hashtag_id)
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "campaign_id": campaign_id, "hashtag_id": hashtag_id}}, 201
