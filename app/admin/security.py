@@ -1,4 +1,4 @@
-from flask import current_app, session
+from flask import current_app, request, session
 
 
 ROUTE_PERMISSIONS = {
@@ -6,7 +6,8 @@ ROUTE_PERMISSIONS = {
         "/admin/": "dashboard.view",
         "/admin/products": "product.view",
         "/admin/categories": "category.view",
-        "/admin/pricing": "pricing.view",
+        "/admin/pricing/groups": "pricing.view",
+        "/admin/pricing/preview": "pricing.view",
         "/admin/banners": "content.view",
         "/admin/campaigns": "campaign.view",
         "/admin/hashtags": "hashtag.view",
@@ -41,14 +42,28 @@ def can_access(code):
         return True
     if current_app.config.get("ADMIN_DEV_BYPASS", False):
         return True
-    return bool(session.get("admin_id"))
+    admin_id = session.get("admin_id")
+    if not admin_id:
+        return False
+
+    from ..models import AdminRole, Permission, RolePermission
+    from ..extensions import db
+
+    permission = (
+        db.session.query(Permission.id)
+        .join(RolePermission, RolePermission.permission_id == Permission.id)
+        .join(AdminRole, AdminRole.role_id == RolePermission.role_id)
+        .filter(AdminRole.admin_id == admin_id, Permission.code == code)
+        .first()
+    )
+    return permission is not None
 
 
 def init_admin_security(admin_bp):
     @admin_bp.before_request
     def protect():
         endpoint = request.endpoint or ""
-        if endpoint == "admin.login":
+        if endpoint in {"admin.login", "admin.logout"}:
             return None
         code = permission_code(request.path, request.method)
         if not session.get("admin_id") and not current_app.config.get("ADMIN_DEV_BYPASS", False):
