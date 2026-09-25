@@ -478,23 +478,90 @@ def register_entity_views(admin_bp):
         return _render("مسودات المنتجات", ["ID", "SKU", "الاسم", "السعر", "الحالة"],
                        [[x.id, x.sku, x.name, x.base_price, x.status] for x in rows], "الكتالوج")
 
-    @admin_bp.get("/brands")
+    @admin_bp.route("/brands", methods=["GET", "POST"])
     def brands():
         from ..models import Brand
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                name = (request.form.get("name") or "").strip()
+                slug = (request.form.get("slug") or "").strip().lower()
+                if not name or not slug:
+                    raise ValueError("اسم العلامة التجارية وSlug مطلوبان.")
+                if Brand.query.filter_by(slug=slug).first():
+                    raise ValueError("الـSlug مستخدم مسبقًا.")
+                logo_asset_id = None
+                logo_file = request.files.get("logo_file")
+                if logo_file and logo_file.filename:
+                    assets = __import__("app.modules.catalog.services", fromlist=["MediaService"]).MediaService.save_generic_files([logo_file], "brands")
+                    logo_asset_id = assets[0]["id"] if assets else None
+                db.session.add(Brand(name=name, slug=slug, logo_asset_id=logo_asset_id))
+                db.session.commit()
+                success = "تم إنشاء العلامة التجارية."
+            except (ValueError, OSError) as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = Brand.query.filter_by(is_active=True).order_by(Brand.name).all()
-        return _render("العلامات التجارية", ["ID", "الاسم", "Slug", "Logo"],
-                       [[x.id, x.name, x.slug, x.logo_asset_id or "—"] for x in rows], "الكتالوج")
+        return render_template(
+            "admin/brands.html",
+            title="العلامات التجارية",
+            brands=rows,
+            success=success,
+            error=error,
+            **build_admin_context(),
+        )
 
-    @admin_bp.get("/options")
+    @admin_bp.route("/options", methods=["GET", "POST"])
     def options():
         from ..models import Color, Size
-        colors = Color.query.filter_by(is_active=True).order_by(Color.sort_order, Color.name).limit(200).all()
-        sizes = Size.query.filter_by(is_active=True).order_by(Size.group, Size.sort_order, Size.label).limit(200).all()
-        rows = (
-            [["لون", x.id, x.name, x.hex_code or "—", x.sort_order] for x in colors]
-            + [["مقاس", x.id, f"{x.group} / {x.code}", x.label, x.sort_order] for x in sizes]
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                action = (request.form.get("action") or "").strip()
+                if action == "color":
+                    name = (request.form.get("name") or "").strip()
+                    if not name:
+                        raise ValueError("اسم اللون مطلوب.")
+                    db.session.add(Color(
+                        name=name,
+                        hex_code=(request.form.get("hex_code") or "").strip() or None,
+                        sort_order=request.form.get("sort_order", 0, type=int),
+                    ))
+                    success = "تم إنشاء اللون."
+                elif action == "size":
+                    group = (request.form.get("group") or "").strip()
+                    code = (request.form.get("code") or "").strip().upper()
+                    label = (request.form.get("label") or "").strip()
+                    if not group or not code or not label:
+                        raise ValueError("المجموعة والكود والاسم الظاهر مطلوبة.")
+                    if Size.query.filter_by(group=group, code=code).first():
+                        raise ValueError("كود المقاس مستخدم داخل المجموعة.")
+                    db.session.add(Size(
+                        group=group,
+                        code=code,
+                        label=label,
+                        sort_order=request.form.get("sort_order", 0, type=int),
+                    ))
+                    success = "تم إنشاء المقاس."
+                else:
+                    raise ValueError("إجراء الخيارات غير معروف.")
+                db.session.commit()
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
+        colors = Color.query.filter_by(is_active=True).order_by(Color.sort_order, Color.name).limit(300).all()
+        sizes = Size.query.filter_by(is_active=True).order_by(Size.group, Size.sort_order, Size.label).limit(300).all()
+        return render_template(
+            "admin/options.html",
+            title="الألوان والمقاسات",
+            colors=colors,
+            sizes=sizes,
+            success=success,
+            error=error,
+            **build_admin_context(),
         )
-        return _render("الألوان والمقاسات", ["النوع", "ID", "الاسم/الكود", "القيمة", "الترتيب"], rows, "الكتالوج")
 
     @admin_bp.get("/category-strip")
     def category_strip():
