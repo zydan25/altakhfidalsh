@@ -56,7 +56,7 @@
           <strong>{{ section.title or "قسم بدون عنوان" }}</strong>
           <span>{{ section.section_type }} · ترتيب {{ section.sort_order }}</span>
           <div class="rule-summary">
-          {% for item in section.items %}
+          {% for item in items_by_section.get(section.id, []) %}
             <span class="status-pill">{{ item.item_type }} #{{ item.item_id }}{% if item.custom_label %} · {{ item.custom_label }}{% endif %}</span>
           {% endfor %}
           </div>
