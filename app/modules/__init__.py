@@ -2,6 +2,7 @@ from flask import Flask
 
 
 def register_module_blueprints(app: Flask) -> None:
+    """Register each domain blueprint under its documented /api/v1/<domain> prefix."""
     from .catalog import api_bp as catalog_api_bp
     from .pricing import api_bp as pricing_api_bp
     from .storefront import api_bp as storefront_api_bp
@@ -17,19 +18,20 @@ def register_module_blueprints(app: Flask) -> None:
     from .search import api_bp as search_api_bp
 
     modules = (
-        catalog_api_bp,
-        pricing_api_bp,
-        storefront_api_bp,
-        commerce_api_bp,
-        customer_api_bp,
-        support_api_bp,
-        promotions_api_bp,
-        system_api_bp,
-        geo_api_bp,
-        after_sales_api_bp,
-        notifications_api_bp,
-        reports_api_bp,
-        search_api_bp,
+        ("catalog", catalog_api_bp),
+        ("pricing", pricing_api_bp),
+        ("storefront", storefront_api_bp),
+        ("commerce", commerce_api_bp),
+        ("customer", customer_api_bp),
+        ("support", support_api_bp),
+        ("promotions", promotions_api_bp),
+        ("system", system_api_bp),
+        ("geo", geo_api_bp),
+        ("after_sales", after_sales_api_bp),
+        ("notifications", notifications_api_bp),
+        ("reports", reports_api_bp),
+        ("search", search_api_bp),
     )
-    for blueprint in modules:
-        app.register_blueprint(blueprint, url_prefix="/api/v1")
+
+    for prefix, blueprint in modules:
+        app.register_blueprint(blueprint, url_prefix=f"/api/v1/{prefix}")
