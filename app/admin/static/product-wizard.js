@@ -23,6 +23,7 @@
       ? {}
       : { "Content-Type": "application/json" };
     const response = await fetch(url, {
+      cache: "no-store",
       ...options,
       headers: { ...headers, ...(options.headers || {}) },
     });
@@ -37,7 +38,7 @@
         requestJson("/api/v1/catalog/products/" + productId + "/wizard"),
         requestJson("/api/v1/catalog/reference/policies"),
         requestJson("/api/v1/catalog/reference/marketing"),
-        requestJson("/api/v1/catalog/reference/options"),
+        requestJson("/api/v1/catalog/reference/options?product_id=" + encodeURIComponent(productId)),
       ]);
       snapshot = result.item;
       policyRefs = refs;
@@ -170,26 +171,48 @@
       (marketingRefs?.brands || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
     if (snapshot.product?.brand_id) brand.value = String(snapshot.product.brand_id);
 
+    const activeColorOptions = (optionRefs?.colors || []).map(x =>
+      '<option value="' + x.id + '"' + (!x.is_active ? ' disabled' : '') + '>' +
+      escapeHtml(x.name) + (!x.is_active ? ' · مؤرشف (استعده من الأرشيف)' : '') + '</option>'
+    ).join("");
+    const activeSizeOptions = (optionRefs?.sizes || []).map(x =>
+      '<option value="' + x.id + '"' + (!x.is_active ? ' disabled' : '') + '>' +
+      escapeHtml(x.label) + ' · ' + escapeHtml(x.group) + (!x.is_active ? ' · مؤرشف' : '') + '</option>'
+    ).join("");
+
     const color = document.getElementById("variantColor");
-    color.innerHTML = '<option value="">بدون لون</option>' +
-      (optionRefs?.colors || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+    color.innerHTML = '<option value="">بدون لون</option>' + activeColorOptions;
     document.querySelectorAll(".variant-edit-form").forEach(form => {
       const colorSelect = form.querySelector('select[name="color_id"]');
       const sizeSelect = form.querySelector('select[name="size_id"]');
-      colorSelect.innerHTML = '<option value="">بدون لون</option>' + (optionRefs?.colors || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
-      sizeSelect.innerHTML = '<option value="">بدون مقاس</option>' + (optionRefs?.sizes || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.label) + ' · ' + escapeHtml(x.group) + '</option>').join("");
-      if (colorSelect.dataset.current) colorSelect.value = colorSelect.dataset.current;
-      if (sizeSelect.dataset.current) sizeSelect.value = sizeSelect.dataset.current;
+      colorSelect.innerHTML = '<option value="">بدون لون</option>' + activeColorOptions;
+      sizeSelect.innerHTML = '<option value="">بدون مقاس</option>' + activeSizeOptions;
+      if (colorSelect.dataset.current) {
+        colorSelect.value = colorSelect.dataset.current;
+      }
+      if (sizeSelect.dataset.current) {
+        sizeSelect.value = sizeSelect.dataset.current;
+      }
+      if (colorSelect.dataset.current && !colorSelect.value) {
+        colorSelect.insertAdjacentHTML("beforeend", '<option value="' + colorSelect.dataset.current + '">لون حالي مؤرشف</option>');
+        colorSelect.value = colorSelect.dataset.current;
+      }
+      if (sizeSelect.dataset.current && !sizeSelect.value) {
+        sizeSelect.insertAdjacentHTML("beforeend", '<option value="' + sizeSelect.dataset.current + '">مقاس حالي مؤرشف</option>');
+        sizeSelect.value = sizeSelect.dataset.current;
+      }
     });
 
     const mediaColor = document.getElementById("mediaColor");
     if (mediaColor) {
       mediaColor.innerHTML = '<option value="">صور عامة للمنتج</option>' +
-        (optionRefs?.colors || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+        (optionRefs?.colors || []).map(x =>
+          '<option value="' + x.id + '"' + (!x.is_active ? ' disabled' : '') + '>' +
+          escapeHtml(x.name) + (!x.is_active ? ' · مؤرشف' : '') + '</option>'
+        ).join("");
     }
     const size = document.getElementById("variantSize");
-    size.innerHTML = '<option value="">بدون مقاس</option>' +
-      (optionRefs?.sizes || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.label) + ' · ' + escapeHtml(x.group) + '</option>').join("");
+    size.innerHTML = '<option value="">بدون مقاس</option>' + activeSizeOptions;
 
     document.getElementById("badgeSelection").innerHTML = (marketingRefs?.badges || []).map(x => (
       '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-badge-checkbox><span><strong>' +
