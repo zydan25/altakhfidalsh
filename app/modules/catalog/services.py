@@ -512,9 +512,17 @@ class CatalogService:
         duplicate = ProductVariant.query.filter(ProductVariant.id != variant_id, ProductVariant.sku == sku).first()
         if duplicate:
             raise ValueError("variant sku already exists")
+        color_id = int(payload["color_id"]) if payload.get("color_id") not in (None, "") else None
+        size_id = int(payload["size_id"]) if payload.get("size_id") not in (None, "") else None
+        color_ref = ProductColorReference.query.filter_by(product_id=product_id, color_id=color_id).first() if color_id else None
+        size_ref = ProductSizeReference.query.filter_by(product_id=product_id, size_id=size_id).first() if size_id else None
+        if color_id and color_ref is None and color_id != variant.color_id:
+            raise ValueError("اختر اللون أولًا ضمن ألوان المنتج.")
+        if size_id and size_ref is None and size_id != variant.size_id:
+            raise ValueError("اختر المقاس أولًا ضمن مقاسات المنتج.")
         variant.sku = sku
-        variant.color_id = payload.get("color_id")
-        variant.size_id = payload.get("size_id")
+        variant.color_id = color_id
+        variant.size_id = size_id
         variant.barcode = (payload.get("barcode") or "").strip() or None
         variant.weight = Decimal(str(payload["weight"])) if payload.get("weight") not in (None, "") else None
         variant.status = (payload.get("status") or variant.status).strip()
@@ -577,11 +585,23 @@ class CatalogService:
             raise ValueError("variant sku is required")
         if ProductVariant.query.filter_by(sku=sku).first():
             raise ValueError("variant sku already exists")
+        color_id = int(payload["color_id"]) if payload.get("color_id") not in (None, "") else None
+        size_id = int(payload["size_id"]) if payload.get("size_id") not in (None, "") else None
+        selected_color_count = ProductColorReference.query.filter_by(product_id=product_id).count()
+        selected_size_count = ProductSizeReference.query.filter_by(product_id=product_id).count()
+        if selected_color_count and color_id is None:
+            raise ValueError("اختر لونًا من ألوان المنتج أولًا.")
+        if selected_size_count and size_id is None:
+            raise ValueError("اختر مقاسًا من مقاسات المنتج أولًا.")
+        if color_id and ProductColorReference.query.filter_by(product_id=product_id, color_id=color_id).first() is None:
+            raise ValueError("اللون المختار غير مرتبط بهذا المنتج.")
+        if size_id and ProductSizeReference.query.filter_by(product_id=product_id, size_id=size_id).first() is None:
+            raise ValueError("المقاس المختار غير مرتبط بهذا المنتج.")
         variant = ProductVariant(
             product_id=product_id,
             sku=sku,
-            color_id=payload.get("color_id"),
-            size_id=payload.get("size_id"),
+            color_id=color_id,
+            size_id=size_id,
             barcode=(payload.get("barcode") or "").strip() or None,
             weight=Decimal(str(payload["weight"])) if payload.get("weight") not in (None, "") else None,
             status=(payload.get("status") or "active").strip(),
