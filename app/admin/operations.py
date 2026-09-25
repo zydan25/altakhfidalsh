@@ -366,8 +366,27 @@ def register_operation_routes(admin_bp):
                     db.session.delete(target); success="تم حذف هدف البانر."
                 elif action=="update_target":
                     target=db.session.get(BannerTarget,request.form.get("target_id",type=int))
-                    if target is None: raise ValueError("هدف البانر غير موجود.")
-                    target.target_type=(request.form.get("target_type") or target.target_type).strip(); target.target_id=request.form.get("target_id_value",type=int) if target.target_type!="url" else None; target.url=(request.form.get("target_url") or "").strip() or None if target.target_type=="url" else None; target.priority=request.form.get("target_priority",0,type=int); success="تم تحديث هدف البانر."
+                    if target is None:
+                        raise ValueError("هدف البانر غير موجود.")
+                    target_type=(request.form.get("target_type") or target.target_type).strip()
+                    if target_type not in {"category","product","campaign","url"}:
+                        raise ValueError("نوع هدف البانر غير مدعوم.")
+                    if target_type == "url":
+                        url=(request.form.get("target_url") or "").strip()
+                        if not url:
+                            raise ValueError("الرابط مطلوب.")
+                        target.target_id=None
+                        target.url=url
+                    else:
+                        target_id=request.form.get("target_id_value",type=int)
+                        model={"category":Category,"product":Product,"campaign":Campaign}[target_type]
+                        if not target_id or db.session.get(model,target_id) is None:
+                            raise ValueError("الهدف المختار غير موجود.")
+                        target.target_id=target_id
+                        target.url=None
+                    target.target_type=target_type
+                    target.priority=request.form.get("target_priority",0,type=int)
+                    success="تم تحديث هدف البانر."
                 else: raise ValueError("إجراء البانر غير معروف.")
                 db.session.commit()
             except (ValueError,OSError,TypeError) as exc: db.session.rollback(); error=str(exc)
