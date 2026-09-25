@@ -60,7 +60,7 @@ def register_operation_routes(admin_bp):
                     model = {"shipping": ShippingPolicy, "return": ReturnPolicy, "warranty": WarrantyPolicy}.get(kind)
                     if model is None: raise ValueError("إجراء السياسة غير معروف.")
                     row = db.session.get(model, request.form.get("id", type=int))
-                    if action.endsWith("_create"):
+                    if action.endswith("_create"):
                         name=(request.form.get("name") or "").strip()
                         if not name: raise ValueError("اسم السياسة مطلوب.")
                         if kind == "shipping": row=ShippingPolicy(name=name, free_shipping_enabled=request.form.get("free_shipping_enabled")=="on", min_order_amount=request.form.get("min_order_amount") or None, promo_text=request.form.get("promo_text") or None, delivery_window=request.form.get("delivery_window") or None)
@@ -68,7 +68,7 @@ def register_operation_routes(admin_bp):
                         else: row=WarrantyPolicy(name=name, duration_days=request.form.get("duration_days",0,type=int), coverage=request.form.get("coverage") or None, exclusions=request.form.get("exclusions") or None, claim_method=request.form.get("claim_method") or None)
                         db.session.add(row); success="تمت إضافة السياسة."
                     elif row is None: raise ValueError("السياسة غير موجودة.")
-                    elif action.endsWith("_archive"): row.is_active=False; success="تمت أرشفة السياسة."
+                    elif action.endswith("_archive"): row.is_active=False; success="تمت أرشفة السياسة."
                     else:
                         row.name=(request.form.get("name") or "").strip()
                         if not row.name: raise ValueError("اسم السياسة مطلوب.")
