@@ -35,6 +35,39 @@ def _ctx():
     return build_admin_context()
 
 
+_ARABIC_SLUG_MAP = str.maketrans({
+    "ا": "a", "أ": "a", "إ": "i", "آ": "a", "ء": "a", "ؤ": "w", "ئ": "y",
+    "ب": "b", "ت": "t", "ث": "th", "ج": "j", "ح": "h", "خ": "kh", "د": "d",
+    "ذ": "dh", "ر": "r", "ز": "z", "س": "s", "ش": "sh", "ص": "s", "ض": "d",
+    "ط": "t", "ظ": "z", "ع": "a", "غ": "gh", "ف": "f", "ق": "q", "ك": "k",
+    "ل": "l", "م": "m", "ن": "n", "ه": "h", "و": "w", "ي": "y", "ى": "a", "ة": "h",
+})
+
+
+def _slugify(value, fallback="item"):
+    value = (value or "").strip().lower().translate(_ARABIC_SLUG_MAP)
+    value = unicodedata.normalize("NFKD", value)
+    value = "".join(ch for ch in value if not unicodedata.combining(ch))
+    value = re.sub(r"[^a-z0-9]+", "-", value).strip("-")
+    return value[:180] or fallback
+
+
+def _unique_slug(model, value, exclude_id=None, fallback="item"):
+    base = _slugify(value, fallback=fallback)
+    slug = base
+    index = 2
+    query = model.query.filter_by(slug=slug)
+    if exclude_id is not None:
+        query = query.filter(model.id != exclude_id)
+    while query.first() is not None:
+        slug = f"{base}-{index}"[:180]
+        query = model.query.filter_by(slug=slug)
+        if exclude_id is not None:
+            query = query.filter(model.id != exclude_id)
+        index += 1
+    return slug
+
+
 def _render(title, columns, rows, section=None, actions=None):
     return render_template(
         "admin/entity_list.html",
@@ -667,15 +700,15 @@ def register_entity_views(admin_bp):
         if request.method == "POST":
             try:
                 name = (request.form.get("name") or "").strip()
-                slug = (request.form.get("slug") or "").strip().lower()
-                if not name or not slug:
-                    raise ValueError("اسم العلامة التجارية وSlug مطلوبان.")
+                if not name:
+                    raise ValueError("اسم العلامة التجارية مطلوب.")
+                slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(Brand, name, fallback="brand")
                 if Brand.query.filter_by(slug=slug).first():
                     raise ValueError("الـSlug مستخدم مسبقًا.")
                 logo_asset_id = None
                 logo_file = request.files.get("logo_file")
                 if logo_file and logo_file.filename:
-                    assets = __import__("app.modules.catalog.services", fromlist=["MediaService"]).MediaService.save_generic_files([logo_file], "brands")
+                    assets = MediaService.save_generic_files([logo_file], "brands")
                     logo_asset_id = assets[0]["id"] if assets else None
                 db.session.add(Brand(name=name, slug=slug, logo_asset_id=logo_asset_id))
                 db.session.commit()
@@ -684,13 +717,27 @@ def register_entity_views(admin_bp):
                 db.session.rollback()
                 error = str(exc)
         rows = Brand.query.filter_by(is_active=True).order_by(Brand.name).all()
+        records = [
+            {
+                "title": row.name,
+                "badge": f"#{row.id}",
+                "fields": [
+                    {"label": "Slug", "value": row.slug, "dir": "ltr"},
+                    {"label": "الشعار", "value": f"Asset #{row.logo_asset_id}" if row.logo_asset_id else "بدون شعار"},
+                ],
+            }
+            for row in rows
+        ]
         return render_template(
-            "admin/brands.html",
-            title="العلامات التجارية",
-            brands=rows,
-            success=success,
-            error=error,
-            **build_admin_context(),
+            "admin/manage.html", title="العلامات التجارية", section="الكتالوج",
+            description="أضف العلامات التجارية من نافذة واحدة، مع توليد Slug تلقائيًا ورفع الشعار من الهاتف.",
+            fields=[
+                {"name": "name", "label": "اسم العلامة", "required": True, "placeholder": "مثال: Nike"},
+                {"name": "slug", "label": "Slug", "dir": "ltr", "placeholder": "يُولد تلقائيًا — ويمكن تعديله", "help": "اتركه فارغًا ليتم توليده تلقائيًا من الاسم."},
+                {"name": "logo_file", "label": "الشعار", "type": "file", "accept": "image/*"},
+            ],
+            records=records, modal_id="brandAddModal", success=success, error=error,
+            **_ctx(),
         )
 
     @admin_bp.route("/options", methods=["GET", "POST"])
@@ -849,19 +896,231 @@ def register_entity_views(admin_bp):
         return _render("دوائر الفئات", ["ID", "الفئة", "الأب", "الترتيب"],
                        [[x.id, x.name, x.parent_id or "—", x.sort_order] for x in rows], "المحتوى والمتجر")
 
-    @admin_bp.get("/trends")
+    @admin_bp.route("/trends", methods=["GET", "POST"])
     def trends():
         from ..models import Hashtag
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                name = (request.form.get("name") or "").strip()
+                display_name = (request.form.get("display_name") or "").strip() or None
+                slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(Hashtag, display_name or name, fallback="tag")
+                if not name:
+                    raise ValueError("اسم الهاشتاج مطلوب.")
+                if Hashtag.query.filter_by(slug=slug).first():
+                    raise ValueError("الـSlug مستخدم مسبقًا.")
+                db.session.add(Hashtag(
+                    name=name,
+                    slug=slug,
+                    display_name=display_name,
+                    sort_order=request.form.get("sort_order", 0, type=int),
+                ))
+                db.session.commit()
+                success = "تمت إضافة الهاشتاج."
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = Hashtag.query.filter_by(is_active=True).order_by(Hashtag.sort_order, Hashtag.id.desc()).limit(300).all()
-        return _render("الترندات والهاشتاجات", ["ID", "الاسم", "Slug", "الترتيب"],
-                       [[x.id, x.display_name or x.name, x.slug, x.sort_order] for x in rows], "المحتوى والمتجر")
+        records = [
+            {
+                "title": row.display_name or row.name,
+                "badge": f"#{row.id}",
+                "fields": [
+                    {"label": "Slug", "value": row.slug, "dir": "ltr"},
+                    {"label": "الاسم الداخلي", "value": row.name},
+                    {"label": "الترتيب", "value": row.sort_order},
+                ],
+            }
+            for row in rows
+        ]
+        return render_template(
+            "admin/manage.html", title="الترندات والهاشتاجات", section="المحتوى والمتجر",
+            description="أضف الهاشتاج من النافذة المنبثقة، والـSlug يتم توليده تلقائيًا ويمكن تعديله قبل الحفظ.",
+            fields=[
+                {"name": "name", "label": "الاسم", "required": True, "placeholder": "مثال: عروض_العيد"},
+                {"name": "slug", "label": "Slug", "dir": "ltr", "placeholder": "يُولد تلقائيًا", "help": "يمكنك تعديل القيمة المقترحة."},
+                {"name": "display_name", "label": "اسم العرض", "placeholder": "#عروض_العيد"},
+                {"name": "sort_order", "label": "الترتيب", "type": "number", "value": 0, "min": 0},
+            ],
+            records=records, modal_id="hashtagAddModal", success=success, error=error,
+            **_ctx(),
+        )
 
-    @admin_bp.get("/storefront/collections")
+    @admin_bp.route("/storefront/collections", methods=["GET", "POST"])
     def storefront_collections():
         from ..models import PromotionalStrip
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                name = (request.form.get("name") or "").strip()
+                text_body = (request.form.get("text_body") or "").strip()
+                if not name or not text_body:
+                    raise ValueError("اسم الشريط ونصه مطلوبان.")
+                db.session.add(PromotionalStrip(
+                    name=name,
+                    text_prefix=(request.form.get("text_prefix") or "").strip() or None,
+                    text_body=text_body,
+                    background_color=(request.form.get("background_color") or "").strip() or None,
+                    text_color=(request.form.get("text_color") or "").strip() or None,
+                ))
+                db.session.commit()
+                success = "تمت إضافة شريط العرض."
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = PromotionalStrip.query.filter_by(is_active=True).order_by(PromotionalStrip.id.desc()).limit(200).all()
-        return _render("جديدنا والعروض", ["ID", "الاسم", "النص", "الخلفية"],
-                       [[x.id, x.name, x.text_body, x.background_color or "—"] for x in rows], "المحتوى والمتجر")
+        records = [
+            {
+                "title": row.name,
+                "badge": f"#{row.id}",
+                "color": row.background_color,
+                "fields": [
+                    {"label": "النص", "value": row.text_body},
+                    {"label": "النص التمهيدي", "value": row.text_prefix or "—"},
+                    {"label": "الخلفية", "value": row.background_color or "—", "dir": "ltr"},
+                    {"label": "لون النص", "value": row.text_color or "—", "dir": "ltr"},
+                ],
+            }
+            for row in rows
+        ]
+        return render_template(
+            "admin/manage.html", title="جديدنا والعروض", section="المحتوى والمتجر",
+            description="أنشئ شرائط العروض مع ألوان الخلفية والنص، وتظهر السجلات أولًا ثم زر الإضافة بالأعلى.",
+            fields=[
+                {"name": "name", "label": "الاسم", "required": True, "placeholder": "مثال: شحن مجاني"},
+                {"name": "text_prefix", "label": "مقدمة قصيرة", "placeholder": "لفترة محدودة"},
+                {"name": "text_body", "label": "نص العرض", "required": True, "type": "textarea", "wide": True},
+                {"name": "background_color", "label": "لون الخلفية", "type": "color", "value": "#111827"},
+                {"name": "text_color", "label": "لون النص", "type": "color", "value": "#ffffff"},
+            ],
+            records=records, modal_id="promoStripAddModal", success=success, error=error,
+            **_ctx(),
+        )
+
+    @admin_bp.route("/campaigns", methods=["GET", "POST"])
+    def campaigns():
+        from ..models import Campaign, Badge
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                name = (request.form.get("name") or "").strip()
+                if not name:
+                    raise ValueError("اسم الحملة مطلوب.")
+                slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(Campaign, name, fallback="campaign")
+                if Campaign.query.filter_by(slug=slug).first():
+                    raise ValueError("الـSlug مستخدم مسبقًا.")
+                db.session.add(Campaign(
+                    name=name,
+                    slug=slug,
+                    badge_id=request.form.get("badge_id", type=int),
+                    status=(request.form.get("status") or "draft").strip(),
+                    display_priority=request.form.get("display_priority", 0, type=int),
+                    start_at=None,
+                    end_at=None,
+                ))
+                db.session.commit()
+                success = "تم إنشاء الحملة."
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
+        rows = Campaign.query.filter_by(is_active=True).order_by(Campaign.display_priority.desc(), Campaign.id.desc()).limit(300).all()
+        badges = Badge.query.filter_by(is_active=True).order_by(Badge.priority.desc(), Badge.name).all()
+        records = [
+            {
+                "title": row.name,
+                "badge": row.status,
+                "fields": [
+                    {"label": "Slug", "value": row.slug, "dir": "ltr"},
+                    {"label": "الأولوية", "value": row.display_priority},
+                    {"label": "الشارة", "value": next((b.name for b in badges if b.id == row.badge_id), "—")},
+                ],
+            }
+            for row in rows
+        ]
+        return render_template(
+            "admin/manage.html", title="الحملات", section="المحتوى والمتجر",
+            description="إنشاء حملات من نافذة مدمجة، مع Slug تلقائي وحالة وأولوية وشارة اختيارية.",
+            fields=[
+                {"name": "name", "label": "اسم الحملة", "required": True, "placeholder": "مثال: تخفيضات الخريف"},
+                {"name": "slug", "label": "Slug", "dir": "ltr", "placeholder": "يُولد تلقائيًا"},
+                {"name": "status", "label": "الحالة", "type": "select", "options": [
+                    {"value": "draft", "label": "مسودة", "selected": True},
+                    {"value": "scheduled", "label": "مجدولة"},
+                    {"value": "active", "label": "نشطة"},
+                    {"value": "ended", "label": "منتهية"},
+                ]},
+                {"name": "badge_id", "label": "الشارة", "type": "select", "options": [{"value":"","label":"بدون شارة"}] + [{"value": str(b.id), "label": b.name} for b in badges]},
+                {"name": "display_priority", "label": "الأولوية", "type": "number", "value": 0, "min": 0},
+            ],
+            records=records, modal_id="campaignAddModal", success=success, error=error,
+            **_ctx(),
+        )
+
+    @admin_bp.route("/banners", methods=["GET", "POST"])
+    def banners():
+        from ..models import Banner, BannerTarget, Category, Product, Campaign, MediaAsset
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                action = (request.form.get("action") or "").strip()
+                if action == "create_banner":
+                    name = (request.form.get("name") or "").strip()
+                    image_file = request.files.get("image_file")
+                    if not name or not image_file or not image_file.filename:
+                        raise ValueError("اسم البانر والصورة الأساسية مطلوبان.")
+                    assets = MediaService.save_generic_files([image_file], "banners")
+                    if not assets:
+                        raise ValueError("تعذر حفظ الصورة الأساسية.")
+                    mobile_asset_id = None
+                    mobile_file = request.files.get("mobile_image_file")
+                    if mobile_file and mobile_file.filename:
+                        mobile_assets = MediaService.save_generic_files([mobile_file], "banners-mobile")
+                        mobile_asset_id = mobile_assets[0]["id"] if mobile_assets else None
+                    db.session.add(Banner(
+                        name=name,
+                        image_asset_id=assets[0]["id"],
+                        mobile_asset_id=mobile_asset_id,
+                        size_spec=(request.form.get("size_spec") or "").strip() or None,
+                        overlay_text=(request.form.get("overlay_text") or "").strip() or None,
+                        position_text=(request.form.get("position_text") or "").strip() or None,
+                        duration=request.form.get("duration", type=int),
+                        status=(request.form.get("status") or "draft").strip(),
+                    ))
+                    db.session.commit()
+                    success = "تم إنشاء البانر." 
+                elif action == "add_target":
+                    banner = db.session.get(Banner, request.form.get("banner_id", type=int))
+                    if banner is None:
+                        raise ValueError("البانر غير موجود.")
+                    target_type = (request.form.get("target_type") or "url").strip()
+                    db.session.add(BannerTarget(
+                        banner_id=banner.id,
+                        target_type=target_type,
+                        target_id=request.form.get("target_id", type=int) if target_type != "url" else None,
+                        url=(request.form.get("target_url") or "").strip() or None if target_type == "url" else None,
+                        priority=request.form.get("target_priority", 0, type=int),
+                    ))
+                    db.session.commit()
+                    success = "تم ربط هدف البانر."
+                else:
+                    raise ValueError("إجراء البانر غير معروف.")
+            except (ValueError, OSError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
+        rows = Banner.query.order_by(Banner.id.desc()).limit(200).all()
+        targets = BannerTarget.query.order_by(BannerTarget.banner_id, BannerTarget.priority.desc()).limit(500).all()
+        assets = MediaAsset.query.filter(MediaAsset.id.in_([x.image_asset_id for x in rows])).all() if rows else []
+        asset_map = {x.id: x for x in assets}
+        categories = Category.query.filter_by(is_active=True).order_by(Category.name).limit(300).all()
+        products = Product.query.filter_by(is_active=True).order_by(Product.id.desc()).limit(300).all()
+        campaigns = Campaign.query.filter_by(is_active=True).order_by(Campaign.id.desc()).limit(200).all()
+        return render_template("admin/banners.html", title="البانرات", banners=rows, targets=targets, asset_map=asset_map,
+                               categories=categories, products=products, campaigns=campaigns,
+                               success=success, error=error, **_ctx())
 
     @admin_bp.get("/geo")
     def geo():
