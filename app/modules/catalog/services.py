@@ -710,16 +710,57 @@ class CatalogService:
         ]
 
     @staticmethod
-    def option_references():
+    def option_references(product_id=None):
         from ...models import Size
+
+        current_color_ids = set()
+        current_size_ids = set()
+        if product_id:
+            current_color_ids = {
+                int(x)
+                for (x,) in db.session.query(ProductVariant.color_id)
+                .filter(ProductVariant.product_id == int(product_id), ProductVariant.color_id.isnot(None))
+                .all()
+            }
+            current_size_ids = {
+                int(x)
+                for (x,) in db.session.query(ProductVariant.size_id)
+                .filter(ProductVariant.product_id == int(product_id), ProductVariant.size_id.isnot(None))
+                .all()
+            }
+
+        colors = (
+            Color.query
+            .filter(or_(Color.is_active.is_(True), Color.id.in_(current_color_ids) if current_color_ids else False))
+            .order_by(Color.is_active.desc(), Color.sort_order, Color.name)
+            .all()
+        )
+        sizes = (
+            Size.query
+            .filter(or_(Size.is_active.is_(True), Size.id.in_(current_size_ids) if current_size_ids else False))
+            .order_by(Size.is_active.desc(), Size.group, Size.sort_order, Size.label)
+            .all()
+        )
         return {
             "colors": [
-                {"id": x.id, "name": x.name, "hex_code": x.hex_code, "swatch_asset_id": x.swatch_asset_id}
-                for x in Color.query.filter_by(is_active=True).order_by(Color.sort_order, Color.name).all()
+                {
+                    "id": x.id,
+                    "name": x.name,
+                    "hex_code": x.hex_code,
+                    "swatch_asset_id": x.swatch_asset_id,
+                    "is_active": bool(x.is_active),
+                }
+                for x in colors
             ],
             "sizes": [
-                {"id": x.id, "group": x.group, "code": x.code, "label": x.label}
-                for x in Size.query.filter_by(is_active=True).order_by(Size.sort_order, Size.label).all()
+                {
+                    "id": x.id,
+                    "group": x.group,
+                    "code": x.code,
+                    "label": x.label,
+                    "is_active": bool(x.is_active),
+                }
+                for x in sizes
             ],
         }
 
