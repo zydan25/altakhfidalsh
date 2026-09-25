@@ -15,6 +15,9 @@ from ...models import (
     Product,
     ProductCategory,
     ProductDisplaySettings,
+    ProductFilterValue,
+    CategoryFilterDefinition,
+    CategoryFilterValue,
     ProductMedia,
     ProductOption,
     ProductOptionValue,
@@ -379,6 +382,86 @@ class CatalogService:
             "reserved": stock.reserved,
             "available": stock.available,
         }
+
+    @staticmethod
+    def create_filter(category_id, payload):
+        category = db.session.get(Category, category_id)
+        if category is None:
+            raise LookupError("category not found")
+        name = (payload.get("name") or "").strip()
+        if not name:
+            raise ValueError("filter name is required")
+        row = CategoryFilterDefinition(
+            category_id=category_id,
+            name=name,
+            filter_type=(payload.get("filter_type") or "select").strip(),
+            sort_order=int(payload.get("sort_order", 0)),
+        )
+        db.session.add(row)
+        db.session.commit()
+        return {"id": row.id, "category_id": row.category_id, "name": row.name, "filter_type": row.filter_type}
+
+    @staticmethod
+    def create_filter_value(filter_id, payload):
+        filter_row = db.session.get(CategoryFilterDefinition, filter_id)
+        if filter_row is None:
+            raise LookupError("filter not found")
+        label = (payload.get("label") or "").strip()
+        slug = (payload.get("slug") or "").strip().lower()
+        if not label or not slug:
+            raise ValueError("label and slug are required")
+        duplicate = CategoryFilterValue.query.filter_by(filter_id=filter_id, slug=slug).first()
+        if duplicate:
+            raise ValueError("filter value slug already exists")
+        row = CategoryFilterValue(
+            filter_id=filter_id,
+            label=label,
+            slug=slug,
+            sort_order=int(payload.get("sort_order", 0)),
+        )
+        db.session.add(row)
+        db.session.commit()
+        return {"id": row.id, "filter_id": row.filter_id, "label": row.label, "slug": row.slug}
+
+    @staticmethod
+    def set_product_filter_values(product_id, value_ids):
+        if db.session.get(Product, product_id) is None:
+            raise LookupError("product not found")
+        normalized = []
+        for raw in value_ids:
+            value_id = int(raw)
+            if db.session.get(CategoryFilterValue, value_id) is None:
+                raise ValueError(f"filter value {value_id} not found")
+            if value_id not in normalized:
+                normalized.append(value_id)
+        ProductFilterValue.query.filter_by(product_id=product_id).delete()
+        for value_id in normalized:
+            db.session.add(ProductFilterValue(product_id=product_id, filter_value_id=value_id))
+        db.session.commit()
+        return [{"product_id": product_id, "filter_value_id": value_id} for value_id in normalized]
+    
+    @staticmethod
+    def category_filters(category_id):
+        rows = CategoryFilterDefinition.query.filter_by(
+            category_id=category_id, is_active=True
+        ).order_by(CategoryFilterDefinition.sort_order, CategoryFilterDefinition.id).all()
+        return [
+            {
+                "id": row.id,
+                "name": row.name,
+                "filter_type": row.filter_type,
+                "values": [
+                    {
+                        "id": value.id,
+                        "label": value.label,
+                        "slug": value.slug,
+                        "sort_order": value.sort_order,
+                    }
+                    for value in CategoryFilterValue.query.filter_by(filter_id=row.id, is_active=True).order_by(CategoryFilterValue.sort_order, CategoryFilterValue.id).all()
+                ],
+            }
+            for row in rows
+        ]
 
     @staticmethod
     def set_display_settings(product_id, payload):
