@@ -91,9 +91,9 @@
       document.getElementById("waOutgoing").textContent = stats.outgoingCount ?? 0;
       document.getElementById("waLastMessage").textContent = stats.lastMessageAt || "—";
       const qr = data.qr?.data?.qrCode || data.qr?.qrCode;
-      document.getElementById("waQrBox").innerHTML = qr
-        ? '<img alt="QR" style="max-width:260px;width:100%;image-rendering:pixelated;border:1px solid var(--border);border-radius:16px" src="' +
-          'data:image/png;base64,' + esc(qr) + '">'
+      const ready = String(s.status || "").toLowerCase() === "qr" || !!qr;
+      document.getElementById("waQrBox").innerHTML = ready
+        ? '<img alt="QR" style="max-width:260px;width:100%;image-rendering:pixelated;border:1px solid var(--border);border-radius:16px" src="{{ whatsapp_base_url }}/api/sessions/{{ whatsapp_session }}/qr-image?ts=' + Date.now() + '"><small class="muted">امسح الرمز من WhatsApp ثم حدّث الحالة.</small>'
         : '<strong>لا يوجد QR حاليًا.</strong>';
       const messages = data.messages?.items || data.messages?.data || [];
       document.getElementById("waMessageCount").textContent = messages.length;
