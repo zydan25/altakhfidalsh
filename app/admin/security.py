@@ -34,6 +34,10 @@ ROUTE_PERMISSIONS = {
         "/admin/banners": "banner.manage",
         "/admin/campaigns": "campaign.manage",
         "/admin/hashtags": "hashtag.manage",
+        "/admin/system/theme": "theme.manage",
+        "/admin/system/settings": "system.manage",
+        "/admin/system/features": "system.manage",
+        "/admin/whatsapp": "system.manage",
     },
 }
 
