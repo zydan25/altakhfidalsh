@@ -857,18 +857,6 @@ def register_entity_views(admin_bp):
         strips=PromotionalStrip.query.filter_by(is_active=True).order_by(PromotionalStrip.id.desc()).limit(200).all()
         return render_template("admin/storefront_pages.html",title="صفحات المتجر",pages=pages,sections=sections,items_by_section=items_by_section,products=products,categories=categories,banners=banners,campaigns=campaigns,hashtags=hashtags,strips=strips,success=success,error=error,**build_admin_context())
 
-    @admin_bp.post("/storefront/pages")
-    def storefront_create_page():
-        request.form.get("action")
-        return __import__("flask").redirect("/admin/storefront/pages")
-
-    @admin_bp.post("/storefront/sections")
-    def storefront_create_section():
-        return __import__("flask").redirect("/admin/storefront/pages")
-
-    @admin_bp.post("/storefront/sections/<int:section_id>/items")
-    def storefront_add_item(section_id):
-        return __import__("flask").redirect("/admin/storefront/pages")
 
     @admin_bp.get("/banner-targets")
     def banner_targets():
