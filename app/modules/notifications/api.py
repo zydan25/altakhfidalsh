@@ -1,12 +1,16 @@
 from flask import request
 
 from . import api_bp
+from ..customer.security import customer_required, current_customer
 from ...extensions import db
 from ...models import CustomerNotification, Notification
 
 
 @api_bp.get("/notifications/<int:customer_id>")
+@customer_required
 def notifications(customer_id):
+    if customer_id != current_customer().id:
+        return {"error": "forbidden"}, 403
     rows = (
         CustomerNotification.query
         .filter_by(customer_id=customer_id)
@@ -31,7 +35,10 @@ def notifications(customer_id):
 
 
 @api_bp.post("/notifications/<int:customer_id>/<int:notification_id>/read")
+@customer_required
 def mark_read(customer_id, notification_id):
+    if customer_id != current_customer().id:
+        return {"error": "forbidden"}, 403
     row = CustomerNotification.query.filter_by(
         customer_id=customer_id,
         notification_id=notification_id,
