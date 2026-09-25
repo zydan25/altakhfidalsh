@@ -81,7 +81,7 @@ set +a
 
 cd "$APP_ROOT"
 "$APP_ROOT/.venv/bin/flask" db upgrade
-"$APP_ROOT/.venv/bin/python" "$APP_ROOT/scripts/seed.py"
+PYTHONPATH="$APP_ROOT" "$APP_ROOT/.venv/bin/python" "$APP_ROOT/scripts/seed.py"
 
 cp "$APP_ROOT/deploy/takhfid1/ecosystem.config.cjs" "$APP_ROOT/ecosystem.config.cjs"
 ln -sf "$APP_ROOT/deploy/takhfid1/nginx/$DOMAIN.conf" "/etc/nginx/sites-available/$DOMAIN.conf"
