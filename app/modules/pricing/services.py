@@ -15,8 +15,9 @@ def _dt(value):
     if value is None or value == "":
         return None
     if isinstance(value, datetime):
-        return value
-    return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
 class PricingAdminService:
