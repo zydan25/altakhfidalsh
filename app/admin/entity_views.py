@@ -608,25 +608,37 @@ def register_entity_views(admin_bp):
         rows=Admin.query.filter_by(is_active=True).order_by(Admin.username).all(); roles_rows=Role.query.filter_by(is_active=True).order_by(Role.name).all()
         admin_roles={row.id:(AdminRole.query.filter_by(admin_id=row.id).first().role_id if AdminRole.query.filter_by(admin_id=row.id).first() else None) for row in rows}
         return render_template("admin/admins.html",title="المستخدمون",admins=rows,roles=roles_rows,admin_roles=admin_roles,success=success,error=error,**build_admin_context())
+
     @admin_bp.route("/system/roles", methods=["GET", "POST"])
     def roles():
-        from ..models import Permission, Role
-        error = None
-        success = None
-        if request.method == "POST":
+        from ..models import Permission, Role, RolePermission
+        error=None; success=None
+        if request.method=="POST":
             try:
-                code = (request.form.get("code") or "").strip()
-                name = (request.form.get("name") or "").strip()
-                permission_ids = [int(x) for x in request.form.getlist("permission_ids")]
-                from ..modules.system.services import SystemService
-                SystemService.create_role({"code": code, "name": name, "permission_ids": permission_ids})
-                success = "تم إنشاء الدور وصلاحياته."
-            except (ValueError, KeyError, LookupError) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = Role.query.order_by(Role.name).all()
-        permissions = Permission.query.filter_by(is_active=True).order_by(Permission.code).all()
-        return render_template("admin/roles.html", title="الأدوار والصلاحيات", roles=rows, permissions=permissions, success=success, error=error, **build_admin_context())
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(Role,request.form.get("id",type=int))
+                if action=="create":
+                    code=(request.form.get("code") or "").strip(); name=(request.form.get("name") or "").strip()
+                    if not code or not name: raise ValueError("اسم الدور والكود مطلوبان.")
+                    if Role.query.filter_by(code=code).first(): raise ValueError("كود الدور مستخدم مسبقًا.")
+                    row=Role(name=name,code=code); db.session.add(row); db.session.flush()
+                    for pid in request.form.getlist("permission_ids"): db.session.add(RolePermission(role_id=row.id,permission_id=int(pid)))
+                    success="تم إنشاء الدور."
+                elif row is None: raise ValueError("الدور غير موجود.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة الدور."
+                elif action=="update":
+                    name=(request.form.get("name") or "").strip(); code=(request.form.get("code") or "").strip()
+                    if not name or not code: raise ValueError("اسم الدور والكود مطلوبان.")
+                    if Role.query.filter(Role.id!=row.id,Role.code==code).first(): raise ValueError("كود الدور مستخدم مسبقًا.")
+                    row.name=name; row.code=code; RolePermission.query.filter_by(role_id=row.id).delete()
+                    for pid in request.form.getlist("permission_ids"): db.session.add(RolePermission(role_id=row.id,permission_id=int(pid)))
+                    success="تم تحديث الدور."
+                else: raise ValueError("إجراء الدور غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=Role.query.filter_by(is_active=True).order_by(Role.name).all()
+        permissions=Permission.query.filter_by(is_active=True).order_by(Permission.code).all()
+        role_perms={row.id:{rp.permission_id for rp in RolePermission.query.filter_by(role_id=row.id).all()} for row in rows}
+        return render_template("admin/roles.html",title="الأدوار والصلاحيات",roles=rows,permissions=permissions,role_perms=role_perms,success=success,error=error,**build_admin_context())
 
     @admin_bp.get("/system/audit")
     def audit():
@@ -996,19 +1008,57 @@ def register_entity_views(admin_bp):
         ]
         return _render("التقارير", ["المجال", "المؤشر", "القيمة"], rows, "الترويج والمالية")
 
-    @admin_bp.get("/system/settings")
+
+    @admin_bp.route("/system/settings", methods=["GET", "POST"])
     def settings():
         from ..models import AppSetting
-        rows = AppSetting.query.order_by(AppSetting.group_code, AppSetting.key).limit(500).all()
-        return _render("الإعدادات", ["المجموعة", "المفتاح", "القيمة", "النوع"],
-                       [[x.group_code, x.key, x.value or "—", x.value_type] for x in rows], "النظام")
+        error=None; success=None
+        if request.method=="POST":
+            try:
+                action=(request.form.get("action") or "save").strip(); row=db.session.get(AppSetting,request.form.get("id",type=int))
+                if action=="create":
+                    group=(request.form.get("group_code") or "").strip(); key=(request.form.get("key") or "").strip()
+                    if not group or not key: raise ValueError("المجموعة والمفتاح مطلوبان.")
+                    if AppSetting.query.filter_by(group_code=group,key=key).first(): raise ValueError("هذا الإعداد موجود مسبقًا.")
+                    db.session.add(AppSetting(group_code=group,key=key,value=(request.form.get("value") or "").strip() or None,value_type=(request.form.get("value_type") or "text").strip())); success="تم إنشاء الإعداد."
+                elif row is None: raise ValueError("الإعداد غير موجود.")
+                elif action=="delete": db.session.delete(row); success="تم حذف الإعداد."
+                elif action=="update":
+                    group=(request.form.get("group_code") or "").strip(); key=(request.form.get("key") or "").strip()
+                    if not group or not key: raise ValueError("المجموعة والمفتاح مطلوبان.")
+                    if AppSetting.query.filter(AppSetting.id!=row.id,AppSetting.group_code==group,AppSetting.key==key).first(): raise ValueError("هذا الإعداد موجود مسبقًا.")
+                    row.group_code=group; row.key=key; row.value=(request.form.get("value") or "").strip() or None; row.value_type=(request.form.get("value_type") or row.value_type).strip(); success="تم تحديث الإعداد."
+                else: raise ValueError("إجراء الإعداد غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=AppSetting.query.order_by(AppSetting.group_code,AppSetting.key).limit(500).all()
+        return render_template("admin/settings.html",title="الإعدادات",settings=rows,success=success,error=error,**build_admin_context())
 
-    @admin_bp.get("/system/features")
+
+    @admin_bp.route("/system/features", methods=["GET", "POST"])
     def features():
-        rows = FeatureFlag.query.order_by(FeatureFlag.key).all()
-        return _render("المزايا", ["ID", "المفتاح", "التفعيل"],
-                       [[x.id, x.key, "مفعلة" if x.enabled else "متوقفة"] for x in rows],
-                       "النظام")
+        import json
+        error=None; success=None
+        if request.method=="POST":
+            try:
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(FeatureFlag,request.form.get("id",type=int))
+                if action=="create":
+                    key=(request.form.get("key") or "").strip(); raw=(request.form.get("conditions") or "{}").strip()
+                    if not key: raise ValueError("مفتاح الميزة مطلوب.")
+                    if FeatureFlag.query.filter_by(key=key).first(): raise ValueError("مفتاح الميزة مستخدم مسبقًا.")
+                    db.session.add(FeatureFlag(key=key,enabled=request.form.get("enabled")=="on",conditions=json.loads(raw or "{}"))); success="تم إنشاء الميزة."
+                elif row is None: raise ValueError("الميزة غير موجودة.")
+                elif action=="archive": row.is_active=False; success="تم تعطيل الميزة."
+                elif action=="update":
+                    key=(request.form.get("key") or "").strip(); raw=(request.form.get("conditions") or "{}").strip()
+                    if not key: raise ValueError("مفتاح الميزة مطلوب.")
+                    if FeatureFlag.query.filter(FeatureFlag.id!=row.id,FeatureFlag.key==key).first(): raise ValueError("مفتاح الميزة مستخدم مسبقًا.")
+                    row.key=key; row.enabled=request.form.get("enabled")=="on"; row.conditions=json.loads(raw or "{}"); success="تم تحديث الميزة."
+                else: raise ValueError("إجراء الميزة غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError,json.JSONDecodeError) as exc: db.session.rollback(); error=str(exc)
+        rows=FeatureFlag.query.filter_by(is_active=True).order_by(FeatureFlag.key).all()
+        return render_template("admin/features.html",title="المزايا",flags=rows,success=success,error=error,**build_admin_context())
 
     @admin_bp.get("/pricing/currencies")
     def currencies():
