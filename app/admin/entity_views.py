@@ -1118,12 +1118,76 @@ def register_entity_views(admin_bp):
         ],records=records,modal_id="currencyAddModal",success=success,error=error,**_ctx())
 
 
-    @admin_bp.get("/pricing/rates")
+    @admin_bp.route("/pricing/rates", methods=["GET", "POST"])
     def rates():
-        rows = ExchangeRate.query.order_by(ExchangeRate.valid_from.desc()).limit(200).all()
-        return _render("أسعار الصرف", ["ID", "من", "إلى", "السعر", "يبدأ"],
-                       [[x.id, x.base_currency_id, x.quote_currency_id, x.rate, x.valid_from] for x in rows],
-                       "التسعير")
+        from datetime import datetime, timezone
+        from ..models import ExchangeRate, Currency
+        error=None; success=None
+        def parse_dt(raw):
+            value=(raw or "").strip()
+            if not value: return datetime.now(timezone.utc)
+            dt=datetime.fromisoformat(value.replace("Z","+00:00"))
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        if request.method=="POST":
+            try:
+                action=(request.form.get("action") or "create").strip()
+                row=db.session.get(ExchangeRate,request.form.get("id",type=int))
+                if action=="create":
+                    base=request.form.get("base_currency_id",type=int); quote=request.form.get("quote_currency_id",type=int); rate=Decimal(request.form.get("rate") or "0")
+                    if not base or not quote or base==quote or rate<=0: raise ValueError("اختر عملتين مختلفتين وسعرًا أكبر من صفر.")
+                    if db.session.get(Currency,base) is None or db.session.get(Currency,quote) is None: raise ValueError("العملة المختارة غير موجودة.")
+                    db.session.add(ExchangeRate(base_currency_id=base,quote_currency_id=quote,rate=rate,source=(request.form.get("source") or "").strip() or None,valid_from=parse_dt(request.form.get("valid_from")),valid_to=parse_dt(request.form.get("valid_to")) if request.form.get("valid_to") else None))
+                    success="تم إنشاء سعر الصرف."
+                elif row is None:
+                    raise ValueError("سعر الصرف غير موجود.")
+                elif action=="delete":
+                    db.session.delete(row); success="تم حذف سعر الصرف."
+                elif action=="update":
+                    base=request.form.get("base_currency_id",type=int); quote=request.form.get("quote_currency_id",type=int); rate=Decimal(request.form.get("rate") or "0")
+                    if not base or not quote or base==quote or rate<=0: raise ValueError("اختر عملتين مختلفتين وسعرًا أكبر من صفر.")
+                    if db.session.get(Currency,base) is None or db.session.get(Currency,quote) is None: raise ValueError("العملة المختارة غير موجودة.")
+                    row.base_currency_id=base; row.quote_currency_id=quote; row.rate=rate; row.source=(request.form.get("source") or "").strip() or None; row.valid_from=parse_dt(request.form.get("valid_from")); row.valid_to=parse_dt(request.form.get("valid_to")) if request.form.get("valid_to") else None
+                    success="تم تحديث سعر الصرف."
+                else:
+                    raise ValueError("إجراء سعر الصرف غير معروف.")
+                db.session.commit()
+            except (ValueError,InvalidOperation) as exc:
+                db.session.rollback(); error=str(exc)
+        currencies=Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
+        cmap={x.id:x for x in currencies}
+        rows=ExchangeRate.query.order_by(ExchangeRate.valid_from.desc(),ExchangeRate.id.desc()).limit(300).all()
+        records=[]
+        for row in rows:
+            records.append({
+                "id":row.id,
+                "title":f"{cmap.get(row.base_currency_id).code if cmap.get(row.base_currency_id) else row.base_currency_id} → {cmap.get(row.quote_currency_id).code if cmap.get(row.quote_currency_id) else row.quote_currency_id}",
+                "badge":str(row.rate),
+                "delete_action":"delete",
+                "edit_action":"update",
+                "edit_fields":[
+                    {"name":"base_currency_id","label":"من","type":"select","options":[{"value":x.id,"label":x.code,"selected":x.id==row.base_currency_id} for x in currencies]},
+                    {"name":"quote_currency_id","label":"إلى","type":"select","options":[{"value":x.id,"label":x.code,"selected":x.id==row.quote_currency_id} for x in currencies]},
+                    {"name":"rate","label":"السعر","type":"number","value":row.rate,"step":0.000000000001,"min":0},
+                    {"name":"source","label":"المصدر","value":row.source or ""},
+                    {"name":"valid_from","label":"يبدأ","value":row.valid_from.isoformat(timespec="minutes") if row.valid_from else ""},
+                    {"name":"valid_to","label":"ينتهي","value":row.valid_to.isoformat(timespec="minutes") if row.valid_to else ""}
+                ],
+                "fields":[
+                    {"label":"السعر","value":row.rate,"dir":"ltr"},
+                    {"label":"المصدر","value":row.source or "—"},
+                    {"label":"من","value":cmap.get(row.base_currency_id).code if cmap.get(row.base_currency_id) else row.base_currency_id,"dir":"ltr"},
+                    {"label":"إلى","value":cmap.get(row.quote_currency_id).code if cmap.get(row.quote_currency_id) else row.quote_currency_id,"dir":"ltr"}
+                ]
+            })
+        return render_template("admin/manage.html",title="أسعار الصرف",section="التسعير",description="إضافة وتعديل وحذف أسعار الصرف. تحافظ الطلبات على السعر الذي استُخدم وقت الشراء.",fields=[
+            {"name":"base_currency_id","label":"من","type":"select","options":[{"value":x.id,"label":x.code} for x in currencies]},
+            {"name":"quote_currency_id","label":"إلى","type":"select","options":[{"value":x.id,"label":x.code} for x in currencies]},
+            {"name":"rate","label":"السعر","type":"number","step":0.000000000001,"min":0,"required":True},
+            {"name":"source","label":"المصدر"},
+            {"name":"valid_from","label":"يبدأ","placeholder":"2026-09-25T00:00"},
+            {"name":"valid_to","label":"ينتهي","placeholder":"اختياري"}
+        ],records=records,modal_id="rateAddModal",success=success,error=error,**_ctx())
+
 
     @admin_bp.get("/pricing/city-assignments")
     def city_assignments():
