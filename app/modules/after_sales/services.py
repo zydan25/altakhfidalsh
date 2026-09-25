@@ -105,3 +105,40 @@ class AfterSalesService:
         db.session.add(row)
         db.session.commit()
         return {"id": row.id, "status": row.status}
+
+
+    @staticmethod
+    def process_refund(payload):
+        from decimal import Decimal
+        from ...models import Refund, ReturnRequest
+        order = db.session.get(Order, int(payload["order_id"]))
+        if order is None:
+            raise LookupError("order not found")
+        return_request_id = payload.get("return_request_id")
+        if return_request_id is not None:
+            request_row = db.session.get(ReturnRequest, int(return_request_id))
+            if request_row is None or request_row.order_id != order.id:
+                raise ValueError("invalid return request")
+        amount = Decimal(str(payload["amount"]))
+        if amount <= 0:
+            raise ValueError("refund amount must be positive")
+        refund = Refund(
+            order_id=order.id,
+            return_request_id=int(return_request_id) if return_request_id is not None else None,
+            amount=amount,
+            currency_id=int(payload["currency_id"]),
+            method=str(payload["method"]),
+            status=str(payload.get("status", "pending")),
+            processed_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc) if payload.get("status") == "processed" else None,
+        )
+        db.session.add(refund)
+        db.session.commit()
+        return {
+            "id": refund.id,
+            "order_id": refund.order_id,
+            "return_request_id": refund.return_request_id,
+            "amount": str(refund.amount),
+            "currency_id": refund.currency_id,
+            "method": refund.method,
+            "status": refund.status,
+        }
