@@ -26,17 +26,11 @@ from ..models import (
     Theme,
     Wallet,
 )
-from .navigation import NAVIGATION
+from .context import build_admin_context
 
 
 def _ctx():
-    current_path = request.path
-    items = []
-    for section in NAVIGATION:
-        section.active = any(current_path == child.route or current_path.startswith(child.route + "/") for child in section.children)
-        for child in section.children:
-            items.append({"label": child.label, "route": child.route, "section": section.label})
-    return {"navigation": NAVIGATION, "current_path": current_path, "page_item_map": items}
+    return build_admin_context()
 
 
 def _render(title, columns, rows, section=None, actions=None):
