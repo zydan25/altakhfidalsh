@@ -249,29 +249,24 @@ def register_admin_routes(admin_bp):
             **context,
         )
 
-    @admin_bp.get("/products")
+    @admin_bp.route("/products", methods=["GET", "POST"])
     def products():
-        context = _navigation_context()
-        try:
-            items = (
-                Product.query
-                .filter(Product.is_active.is_(True))
-                .order_by(Product.id.desc())
-                .limit(100)
-                .all()
-            )
-            error = None
-        except Exception:
-            db.session.rollback()
-            items = []
-            error = "قاعدة البيانات غير متاحة حاليًا."
-        return render_template(
-            "admin/products.html",
-            title="المنتجات",
-            products=items,
-            error=error,
-            **context,
-        )
+        context=_navigation_context(); error=None; success=None
+        if request.method=="POST":
+            try:
+                product_id=request.form.get("id",type=int)
+                product=db.session.get(Product,product_id)
+                if product is None: raise ValueError("المنتج غير موجود.")
+                action=(request.form.get("action") or "").strip()
+                if action=="archive":
+                    product.is_active=False; product.status="archived"; success="تمت أرشفة المنتج."
+                else:
+                    raise ValueError("إجراء المنتج غير معروف.")
+                db.session.commit()
+            except ValueError as exc:
+                db.session.rollback(); error=str(exc)
+        items=Product.query.filter(Product.is_active.is_(True)).order_by(Product.id.desc()).limit(100).all()
+        return render_template("admin/products.html",title="المنتجات",products=items,error=error,success=success,**context)
 
     @admin_bp.route("/products/new", methods=["GET", "POST"])
     def product_new():

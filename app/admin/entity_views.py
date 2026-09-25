@@ -283,115 +283,68 @@ def register_entity_views(admin_bp):
     @admin_bp.route("/payments", methods=["GET", "POST"])
     def payments():
         from ..models import Currency, Order, PaymentMethod
-        error = None
-        success = None
-        if request.method == "POST":
-            action = (request.form.get("action") or "").strip()
+        error=None; success=None
+        if request.method=="POST":
             try:
-                from ..modules.commerce.payment_shipping import PaymentShippingService
-                if action == "method":
-                    PaymentShippingService.create_payment_method({
-                        "name": request.form.get("name"),
-                        "code": request.form.get("code"),
-                        "provider": request.form.get("provider"),
-                        "supports_proof": request.form.get("supports_proof") == "on",
-                    })
-                    success = "تم إنشاء طريقة الدفع."
-                elif action == "transaction":
-                    PaymentShippingService.record_payment({
-                        "order_id": request.form.get("order_id"),
-                        "method_id": request.form.get("method_id"),
-                        "currency_id": request.form.get("currency_id"),
-                        "amount": request.form.get("amount"),
-                        "provider_ref": request.form.get("provider_ref"),
-                        "status": request.form.get("status", "pending"),
-                    })
-                    success = "تم تسجيل عملية الدفع."
-                else:
-                    raise ValueError("إجراء الدفع غير معروف.")
-            except (KeyError, ValueError, LookupError) as exc:
-                db.session.rollback()
-                error = str(exc)
+                action=(request.form.get("action") or "").strip(); row=db.session.get(PaymentMethod,request.form.get("id",type=int))
+                if action=="method":
+                    name=(request.form.get("name") or "").strip(); code=(request.form.get("code") or "").strip().lower()
+                    if not name or not code: raise ValueError("اسم وطريقة الدفع والكود مطلوبان.")
+                    from ..modules.commerce.payment_shipping import PaymentShippingService
+                    PaymentShippingService.create_payment_method({"name":name,"code":code,"provider":request.form.get("provider"),"supports_proof":request.form.get("supports_proof")=="on"}); success="تم إنشاء طريقة الدفع."
+                elif action=="method_update":
+                    if row is None: raise ValueError("طريقة الدفع غير موجودة.")
+                    name=(request.form.get("name") or "").strip(); code=(request.form.get("code") or "").strip().lower()
+                    if not name or not code: raise ValueError("اسم وكود طريقة الدفع مطلوبان.")
+                    if PaymentMethod.query.filter(PaymentMethod.id!=row.id,PaymentMethod.code==code).first(): raise ValueError("كود طريقة الدفع مستخدم.")
+                    row.name=name; row.code=code; row.provider=(request.form.get("provider") or "").strip() or None; row.supports_proof=request.form.get("supports_proof")=="on"; success="تم تحديث طريقة الدفع."
+                elif action=="method_archive":
+                    if row is None: raise ValueError("طريقة الدفع غير موجودة.")
+                    row.is_active=False; success="تمت أرشفة طريقة الدفع."
+                elif action=="transaction":
+                    from ..modules.commerce.payment_shipping import PaymentShippingService
+                    PaymentShippingService.record_payment({"order_id":request.form.get("order_id"),"method_id":request.form.get("method_id"),"currency_id":request.form.get("currency_id"),"amount":request.form.get("amount"),"provider_ref":request.form.get("provider_ref"),"status":request.form.get("status","pending")}); success="تم تسجيل عملية الدفع."
+                else: raise ValueError("إجراء الدفع غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError,LookupError) as exc: db.session.rollback(); error=str(exc)
+        transactions=PaymentTransaction.query.order_by(PaymentTransaction.id.desc()).limit(200).all()
+        methods=PaymentMethod.query.filter_by(is_active=True).order_by(PaymentMethod.name).all()
+        orders=Order.query.order_by(Order.id.desc()).limit(200).all(); currencies=Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
+        return render_template("admin/payments.html",title="الدفعات",transactions=transactions,methods=methods,orders=orders,currencies=currencies,success=success,error=error,**build_admin_context())
 
-        transactions = PaymentTransaction.query.order_by(PaymentTransaction.id.desc()).limit(200).all()
-        methods = PaymentMethod.query.filter_by(is_active=True).order_by(PaymentMethod.name).all()
-        orders = Order.query.order_by(Order.id.desc()).limit(200).all()
-        currencies = Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
-        return render_template(
-            "admin/payments.html",
-            title="الدفعات",
-            transactions=transactions,
-            methods=methods,
-            orders=orders,
-            currencies=currencies,
-            success=success,
-            error=error,
-            **build_admin_context(),
-        )
 
     @admin_bp.route("/shipping", methods=["GET", "POST"])
     def shipping():
         from ..models import Order, ShippingMethod, Shipment
-        error = None
-        success = None
-        if request.method == "POST":
-            action = (request.form.get("action") or "").strip()
+        error=None; success=None
+        if request.method=="POST":
             try:
+                action=(request.form.get("action") or "").strip(); row=db.session.get(ShippingMethod,request.form.get("id",type=int))
                 from ..modules.commerce.payment_shipping import PaymentShippingService
-                if action == "method":
-                    PaymentShippingService.create_shipping_method({
-                        "name": request.form.get("name"),
-                        "code": request.form.get("code"),
-                        "delivery_days_min": request.form.get("delivery_days_min", type=int),
-                        "delivery_days_max": request.form.get("delivery_days_max", type=int),
-                        "supports_cod": request.form.get("supports_cod") == "on",
-                    })
-                    success = "تم إنشاء طريقة الشحن."
-                elif action == "shipment":
-                    event_status = (request.form.get("event_status") or "").strip()
-                    PaymentShippingService.create_shipment({
-                        "order_id": request.form.get("order_id"),
-                        "shipping_method_id": request.form.get("shipping_method_id", type=int),
-                        "tracking_no": (request.form.get("tracking_no") or "").strip() or None,
-                        "status": request.form.get("status", "pending"),
-                        "event": {
-                            "status": event_status or request.form.get("status", "pending"),
-                            "location": (request.form.get("event_location") or "").strip() or None,
-                            "description": (request.form.get("event_description") or "").strip() or None,
-                        },
-                    })
-                    success = "تم إنشاء الشحنة وتسجيل الحدث الأول."
-                elif action == "event":
-                    PaymentShippingService.add_shipment_event(
-                        request.form.get("shipment_id", type=int),
-                        {
-                            "status": request.form.get("event_status"),
-                            "location": request.form.get("event_location"),
-                            "description": request.form.get("event_description"),
-                        },
-                    )
-                    success = "تمت إضافة حدث الشحن."
-                else:
-                    raise ValueError("إجراء الشحن غير معروف.")
-            except (KeyError, ValueError, LookupError) as exc:
-                db.session.rollback()
-                error = str(exc)
+                if action=="method":
+                    PaymentShippingService.create_shipping_method({"name":request.form.get("name"),"code":request.form.get("code"),"delivery_days_min":request.form.get("delivery_days_min",type=int),"delivery_days_max":request.form.get("delivery_days_max",type=int),"supports_cod":request.form.get("supports_cod")=="on"}); success="تم إنشاء طريقة الشحن."
+                elif action=="method_update":
+                    if row is None: raise ValueError("طريقة الشحن غير موجودة.")
+                    name=(request.form.get("name") or "").strip(); code=(request.form.get("code") or "").strip().lower()
+                    if not name or not code: raise ValueError("اسم وكود طريقة الشحن مطلوبان.")
+                    if ShippingMethod.query.filter(ShippingMethod.id!=row.id,ShippingMethod.code==code).first(): raise ValueError("كود طريقة الشحن مستخدم.")
+                    lo=request.form.get("delivery_days_min",type=int); hi=request.form.get("delivery_days_max",type=int)
+                    if lo is not None and hi is not None and hi<lo: raise ValueError("المدة القصوى يجب ألا تقل عن الدنيا.")
+                    row.name=name; row.code=code; row.delivery_days_min=lo; row.delivery_days_max=hi; row.supports_cod=request.form.get("supports_cod")=="on"; success="تم تحديث طريقة الشحن."
+                elif action=="method_archive":
+                    if row is None: raise ValueError("طريقة الشحن غير موجودة.")
+                    row.is_active=False; success="تمت أرشفة طريقة الشحن."
+                elif action=="shipment":
+                    PaymentShippingService.create_shipment({"order_id":request.form.get("order_id"),"shipping_method_id":request.form.get("shipping_method_id",type=int),"tracking_no":(request.form.get("tracking_no") or "").strip() or None,"status":request.form.get("status","pending"),"event":{"status":(request.form.get("event_status") or "").strip() or request.form.get("status","pending"),"location":(request.form.get("event_location") or "").strip() or None,"description":(request.form.get("event_description") or "").strip() or None}}); success="تم إنشاء الشحنة."
+                elif action=="event":
+                    PaymentShippingService.add_shipment_event(request.form.get("shipment_id",type=int),{"status":request.form.get("event_status"),"location":request.form.get("event_location"),"description":request.form.get("event_description")}); success="تم حفظ حدث التتبع."
+                else: raise ValueError("إجراء الشحن غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError,LookupError) as exc: db.session.rollback(); error=str(exc)
+        methods=ShippingMethod.query.filter_by(is_active=True).order_by(ShippingMethod.name).all(); orders=Order.query.order_by(Order.id.desc()).limit(200).all(); shipments=Shipment.query.order_by(Shipment.id.desc()).limit(200).all()
+        return render_template("admin/shipping.html",title="الشحن والتتبع",methods=methods,orders=orders,shipments=shipments,success=success,error=error,**build_admin_context())
 
-        methods = ShippingMethod.query.filter_by(is_active=True).order_by(ShippingMethod.name).all()
-        shipments = Shipment.query.order_by(Shipment.id.desc()).limit(200).all()
-        orders = Order.query.order_by(Order.id.desc()).limit(200).all()
-        return render_template(
-            "admin/shipping.html",
-            title="الشحن والتتبع",
-            methods=methods,
-            shipments=shipments,
-            orders=orders,
-            success=success,
-            error=error,
-            **build_admin_context(),
-        )
 
-    @admin_bp.route("/returns", methods=["GET", "POST"])
     def returns():
         from ..models import ReturnRequest, ReturnItem, Order, Currency
         error = None
@@ -476,13 +429,19 @@ def register_entity_views(admin_bp):
                 row = db.session.get(Review, request.form.get("review_id", type=int))
                 if row is None:
                     raise ValueError("التقييم غير موجود.")
-                row.status = (request.form.get("status") or row.status).strip()
+                action = (request.form.get("action") or "update").strip()
+                if action == "archive":
+                    row.is_active = False
+                    row.status = "archived"
+                    success = "تمت أرشفة التقييم."
+                else:
+                    row.status = (request.form.get("status") or row.status).strip()
+                    success = "تم تحديث حالة التقييم."
                 db.session.commit()
-                success = "تم تحديث حالة التقييم."
             except ValueError as exc:
                 db.session.rollback()
                 error = str(exc)
-        rows = Review.query.order_by(Review.id.desc()).limit(200).all()
+        rows = Review.query.filter_by(is_active=True).order_by(Review.id.desc()).limit(200).all()
         return render_template(
             "admin/reviews.html",
             title="التقييمات",
@@ -494,56 +453,56 @@ def register_entity_views(admin_bp):
 
     @admin_bp.route("/promotions/coupons", methods=["GET", "POST"])
     def coupons():
-        error = None
-        success = None
-        if request.method == "POST":
+        error=None; success=None
+        if request.method=="POST":
             try:
-                code = (request.form.get("code") or "").strip().upper()
-                ctype = (request.form.get("type") or "percent").strip()
-                value = Decimal(request.form.get("value") or "0")
-                if not code or value < 0:
-                    raise ValueError("الكود والقيمة مطلوبان.")
-                if Coupon.query.filter_by(code=code).first():
-                    raise ValueError("الكود مستخدم مسبقًا.")
-                db.session.add(Coupon(
-                    code=code,
-                    type=ctype,
-                    value=value,
-                    min_order=Decimal(request.form.get("min_order") or "0"),
-                    max_discount=Decimal(request.form.get("max_discount") or "0") or None,
-                    usage_limit=request.form.get("usage_limit", type=int),
-                ))
+                action=(request.form.get("action") or "create").strip()
+                row=db.session.get(Coupon,request.form.get("id",type=int))
+                code=(request.form.get("code") or "").strip().upper()
+                ctype=(request.form.get("type") or "percent").strip()
+                value=Decimal(request.form.get("value") or "0")
+                if action=="create":
+                    if not code or value<0: raise ValueError("الكود والقيمة مطلوبان.")
+                    if Coupon.query.filter_by(code=code).first(): raise ValueError("الكود مستخدم مسبقًا.")
+                    db.session.add(Coupon(code=code,type=ctype,value=value,min_order=Decimal(request.form.get("min_order") or "0"),max_discount=Decimal(request.form.get("max_discount") or "0") or None,usage_limit=request.form.get("usage_limit",type=int))); success="تم إنشاء الكوبون."
+                elif row is None: raise ValueError("الكوبون غير موجود.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة الكوبون."
+                elif action=="update":
+                    if not code: raise ValueError("كود الكوبون مطلوب.")
+                    if Coupon.query.filter(Coupon.id!=row.id,Coupon.code==code).first(): raise ValueError("الكود مستخدم مسبقًا.")
+                    row.code=code; row.type=ctype; row.value=value; row.min_order=Decimal(request.form.get("min_order") or "0"); row.max_discount=Decimal(request.form.get("max_discount") or "0") or None; row.usage_limit=request.form.get("usage_limit",type=int); success="تم تحديث الكوبون."
+                else: raise ValueError("إجراء الكوبون غير معروف.")
                 db.session.commit()
-                success = "تم إنشاء الكوبون."
-            except (ValueError, InvalidOperation) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = Coupon.query.order_by(Coupon.id.desc()).limit(200).all()
-        return render_template("admin/coupons.html", title="الكوبونات", coupons=rows, success=success, error=error, **build_admin_context())
+            except (ValueError,InvalidOperation) as exc: db.session.rollback(); error=str(exc)
+        rows=Coupon.query.filter_by(is_active=True).order_by(Coupon.id.desc()).limit(200).all()
+        return render_template("admin/coupons.html",title="الكوبونات",coupons=rows,success=success,error=error,**build_admin_context())
+
 
     @admin_bp.route("/promotions/gifts", methods=["GET", "POST"])
     def gifts():
         from ..models import GiftCampaign
-        error = None
-        success = None
-        if request.method == "POST":
+        error=None; success=None
+        if request.method=="POST":
             try:
-                db.session.add(GiftCampaign(
-                    name=(request.form.get("name") or "").strip(),
-                    gift_type=(request.form.get("gift_type") or "credit").strip(),
-                    value=Decimal(request.form.get("value") or "0"),
-                    expires_at=None,
-                ))
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(GiftCampaign,request.form.get("id",type=int))
+                if action=="create":
+                    name=(request.form.get("name") or "").strip()
+                    if not name: raise ValueError("اسم حملة الهدية مطلوب.")
+                    db.session.add(GiftCampaign(name=name,gift_type=(request.form.get("gift_type") or "credit").strip(),value=Decimal(request.form.get("value") or "0"),expires_at=None)); success="تم إنشاء حملة الهدية."
+                elif row is None: raise ValueError("حملة الهدية غير موجودة.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة حملة الهدية."
+                elif action=="update":
+                    name=(request.form.get("name") or "").strip()
+                    if not name: raise ValueError("اسم حملة الهدية مطلوب.")
+                    row.name=name; row.gift_type=(request.form.get("gift_type") or row.gift_type).strip(); row.value=Decimal(request.form.get("value") or "0"); success="تم تحديث حملة الهدية."
+                else: raise ValueError("إجراء الهدايا غير معروف.")
                 db.session.commit()
-                success = "تم إنشاء حملة الهدية."
-            except (ValueError, InvalidOperation) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = GiftCampaign.query.order_by(GiftCampaign.id.desc()).limit(200).all()
-        customers = Customer.query.filter_by(is_active=True).order_by(Customer.id.desc()).limit(200).all()
-        return render_template("admin/gifts.html", title="الهدايا", campaigns=rows, customers=customers, success=success, error=error, **build_admin_context())
+            except (ValueError,InvalidOperation) as exc: db.session.rollback(); error=str(exc)
+        rows=GiftCampaign.query.filter_by(is_active=True).order_by(GiftCampaign.id.desc()).limit(200).all()
+        customers=Customer.query.filter_by(is_active=True).order_by(Customer.id.desc()).limit(200).all()
+        return render_template("admin/gifts.html",title="الهدايا",campaigns=rows,customers=customers,success=success,error=error,**build_admin_context())
 
-    @admin_bp.post("/promotions/gifts/issue")
+
     def issue_gift_admin():
         from ..modules.promotions.services import PromotionService
         try:
@@ -582,55 +541,68 @@ def register_entity_views(admin_bp):
     @admin_bp.route("/system/admins", methods=["GET", "POST"])
     def admins():
         from ..models import Admin, AdminRole, Role
-        from ..admin.auth import AdminAuthService
-        error = None
-        success = None
-        if request.method == "POST":
+        from .auth import AdminAuthService
+        error=None; success=None
+        if request.method=="POST":
             try:
-                action = request.form.get("action")
-                if action == "create":
-                    username = (request.form.get("username") or "").strip()
-                    password = request.form.get("password") or ""
-                    phone = (request.form.get("phone") or "").strip()
-                    email = (request.form.get("email") or "").strip() or None
-                    created = AdminAuthService.bootstrap(username, password)
-                    row = db.session.get(Admin, created["id"])
-                    row.phone = phone or None
-                    row.email = email
-                    db.session.commit()
-                    role_id = request.form.get("role_id", type=int)
-                    if role_id:
-                        db.session.add(AdminRole(admin_id=row.id, role_id=role_id))
-                        db.session.commit()
-                    success = "تم إنشاء حساب المدير وربط الدور."
-                else:
-                    raise ValueError("إجراء المستخدم غير معروف.")
-            except (ValueError, TypeError) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = Admin.query.order_by(Admin.username).all()
-        roles_rows = Role.query.filter_by(is_active=True).order_by(Role.name).all()
-        return render_template("admin/admins.html", title="المستخدمون", admins=rows, roles=roles_rows, success=success, error=error, **build_admin_context())
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(Admin,request.form.get("id",type=int))
+                if action=="create":
+                    username=(request.form.get("username") or "").strip(); password=request.form.get("password") or ""
+                    if not username or len(password)<8: raise ValueError("اسم المستخدم وكلمة المرور (8 أحرف على الأقل) مطلوبان.")
+                    created=AdminAuthService.bootstrap(username,password); row=db.session.get(Admin,created["id"])
+                    row.phone=(request.form.get("phone") or "").strip() or None; row.email=(request.form.get("email") or "").strip() or None
+                    db.session.flush(); role_id=request.form.get("role_id",type=int)
+                    if role_id: db.session.add(AdminRole(admin_id=row.id,role_id=role_id))
+                    success="تم إنشاء حساب المدير."
+                elif row is None: raise ValueError("حساب المدير غير موجود.")
+                elif action=="archive": row.is_active=False; row.status="disabled"; success="تم تعطيل حساب المدير."
+                elif action=="update":
+                    row.phone=(request.form.get("phone") or "").strip() or None; row.email=(request.form.get("email") or "").strip() or None; row.status=(request.form.get("status") or row.status).strip(); row.is_active = row.status == "active"
+                    password=request.form.get("password") or ""
+                    if password:
+                        if len(password) < 8: raise ValueError("كلمة المرور يجب ألا تقل عن 8 أحرف.")
+                        from werkzeug.security import generate_password_hash
+                        row.password_hash=generate_password_hash(password)
+                    AdminRole.query.filter_by(admin_id=row.id).delete(); role_id=request.form.get("role_id",type=int)
+                    if role_id: db.session.add(AdminRole(admin_id=row.id,role_id=role_id))
+                    success="تم تحديث حساب المدير."
+                else: raise ValueError("إجراء المستخدم غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=Admin.query.order_by(Admin.username).all(); roles_rows=Role.query.filter_by(is_active=True).order_by(Role.name).all()
+        admin_roles={row.id:(AdminRole.query.filter_by(admin_id=row.id).first().role_id if AdminRole.query.filter_by(admin_id=row.id).first() else None) for row in rows}
+        return render_template("admin/admins.html",title="المستخدمون",admins=rows,roles=roles_rows,admin_roles=admin_roles,success=success,error=error,**build_admin_context())
 
     @admin_bp.route("/system/roles", methods=["GET", "POST"])
     def roles():
-        from ..models import Permission, Role
-        error = None
-        success = None
-        if request.method == "POST":
+        from ..models import Permission, Role, RolePermission
+        error=None; success=None
+        if request.method=="POST":
             try:
-                code = (request.form.get("code") or "").strip()
-                name = (request.form.get("name") or "").strip()
-                permission_ids = [int(x) for x in request.form.getlist("permission_ids")]
-                from ..modules.system.services import SystemService
-                SystemService.create_role({"code": code, "name": name, "permission_ids": permission_ids})
-                success = "تم إنشاء الدور وصلاحياته."
-            except (ValueError, KeyError, LookupError) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = Role.query.order_by(Role.name).all()
-        permissions = Permission.query.filter_by(is_active=True).order_by(Permission.code).all()
-        return render_template("admin/roles.html", title="الأدوار والصلاحيات", roles=rows, permissions=permissions, success=success, error=error, **build_admin_context())
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(Role,request.form.get("id",type=int))
+                if action=="create":
+                    code=(request.form.get("code") or "").strip(); name=(request.form.get("name") or "").strip()
+                    if not code or not name: raise ValueError("اسم الدور والكود مطلوبان.")
+                    if Role.query.filter_by(code=code).first(): raise ValueError("كود الدور مستخدم مسبقًا.")
+                    row=Role(name=name,code=code); db.session.add(row); db.session.flush()
+                    for pid in request.form.getlist("permission_ids"): db.session.add(RolePermission(role_id=row.id,permission_id=int(pid)))
+                    success="تم إنشاء الدور."
+                elif row is None: raise ValueError("الدور غير موجود.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة الدور."
+                elif action=="update":
+                    name=(request.form.get("name") or "").strip(); code=(request.form.get("code") or "").strip()
+                    if not name or not code: raise ValueError("اسم الدور والكود مطلوبان.")
+                    if Role.query.filter(Role.id!=row.id,Role.code==code).first(): raise ValueError("كود الدور مستخدم مسبقًا.")
+                    row.name=name; row.code=code; RolePermission.query.filter_by(role_id=row.id).delete()
+                    for pid in request.form.getlist("permission_ids"): db.session.add(RolePermission(role_id=row.id,permission_id=int(pid)))
+                    success="تم تحديث الدور."
+                else: raise ValueError("إجراء الدور غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=Role.query.filter_by(is_active=True).order_by(Role.name).all()
+        permissions=Permission.query.filter_by(is_active=True).order_by(Permission.code).all()
+        role_perms={row.id:{rp.permission_id for rp in RolePermission.query.filter_by(role_id=row.id).all()} for row in rows}
+        return render_template("admin/roles.html",title="الأدوار والصلاحيات",roles=rows,permissions=permissions,role_perms=role_perms,success=success,error=error,**build_admin_context())
 
     @admin_bp.get("/system/audit")
     def audit():
@@ -702,50 +674,42 @@ def register_entity_views(admin_bp):
     @admin_bp.route("/brands", methods=["GET", "POST"])
     def brands():
         from ..models import Brand
-        error = None
-        success = None
-        if request.method == "POST":
+        error=None; success=None
+        if request.method=="POST":
             try:
-                name = (request.form.get("name") or "").strip()
-                if not name:
-                    raise ValueError("اسم العلامة التجارية مطلوب.")
-                slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(Brand, name, fallback="brand")
-                if Brand.query.filter_by(slug=slug).first():
-                    raise ValueError("الـSlug مستخدم مسبقًا.")
-                logo_asset_id = None
-                logo_file = request.files.get("logo_file")
-                if logo_file and logo_file.filename:
-                    assets = MediaService.save_generic_files([logo_file], "brands")
-                    logo_asset_id = assets[0]["id"] if assets else None
-                db.session.add(Brand(name=name, slug=slug, logo_asset_id=logo_asset_id))
+                action=(request.form.get("action") or "create").strip()
+                row=db.session.get(Brand,request.form.get("id",type=int))
+                if action=="create":
+                    name=(request.form.get("name") or "").strip()
+                    if not name: raise ValueError("اسم العلامة التجارية مطلوب.")
+                    slug=(request.form.get("slug") or "").strip().lower() or _unique_slug(Brand,name,fallback="brand")
+                    if Brand.query.filter_by(slug=slug).first(): raise ValueError("الـSlug مستخدم مسبقًا.")
+                    logo_id=None; f=request.files.get("logo_file")
+                    if f and f.filename:
+                        a=MediaService.save_generic_files([f],"brands"); logo_id=a[0]["id"] if a else None
+                    db.session.add(Brand(name=name,slug=slug,logo_asset_id=logo_id)); success="تم إنشاء العلامة التجارية."
+                elif row is None: raise ValueError("العلامة التجارية غير موجودة.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة العلامة التجارية."
+                elif action=="update":
+                    name=(request.form.get("name") or "").strip(); slug=(request.form.get("slug") or "").strip().lower() or _unique_slug(Brand,name,exclude_id=row.id,fallback="brand")
+                    if not name: raise ValueError("اسم العلامة التجارية مطلوب.")
+                    if Brand.query.filter(Brand.id!=row.id,Brand.slug==slug).first(): raise ValueError("الـSlug مستخدم مسبقًا.")
+                    row.name=name; row.slug=slug
+                    f=request.files.get("logo_file")
+                    if f and f.filename:
+                        a=MediaService.save_generic_files([f],"brands")
+                        if a: row.logo_asset_id=a[0]["id"]
+                    success="تم تحديث العلامة التجارية."
+                else: raise ValueError("إجراء العلامة التجارية غير معروف.")
                 db.session.commit()
-                success = "تم إنشاء العلامة التجارية."
-            except (ValueError, OSError) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = Brand.query.filter_by(is_active=True).order_by(Brand.name).all()
-        records = [
-            {
-                "title": row.name,
-                "badge": f"#{row.id}",
-                "fields": [
-                    {"label": "Slug", "value": row.slug, "dir": "ltr"},
-                    {"label": "الشعار", "value": f"Asset #{row.logo_asset_id}" if row.logo_asset_id else "بدون شعار"},
-                ],
-            }
-            for row in rows
-        ]
-        return render_template(
-            "admin/manage.html", title="العلامات التجارية", section="الكتالوج",
-            description="أضف العلامات التجارية من نافذة واحدة، مع توليد Slug تلقائيًا ورفع الشعار من الهاتف.",
-            fields=[
-                {"name": "name", "label": "اسم العلامة", "required": True, "placeholder": "مثال: Nike"},
-                {"name": "slug", "label": "Slug", "dir": "ltr", "placeholder": "يُولد تلقائيًا — ويمكن تعديله", "help": "اتركه فارغًا ليتم توليده تلقائيًا من الاسم."},
-                {"name": "logo_file", "label": "الشعار", "type": "file", "accept": "image/*"},
-            ],
-            records=records, modal_id="brandAddModal", success=success, error=error,
-            **_ctx(),
-        )
+            except (ValueError,OSError) as exc:
+                db.session.rollback(); error=str(exc)
+        rows=Brand.query.filter_by(is_active=True).order_by(Brand.name).all()
+        records=[{"id":x.id,"title":x.name,"badge":f"#{x.id}","edit_action":"update","archive_action":"archive",
+            "edit_fields":[{"name":"name","label":"اسم العلامة","required":True,"value":x.name},{"name":"slug","label":"Slug","dir":"ltr","value":x.slug},{"name":"logo_file","label":"استبدال الشعار","type":"file","accept":"image/*"}],
+            "fields":[{"label":"Slug","value":x.slug,"dir":"ltr"},{"label":"الشعار","value":f"Asset #{x.logo_asset_id}" if x.logo_asset_id else "بدون شعار"}]} for x in rows]
+        return render_template("admin/manage.html",title="العلامات التجارية",section="الكتالوج",description="إضافة وتعديل وأرشفة العلامات التجارية مع Slug تلقائي.",fields=[{"name":"name","label":"اسم العلامة","required":True},{"name":"slug","label":"Slug","dir":"ltr"},{"name":"logo_file","label":"الشعار","type":"file","accept":"image/*"}],records=records,modal_id="brandAddModal",success=success,error=error,**_ctx())
+
 
     @admin_bp.route("/options", methods=["GET", "POST"])
     def options():
@@ -795,96 +759,93 @@ def register_entity_views(admin_bp):
         sizes=Size.query.filter_by(is_active=True).order_by(Size.group,Size.sort_order,Size.label).limit(300).all()
         return render_template("admin/options.html",title="الألوان والمقاسات",colors=colors,sizes=sizes,success=success,error=error,**build_admin_context())
 
-    @admin_bp.get("/category-strip")
+    @admin_bp.route("/category-strip", methods=["GET", "POST"])
     def category_strip():
-        from ..models import CategoryNavigationItem
-        rows = CategoryNavigationItem.query.filter_by(is_active=True).order_by(CategoryNavigationItem.sort_order).limit(200).all()
-        return _render("شريط الأقسام", ["ID", "الفئة", "Slot", "الترتيب", "ظاهر"],
-                       [[x.id, x.category_id, x.slot, x.sort_order, "نعم" if x.visible else "لا"] for x in rows], "الكتالوج")
+        from ..models import CategoryNavigationItem, Category
+        error=None; success=None
+        if request.method=="POST":
+            try:
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(CategoryNavigationItem,request.form.get("id",type=int))
+                if action=="create":
+                    category_id=request.form.get("category_id",type=int)
+                    if db.session.get(Category,category_id) is None: raise ValueError("الفئة غير موجودة.")
+                    db.session.add(CategoryNavigationItem(category_id=category_id,slot=(request.form.get("slot") or "top").strip(),visible=request.form.get("visible")=="on",sort_order=request.form.get("sort_order",0,type=int),label_override=(request.form.get("label_override") or "").strip() or None)); success="تمت إضافة عنصر الشريط."
+                elif row is None: raise ValueError("عنصر الشريط غير موجود.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة عنصر الشريط."
+                elif action=="update":
+                    category_id=request.form.get("category_id",type=int)
+                    if db.session.get(Category,category_id) is None: raise ValueError("الفئة غير موجودة.")
+                    row.category_id=category_id; row.slot=(request.form.get("slot") or row.slot).strip(); row.visible=request.form.get("visible")=="on"; row.sort_order=request.form.get("sort_order",0,type=int); row.label_override=(request.form.get("label_override") or "").strip() or None; success="تم تحديث عنصر الشريط."
+                else: raise ValueError("إجراء شريط الأقسام غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=CategoryNavigationItem.query.filter_by(is_active=True).order_by(CategoryNavigationItem.sort_order,CategoryNavigationItem.id).limit(300).all()
+        categories=Category.query.filter_by(is_active=True).order_by(Category.sort_order,Category.name).limit(300).all()
+        return render_template("admin/category_strip.html",title="شريط الأقسام",rows=rows,categories=categories,success=success,error=error,**build_admin_context())
 
-    @admin_bp.get("/storefront/pages")
+    @admin_bp.route("/storefront/pages", methods=["GET", "POST"])
     def storefront_pages():
-        from ..models import StorefrontPage, StorefrontSection, StorefrontSectionItem
-        pages = StorefrontPage.query.filter_by(is_active=True).order_by(StorefrontPage.id).all()
-        sections = StorefrontSection.query.order_by(StorefrontSection.page_id, StorefrontSection.sort_order).limit(1000).all()
-        section_ids = [row.id for row in sections]
-        items = StorefrontSectionItem.query.filter(
-            StorefrontSectionItem.section_id.in_(section_ids)
-        ).order_by(StorefrontSectionItem.section_id, StorefrontSectionItem.sort_order, StorefrontSectionItem.id).all() if section_ids else []
-        items_by_section = {}
-        for item in items:
-            items_by_section.setdefault(item.section_id, []).append(item)
-        return render_template(
-            "admin/storefront_pages.html",
-            title="صفحات المتجر",
-            pages=pages,
-            sections=sections,
-            items_by_section=items_by_section,
-            **build_admin_context(),
-        )
+        from ..models import StorefrontPage, StorefrontSection, StorefrontSectionItem, Product, Category, Banner, Campaign, Hashtag, PromotionalStrip
+        error=None; success=None
+        if request.method=="POST":
+            try:
+                action=(request.form.get("action") or "").strip()
+                if action.startswith("page_"):
+                    row=db.session.get(StorefrontPage,request.form.get("id",type=int))
+                    if action=="page_create":
+                        code=(request.form.get("code") or "").strip().lower(); name=(request.form.get("name") or "").strip(); route=(request.form.get("route") or "").strip()
+                        if not code or not name or not route: raise ValueError("Code والاسم وRoute مطلوبة.")
+                        if StorefrontPage.query.filter((StorefrontPage.code==code)|(StorefrontPage.route==route)).first(): raise ValueError("Code أو Route مستخدم مسبقًا.")
+                        db.session.add(StorefrontPage(code=code,name=name,route=route)); success="تم إنشاء الصفحة."
+                    elif row is None: raise ValueError("الصفحة غير موجودة.")
+                    elif action=="page_archive": row.is_active=False; success="تمت أرشفة الصفحة."
+                    else:
+                        code=(request.form.get("code") or "").strip().lower(); name=(request.form.get("name") or "").strip(); route=(request.form.get("route") or "").strip()
+                        if not code or not name or not route: raise ValueError("Code والاسم وRoute مطلوبة.")
+                        if StorefrontPage.query.filter(StorefrontPage.id!=row.id,((StorefrontPage.code==code)|(StorefrontPage.route==route))).first(): raise ValueError("Code أو Route مستخدم مسبقًا.")
+                        row.code=code; row.name=name; row.route=route; success="تم تحديث الصفحة."
+                elif action.startswith("section_"):
+                    row=db.session.get(StorefrontSection,request.form.get("id",type=int))
+                    if action=="section_create":
+                        page_id=request.form.get("page_id",type=int); page=db.session.get(StorefrontPage,page_id)
+                        if page is None: raise ValueError("الصفحة غير موجودة.")
+                        db.session.add(StorefrontSection(page_id=page_id,section_type=(request.form.get("section_type") or "product_grid").strip(),title=(request.form.get("title") or "").strip() or None,sort_order=request.form.get("sort_order",0,type=int),settings={},visible_rules={})); success="تم إنشاء القسم."
+                    elif row is None: raise ValueError("القسم غير موجود.")
+                    elif action=="section_archive": db.session.delete(row); success="تم حذف القسم وأغراضه التابعة."
+                    else:
+                        row.section_type=(request.form.get("section_type") or row.section_type).strip(); row.title=(request.form.get("title") or "").strip() or None; row.sort_order=request.form.get("sort_order",0,type=int); success="تم تحديث القسم."
+                elif action in {"item_create","item_update","item_delete"}:
+                    row=db.session.get(StorefrontSectionItem,request.form.get("id",type=int))
+                    if action=="item_delete":
+                        if row is None: raise ValueError("عنصر القسم غير موجود.")
+                        db.session.delete(row); success="تم حذف عنصر القسم."
+                    else:
+                        section_id=request.form.get("section_id",type=int) if action=="item_create" else (row.section_id if row else None)
+                        section=db.session.get(StorefrontSection,section_id)
+                        if section is None: raise ValueError("القسم غير موجود.")
+                        item_type=(request.form.get("item_type") or "product").strip(); item_id=request.form.get("item_id",type=int)
+                        models={"product":Product,"category":Category,"banner":Banner,"campaign":Campaign,"hashtag":Hashtag,"promotional_strip":PromotionalStrip}
+                        model=models.get(item_type)
+                        if model is None or db.session.get(model,item_id) is None: raise ValueError("نوع أو معرّف عنصر القسم غير صحيح.")
+                        if action=="item_create": db.session.add(StorefrontSectionItem(section_id=section.id,item_type=item_type,item_id=item_id,sort_order=request.form.get("sort_order",0,type=int),custom_label=(request.form.get("custom_label") or "").strip() or None)); success="تمت إضافة عنصر القسم."
+                        else: row.item_type=item_type; row.item_id=item_id; row.sort_order=request.form.get("sort_order",0,type=int); row.custom_label=(request.form.get("custom_label") or "").strip() or None; success="تم تحديث عنصر القسم."
+                else: raise ValueError("إجراء صفحات المتجر غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        pages=StorefrontPage.query.filter_by(is_active=True).order_by(StorefrontPage.id).all()
+        sections=StorefrontSection.query.order_by(StorefrontSection.page_id,StorefrontSection.sort_order).limit(1000).all()
+        section_ids=[x.id for x in sections]
+        items=StorefrontSectionItem.query.filter(StorefrontSectionItem.section_id.in_(section_ids)).order_by(StorefrontSectionItem.section_id,StorefrontSectionItem.sort_order,StorefrontSectionItem.id).all() if section_ids else []
+        items_by_section={}
+        for item in items: items_by_section.setdefault(item.section_id,[]).append(item)
+        products=Product.query.filter(Product.is_active.is_(True),Product.status!="archived").order_by(Product.id.desc()).limit(300).all()
+        categories=Category.query.filter_by(is_active=True).order_by(Category.sort_order,Category.name).limit(300).all()
+        banners=Banner.query.filter_by(is_active=True).order_by(Banner.id.desc()).limit(300).all()
+        campaigns=Campaign.query.filter_by(is_active=True).order_by(Campaign.display_priority.desc(),Campaign.name).limit(200).all()
+        hashtags=Hashtag.query.filter_by(is_active=True).order_by(Hashtag.sort_order,Hashtag.name).limit(200).all()
+        strips=PromotionalStrip.query.filter_by(is_active=True).order_by(PromotionalStrip.id.desc()).limit(200).all()
+        return render_template("admin/storefront_pages.html",title="صفحات المتجر",pages=pages,sections=sections,items_by_section=items_by_section,products=products,categories=categories,banners=banners,campaigns=campaigns,hashtags=hashtags,strips=strips,success=success,error=error,**build_admin_context())
 
-    @admin_bp.post("/storefront/pages")
-    def storefront_create_page():
-        from ..models import StorefrontPage
-        code = (request.form.get("code") or "").strip().lower()
-        name = (request.form.get("name") or "").strip()
-        route = (request.form.get("route") or "").strip()
-        if not code or not name or not route:
-            return render_template(
-                "admin/module.html",
-                title="بيانات الصفحة ناقصة",
-                section="المحتوى والمتجر",
-                requested_path="/admin/storefront/pages",
-                **build_admin_context(),
-            ), 400
-        if StorefrontPage.query.filter(
-            (StorefrontPage.code == code) | (StorefrontPage.route == route)
-        ).first():
-            return render_template(
-                "admin/module.html",
-                title="الصفحة موجودة مسبقًا",
-                section="المحتوى والمتجر",
-                requested_path="/admin/storefront/pages",
-                **build_admin_context(),
-            ), 400
-        db.session.add(StorefrontPage(code=code, name=name, route=route))
-        db.session.commit()
-        return __import__("flask").redirect("/admin/storefront/pages")
-
-    @admin_bp.post("/storefront/sections")
-    def storefront_create_section():
-        from ..models import StorefrontPage, StorefrontSection
-        page_id = request.form.get("page_id", type=int)
-        section_type = (request.form.get("section_type") or "product_grid").strip()
-        title = (request.form.get("title") or "").strip() or None
-        if db.session.get(StorefrontPage, page_id) is None:
-            return {"error": "page_not_found"}, 404
-        db.session.add(StorefrontSection(
-            page_id=page_id,
-            section_type=section_type,
-            title=title,
-            sort_order=request.form.get("sort_order", 0, type=int),
-            settings={},
-            visible_rules={},
-        ))
-        db.session.commit()
-        return __import__("flask").redirect("/admin/storefront/pages")
-
-    @admin_bp.post("/storefront/sections/<int:section_id>/items")
-    def storefront_add_item(section_id):
-        from ..models import StorefrontSection, StorefrontSectionItem
-        section = db.session.get(StorefrontSection, section_id)
-        if section is None:
-            return {"error": "section_not_found"}, 404
-        db.session.add(StorefrontSectionItem(
-            section_id=section.id,
-            item_type=(request.form.get("item_type") or "product").strip(),
-            item_id=request.form.get("item_id", type=int),
-            sort_order=request.form.get("sort_order", 0, type=int),
-            custom_label=(request.form.get("custom_label") or "").strip() or None,
-        ))
-        db.session.commit()
-        return __import__("flask").redirect("/admin/storefront/pages")
 
     @admin_bp.get("/banner-targets")
     def banner_targets():
@@ -954,54 +915,26 @@ def register_entity_views(admin_bp):
     @admin_bp.route("/storefront/collections", methods=["GET", "POST"])
     def storefront_collections():
         from ..models import PromotionalStrip
-        error = None
-        success = None
-        if request.method == "POST":
+        error=None; success=None
+        if request.method=="POST":
             try:
-                name = (request.form.get("name") or "").strip()
-                text_body = (request.form.get("text_body") or "").strip()
-                if not name or not text_body:
-                    raise ValueError("اسم الشريط ونصه مطلوبان.")
-                db.session.add(PromotionalStrip(
-                    name=name,
-                    text_prefix=(request.form.get("text_prefix") or "").strip() or None,
-                    text_body=text_body,
-                    background_color=(request.form.get("background_color") or "").strip() or None,
-                    text_color=(request.form.get("text_color") or "").strip() or None,
-                ))
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(PromotionalStrip,request.form.get("id",type=int))
+                if action=="create":
+                    name=(request.form.get("name") or "").strip(); text_body=(request.form.get("text_body") or "").strip()
+                    if not name or not text_body: raise ValueError("اسم الشريط ونصه مطلوبان.")
+                    db.session.add(PromotionalStrip(name=name,text_prefix=(request.form.get("text_prefix") or "").strip() or None,text_body=text_body,background_color=(request.form.get("background_color") or "").strip() or None,text_color=(request.form.get("text_color") or "").strip() or None)); success="تمت إضافة شريط العرض."
+                elif row is None: raise ValueError("شريط العرض غير موجود.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة شريط العرض."
+                elif action=="update":
+                    name=(request.form.get("name") or "").strip(); text_body=(request.form.get("text_body") or "").strip()
+                    if not name or not text_body: raise ValueError("اسم الشريط ونصه مطلوبان.")
+                    row.name=name; row.text_prefix=(request.form.get("text_prefix") or "").strip() or None; row.text_body=text_body; row.background_color=(request.form.get("background_color") or "").strip() or None; row.text_color=(request.form.get("text_color") or "").strip() or None; success="تم تحديث شريط العرض."
+                else: raise ValueError("إجراء شريط العرض غير معروف.")
                 db.session.commit()
-                success = "تمت إضافة شريط العرض."
-            except (ValueError, TypeError) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = PromotionalStrip.query.filter_by(is_active=True).order_by(PromotionalStrip.id.desc()).limit(200).all()
-        records = [
-            {
-                "title": row.name,
-                "badge": f"#{row.id}",
-                "color": row.background_color,
-                "fields": [
-                    {"label": "النص", "value": row.text_body},
-                    {"label": "النص التمهيدي", "value": row.text_prefix or "—"},
-                    {"label": "الخلفية", "value": row.background_color or "—", "dir": "ltr"},
-                    {"label": "لون النص", "value": row.text_color or "—", "dir": "ltr"},
-                ],
-            }
-            for row in rows
-        ]
-        return render_template(
-            "admin/manage.html", title="جديدنا والعروض", section="المحتوى والمتجر",
-            description="أنشئ شرائط العروض مع ألوان الخلفية والنص، وتظهر السجلات أولًا ثم زر الإضافة بالأعلى.",
-            fields=[
-                {"name": "name", "label": "الاسم", "required": True, "placeholder": "مثال: شحن مجاني"},
-                {"name": "text_prefix", "label": "مقدمة قصيرة", "placeholder": "لفترة محدودة"},
-                {"name": "text_body", "label": "نص العرض", "required": True, "type": "textarea", "wide": True},
-                {"name": "background_color", "label": "لون الخلفية", "type": "color", "value": "#111827"},
-                {"name": "text_color", "label": "لون النص", "type": "color", "value": "#ffffff"},
-            ],
-            records=records, modal_id="promoStripAddModal", success=success, error=error,
-            **_ctx(),
-        )
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=PromotionalStrip.query.filter_by(is_active=True).order_by(PromotionalStrip.id.desc()).limit(200).all()
+        records=[{"id":x.id,"title":x.name,"badge":f"#{x.id}","color":x.background_color,"edit_action":"update","archive_action":"archive","edit_fields":[{"name":"name","label":"الاسم","required":True,"value":x.name},{"name":"text_prefix","label":"مقدمة قصيرة","value":x.text_prefix},{"name":"text_body","label":"نص العرض","required":True,"type":"textarea","value":x.text_body},{"name":"background_color","label":"لون الخلفية","type":"color","value":x.background_color or "#111827"},{"name":"text_color","label":"لون النص","type":"color","value":x.text_color or "#ffffff"}],"fields":[{"label":"النص","value":x.text_body},{"label":"الخلفية","value":x.background_color or "—","dir":"ltr"},{"label":"لون النص","value":x.text_color or "—","dir":"ltr"}]} for x in rows]
+        return render_template("admin/manage.html",title="جديدنا والعروض",section="المحتوى والمتجر",description="إضافة وتعديل وأرشفة شرائط العروض.",fields=[{"name":"name","label":"الاسم","required":True},{"name":"text_prefix","label":"مقدمة قصيرة"},{"name":"text_body","label":"نص العرض","required":True,"type":"textarea"},{"name":"background_color","label":"لون الخلفية","type":"color","value":"#111827"},{"name":"text_color","label":"لون النص","type":"color","value":"#ffffff"}],records=records,modal_id="promoStripAddModal",success=success,error=error,**_ctx())
 
     @admin_bp.get("/geo")
     def geo():
@@ -1056,34 +989,205 @@ def register_entity_views(admin_bp):
         ]
         return _render("التقارير", ["المجال", "المؤشر", "القيمة"], rows, "الترويج والمالية")
 
-    @admin_bp.get("/system/settings")
+
+    @admin_bp.route("/system/settings", methods=["GET", "POST"])
     def settings():
         from ..models import AppSetting
-        rows = AppSetting.query.order_by(AppSetting.group_code, AppSetting.key).limit(500).all()
-        return _render("الإعدادات", ["المجموعة", "المفتاح", "القيمة", "النوع"],
-                       [[x.group_code, x.key, x.value or "—", x.value_type] for x in rows], "النظام")
+        error=None; success=None
+        if request.method=="POST":
+            try:
+                action=(request.form.get("action") or "save").strip(); row=db.session.get(AppSetting,request.form.get("id",type=int))
+                if action=="create":
+                    group=(request.form.get("group_code") or "").strip(); key=(request.form.get("key") or "").strip()
+                    if not group or not key: raise ValueError("المجموعة والمفتاح مطلوبان.")
+                    if AppSetting.query.filter_by(group_code=group,key=key).first(): raise ValueError("هذا الإعداد موجود مسبقًا.")
+                    db.session.add(AppSetting(group_code=group,key=key,value=(request.form.get("value") or "").strip() or None,value_type=(request.form.get("value_type") or "text").strip())); success="تم إنشاء الإعداد."
+                elif row is None: raise ValueError("الإعداد غير موجود.")
+                elif action=="delete": db.session.delete(row); success="تم حذف الإعداد."
+                elif action=="update":
+                    group=(request.form.get("group_code") or "").strip(); key=(request.form.get("key") or "").strip()
+                    if not group or not key: raise ValueError("المجموعة والمفتاح مطلوبان.")
+                    if AppSetting.query.filter(AppSetting.id!=row.id,AppSetting.group_code==group,AppSetting.key==key).first(): raise ValueError("هذا الإعداد موجود مسبقًا.")
+                    row.group_code=group; row.key=key; row.value=(request.form.get("value") or "").strip() or None; row.value_type=(request.form.get("value_type") or row.value_type).strip(); success="تم تحديث الإعداد."
+                else: raise ValueError("إجراء الإعداد غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=AppSetting.query.order_by(AppSetting.group_code,AppSetting.key).limit(500).all()
+        return render_template("admin/settings.html",title="الإعدادات",settings=rows,success=success,error=error,**build_admin_context())
 
-    @admin_bp.get("/system/features")
+
+    @admin_bp.route("/system/features", methods=["GET", "POST"])
     def features():
-        rows = FeatureFlag.query.order_by(FeatureFlag.key).all()
-        return _render("المزايا", ["ID", "المفتاح", "التفعيل"],
-                       [[x.id, x.key, "مفعلة" if x.enabled else "متوقفة"] for x in rows],
-                       "النظام")
+        import json
+        error=None; success=None
+        if request.method=="POST":
+            try:
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(FeatureFlag,request.form.get("id",type=int))
+                if action=="create":
+                    key=(request.form.get("key") or "").strip(); raw=(request.form.get("conditions") or "{}").strip()
+                    if not key: raise ValueError("مفتاح الميزة مطلوب.")
+                    if FeatureFlag.query.filter_by(key=key).first(): raise ValueError("مفتاح الميزة مستخدم مسبقًا.")
+                    db.session.add(FeatureFlag(key=key,enabled=request.form.get("enabled")=="on",conditions=json.loads(raw or "{}"))); success="تم إنشاء الميزة."
+                elif row is None: raise ValueError("الميزة غير موجودة.")
+                elif action=="archive": row.is_active=False; success="تم تعطيل الميزة."
+                elif action=="update":
+                    key=(request.form.get("key") or "").strip(); raw=(request.form.get("conditions") or "{}").strip()
+                    if not key: raise ValueError("مفتاح الميزة مطلوب.")
+                    if FeatureFlag.query.filter(FeatureFlag.id!=row.id,FeatureFlag.key==key).first(): raise ValueError("مفتاح الميزة مستخدم مسبقًا.")
+                    row.key=key; row.enabled=request.form.get("enabled")=="on"; row.conditions=json.loads(raw or "{}"); success="تم تحديث الميزة."
+                else: raise ValueError("إجراء الميزة غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError,json.JSONDecodeError) as exc: db.session.rollback(); error=str(exc)
+        rows=FeatureFlag.query.filter_by(is_active=True).order_by(FeatureFlag.key).all()
+        return render_template("admin/features.html",title="المزايا",flags=rows,success=success,error=error,**build_admin_context())
 
-    @admin_bp.get("/pricing/currencies")
+    @admin_bp.route("/pricing/currencies", methods=["GET", "POST"])
     def currencies():
         from ..models import Currency
-        rows = Currency.query.order_by(Currency.code).all()
-        return _render("العملات", ["ID", "الكود", "الاسم", "الرمز", "أساس"],
-                       [[x.id, x.code, x.name_ar, x.symbol or "—", "نعم" if x.is_base else "لا"] for x in rows],
-                       "التسعير")
+        error=None; success=None
+        if request.method=="POST":
+            try:
+                action=(request.form.get("action") or "create").strip()
+                row=db.session.get(Currency,request.form.get("id",type=int))
+                if action=="create":
+                    code=(request.form.get("code") or "").strip().upper()
+                    name=(request.form.get("name_ar") or "").strip()
+                    if not code or not name: raise ValueError("كود العملة واسمها مطلوبان.")
+                    if Currency.query.filter_by(code=code).first(): raise ValueError("كود العملة مستخدم مسبقًا.")
+                    is_base=request.form.get("is_base")=="on"
+                    if is_base and Currency.query.filter_by(is_base=True).first(): raise ValueError("توجد عملة أساسية بالفعل.")
+                    db.session.add(Currency(code=code,symbol=(request.form.get("symbol") or "").strip() or None,name_ar=name,decimals=max(0,min(6,request.form.get("decimals",2,type=int))),is_base=is_base))
+                    success="تم إنشاء العملة."
+                elif row is None:
+                    raise ValueError("العملة غير موجودة.")
+                elif action=="archive":
+                    if row.is_base: raise ValueError("لا يمكن أرشفة العملة الأساسية.")
+                    row.is_active=False
+                    success="تمت أرشفة العملة."
+                elif action=="update":
+                    code=(request.form.get("code") or "").strip().upper()
+                    name=(request.form.get("name_ar") or "").strip()
+                    if not code or not name: raise ValueError("كود العملة واسمها مطلوبان.")
+                    if Currency.query.filter(Currency.id!=row.id,Currency.code==code).first(): raise ValueError("كود العملة مستخدم مسبقًا.")
+                    is_base=request.form.get("is_base")=="on"
+                    if is_base and Currency.query.filter(Currency.id!=row.id,Currency.is_base.is_(True),Currency.is_active.is_(True)).first():
+                        raise ValueError("توجد عملة أساسية فعالة بالفعل.")
+                    row.code=code; row.name_ar=name; row.symbol=(request.form.get("symbol") or "").strip() or None
+                    row.decimals=max(0,min(6,request.form.get("decimals",2,type=int))); row.is_base=is_base; row.is_active=True
+                    success="تم تحديث العملة."
+                else:
+                    raise ValueError("إجراء العملة غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError) as exc:
+                db.session.rollback(); error=str(exc)
+        rows=Currency.query.order_by(Currency.code).all()
+        records=[]
+        for row in rows:
+            records.append({
+                "id":row.id,
+                "title":f"{row.code} · {row.name_ar}",
+                "badge":"أساسية" if row.is_base else "فعال" if row.is_active else "معطل",
+                "edit_action":"update",
+                "archive_action":None if row.is_base else "archive",
+                "edit_fields":[
+                    {"name":"code","label":"Code","required":True,"value":row.code,"dir":"ltr"},
+                    {"name":"name_ar","label":"الاسم","required":True,"value":row.name_ar},
+                    {"name":"symbol","label":"الرمز","value":row.symbol or "","dir":"ltr"},
+                    {"name":"decimals","label":"الكسور","type":"number","value":row.decimals,"min":0},
+                    {"name":"is_base","label":"العملة الأساسية","type":"select","options":[
+                        {"value":"","label":"لا","selected":not row.is_base},
+                        {"value":"on","label":"نعم","selected":row.is_base}
+                    ]}
+                ],
+                "fields":[
+                    {"label":"الكود","value":row.code,"dir":"ltr"},
+                    {"label":"الرمز","value":row.symbol or "—","dir":"ltr"},
+                    {"label":"الكسور","value":row.decimals},
+                    {"label":"الحالة","value":"نشطة" if row.is_active else "معطلة"}
+                ]
+            })
+        return render_template("admin/manage.html",title="العملات",section="التسعير",description="إضافة وتعديل وأرشفة العملات. العملة الأساسية لا تُؤرشف.",fields=[
+            {"name":"code","label":"Code","required":True,"dir":"ltr"},
+            {"name":"name_ar","label":"الاسم","required":True},
+            {"name":"symbol","label":"الرمز","dir":"ltr"},
+            {"name":"decimals","label":"الكسور","type":"number","value":2,"min":0},
+            {"name":"is_base","label":"العملة الأساسية","type":"select","options":[
+                {"value":"","label":"لا","selected":True},
+                {"value":"on","label":"نعم"}
+            ]}
+        ],records=records,modal_id="currencyAddModal",success=success,error=error,**_ctx())
 
-    @admin_bp.get("/pricing/rates")
+
+    @admin_bp.route("/pricing/rates", methods=["GET", "POST"])
     def rates():
-        rows = ExchangeRate.query.order_by(ExchangeRate.valid_from.desc()).limit(200).all()
-        return _render("أسعار الصرف", ["ID", "من", "إلى", "السعر", "يبدأ"],
-                       [[x.id, x.base_currency_id, x.quote_currency_id, x.rate, x.valid_from] for x in rows],
-                       "التسعير")
+        from datetime import datetime, timezone
+        from ..models import ExchangeRate, Currency
+        error=None; success=None
+        def parse_dt(raw):
+            value=(raw or "").strip()
+            if not value: return datetime.now(timezone.utc)
+            dt=datetime.fromisoformat(value.replace("Z","+00:00"))
+            return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+        if request.method=="POST":
+            try:
+                action=(request.form.get("action") or "create").strip()
+                row=db.session.get(ExchangeRate,request.form.get("id",type=int))
+                if action=="create":
+                    base=request.form.get("base_currency_id",type=int); quote=request.form.get("quote_currency_id",type=int); rate=Decimal(request.form.get("rate") or "0")
+                    if not base or not quote or base==quote or rate<=0: raise ValueError("اختر عملتين مختلفتين وسعرًا أكبر من صفر.")
+                    if db.session.get(Currency,base) is None or db.session.get(Currency,quote) is None: raise ValueError("العملة المختارة غير موجودة.")
+                    db.session.add(ExchangeRate(base_currency_id=base,quote_currency_id=quote,rate=rate,source=(request.form.get("source") or "").strip() or None,valid_from=parse_dt(request.form.get("valid_from")),valid_to=parse_dt(request.form.get("valid_to")) if request.form.get("valid_to") else None))
+                    success="تم إنشاء سعر الصرف."
+                elif row is None:
+                    raise ValueError("سعر الصرف غير موجود.")
+                elif action=="delete":
+                    db.session.delete(row); success="تم حذف سعر الصرف."
+                elif action=="update":
+                    base=request.form.get("base_currency_id",type=int); quote=request.form.get("quote_currency_id",type=int); rate=Decimal(request.form.get("rate") or "0")
+                    if not base or not quote or base==quote or rate<=0: raise ValueError("اختر عملتين مختلفتين وسعرًا أكبر من صفر.")
+                    if db.session.get(Currency,base) is None or db.session.get(Currency,quote) is None: raise ValueError("العملة المختارة غير موجودة.")
+                    row.base_currency_id=base; row.quote_currency_id=quote; row.rate=rate; row.source=(request.form.get("source") or "").strip() or None; row.valid_from=parse_dt(request.form.get("valid_from")); row.valid_to=parse_dt(request.form.get("valid_to")) if request.form.get("valid_to") else None
+                    success="تم تحديث سعر الصرف."
+                else:
+                    raise ValueError("إجراء سعر الصرف غير معروف.")
+                db.session.commit()
+            except (ValueError,InvalidOperation) as exc:
+                db.session.rollback(); error=str(exc)
+        currencies=Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
+        cmap={x.id:x for x in currencies}
+        rows=ExchangeRate.query.order_by(ExchangeRate.valid_from.desc(),ExchangeRate.id.desc()).limit(300).all()
+        records=[]
+        for row in rows:
+            records.append({
+                "id":row.id,
+                "title":f"{cmap.get(row.base_currency_id).code if cmap.get(row.base_currency_id) else row.base_currency_id} → {cmap.get(row.quote_currency_id).code if cmap.get(row.quote_currency_id) else row.quote_currency_id}",
+                "badge":str(row.rate),
+                "delete_action":"delete",
+                "edit_action":"update",
+                "edit_fields":[
+                    {"name":"base_currency_id","label":"من","type":"select","options":[{"value":x.id,"label":x.code,"selected":x.id==row.base_currency_id} for x in currencies]},
+                    {"name":"quote_currency_id","label":"إلى","type":"select","options":[{"value":x.id,"label":x.code,"selected":x.id==row.quote_currency_id} for x in currencies]},
+                    {"name":"rate","label":"السعر","type":"number","value":row.rate,"step":0.000000000001,"min":0},
+                    {"name":"source","label":"المصدر","value":row.source or ""},
+                    {"name":"valid_from","label":"يبدأ","value":row.valid_from.isoformat(timespec="minutes") if row.valid_from else ""},
+                    {"name":"valid_to","label":"ينتهي","value":row.valid_to.isoformat(timespec="minutes") if row.valid_to else ""}
+                ],
+                "fields":[
+                    {"label":"السعر","value":row.rate,"dir":"ltr"},
+                    {"label":"المصدر","value":row.source or "—"},
+                    {"label":"من","value":cmap.get(row.base_currency_id).code if cmap.get(row.base_currency_id) else row.base_currency_id,"dir":"ltr"},
+                    {"label":"إلى","value":cmap.get(row.quote_currency_id).code if cmap.get(row.quote_currency_id) else row.quote_currency_id,"dir":"ltr"}
+                ]
+            })
+        return render_template("admin/manage.html",title="أسعار الصرف",section="التسعير",description="إضافة وتعديل وحذف أسعار الصرف. تحافظ الطلبات على السعر الذي استُخدم وقت الشراء.",fields=[
+            {"name":"base_currency_id","label":"من","type":"select","options":[{"value":x.id,"label":x.code} for x in currencies]},
+            {"name":"quote_currency_id","label":"إلى","type":"select","options":[{"value":x.id,"label":x.code} for x in currencies]},
+            {"name":"rate","label":"السعر","type":"number","step":0.000000000001,"min":0,"required":True},
+            {"name":"source","label":"المصدر"},
+            {"name":"valid_from","label":"يبدأ","placeholder":"2026-09-25T00:00"},
+            {"name":"valid_to","label":"ينتهي","placeholder":"اختياري"}
+        ],records=records,modal_id="rateAddModal",success=success,error=error,**_ctx())
+
 
     @admin_bp.get("/pricing/city-assignments")
     def city_assignments():

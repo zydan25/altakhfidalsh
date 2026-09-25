@@ -24,6 +24,7 @@
         <span>SKU: {{ product.sku }}</span>
         <small>{{ product.status }}</small>
         <a class="inline-link" href="/admin/products/{{ product.id }}/edit">فتح المعالج</a>
+        <form method="post" style="margin-top:6px"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ product.id }}"><button class="ghost-button" type="submit">أرشفة المنتج</button></form>
       </div>
     </div>
     <div class="product-price">

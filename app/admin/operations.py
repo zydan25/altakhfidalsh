@@ -148,6 +148,58 @@ def register_operation_routes(admin_bp):
                     db.session.commit()
                     success = "تم إنشاء مجموعة التسعير وقواعد العملات."
 
+                elif action == "update_group":
+                    group_id = request.form.get("id", type=int)
+                    group = db.session.get(PricingGroup, group_id)
+                    if group is None:
+                        raise ValueError("مجموعة التسعير غير موجودة.")
+                    name = (request.form.get("name") or "").strip()
+                    default_currency_id = request.form.get("default_currency_id", type=int)
+                    if not name or not default_currency_id:
+                        raise ValueError("اسم المجموعة والعملة الافتراضية مطلوبان.")
+                    if request.form.get("is_default") == "on" and not group.is_default and PricingGroup.query.filter(PricingGroup.id != group.id, PricingGroup.is_default.is_(True), PricingGroup.is_active.is_(True)).first():
+                        raise ValueError("توجد مجموعة افتراضية فعالة بالفعل.")
+                    group.name = name
+                    group.description = (request.form.get("description") or "").strip() or None
+                    group.default_currency_id = default_currency_id
+                    group.priority = request.form.get("priority", 0, type=int)
+                    group.is_default = request.form.get("is_default") == "on"
+                    PricingGroupRule.query.filter_by(group_id=group.id).delete()
+                    currency_ids = request.form.getlist("rule_currency_id")
+                    percents = request.form.getlist("rule_percent_markup")
+                    fixeds = request.form.getlist("rule_fixed_markup")
+                    decimals = request.form.getlist("rule_decimals")
+                    roundings = request.form.getlist("rule_rounding_rule")
+                    if not currency_ids:
+                        currency_ids = [str(default_currency_id)]
+                        percents = ["0"]; fixeds = ["0"]; decimals = ["2"]; roundings = ["nearest"]
+                    seen=set()
+                    for idx, raw_currency in enumerate(currency_ids):
+                        cid=int(raw_currency)
+                        if cid in seen or db.session.get(Currency, cid) is None:
+                            raise ValueError("قواعد العملات تحتوي عملة غير صالحة أو مكررة.")
+                        seen.add(cid)
+                        def at(values, default):
+                            return values[idx] if idx < len(values) and values[idx] != "" else default
+                        db.session.add(PricingGroupRule(group_id=group.id,currency_id=cid,percent_markup=Decimal(at(percents,"0")),fixed_markup=Decimal(at(fixeds,"0")),rounding_rule=at(roundings,"nearest"),decimals=int(at(decimals,"2"))))
+                    success="تم تحديث مجموعة التسعير."
+                elif action == "archive_group":
+                    group = db.session.get(PricingGroup, request.form.get("id", type=int))
+                    if group is None:
+                        raise ValueError("مجموعة التسعير غير موجودة.")
+                    group.is_active=False
+                    if group.is_default:
+                        group.is_default=False
+                    success="تمت أرشفة مجموعة التسعير."
+                elif action == "delete_location_assignment":
+                    row=db.session.get(PricingGroupCity,request.form.get("id",type=int))
+                    if row is None: raise ValueError("تعيين الموقع غير موجود.")
+                    db.session.delete(row); success="تم حذف تعيين الموقع."
+                elif action == "delete_customer_assignment":
+                    row=db.session.get(CustomerPricingAssignment,request.form.get("id",type=int))
+                    if row is None: raise ValueError("تعيين العميل غير موجود.")
+                    db.session.delete(row); success="تم حذف تعيين العميل."
+
                 elif action == "assign_location":
                     group_id = request.form.get("location_group_id", type=int)
                     location_id = request.form.get("location_id", type=int)
@@ -268,214 +320,139 @@ def register_operation_routes(admin_bp):
 
     @admin_bp.route("/banners", methods=["GET", "POST"])
     def banners():
-        context = _ctx()
-        error = None
-        success = None
-
-        if request.method == "POST":
-            action = (request.form.get("action") or "create_banner").strip()
+        context=_ctx(); error=None; success=None
+        if request.method=="POST":
             try:
-                if action == "create_banner":
-                    name = (request.form.get("name") or "").strip()
-                    image_file = request.files.get("image_file")
-                    mobile_file = request.files.get("mobile_image_file")
-
-                    if not name or not image_file or not image_file.filename:
-                        raise ValueError("اسم البانر والصورة الأساسية مطلوبان.")
-
-                    upload_files = [image_file]
-                    if mobile_file and mobile_file.filename:
-                        upload_files.append(mobile_file)
-
-                    assets = MediaService.save_generic_files(upload_files, "banners")
-                    if not assets:
-                        raise ValueError("تعذر رفع الصورة.")
-
-                    banner = Banner(
-                        name=name,
-                        image_asset_id=assets[0]["id"],
-                        mobile_asset_id=assets[1]["id"] if len(assets) > 1 else None,
-                        size_spec=(request.form.get("size_spec") or "").strip() or None,
-                        overlay_text=(request.form.get("overlay_text") or "").strip() or None,
-                        position_text=(request.form.get("position_text") or "").strip() or None,
-                        duration=request.form.get("duration", type=int),
-                        status="draft",
-                    )
-                    db.session.add(banner)
-                    db.session.commit()
-                    success = "تم رفع صور البانر وإنشاء المسودة."
-
-                elif action == "add_target":
-                    banner_id = request.form.get("banner_id", type=int)
-                    target_type = (request.form.get("target_type") or "").strip()
-                    target_id = request.form.get("target_id", type=int)
-                    url = (request.form.get("target_url") or "").strip() or None
-
-                    if db.session.get(Banner, banner_id) is None:
+                action=(request.form.get("action") or "create_banner").strip(); row=db.session.get(Banner,request.form.get("id",type=int))
+                if action=="create_banner":
+                    name=(request.form.get("name") or "").strip(); image=request.files.get("image_file"); mobile=request.files.get("mobile_image_file")
+                    if not name or not image or not image.filename: raise ValueError("اسم البانر والصورة الأساسية مطلوبان.")
+                    files=[image]+([mobile] if mobile and mobile.filename else []); assets=MediaService.save_generic_files(files,"banners")
+                    db.session.add(Banner(name=name,image_asset_id=assets[0]["id"],mobile_asset_id=assets[1]["id"] if len(assets)>1 else None,size_spec=(request.form.get("size_spec") or "").strip() or None,overlay_text=(request.form.get("overlay_text") or "").strip() or None,position_text=(request.form.get("position_text") or "").strip() or None,duration=request.form.get("duration",type=int),status=(request.form.get("status") or "draft").strip())); success="تم إنشاء البانر."
+                elif action=="add_target":
+                    banner_id=request.form.get("banner_id",type=int); target_type=(request.form.get("target_type") or "").strip(); target_id=request.form.get("target_id",type=int); url=(request.form.get("target_url") or "").strip() or None
+                    if db.session.get(Banner,banner_id) is None: raise ValueError("البانر غير موجود.")
+                    models={"category":Category,"product":Product,"campaign":Campaign}
+                    if target_type=="url": target_id=None; url=url or (_ for _ in ()).throw(ValueError("الرابط مطلوب."))
+                    elif target_type not in models or db.session.get(models[target_type],target_id) is None: raise ValueError("هدف البانر غير صحيح.")
+                    db.session.add(BannerTarget(banner_id=banner_id,target_type=target_type,target_id=target_id,url=url,priority=request.form.get("target_priority",0,type=int))); success="تم ربط الهدف."
+                elif action=="update_banner":
+                    if row is None:
                         raise ValueError("البانر غير موجود.")
-                    if target_type not in {"category", "product", "campaign", "url"}:
-                        raise ValueError("نوع الهدف غير مدعوم.")
-
+                    name=(request.form.get("name") or "").strip()
+                    if not name:
+                        raise ValueError("اسم البانر مطلوب.")
+                    row.name=name
+                    row.size_spec=(request.form.get("size_spec") or "").strip() or None
+                    row.overlay_text=(request.form.get("overlay_text") or "").strip() or None
+                    row.position_text=(request.form.get("position_text") or "").strip() or None
+                    row.duration=request.form.get("duration",type=int)
+                    row.status=(request.form.get("status") or row.status).strip()
+                    image=request.files.get("image_file")
+                    mobile=request.files.get("mobile_image_file")
+                    if image and image.filename:
+                        assets=MediaService.save_generic_files([image],"banners")
+                        if assets: row.image_asset_id=assets[0]["id"]
+                    if mobile and mobile.filename:
+                        assets=MediaService.save_generic_files([mobile],"banners")
+                        if assets: row.mobile_asset_id=assets[0]["id"]
+                    success="تم تحديث البانر."
+                elif action=="archive_banner":
+                    if row is None: raise ValueError("البانر غير موجود.")
+                    row.is_active=False; success="تمت أرشفة البانر."
+                elif action=="delete_target":
+                    target=db.session.get(BannerTarget,request.form.get("id",type=int))
+                    if target is None: raise ValueError("هدف البانر غير موجود.")
+                    db.session.delete(target); success="تم حذف هدف البانر."
+                elif action=="update_target":
+                    target=db.session.get(BannerTarget,request.form.get("target_id",type=int))
+                    if target is None:
+                        raise ValueError("هدف البانر غير موجود.")
+                    target_type=(request.form.get("target_type") or target.target_type).strip()
+                    if target_type not in {"category","product","campaign","url"}:
+                        raise ValueError("نوع هدف البانر غير مدعوم.")
                     if target_type == "url":
+                        url=(request.form.get("target_url") or "").strip()
                         if not url:
                             raise ValueError("الرابط مطلوب.")
-                        target_id = None
+                        target.target_id=None
+                        target.url=url
                     else:
-                        if not target_id:
-                            raise ValueError("معرّف الهدف مطلوب.")
-                        model = {
-                            "category": Category,
-                            "product": Product,
-                            "campaign": Campaign,
-                        }[target_type]
-                        if db.session.get(model, target_id) is None:
+                        target_id=request.form.get("target_id_value",type=int)
+                        model={"category":Category,"product":Product,"campaign":Campaign}[target_type]
+                        if not target_id or db.session.get(model,target_id) is None:
                             raise ValueError("الهدف المختار غير موجود.")
-                        url = None
-
-                    db.session.add(BannerTarget(
-                        banner_id=banner_id,
-                        target_type=target_type,
-                        target_id=target_id,
-                        url=url,
-                        priority=request.form.get("target_priority", 0, type=int),
-                    ))
-                    db.session.commit()
-                    success = "تم ربط هدف البانر."
-
-                else:
-                    raise ValueError("إجراء البانر غير معروف.")
-
-            except (ValueError, OSError) as exc:
-                db.session.rollback()
-                error = str(exc)
-
-        banners = Banner.query.order_by(Banner.id.desc()).limit(100).all()
-        banner_ids = [row.id for row in banners]
-        asset_ids = []
-        for row in banners:
-            asset_ids.extend([row.image_asset_id, row.mobile_asset_id] if row.mobile_asset_id else [row.image_asset_id])
-        assets = MediaAsset.query.filter(MediaAsset.id.in_(asset_ids)).all() if asset_ids else []
-        asset_map = {asset.id: asset for asset in assets}
-        targets = (
-            BannerTarget.query
-            .filter(BannerTarget.banner_id.in_(banner_ids))
-            .order_by(BannerTarget.priority.desc(), BannerTarget.id.desc())
-            .all()
-            if banner_ids else []
-        )
-        categories = Category.query.filter_by(is_active=True).order_by(Category.sort_order, Category.name).limit(300).all()
-        products = Product.query.filter(Product.is_active.is_(True), Product.status != "archived").order_by(Product.id.desc()).limit(300).all()
-        campaigns = Campaign.query.filter_by(is_active=True).order_by(Campaign.display_priority.desc(), Campaign.name).limit(200).all()
-
-        return render_template(
-            "admin/banners.html",
-            title="البانرات",
-            banners=banners,
-            asset_map=asset_map,
-            targets=targets,
-            categories=categories,
-            products=products,
-            campaigns=campaigns,
-            success=success,
-            error=error,
-            **context,
-        )
+                        target.target_id=target_id
+                        target.url=None
+                    target.target_type=target_type
+                    target.priority=request.form.get("target_priority",0,type=int)
+                    success="تم تحديث هدف البانر."
+                else: raise ValueError("إجراء البانر غير معروف.")
+                db.session.commit()
+            except (ValueError,OSError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        banners=Banner.query.filter_by(is_active=True).order_by(Banner.id.desc()).limit(100).all()
+        ids=[x.id for x in banners]; asset_ids=[]
+        for x in banners: asset_ids += [x.image_asset_id] + ([x.mobile_asset_id] if x.mobile_asset_id else [])
+        assets=MediaAsset.query.filter(MediaAsset.id.in_(asset_ids)).all() if asset_ids else []; asset_map={x.id:x for x in assets}
+        targets=BannerTarget.query.filter(BannerTarget.banner_id.in_(ids)).order_by(BannerTarget.priority.desc(),BannerTarget.id.desc()).all() if ids else []
+        categories=Category.query.filter_by(is_active=True).order_by(Category.sort_order,Category.name).limit(300).all(); products=Product.query.filter(Product.is_active.is_(True),Product.status!="archived").order_by(Product.id.desc()).limit(300).all(); campaigns=Campaign.query.filter_by(is_active=True).order_by(Campaign.display_priority.desc(),Campaign.name).limit(200).all()
+        return render_template("admin/banners.html",title="البانرات",banners=banners,asset_map=asset_map,targets=targets,categories=categories,products=products,campaigns=campaigns,success=success,error=error,**context)
 
     @admin_bp.route("/campaigns", methods=["GET", "POST"])
     def campaigns():
         from .entity_views import _unique_slug
-        context = _ctx()
-        error = None
-        success = None
-        if request.method == "POST":
+        context=_ctx(); error=None; success=None
+        if request.method=="POST":
             try:
-                name = (request.form.get("name") or "").strip()
-                if not name:
-                    raise ValueError("اسم الحملة مطلوب.")
-                slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(Campaign, name, fallback="campaign")
-                if Campaign.query.filter_by(slug=slug).first():
-                    raise ValueError("الـSlug مستخدم مسبقًا.")
-                db.session.add(Campaign(
-                    name=name,
-                    slug=slug,
-                    start_at=None,
-                    end_at=None,
-                    status=(request.form.get("status") or "draft").strip(),
-                    display_priority=request.form.get("display_priority", 0, type=int),
-                ))
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(Campaign,request.form.get("id",type=int))
+                if action=="create":
+                    name=(request.form.get("name") or "").strip()
+                    if not name: raise ValueError("اسم الحملة مطلوب.")
+                    slug=(request.form.get("slug") or "").strip().lower() or _unique_slug(Campaign,name,fallback="campaign")
+                    if Campaign.query.filter_by(slug=slug).first(): raise ValueError("الـSlug مستخدم مسبقًا.")
+                    db.session.add(Campaign(name=name,slug=slug,start_at=None,end_at=None,status=(request.form.get("status") or "draft").strip(),display_priority=request.form.get("display_priority",0,type=int))); success="تم إنشاء الحملة."
+                elif row is None: raise ValueError("الحملة غير موجودة.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة الحملة."
+                elif action=="update":
+                    name=(request.form.get("name") or "").strip(); slug=(request.form.get("slug") or "").strip().lower() or _unique_slug(Campaign,name,exclude_id=row.id,fallback="campaign")
+                    if not name: raise ValueError("اسم الحملة مطلوب.")
+                    if Campaign.query.filter(Campaign.id!=row.id,Campaign.slug==slug).first(): raise ValueError("الـSlug مستخدم مسبقًا.")
+                    row.name=name; row.slug=slug; row.status=(request.form.get("status") or row.status).strip(); row.display_priority=request.form.get("display_priority",0,type=int); success="تم تحديث الحملة."
+                else: raise ValueError("إجراء الحملة غير معروف.")
                 db.session.commit()
-                success = "تم إنشاء الحملة كمسودة."
-            except (ValueError, TypeError) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = Campaign.query.order_by(Campaign.id.desc()).limit(100).all()
-        records = [{
-            "title": row.name,
-            "badge": row.status,
-            "fields": [
-                {"label": "Slug", "value": row.slug, "dir": "ltr"},
-                {"label": "الأولوية", "value": row.display_priority},
-            ],
-        } for row in rows]
-        return render_template(
-            "admin/manage.html", title="الحملات", section="المحتوى والمتجر",
-            description="أنشئ الحملة من الزر، والـSlug يُولد تلقائيًا ويمكن تعديله.",
-            fields=[
-                {"name": "name", "label": "اسم الحملة", "required": True, "placeholder": "مثال: تخفيضات الخريف"},
-                {"name": "slug", "label": "Slug", "dir": "ltr", "placeholder": "يُولد تلقائيًا"},
-                {"name": "status", "label": "الحالة", "type": "select", "options": [
-                    {"value": "draft", "label": "مسودة", "selected": True},
-                    {"value": "scheduled", "label": "مجدولة"},
-                    {"value": "active", "label": "نشطة"},
-                ]},
-                {"name": "display_priority", "label": "الأولوية", "type": "number", "value": 0, "min": 0},
-            ],
-            records=records, modal_id="campaignAddModal", success=success, error=error, **context,
-        )
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=Campaign.query.filter_by(is_active=True).order_by(Campaign.id.desc()).limit(100).all()
+        records=[{"id":x.id,"title":x.name,"badge":x.status,"edit_action":"update","archive_action":"archive","edit_fields":[{"name":"name","label":"اسم الحملة","required":True,"value":x.name},{"name":"slug","label":"Slug","dir":"ltr","value":x.slug},{"name":"status","label":"الحالة","type":"select","options":[{"value":"draft","label":"مسودة","selected":x.status=="draft"},{"value":"scheduled","label":"مجدولة","selected":x.status=="scheduled"},{"value":"active","label":"نشطة","selected":x.status=="active"}]},{"name":"display_priority","label":"الأولوية","type":"number","value":x.display_priority}],"fields":[{"label":"Slug","value":x.slug,"dir":"ltr"},{"label":"الأولوية","value":x.display_priority}]} for x in rows]
+        return render_template("admin/manage.html",title="الحملات",section="المحتوى والمتجر",description="إضافة وتعديل وأرشفة الحملات، مع Slug تلقائي.",fields=[{"name":"name","label":"اسم الحملة","required":True},{"name":"slug","label":"Slug","dir":"ltr"},{"name":"status","label":"الحالة","type":"select","options":[{"value":"draft","label":"مسودة","selected":True},{"value":"scheduled","label":"مجدولة"},{"value":"active","label":"نشطة"}]},{"name":"display_priority","label":"الأولوية","type":"number","value":0}],records=records,modal_id="campaignAddModal",success=success,error=error,**context)
+
 
     @admin_bp.route("/hashtags", methods=["GET", "POST"])
     def hashtags():
         from .entity_views import _unique_slug
-        context = _ctx()
-        error = None
-        success = None
-        if request.method == "POST":
+        context=_ctx(); error=None; success=None
+        if request.method=="POST":
             try:
-                name = (request.form.get("name") or "").strip()
-                if not name:
-                    raise ValueError("اسم الوسم مطلوب.")
-                display_name = (request.form.get("display_name") or "").strip() or name
-                slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(Hashtag, display_name, fallback="tag")
-                if Hashtag.query.filter_by(slug=slug).first():
-                    raise ValueError("الـSlug مستخدم مسبقًا.")
-                db.session.add(Hashtag(name=name, slug=slug, display_name=display_name,
-                                       sort_order=request.form.get("sort_order", 0, type=int)))
+                action=(request.form.get("action") or "create").strip(); row=db.session.get(Hashtag,request.form.get("id",type=int))
+                if action=="create":
+                    name=(request.form.get("name") or "").strip(); display=(request.form.get("display_name") or "").strip() or name
+                    if not name: raise ValueError("اسم الوسم مطلوب.")
+                    slug=(request.form.get("slug") or "").strip().lower() or _unique_slug(Hashtag,display,fallback="tag")
+                    if Hashtag.query.filter_by(slug=slug).first(): raise ValueError("الـSlug مستخدم مسبقًا.")
+                    db.session.add(Hashtag(name=name,slug=slug,display_name=display,sort_order=request.form.get("sort_order",0,type=int))); success="تم إنشاء الوسم."
+                elif row is None: raise ValueError("الوسم غير موجود.")
+                elif action=="archive": row.is_active=False; success="تمت أرشفة الوسم."
+                elif action=="update":
+                    name=(request.form.get("name") or "").strip(); display=(request.form.get("display_name") or "").strip() or name; slug=(request.form.get("slug") or "").strip().lower() or _unique_slug(Hashtag,display,exclude_id=row.id,fallback="tag")
+                    if not name: raise ValueError("اسم الوسم مطلوب.")
+                    if Hashtag.query.filter(Hashtag.id!=row.id,Hashtag.slug==slug).first(): raise ValueError("الـSlug مستخدم مسبقًا.")
+                    row.name=name; row.display_name=display; row.slug=slug; row.sort_order=request.form.get("sort_order",0,type=int); success="تم تحديث الوسم."
+                else: raise ValueError("إجراء الوسم غير معروف.")
                 db.session.commit()
-                success = "تم إنشاء الوسم."
-            except (ValueError, TypeError) as exc:
-                db.session.rollback()
-                error = str(exc)
-        rows = Hashtag.query.order_by(Hashtag.sort_order, Hashtag.id.desc()).limit(200).all()
-        records = [{
-            "title": row.display_name or row.name,
-            "badge": f"#{row.id}",
-            "fields": [
-                {"label": "Slug", "value": row.slug, "dir": "ltr"},
-                {"label": "الاسم الداخلي", "value": row.name},
-                {"label": "الترتيب", "value": row.sort_order},
-            ],
-        } for row in rows]
-        return render_template(
-            "admin/manage.html", title="الهاشتاجات", section="المحتوى والمتجر",
-            description="قائمة الهاشتاجات أولًا، والإضافة من نافذة مستقلة مع Slug تلقائي.",
-            fields=[
-                {"name": "name", "label": "الاسم", "required": True, "placeholder": "مثال: عروض_العيد"},
-                {"name": "slug", "label": "Slug", "dir": "ltr", "placeholder": "يُولد تلقائيًا"},
-                {"name": "display_name", "label": "اسم العرض", "placeholder": "#عروض_العيد"},
-                {"name": "sort_order", "label": "الترتيب", "type": "number", "value": 0, "min": 0},
-            ],
-            records=records, modal_id="hashtagLegacyAddModal", success=success, error=error, **context,
-        )
+            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+        rows=Hashtag.query.filter_by(is_active=True).order_by(Hashtag.sort_order,Hashtag.id.desc()).limit(300).all()
+        records=[{"id":x.id,"title":x.display_name or x.name,"badge":f"#{x.id}","edit_action":"update","archive_action":"archive","edit_fields":[{"name":"name","label":"الاسم","required":True,"value":x.name},{"name":"slug","label":"Slug","dir":"ltr","value":x.slug},{"name":"display_name","label":"اسم العرض","value":x.display_name or x.name},{"name":"sort_order","label":"الترتيب","type":"number","value":x.sort_order}],"fields":[{"label":"Slug","value":x.slug,"dir":"ltr"},{"label":"الترتيب","value":x.sort_order}]} for x in rows]
+        return render_template("admin/manage.html",title="الهاشتاجات",section="المحتوى والمتجر",description="إضافة وتعديل وأرشفة الهاشتاجات مع Slug تلقائي.",fields=[{"name":"name","label":"الاسم","required":True},{"name":"slug","label":"Slug","dir":"ltr"},{"name":"display_name","label":"اسم العرض"},{"name":"sort_order","label":"الترتيب","type":"number","value":0}],records=records,modal_id="hashtagAddModal",success=success,error=error,**context)
+
 
 
 def _ctx():

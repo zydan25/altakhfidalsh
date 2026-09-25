@@ -22,19 +22,72 @@
   <article class="entity-card panel manage-card">
     <div class="manage-card-header">
       <div class="manage-card-title">
-        {% if record.color %}
-          <span class="color-swatch" style="background: {{ record.color }}"></span>
-        {% endif %}
+        {% if record.color %}<span class="color-swatch" style="background: {{ record.color }}"></span>{% endif %}
         <strong>{{ record.title }}</strong>
       </div>
       {% if record.badge %}<span class="status-pill">{{ record.badge }}</span>{% endif %}
     </div>
+
     {% for item in record.fields %}
-      <div class="entity-field">
-        <span class="entity-label">{{ item.label }}</span>
-        <strong {% if item.dir %}dir="{{ item.dir }}"{% endif %}>{{ item.value or "—" }}</strong>
-      </div>
+    <div class="entity-field">
+      <span class="entity-label">{{ item.label }}</span>
+      <strong {% if item.dir %}dir="{{ item.dir }}"{% endif %}>{{ item.value or "—" }}</strong>
+    </div>
     {% endfor %}
+
+    {% if record.edit_action %}
+    <details style="margin-top:10px">
+      <summary class="ghost-button" style="cursor:pointer">تعديل السجل</summary>
+      <form method="post" enctype="multipart/form-data" class="form-stack" style="margin-top:10px">
+        <input type="hidden" name="action" value="{{ record.edit_action }}">
+        <input type="hidden" name="id" value="{{ record.id }}">
+        {% for field in record.edit_fields %}
+          {% if field.type == "textarea" %}
+          <label>{{ field.label }}{% if field.required %} <b class="required-mark">*</b>{% endif %}
+            <textarea name="{{ field.name }}" {% if field.required %}required{% endif %} {% if field.dir %}dir="{{ field.dir }}"{% endif %}>{{ field.value or "" }}</textarea>
+          </label>
+          {% elif field.type == "select" %}
+          <label>{{ field.label }}
+            <select name="{{ field.name }}" {% if field.required %}required{% endif %}>
+              {% for option in field.options %}
+              <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          {% elif field.type == "file" %}
+          <label>{{ field.label }}<input name="{{ field.name }}" type="file" accept="{{ field.accept or 'image/*' }}"></label>
+          {% elif field.type == "color" %}
+          <label>{{ field.label }}
+            <span class="color-input-row">
+              <input name="{{ field.name }}" type="color" value="{{ field.value or '#111827' }}">
+              <input class="color-text-input" data-color-text value="{{ field.value or '#111827' }}" dir="ltr">
+            </span>
+          </label>
+          {% else %}
+          <label>{{ field.label }}{% if field.required %} <b class="required-mark">*</b>{% endif %}
+            <input name="{{ field.name }}" type="{{ field.type or 'text' }}" value="{{ field.value or '' }}" {% if field.required %}required{% endif %} {% if field.dir %}dir="{{ field.dir }}"{% endif %} {% if field.min is defined %}min="{{ field.min }}"{% endif %}>
+          </label>
+          {% endif %}
+        {% endfor %}
+        <div class="modal-actions"><button class="primary-button" type="submit">حفظ التعديل</button></div>
+      </form>
+    </details>
+    {% endif %}
+
+    {% if record.archive_action %}
+    <form method="post" style="margin-top:8px">
+      <input type="hidden" name="action" value="{{ record.archive_action }}">
+      <input type="hidden" name="id" value="{{ record.id }}">
+      <button class="ghost-button" type="submit">أرشفة</button>
+    </form>
+    {% endif %}
+    {% if record.delete_action %}
+    <form method="post" style="margin-top:8px" onsubmit="return confirm('حذف هذا السجل نهائيًا؟')">
+      <input type="hidden" name="action" value="{{ record.delete_action }}">
+      <input type="hidden" name="id" value="{{ record.id }}">
+      <button class="ghost-button" type="submit">حذف نهائي</button>
+    </form>
+    {% endif %}
   </article>
   {% else %}
   <section class="empty-state panel" style="grid-column:1/-1">
@@ -50,10 +103,7 @@
   <div class="admin-modal-backdrop" data-close-modal></div>
   <section class="admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="{{ modal_id }}Title">
     <div class="admin-modal-header">
-      <div>
-        <span class="eyebrow">إضافة</span>
-        <h3 id="{{ modal_id }}Title">إضافة {{ title }}</h3>
-      </div>
+      <div><span class="eyebrow">إضافة</span><h3 id="{{ modal_id }}Title">إضافة {{ title }}</h3></div>
       <button class="icon-button" type="button" data-close-modal aria-label="إغلاق">×</button>
     </div>
     <form method="post" enctype="multipart/form-data" class="form-stack manage-form" data-slug-form="{{ modal_id }}">
@@ -65,30 +115,17 @@
             <textarea name="{{ field.name }}" {% if field.required %}required{% endif %} {% if field.dir %}dir="{{ field.dir }}"{% endif %} placeholder="{{ field.placeholder or '' }}">{{ field.value or '' }}</textarea>
           {% elif field.type == "select" %}
             <select name="{{ field.name }}" {% if field.required %}required{% endif %}>
-              {% for option in field.options %}
-              <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
-              {% endfor %}
+              {% for option in field.options %}<option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>{% endfor %}
             </select>
           {% elif field.type == "file" %}
             <input name="{{ field.name }}" type="file" accept="{{ field.accept or 'image/*' }}" {% if field.required %}required{% endif %}>
           {% elif field.type == "color" %}
             <span class="color-input-row">
-              <input name="{{ field.name }}" type="color" value="{{ field.value or '#111827' }}" {% if field.required %}required{% endif %}>
-              <input class="color-text-input" data-color-text type="text" value="{{ field.value or '#111827' }}" dir="ltr" inputmode="text" maxlength="20" placeholder="#111827">
+              <input name="{{ field.name }}" type="color" value="{{ field.value or '#111827' }}">
+              <input class="color-text-input" data-color-text type="text" value="{{ field.value or '#111827' }}" dir="ltr" inputmode="text" maxlength="20">
             </span>
           {% else %}
-            <input
-              name="{{ field.name }}"
-              type="{{ field.type or 'text' }}"
-              value="{{ field.value or '' }}"
-              {% if field.required %}required{% endif %}
-              {% if field.dir %}dir="{{ field.dir }}"{% endif %}
-              {% if field.min is defined %}min="{{ field.min }}"{% endif %}
-              {% if field.step is defined and field.step %}step="{{ field.step }}"{% endif %}
-              placeholder="{{ field.placeholder or '' }}"
-              {% if field.autocomplete == false %}autocomplete="off"{% endif %}
-              {% if field.auto_slug_source %}data-slug-source="{{ field.auto_slug_source }}"{% endif %}
-            >
+            <input name="{{ field.name }}" type="{{ field.type or 'text' }}" value="{{ field.value or '' }}" {% if field.required %}required{% endif %} {% if field.dir %}dir="{{ field.dir }}"{% endif %} {% if field.min is defined %}min="{{ field.min }}"{% endif %} {% if field.step is defined and field.step %}step="{{ field.step }}"{% endif %} placeholder="{{ field.placeholder or '' }}" {% if field.autocomplete == false %}autocomplete="off"{% endif %}>
           {% endif %}
           {% if field.help %}<small class="field-help">{{ field.help }}</small>{% endif %}
         </label>

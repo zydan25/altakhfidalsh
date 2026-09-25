@@ -12,8 +12,8 @@
 <button class="primary-button">حفظ الميزة</button>
 </form></article>
 <article class="panel"><div class="panel-heading"><div><span class="eyebrow">السجل</span><h3>المزايا</h3></div></div>
-<div class="stack-list">{% for row in flags %}
-<div class="stack-row"><strong>{{ row.key }}</strong><span>{{ 'مفعلة' if row.enabled else 'متوقفة' }}</span></div>
-{% else %}<span class="muted">لا توجد مزايا.</span>{% endfor %}</div></article>
+<div class="stack-list">{% for row in flags %}<details class="panel" style="padding:12px"><summary><strong>{{ row.key }}</strong> <span class="muted">· {{ 'مفعلة' if row.enabled else 'متوقفة' }}</span></summary>
+<form method="post" class="form-stack" style="margin-top:10px"><input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ row.id }}"><label>Key<input name="key" value="{{ row.key }}" required dir="ltr"></label><label>Conditions JSON<textarea name="conditions" rows="5">{{ row.conditions|tojson(indent=2) }}</textarea></label><label class="check-row"><input type="checkbox" name="enabled" {% if row.enabled %}checked{% endif %}><span><strong>مفعلة</strong></span></label><button class="primary-button">حفظ التعديل</button></form>
+<form method="post" style="margin-top:8px"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button">تعطيل وأرشفة</button></form></details>{% else %}<span class="muted">لا توجد مزايا فعالة.</span>{% endfor %}</div></article>
 </section>
 {% endblock %}

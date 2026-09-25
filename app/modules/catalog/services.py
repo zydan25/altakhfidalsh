@@ -413,6 +413,73 @@ class CatalogService:
         return {"id": media_id}
 
     @staticmethod
+    def update_variant(product_id, variant_id, payload):
+        variant = db.session.get(ProductVariant, variant_id)
+        if variant is None or variant.product_id != product_id:
+            raise LookupError("variant not found")
+        sku = (payload.get("sku") or "").strip().upper()
+        if not sku:
+            raise ValueError("variant sku is required")
+        duplicate = ProductVariant.query.filter(ProductVariant.id != variant_id, ProductVariant.sku == sku).first()
+        if duplicate:
+            raise ValueError("variant sku already exists")
+        variant.sku = sku
+        variant.color_id = payload.get("color_id")
+        variant.size_id = payload.get("size_id")
+        variant.barcode = (payload.get("barcode") or "").strip() or None
+        variant.weight = Decimal(str(payload["weight"])) if payload.get("weight") not in (None, "") else None
+        variant.status = (payload.get("status") or variant.status).strip()
+        db.session.commit()
+        return {"id": variant.id, "sku": variant.sku, "color_id": variant.color_id, "size_id": variant.size_id, "barcode": variant.barcode, "status": variant.status}
+
+    @staticmethod
+    def archive_variant(product_id, variant_id):
+        variant = db.session.get(ProductVariant, variant_id)
+        if variant is None or variant.product_id != product_id:
+            raise LookupError("variant not found")
+        variant.is_active = False
+        variant.status = "archived"
+        db.session.commit()
+        return {"id": variant.id, "status": variant.status, "is_active": variant.is_active}
+
+    @staticmethod
+    def update_option(product_id, option_id, payload):
+        option = db.session.get(ProductOption, option_id)
+        if option is None or option.product_id != product_id:
+            raise LookupError("option not found")
+        name = (payload.get("name") or "").strip()
+        if not name:
+            raise ValueError("option name is required")
+        option.name = name
+        option.option_type = (payload.get("option_type") or option.option_type).strip()
+        option.required = bool(payload.get("required", option.required))
+        option.sort_order = int(payload.get("sort_order", option.sort_order))
+        for item in payload.get("values", []):
+            value_id = item.get("id")
+            label = (item.get("label") or "").strip()
+            if value_id:
+                value = db.session.get(ProductOptionValue, int(value_id))
+                if value is None or value.option_id != option.id:
+                    raise ValueError("option value not found")
+                value.label = label or value.label
+                value.color_id = item.get("color_id")
+                value.size_id = item.get("size_id")
+                value.sort_order = int(item.get("sort_order", value.sort_order))
+            elif label:
+                db.session.add(ProductOptionValue(option_id=option.id, label=label, color_id=item.get("color_id"), size_id=item.get("size_id"), sort_order=int(item.get("sort_order", 0))))
+        db.session.commit()
+        return {"id": option.id, "name": option.name, "option_type": option.option_type, "required": option.required}
+
+    @staticmethod
+    def remove_option(product_id, option_id):
+        option = db.session.get(ProductOption, option_id)
+        if option is None or option.product_id != product_id:
+            raise LookupError("option not found")
+        db.session.delete(option)
+        db.session.commit()
+        return {"id": option_id}
+
+    @staticmethod
     def add_variant(product_id, payload):
         if db.session.get(Product, product_id) is None:
             raise LookupError("product not found")
