@@ -31,3 +31,4 @@ class Config:
     WHATSAPP_EXTERNAL_URL = os.getenv("WHATSAPP_EXTERNAL_URL", "https://takhfidsh.alattab.site")
     ADMIN_PHONE = os.getenv("ADMIN_PHONE", "967774952665")
     ADMIN_OTP_MESSAGE = os.getenv("ADMIN_OTP_MESSAGE", "رمز دخول لوحة إدارة التخفيض: {code}")
+    CUSTOMER_OTP_MESSAGE = os.getenv("CUSTOMER_OTP_MESSAGE", "رمز التحقق للدخول إلى التخفيض: {code}")
