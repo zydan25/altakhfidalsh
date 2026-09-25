@@ -119,8 +119,12 @@ def resolve_pricing_context(
     override_fixed = None
 
     if assignment:
-        group = db.session.get(PricingGroup, assignment.pricing_group_id)
-        if group:
+        candidate = db.session.get(PricingGroup, assignment.pricing_group_id)
+        if candidate and candidate.is_active and (
+            (candidate.starts_at is None or candidate.starts_at <= now)
+            and (candidate.ends_at is None or candidate.ends_at >= now)
+        ):
+            group = candidate
             source = "customer"
             override_percent = assignment.percent_override
             override_fixed = assignment.fixed_override
@@ -156,7 +160,12 @@ def resolve_pricing_context(
                 source = "city"
 
         if city_assignment:
-            group = db.session.get(PricingGroup, city_assignment.pricing_group_id)
+            candidate = db.session.get(PricingGroup, city_assignment.pricing_group_id)
+            if candidate and candidate.is_active and (
+                (candidate.starts_at is None or candidate.starts_at <= now)
+                and (candidate.ends_at is None or candidate.ends_at >= now)
+            ):
+                group = candidate
 
     if group is None:
         group = (
