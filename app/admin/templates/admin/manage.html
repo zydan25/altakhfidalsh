@@ -81,6 +81,13 @@
       <button class="ghost-button" type="submit">أرشفة</button>
     </form>
     {% endif %}
+    {% if record.delete_action %}
+    <form method="post" style="margin-top:8px" onsubmit="return confirm('حذف هذا السجل نهائيًا؟')">
+      <input type="hidden" name="action" value="{{ record.delete_action }}">
+      <input type="hidden" name="id" value="{{ record.id }}">
+      <button class="ghost-button" type="submit">حذف نهائي</button>
+    </form>
+    {% endif %}
   </article>
   {% else %}
   <section class="empty-state panel" style="grid-column:1/-1">
