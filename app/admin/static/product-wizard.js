@@ -8,6 +8,8 @@
   const steps = [...document.querySelectorAll(".wizard-step")];
   let snapshot = null;
   let policyRefs = null;
+  let marketingRefs = null;
+  let optionRefs = null;
 
   const notify = (text, type = "success") => {
     message.textContent = text;
@@ -31,12 +33,16 @@
 
   const load = async () => {
     try {
-      const [result, refs] = await Promise.all([
+      const [result, refs, marketing, options] = await Promise.all([
         requestJson("/api/v1/catalog/products/" + productId + "/wizard"),
         requestJson("/api/v1/catalog/reference/policies"),
+        requestJson("/api/v1/catalog/reference/marketing"),
+        requestJson("/api/v1/catalog/reference/options"),
       ]);
       snapshot = result.item;
       policyRefs = refs;
+      marketingRefs = marketing;
+      optionRefs = options.item || options;
       hydrate();
     } catch (error) {
       notify(error.message, "error");
@@ -105,6 +111,32 @@
       ["المخزون", steps.inventory],
       ["جاهز للنشر", snapshot.publishable],
     ].map(([label, ok]) => '<div class="checklist-row"><span class="' + (ok ? "ok" : "pending") + '">' + (ok ? "✓" : "•") + '</span><strong>' + label + '</strong><small>' + (ok ? "مكتمل" : "يحتاج إعدادًا") + '</small></div>').join("");
+    const brand = document.getElementById("productBrand");
+    brand.innerHTML = '<option value="">بدون علامة تجارية</option>' +
+      (marketingRefs?.brands || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+    if (snapshot.product?.brand_id) brand.value = String(snapshot.product.brand_id);
+
+    const color = document.getElementById("variantColor");
+    color.innerHTML = '<option value="">بدون لون</option>' +
+      (optionRefs?.colors || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+    const size = document.getElementById("variantSize");
+    size.innerHTML = '<option value="">بدون مقاس</option>' +
+      (optionRefs?.sizes || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.label) + ' · ' + escapeHtml(x.group) + '</option>').join("");
+
+    document.getElementById("badgeSelection").innerHTML = (marketingRefs?.badges || []).map(x => (
+      '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-badge-checkbox><span><strong>' +
+      escapeHtml(x.name) + '</strong><small>' + escapeHtml(x.code) + '</small></span></label>'
+    )).join("");
+    const selectedBadges = new Set((snapshot.badges || []).map(x => String(x.id)));
+    document.querySelectorAll("[data-badge-checkbox]").forEach(input => input.checked = selectedBadges.has(input.value));
+
+    document.getElementById("hashtagSelection").innerHTML = (marketingRefs?.hashtags || []).map(x => (
+      '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-hashtag-checkbox><span><strong>' +
+      escapeHtml(x.display_name || x.name) + '</strong><small>#' + escapeHtml(x.slug) + '</small></span></label>'
+    )).join("");
+    const selectedHashtags = new Set((snapshot.hashtags || []).map(x => String(x.id)));
+    document.querySelectorAll("[data-hashtag-checkbox]").forEach(input => input.checked = selectedHashtags.has(input.value));
+
     document.getElementById("publishProduct").disabled = !snapshot.publishable;
   };
 
@@ -133,6 +165,9 @@
       base_price: document.getElementById("productPrice").value,
       material: document.getElementById("productMaterial").value,
       care_instructions: document.getElementById("productCare").value,
+      compare_at_price: document.getElementById("productCompareAtPrice").value || null,
+      brand_id: document.getElementById("productBrand").value || null,
+      product_type: document.getElementById("productType").value,
     };
     try {
       await requestJson("/api/v1/catalog/products/" + productId, { method: "PATCH", body: JSON.stringify(body) });
@@ -182,6 +217,23 @@
       event.currentTarget.reset();
       await load();
       notify("تمت إضافة الخيار وقيمه.");
+    } catch (error) { notify(error.message, "error"); }
+  });
+
+  document.getElementById("saveMarketing").addEventListener("click", async () => {
+    const badgeIds = [...document.querySelectorAll("[data-badge-checkbox]:checked")].map(input => Number(input.value));
+    const hashtagIds = [...document.querySelectorAll("[data-hashtag-checkbox]:checked")].map(input => Number(input.value));
+    try {
+      await requestJson("/api/v1/catalog/products/" + productId + "/badges", {
+        method: "POST",
+        body: JSON.stringify({ badge_ids: badgeIds }),
+      });
+      await requestJson("/api/v1/catalog/products/" + productId + "/hashtags", {
+        method: "POST",
+        body: JSON.stringify({ hashtag_ids: hashtagIds }),
+      });
+      await load();
+      notify("تم حفظ الشارات والهاشتاجات.");
     } catch (error) { notify(error.message, "error"); }
   });
 
