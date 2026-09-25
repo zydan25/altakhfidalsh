@@ -10,6 +10,8 @@ def register_module_blueprints(app: Flask) -> None:
     from .support import api_bp as support_api_bp
     from .promotions import api_bp as promotions_api_bp
     from .system import api_bp as system_api_bp
+    from .geo import api_bp as geo_api_bp
+    from .after_sales import api_bp as after_sales_api_bp
 
     modules = (
         catalog_api_bp,
@@ -20,6 +22,8 @@ def register_module_blueprints(app: Flask) -> None:
         support_api_bp,
         promotions_api_bp,
         system_api_bp,
+        geo_api_bp,
+        after_sales_api_bp,
     )
     for blueprint in modules:
         app.register_blueprint(blueprint, url_prefix="/api/v1")
