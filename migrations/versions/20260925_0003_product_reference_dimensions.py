@@ -13,8 +13,17 @@ branch_labels = None
 depends_on = None
 
 
+def _has_table(table_name):
+    return sa.inspect(op.get_bind()).has_table(table_name)
+
+
+def _has_index(table_name, index_name):
+    return index_name in {x["name"] for x in sa.inspect(op.get_bind()).get_indexes(table_name)}
+
+
 def upgrade():
-    op.create_table(
+    if not _has_table("product_color_references"):
+        op.create_table(
         "product_color_references",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("product_id", sa.Integer(), sa.ForeignKey("products.id", ondelete="CASCADE"), nullable=False),
@@ -24,13 +33,15 @@ def upgrade():
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.UniqueConstraint("product_id", "color_id", name="uq_product_color_reference"),
     )
-    op.create_index(
-        "ix_product_color_reference_product",
-        "product_color_references",
-        ["product_id", "sort_order"],
-    )
+    if not _has_index("product_color_references", "ix_product_color_reference_product"):
+        op.create_index(
+            "ix_product_color_reference_product",
+            "product_color_references",
+            ["product_id", "sort_order"],
+        )
 
-    op.create_table(
+    if not _has_table("product_size_references"):
+        op.create_table(
         "product_size_references",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("product_id", sa.Integer(), sa.ForeignKey("products.id", ondelete="CASCADE"), nullable=False),
@@ -40,11 +51,12 @@ def upgrade():
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.UniqueConstraint("product_id", "size_id", name="uq_product_size_reference"),
     )
-    op.create_index(
-        "ix_product_size_reference_product",
-        "product_size_references",
-        ["product_id", "sort_order"],
-    )
+    if not _has_index("product_size_references", "ix_product_size_reference_product"):
+        op.create_index(
+            "ix_product_size_reference_product",
+            "product_size_references",
+            ["product_id", "sort_order"],
+        )
 
     bind = op.get_bind()
     bind.execute(sa.text("""
@@ -78,7 +90,11 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_index("ix_product_size_reference_product", table_name="product_size_references")
-    op.drop_table("product_size_references")
-    op.drop_index("ix_product_color_reference_product", table_name="product_color_references")
-    op.drop_table("product_color_references")
+    if _has_table("product_size_references"):
+        if _has_index("product_size_references", "ix_product_size_reference_product"):
+            op.drop_index("ix_product_size_reference_product", table_name="product_size_references")
+        op.drop_table("product_size_references")
+    if _has_table("product_color_references"):
+        if _has_index("product_color_references", "ix_product_color_reference_product"):
+            op.drop_index("ix_product_color_reference_product", table_name="product_color_references")
+        op.drop_table("product_color_references")
