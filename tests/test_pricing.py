@@ -15,7 +15,7 @@ def test_customer_price_calculation():
     )
 
     assert result.converted == Decimal("7000")
-    assert result.percent_add == Decimal("70")
+    assert result.percent_add == Decimal("700")
     assert result.final == Decimal("7705.00")
 
 
