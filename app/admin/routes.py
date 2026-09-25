@@ -132,9 +132,11 @@ def register_admin_routes(admin_bp):
                 parent_id = request.form.get("parent_id", type=int)
                 display_style = (request.form.get("display_style") or "circle").strip()
 
+                from .entity_views import _unique_slug
                 if action == "create":
-                    if not name or not slug:
-                        raise ValueError("اسم الفئة وSlug مطلوبان.")
+                    if not name:
+                        raise ValueError("اسم الفئة مطلوب.")
+                    slug = slug or _unique_slug(Category, name, fallback="category")
                     duplicate = Category.query.filter_by(parent_id=parent_id, slug=slug).first()
                     if duplicate:
                         raise ValueError("الـSlug مستخدم داخل هذا المستوى.")
@@ -164,8 +166,9 @@ def register_admin_routes(admin_bp):
                     category = db.session.get(Category, category_id)
                     if category is None:
                         raise ValueError("الفئة غير موجودة.")
-                    if not name or not slug:
-                        raise ValueError("اسم الفئة وSlug مطلوبان.")
+                    if not name:
+                        raise ValueError("اسم الفئة مطلوب.")
+                    slug = slug or _unique_slug(Category, name, exclude_id=category.id, fallback="category")
                     if parent_id == category.id:
                         raise ValueError("لا يمكن أن تكون الفئة أبًا لنفسها.")
 
