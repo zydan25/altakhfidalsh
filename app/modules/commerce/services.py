@@ -24,13 +24,16 @@ from ...models import (
     PaymentMethod,
     PaymentProof,
     PaymentTransaction,
+    Color,
     Product,
+    ProductMedia,
     ProductVariant,
     Refund,
     ReturnItem,
     ReturnRequest,
     Shipment,
     ShipmentEvent,
+    Size,
     ShippingMethod,
     ShippingRate,
     StockInventory,
@@ -282,6 +285,10 @@ class CommerceService:
         order_items = OrderItem.query.filter_by(order_id=order.id).order_by(OrderItem.id).all()
         data["items"] = []
         for item in order_items:
+            variant = db.session.get(ProductVariant, item.variant_id) if item.variant_id else None
+            color = db.session.get(Color, variant.color_id) if variant and variant.color_id else None
+            size = db.session.get(Size, variant.size_id) if variant and variant.size_id else None
+            media_rows = ProductMedia.query.filter_by(product_id=item.product_id).order_by(ProductMedia.sort_order, ProductMedia.id).all()
             data["items"].append({
                 "id": item.id,
                 "product_id": item.product_id,
@@ -295,6 +302,24 @@ class CommerceService:
                 "sale_price_display": str(item.sale_price_display),
                 "qty": item.qty,
                 "total": str(item.total),
+                "variant_display": {
+                    "color": {"id": color.id, "name": color.name, "hex_code": color.hex_code} if color else None,
+                    "size": {"id": size.id, "group": size.group, "code": size.code, "label": size.label} if size else None,
+                },
+                "media": [
+                    {
+                        "id": row.id,
+                        "asset_id": row.asset_id,
+                        "url": (
+                            db.session.get(MediaAsset, row.asset_id).url
+                            if db.session.get(MediaAsset, row.asset_id)
+                            else None
+                        ),
+                        "role": row.role,
+                        "sort_order": row.sort_order,
+                    }
+                    for row in media_rows
+                ],
                 "options": [
                     {"name": option.option_name, "value": option.option_value}
                     for option in OrderItemOption.query.filter_by(order_item_id=item.id).order_by(OrderItemOption.id).all()
