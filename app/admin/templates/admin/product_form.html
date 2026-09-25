@@ -10,12 +10,13 @@
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
-<form method="post" class="form-layout">
+<form method="post" class="form-layout" data-slug-form>
   <section class="panel">
     <div class="panel-heading"><div><span class="eyebrow">1</span><h3>الهوية</h3></div></div>
     <div class="form-stack">
       <label>SKU<input name="sku" required dir="ltr" placeholder="SHP-10001"></label>
-      <label>اسم المنتج<input name="name" required placeholder="اسم واضح للمنتج"></label>
+      <label>اسم المنتج<input id="productName" name="name" required placeholder="اسم واضح للمنتج"></label>
+      <label>Slug <small class="muted">اتركه فارغًا ليولد تلقائيًا من الاسم</small><input name="slug" dir="ltr" data-slug-source="#productName" placeholder="يولد تلقائيًا"></label>
       <label>الوصف<textarea name="description" rows="5" placeholder="وصف المنتج"></textarea></label>
     </div>
   </section>

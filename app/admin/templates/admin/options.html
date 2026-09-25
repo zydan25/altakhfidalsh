@@ -26,6 +26,7 @@
         <div class="manage-card-title"><span class="color-swatch" style="background:{{ row.hex_code or '#111827' }}"></span><strong>{{ row.name }}</strong></div>
         <span dir="ltr">{{ row.hex_code or "—" }} · {{ row.sort_order }}</span>
       </div>
+      <details><summary class="ghost-button">تعديل</summary><form method="post" class="form-stack" style="margin-top:8px"><input type="hidden" name="action" value="color_update"><input type="hidden" name="id" value="{{ row.id }}"><label>الاسم<input name="name" value="{{ row.name }}" required></label><label>اللون<span class="color-input-row"><input name="hex_code" type="color" value="{{ row.hex_code or "#111111" }}"><input class="color-text-input" data-color-text value="{{ row.hex_code or "#111111" }}" dir="ltr"></span></label><label>الترتيب<input name="sort_order" type="number" value="{{ row.sort_order }}"></label><button class="primary-button">حفظ</button></form><form method="post" style="margin-top:6px"><input type="hidden" name="action" value="color_archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button">أرشفة</button></form></details>
       {% else %}<span class="muted">لا توجد ألوان.</span>{% endfor %}
     </div>
   </article>
@@ -34,7 +35,7 @@
     <div class="panel-heading"><div><span class="eyebrow">المقاسات</span><h3>السجل</h3></div><span class="status-pill">{{ sizes|length }}</span></div>
     <div class="stack-list">
       {% for row in sizes %}
-      <div class="stack-row"><strong>{{ row.label }}</strong><span>{{ row.group }} · {{ row.code }} · {{ row.sort_order }}</span></div>
+      <div class="stack-row"><strong>{{ row.label }}</strong><span>{{ row.group }} · {{ row.code }} · {{ row.sort_order }}</span></div><details><summary class="ghost-button">تعديل</summary><form method="post" class="form-stack" style="margin-top:8px"><input type="hidden" name="action" value="size_update"><input type="hidden" name="id" value="{{ row.id }}"><label>المجموعة<input name="group" value="{{ row.group }}" required></label><label>Code<input name="code" value="{{ row.code }}" required dir="ltr"></label><label>الاسم الظاهر<input name="label" value="{{ row.label }}" required></label><label>الترتيب<input name="sort_order" type="number" value="{{ row.sort_order }}"></label><button class="primary-button">حفظ</button></form><form method="post" style="margin-top:6px"><input type="hidden" name="action" value="size_archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button">أرشفة</button></form></details>
       {% else %}<span class="muted">لا توجد مقاسات.</span>{% endfor %}
     </div>
   </article>

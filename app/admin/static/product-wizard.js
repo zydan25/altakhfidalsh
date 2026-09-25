@@ -67,9 +67,17 @@
       '</span></div>'
     )).join("");
 
-    document.getElementById("mediaPreview").innerHTML = (snapshot.media || []).map(item => (
-      '<div class="media-thumb"><span>صورة</span><small>#' + item.asset_id + '</small></div>'
+    const mediaRows = snapshot.media || [];
+    document.getElementById("mediaPreview").innerHTML = mediaRows.map(item => (
+      '<div class="media-thumb">' +
+      (item.url ? '<img src="' + escapeHtml(item.url) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px">' : '<span>صورة</span>') +
+      '<small>' + (item.color_name ? escapeHtml(item.color_name) : 'عام') + ' · #' + item.id + '</small>' +
+      '<button type="button" class="ghost-button" data-delete-media="' + item.id + '">حذف</button></div>'
     )).join("");
+    document.getElementById("mediaColorGroups").innerHTML = (optionRefs?.colors || []).map(color => {
+      const rows = mediaRows.filter(x => String(x.color_id || "") === String(color.id));
+      return rows.length ? '<div class="stack-row"><strong>' + escapeHtml(color.name) + '</strong><span>' + rows.length + ' صورة</span></div>' : '';
+    }).join("");
 
     const variantSelect = document.getElementById("inventoryVariant");
     variantSelect.innerHTML = (snapshot.variants || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.sku) + '</option>').join("");
@@ -119,6 +127,11 @@
     const color = document.getElementById("variantColor");
     color.innerHTML = '<option value="">بدون لون</option>' +
       (optionRefs?.colors || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+    const mediaColor = document.getElementById("mediaColor");
+    if (mediaColor) {
+      mediaColor.innerHTML = '<option value="">صور عامة للمنتج</option>' +
+        (optionRefs?.colors || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+    }
     const size = document.getElementById("variantSize");
     size.innerHTML = '<option value="">بدون مقاس</option>' +
       (optionRefs?.sizes || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.label) + ' · ' + escapeHtml(x.group) + '</option>').join("");
@@ -162,6 +175,7 @@
       sku: document.getElementById("productSku").value.trim(),
       name: document.getElementById("productName").value.trim(),
       description: document.getElementById("productDescription").value,
+      slug: document.getElementById("productSlug").value.trim(),
       base_price: document.getElementById("productPrice").value,
       material: document.getElementById("productMaterial").value,
       care_instructions: document.getElementById("productCare").value,
@@ -185,11 +199,23 @@
     } catch (error) { notify(error.message, "error"); }
   });
 
+  document.getElementById("mediaPreview").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-delete-media]");
+    if (!button) return;
+    try {
+      await requestJson("/api/v1/catalog/products/" + productId + "/media/" + button.dataset.deleteMedia, { method: "DELETE" });
+      await load();
+      notify("تم حذف الصورة.");
+    } catch (error) { notify(error.message, "error"); }
+  });
+
   document.getElementById("uploadMedia").addEventListener("click", async () => {
     const input = document.getElementById("productMedia");
     if (!input.files.length) return notify("اختر صورة واحدة على الأقل.", "error");
     const body = new FormData();
     [...input.files].forEach(file => body.append("files", file));
+    const mediaColor = document.getElementById("mediaColor");
+    if (mediaColor?.value) body.append("color_id", mediaColor.value);
     try {
       const response = await fetch("/api/v1/catalog/products/" + productId + "/media", { method: "POST", body });
       const data = await response.json();

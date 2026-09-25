@@ -47,7 +47,7 @@ def test_order_uses_customer_city_pricing_and_snapshots(app):
         category = Category(name="Test", slug="test")
         db.session.add(category)
         db.session.flush()
-        product = Product(sku="ORD-TEST", name="Order Product", base_currency_id=sar.id, base_price=Decimal("100"), status="published")
+        product = Product(sku="ORD-TEST", name="Order Product", slug="order-product", base_currency_id=sar.id, base_price=Decimal("100"), status="published")
         db.session.add(product)
         db.session.flush()
         db.session.add(ProductCategory(product_id=product.id, category_id=category.id, is_primary=True))

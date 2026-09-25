@@ -37,6 +37,21 @@ from ...models import (
 )
 
 
+_ARABIC_SLUG_MAP = str.maketrans({
+    "ا":"a","أ":"a","إ":"i","آ":"a","ب":"b","ت":"t","ث":"th","ج":"j","ح":"h","خ":"kh",
+    "د":"d","ذ":"th","ر":"r","ز":"z","س":"s","ش":"sh","ص":"s","ض":"d","ط":"t","ظ":"z",
+    "ع":"a","غ":"gh","ف":"f","ق":"q","ك":"k","ل":"l","م":"m","ن":"n","ه":"h","و":"w",
+    "ي":"y","ى":"a","ة":"h","ؤ":"w","ئ":"y","ء":"","ـ":""
+})
+
+
+def _slugify(value, fallback="item"):
+    import re
+    value = (value or "").strip().lower().translate(_ARABIC_SLUG_MAP)
+    value = re.sub(r"[^a-z0-9]+", "-", value).strip("-")
+    return value[:220] or fallback
+
+
 class CatalogService:
     @staticmethod
     def _serialize_category(category):
@@ -144,6 +159,7 @@ class CatalogService:
             "id": product.id,
             "sku": product.sku,
             "name": product.name,
+            "slug": product.slug,
             "description": product.description,
             "base_price_sar": str(product.base_price),
             "compare_at_price": str(product.compare_at_price) if product.compare_at_price is not None else None,
@@ -195,9 +211,17 @@ class CatalogService:
         if base_price < 0 or (compare_at_price is not None and compare_at_price < 0):
             raise ValueError("price cannot be negative")
 
+        slug_base = _slugify(payload.get("slug") or name, fallback="product")
+        slug = slug_base
+        index = 2
+        while Product.query.filter_by(slug=slug).first():
+            slug = f"{slug_base}-{index}"[:220]
+            index += 1
+
         product = Product(
             sku=sku,
             name=name,
+            slug=slug,
             description=(payload.get("description") or "").strip() or None,
             base_currency_id=int(currency_id),
             base_price=base_price,
@@ -242,7 +266,24 @@ class CatalogService:
                     duplicate = Product.query.filter(Product.id != product_id, Product.sku == value).first()
                     if duplicate:
                         raise ValueError("sku already exists")
+                if key == "name" and value:
+                    requested_slug = (payload.get("slug") or "").strip()
+                    slug_base = _slugify(requested_slug or value, fallback=f"product-{product_id}")
+                    slug = slug_base
+                    index = 2
+                    while Product.query.filter(Product.id != product_id, Product.slug == slug).first():
+                        slug = f"{slug_base}-{index}"[:220]
+                        index += 1
+                    product.slug = slug
                 setattr(product, key, value or None)
+        if "slug" in payload and (payload.get("slug") or "").strip():
+            slug_base = _slugify(payload.get("slug"), fallback=f"product-{product_id}")
+            slug = slug_base
+            index = 2
+            while Product.query.filter(Product.id != product_id, Product.slug == slug).first():
+                slug = f"{slug_base}-{index}"[:220]
+                index += 1
+            product.slug = slug
         if "brand_id" in payload:
             brand_id = payload.get("brand_id")
             if brand_id in (None, ""):
@@ -357,6 +398,19 @@ class CatalogService:
             values.append({"id": value.id, "label": value.label})
         db.session.commit()
         return {"id": option.id, "name": option.name, "values": values}
+
+    @staticmethod
+    def remove_product_media(product_id, media_id):
+        media = db.session.get(ProductMedia, media_id)
+        if media is None or media.product_id != product_id:
+            raise LookupError("product media not found")
+        asset = db.session.get(MediaAsset, media.asset_id)
+        db.session.delete(media)
+        db.session.flush()
+        if asset is not None:
+            db.session.delete(asset)
+        db.session.commit()
+        return {"id": media_id}
 
     @staticmethod
     def add_variant(product_id, payload):
@@ -792,7 +846,7 @@ class MediaService:
         return results
 
     @staticmethod
-    def attach_product_files(product_id, files):
+    def attach_product_files(product_id, files, color_id=None):
         product = db.session.get(Product, product_id)
         if product is None:
             raise LookupError("product not found")
@@ -842,6 +896,7 @@ class MediaService:
                 media = ProductMedia(
                     product_id=product_id,
                     asset_id=asset.id,
+                    color_id=int(color_id) if color_id not in (None, "", 0, "0") else None,
                     role="gallery",
                     sort_order=len(items),
                 )

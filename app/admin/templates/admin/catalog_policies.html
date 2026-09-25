@@ -1,0 +1,143 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <div class="module-toolbar">
+    <div class="module-heading-copy">
+      <span class="eyebrow">الكتالوج</span>
+      <h2>الشارات والسياسات</h2>
+      <p class="muted">إدارة المحتوى الذي يظهر للعميل على المنتج: الشارات، الشحن، الإرجاع والضمان. كل سجل قابل للإضافة والتعديل والأرشفة وإعادة استخدامه على عدة منتجات.</p>
+    </div>
+    <div class="module-toolbar-actions">
+      <button class="primary-button" type="button" data-open-modal="badgeAddModal">+ شارة</button>
+      <button class="ghost-button" type="button" data-open-modal="shippingAddModal">+ شحن</button>
+      <button class="ghost-button" type="button" data-open-modal="returnAddModal">+ إرجاع</button>
+      <button class="ghost-button" type="button" data-open-modal="warrantyAddModal">+ ضمان</button>
+    </div>
+  </div>
+</section>
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+{% macro modal_shell(id, title, action_name, fields) %}
+<div class="admin-modal" data-modal="{{ id }}" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">إضافة</span><h3>{{ title }}</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="form-stack">
+      <input type="hidden" name="action" value="{{ action_name }}">
+      {% if "id" in fields %}<input type="hidden" name="id">{% endif %}
+      {% for f in fields %}
+        {% if f != "id" %}
+          {% if f == "free_shipping_enabled" %}
+            <label class="check-row"><input name="free_shipping_enabled" type="checkbox"><span><strong>شحن مجاني</strong></span></label>
+          {% elif f == "bg_color" or f == "text_color" %}
+            <label>{{ "لون الخلفية" if f == "bg_color" else "لون النص" }}
+              <span class="color-input-row"><input name="{{ f }}" type="color" value="{{ "#111827" if f == "bg_color" else "#ffffff" }}"><input class="color-text-input" data-color-text type="text" value="{{ "#111827" if f == "bg_color" else "#ffffff" }}" dir="ltr"></span>
+            </label>
+          {% elif f == "icon_file" %}<label>أيقونة اختيارية<input name="icon_file" type="file" accept="image/*"></label>
+          {% elif f in ["conditions","coverage","exclusions","promo_text"] %}
+            <label>{{ {"conditions":"الشروط","coverage":"التغطية","exclusions":"الاستثناءات","promo_text":"النص الترويجي"}[f] }}<textarea name="{{ f }}" rows="4"></textarea></label>
+          {% else %}
+            <label>{{ {"name":"الاسم","code":"الكود","style":"النمط","priority":"الأولوية","min_order_amount":"الحد الأدنى للطلب","delivery_window":"مدة التوصيل","return_window_days":"مدة الإرجاع بالأيام","fee_rule":"رسوم الإرجاع","refund_method":"طريقة الاسترداد","duration_days":"مدة الضمان بالأيام","claim_method":"طريقة المطالبة"}[f] or f }}
+              <input name="{{ f }}" type="{{ "number" if f in ["priority","min_order_amount","return_window_days","duration_days"] else "text" }}" {% if f == "priority" %}value="0"{% endif %}>
+            </label>
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      <div class="modal-actions"><button class="ghost-button" type="button" data-close-modal>إلغاء</button><button class="primary-button" type="submit">حفظ</button></div>
+    </form>
+  </section>
+</div>
+{% endmacro %}
+
+<section class="panel" style="margin-bottom:12px">
+  <div class="panel-heading"><div><span class="eyebrow">العرض</span><h3>الشارات</h3></div><span class="status-pill">{{ badges|length }}</span></div>
+  <div class="entity-grid">
+    {% for row in badges %}
+    <article class="entity-card panel">
+      <div class="manage-card-header">
+        <div class="manage-card-title"><span class="color-swatch" style="background:{{ row.bg_color or "#111827" }}"></span><strong>{{ row.name }}</strong></div>
+        <span class="status-pill" style="background:{{ row.bg_color or "#111827" }};color:{{ row.text_color or "#fff" }}">{{ row.code }}</span>
+      </div>
+      <div class="entity-field"><span class="entity-label">النمط / الأولوية</span><strong>{{ row.style or "solid" }} · {{ row.priority }}</strong></div>
+      <form method="post" class="form-stack" style="margin-top:10px">
+        <input type="hidden" name="action" value="badge_update"><input type="hidden" name="id" value="{{ row.id }}">
+        <label>الاسم<input name="name" value="{{ row.name }}" required></label>
+        <label>الكود<input name="code" value="{{ row.code }}" required dir="ltr"></label>
+        <div class="form-grid">
+          <label>الخلفية<span class="color-input-row"><input name="bg_color" type="color" value="{{ row.bg_color or "#111827" }}"><input class="color-text-input" data-color-text value="{{ row.bg_color or "#111827" }}" dir="ltr"></span></label>
+          <label>النص<span class="color-input-row"><input name="text_color" type="color" value="{{ row.text_color or "#ffffff" }}"><input class="color-text-input" data-color-text value="{{ row.text_color or "#ffffff" }}" dir="ltr"></span></label>
+        </div>
+        <div class="form-grid"><label>النمط<input name="style" value="{{ row.style or "solid" }}"></label><label>الأولوية<input name="priority" type="number" value="{{ row.priority }}"></label></div>
+        <div class="modal-actions"><button class="primary-button" type="submit">حفظ التعديل</button></div>
+      </form>
+      <form method="post" style="margin-top:6px"><input type="hidden" name="action" value="badge_archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button" type="submit">أرشفة</button></form>
+    </article>
+    {% else %}<div class="empty-state panel" style="grid-column:1/-1"><strong>لا توجد شارات.</strong></div>{% endfor %}
+  </div>
+</section>
+
+{% set policy_sets = [
+  ("shipping", "سياسات الشحن", shipping_policies, ["free_shipping_enabled","min_order_amount","promo_text","delivery_window"]),
+  ("return", "سياسات الإرجاع", return_policies, ["return_window_days","conditions","fee_rule","refund_method"]),
+  ("warranty", "سياسات الضمان", warranty_policies, ["duration_days","coverage","exclusions","claim_method"])
+] %}
+{% for kind, title, rows, fields in policy_sets %}
+<section class="panel" style="margin-bottom:12px">
+  <div class="panel-heading"><div><span class="eyebrow">الثقة والخدمة</span><h3>{{ title }}</h3></div><span class="status-pill">{{ rows|length }}</span></div>
+  <div class="entity-grid">
+    {% for row in rows %}
+    <article class="entity-card panel">
+      <div class="manage-card-header"><strong>{{ row.name }}</strong><span class="status-pill">#{{ row.id }}</span></div>
+      {% if kind == "shipping" %}
+        <div class="entity-field"><span class="entity-label">الشحن المجاني</span><strong>{{ "نعم" if row.free_shipping_enabled else "لا" }}</strong></div>
+        <div class="entity-field"><span class="entity-label">التوصيل</span><strong>{{ row.delivery_window or "—" }}</strong></div>
+        <div class="entity-field"><span class="entity-label">الحد الأدنى</span><strong>{{ row.min_order_amount or "—" }}</strong></div>
+      {% elif kind == "return" %}
+        <div class="entity-field"><span class="entity-label">نافذة الإرجاع</span><strong>{{ row.return_window_days }} يوم</strong></div>
+        <div class="entity-field"><span class="entity-label">الرسوم</span><strong>{{ row.fee_rule or "—" }}</strong></div>
+        <div class="entity-field"><span class="entity-label">الاسترداد</span><strong>{{ row.refund_method or "—" }}</strong></div>
+      {% else %}
+        <div class="entity-field"><span class="entity-label">مدة الضمان</span><strong>{{ row.duration_days }} يوم</strong></div>
+        <div class="entity-field"><span class="entity-label">طريقة المطالبة</span><strong>{{ row.claim_method or "—" }}</strong></div>
+      {% endif %}
+      <details style="margin-top:10px">
+        <summary class="ghost-button" style="cursor:pointer">تعديل السياسة</summary>
+        <form method="post" class="form-stack" style="margin-top:10px">
+          <input type="hidden" name="action" value="{{ kind }}_update"><input type="hidden" name="id" value="{{ row.id }}">
+          <label>الاسم<input name="name" value="{{ row.name }}" required></label>
+          {% if kind == "shipping" %}
+            <label class="check-row"><input name="free_shipping_enabled" type="checkbox" {% if row.free_shipping_enabled %}checked{% endif %}><span><strong>شحن مجاني</strong></span></label>
+            <label>الحد الأدنى للطلب<input name="min_order_amount" type="number" value="{{ row.min_order_amount or "" }}" step="0.01"></label>
+            <label>النص الترويجي<textarea name="promo_text" rows="3">{{ row.promo_text or "" }}</textarea></label>
+            <label>مدة التوصيل<input name="delivery_window" value="{{ row.delivery_window or "" }}"></label>
+          {% elif kind == "return" %}
+            <label>مدة الإرجاع بالأيام<input name="return_window_days" type="number" min="0" value="{{ row.return_window_days }}"></label>
+            <label>الشروط<textarea name="conditions" rows="4">{{ row.conditions or "" }}</textarea></label>
+            <label>رسوم الإرجاع<input name="fee_rule" value="{{ row.fee_rule or "" }}"></label>
+            <label>طريقة الاسترداد<input name="refund_method" value="{{ row.refund_method or "" }}"></label>
+          {% else %}
+            <label>مدة الضمان بالأيام<input name="duration_days" type="number" min="0" value="{{ row.duration_days }}"></label>
+            <label>التغطية<textarea name="coverage" rows="4">{{ row.coverage or "" }}</textarea></label>
+            <label>الاستثناءات<textarea name="exclusions" rows="4">{{ row.exclusions or "" }}</textarea></label>
+            <label>طريقة المطالبة<input name="claim_method" value="{{ row.claim_method or "" }}"></label>
+          {% endif %}
+          <button class="primary-button" type="submit">حفظ التعديلات</button>
+        </form>
+      </details>
+      <form method="post" style="margin-top:8px"><input type="hidden" name="action" value="{{ kind }}_archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button" type="submit">أرشفة</button></form>
+    </article>
+    {% else %}<div class="empty-state panel" style="grid-column:1/-1"><strong>لا توجد سياسات.</strong></div>{% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+{{ modal_shell("badgeAddModal","إضافة شارة","badge_create",["name","code","bg_color","text_color","style","priority","icon_file"]) }}
+{{ modal_shell("shippingAddModal","إضافة سياسة شحن","shipping_create",["name","free_shipping_enabled","min_order_amount","promo_text","delivery_window"]) }}
+{{ modal_shell("returnAddModal","إضافة سياسة إرجاع","return_create",["name","return_window_days","conditions","fee_rule","refund_method"]) }}
+{{ modal_shell("warrantyAddModal","إضافة سياسة ضمان","warranty_create",["name","duration_days","coverage","exclusions","claim_method"]) }}
+{% endblock %}
