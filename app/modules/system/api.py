@@ -1,6 +1,7 @@
 from flask import request
 
 from . import api_bp
+from ...security import admin_api_required
 from .services import SystemService
 from ...extensions import db
 from ...models import Admin, AppSetting, FeatureFlag, Role, Theme, ThemeToken
@@ -17,6 +18,7 @@ def permissions():
 
 
 @api_bp.post("/permissions")
+@admin_api_required("system.manage")
 def create_permission():
     try:
         return {"item": SystemService.create_permission(request.get_json(silent=True) or {})}, 201
@@ -31,6 +33,7 @@ def roles():
 
 
 @api_bp.post("/roles")
+@admin_api_required("system.manage")
 def create_role():
     try:
         return {"item": SystemService.create_role(request.get_json(silent=True) or {})}, 201
@@ -39,6 +42,7 @@ def create_role():
 
 
 @api_bp.post("/admins/<int:admin_id>/roles/<int:role_id>")
+@admin_api_required("system.manage")
 def assign_role(admin_id, role_id):
     try:
         return {"item": SystemService.assign_role(admin_id, role_id)}
@@ -64,6 +68,7 @@ def features():
 
 
 @api_bp.patch("/features/<string:key>")
+@admin_api_required("system.manage")
 def update_feature(key):
     payload = request.get_json(silent=True) or {}
     row = FeatureFlag.query.filter_by(key=key).first()
@@ -89,6 +94,7 @@ def theme(code):
 
 
 @api_bp.post("/theme/<string:code>/tokens")
+@admin_api_required("theme.manage")
 def upsert_theme_token(code):
     payload = request.get_json(silent=True) or {}
     theme = Theme.query.filter_by(code=code, is_active=True).first()
