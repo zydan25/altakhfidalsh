@@ -11,6 +11,9 @@ Base URL:
 - POST /catalog/products/drafts
 - GET /catalog/products/{id}
 - PATCH /catalog/products/{id}
+- POST /catalog/products/{id}/badges
+- POST /catalog/products/{id}/hashtags
+- GET /catalog/reference/marketing
 - POST /catalog/products/{id}/categories
 - POST /catalog/products/{id}/options
 - POST /catalog/products/{id}/variants
@@ -72,6 +75,7 @@ base × FX → نسبة الزيادة → الزيادة الثابتة → rou
 - POST /customer/auth/logout
 - GET /customer/me
 - PATCH /customer/me
+- GET /customer/me/orders/{id}/detail
 - GET /customer/me/addresses
 - POST /customer/me/addresses
 - GET /customer/me/wishlist
@@ -89,6 +93,7 @@ base × FX → نسبة الزيادة → الزيادة الثابتة → rou
 - DELETE /commerce/cart/{customer_id}
 - GET /commerce/orders
 - GET /commerce/orders/{id}
+- GET /commerce/orders/{id}/detail
 - POST /commerce/orders
 - POST /commerce/orders/{id}/status
 - GET /commerce/payment-methods
