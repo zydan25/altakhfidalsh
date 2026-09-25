@@ -35,8 +35,8 @@
             <a class="nav-child {% if current_path == child.route or current_path.startswith(child.route + '/') %}is-current{% endif %}" href="{{ child.route }}">
               <span class="nav-child-icon">{{ child.icon }}</span>
               <span>{{ child.label }}</span>
-              {% if child.badge_key %}
-              <span class="nav-badge" data-badge-key="{{ child.badge_key }}">0</span>
+              {% if child.badge_key and badge_counts.get(child.badge_key, 0) > 0 %}
+              <span class="nav-badge" data-badge-key="{{ child.badge_key }}">{{ badge_counts[child.badge_key] }}</span>
               {% endif %}
             </a>
             {% endfor %}
