@@ -2,6 +2,7 @@ from flask import request
 from ...extensions import db
 
 from . import api_bp
+from ...security import admin_api_required
 from .services import PromotionService
 from ...extensions import db
 from ...models import Campaign, Coupon, GiftCampaign
@@ -40,6 +41,7 @@ def gifts():
 
 
 @api_bp.post("/gifts/issue")
+@admin_api_required("promotion.manage")
 def issue_gift():
     payload = request.get_json(silent=True) or {}
     try:
@@ -49,6 +51,7 @@ def issue_gift():
 
 
 @api_bp.post("/wallet/adjust")
+@admin_api_required("wallet.adjust")
 def wallet_adjust():
     payload = request.get_json(silent=True) or {}
     try:
@@ -65,6 +68,7 @@ def wallet_adjust():
 
 
 @api_bp.post("/campaigns/<int:campaign_id>/products/<int:product_id>")
+@admin_api_required("campaign.manage")
 def attach_campaign_product(campaign_id, product_id):
     from ...models import Campaign, CampaignProduct, Product
     if db.session.get(Campaign, campaign_id) is None or db.session.get(Product, product_id) is None:
@@ -79,6 +83,7 @@ def attach_campaign_product(campaign_id, product_id):
 
 
 @api_bp.post("/campaigns/<int:campaign_id>/categories/<int:category_id>")
+@admin_api_required("campaign.manage")
 def attach_campaign_category(campaign_id, category_id):
     from ...models import Campaign, CampaignCategory, Category
     if db.session.get(Campaign, campaign_id) is None or db.session.get(Category, category_id) is None:
@@ -92,6 +97,7 @@ def attach_campaign_category(campaign_id, category_id):
 
 
 @api_bp.post("/campaigns/<int:campaign_id>/hashtags/<int:hashtag_id>")
+@admin_api_required("campaign.manage")
 def attach_campaign_hashtag(campaign_id, hashtag_id):
     from ...models import Campaign, CampaignHashtag, Hashtag
     if db.session.get(Campaign, campaign_id) is None or db.session.get(Hashtag, hashtag_id) is None:
