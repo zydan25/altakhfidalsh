@@ -536,12 +536,44 @@ class CatalogService:
             {"id": media.id, "asset_id": media.asset_id, "role": media.role, "sort_order": media.sort_order}
             for media in ProductMedia.query.filter_by(product_id=product_id).order_by(ProductMedia.sort_order, ProductMedia.id).all()
         ]
+        inventory = [
+            {
+                "id": stock.id,
+                "variant_id": stock.variant_id,
+                "location_id": stock.location_id,
+                "on_hand": stock.on_hand,
+                "reserved": stock.reserved,
+                "available": stock.available,
+                "reorder_level": stock.reorder_level,
+            }
+            for stock in StockInventory.query
+            .join(ProductVariant, ProductVariant.id == StockInventory.variant_id)
+            .filter(ProductVariant.product_id == product_id)
+            .order_by(StockInventory.location_id, StockInventory.variant_id)
+            .all()
+        ]
+        display = db.session.get(ProductDisplaySettings, product_id)
+        policies = db.session.get(ProductPolicyAssignment, product_id)
         return {
             "product": CatalogService._serialize_product(product),
             "categories": categories,
             "options": options,
             "variants": variants,
             "media": media,
+            "inventory": inventory,
+            "locations": CatalogService.list_inventory_locations(),
+            "display": {
+                "show_rating": display.show_rating if display else True,
+                "show_sold_badge": display.show_sold_badge if display else True,
+                "show_shipping_banner": display.show_shipping_banner if display else True,
+                "show_return": display.show_return if display else True,
+                "show_review_count": display.show_review_count if display else True,
+            },
+            "policies": {
+                "shipping_policy_id": policies.shipping_policy_id if policies else None,
+                "return_policy_id": policies.return_policy_id if policies else None,
+                "warranty_policy_id": policies.warranty_policy_id if policies else None,
+            },
             "publishable": bool(categories and variants and media),
             "steps": {
                 "basics": True,
@@ -549,6 +581,7 @@ class CatalogService:
                 "media": bool(media),
                 "options": bool(options),
                 "variants": bool(variants),
+                "inventory": bool(inventory),
                 "publish": bool(categories and variants and media),
             },
         }
