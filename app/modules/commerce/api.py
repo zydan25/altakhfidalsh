@@ -71,3 +71,68 @@ def cart_item():
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "cart_update_failed", "detail": str(exc)}, 400
     return {"item": item}, 201
+
+
+from .payment_shipping import PaymentShippingService
+
+
+@api_bp.get("/payment-methods")
+def payment_methods():
+    from ...models import PaymentMethod
+    rows = PaymentMethod.query.filter_by(is_active=True).order_by(PaymentMethod.id).all()
+    return {"items": [{"id": x.id, "name": x.name, "code": x.code, "provider": x.provider, "supports_proof": x.supports_proof} for x in rows]}
+
+
+@api_bp.post("/payment-methods")
+def create_payment_method():
+    try:
+        return {"item": PaymentShippingService.create_payment_method(request.get_json(silent=True) or {})}, 201
+    except (KeyError, ValueError) as exc:
+        return {"error": "payment_method_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/payments")
+def record_payment():
+    try:
+        return {"item": PaymentShippingService.record_payment(request.get_json(silent=True) or {})}, 201
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "payment_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/payments/proofs")
+def payment_proof():
+    try:
+        return {"item": PaymentShippingService.attach_payment_proof(request.get_json(silent=True) or {})}, 201
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "payment_proof_failed", "detail": str(exc)}, 400
+
+
+@api_bp.get("/shipping-methods")
+def shipping_methods():
+    from ...models import ShippingMethod
+    rows = ShippingMethod.query.filter_by(is_active=True).order_by(ShippingMethod.id).all()
+    return {"items": [{"id": x.id, "name": x.name, "code": x.code, "supports_cod": x.supports_cod, "delivery_days_min": x.delivery_days_min, "delivery_days_max": x.delivery_days_max} for x in rows]}
+
+
+@api_bp.post("/shipping-methods")
+def create_shipping_method():
+    try:
+        return {"item": PaymentShippingService.create_shipping_method(request.get_json(silent=True) or {})}, 201
+    except (KeyError, ValueError) as exc:
+        return {"error": "shipping_method_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/shipments")
+def create_shipment():
+    try:
+        return {"item": PaymentShippingService.create_shipment(request.get_json(silent=True) or {})}, 201
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "shipment_creation_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/shipments/<int:shipment_id>/events")
+def shipment_event(shipment_id):
+    try:
+        return {"item": PaymentShippingService.add_shipment_event(shipment_id, request.get_json(silent=True) or {})}, 201
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "shipment_event_failed", "detail": str(exc)}, 400
