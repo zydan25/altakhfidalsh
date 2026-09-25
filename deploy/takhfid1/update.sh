@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-export PM2_HOME="${PM2_HOME:-/home/root/.pm2}"
+export PM2_HOME="${PM2_HOME:-$HOME/.pm2}"
 APP_ROOT="/home/root/projects/takhfid1"
 
 [ "$(id -u)" -eq 0 ] || { echo "شغّل هذا السكربت كـroot." >&2; exit 1; }
