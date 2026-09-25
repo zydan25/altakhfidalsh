@@ -541,7 +541,7 @@ def register_entity_views(admin_bp):
     @admin_bp.route("/system/admins", methods=["GET", "POST"])
     def admins():
         from ..models import Admin, AdminRole, Role
-        from ..admin.auth import AdminAuthService
+        from .auth import AdminAuthService
         error=None; success=None
         if request.method=="POST":
             try:
@@ -558,6 +558,11 @@ def register_entity_views(admin_bp):
                 elif action=="archive": row.is_active=False; row.status="disabled"; success="تم تعطيل حساب المدير."
                 elif action=="update":
                     row.phone=(request.form.get("phone") or "").strip() or None; row.email=(request.form.get("email") or "").strip() or None; row.status=(request.form.get("status") or row.status).strip(); row.is_active = row.status == "active"
+                    password=request.form.get("password") or ""
+                    if password:
+                        if len(password) < 8: raise ValueError("كلمة المرور يجب ألا تقل عن 8 أحرف.")
+                        from werkzeug.security import generate_password_hash
+                        row.password_hash=generate_password_hash(password)
                     AdminRole.query.filter_by(admin_id=row.id).delete(); role_id=request.form.get("role_id",type=int)
                     if role_id: db.session.add(AdminRole(admin_id=row.id,role_id=role_id))
                     success="تم تحديث حساب المدير."
