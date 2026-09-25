@@ -348,17 +348,31 @@ def product_wizard(product_id):
 def create_color():
     payload = request.get_json(silent=True) or {}
     try:
+        from ...extensions import db
         from ...models import Color
+        name = str(payload.get("name") or "").strip()
+        if not name:
+            raise ValueError("اسم اللون مطلوب.")
+        hex_code = (payload.get("hex_code") or "").strip() or None
+        duplicate = Color.query.filter(Color.name == name, Color.is_active.is_(True)).first()
+        if duplicate:
+            raise ValueError("هذا اللون موجود مسبقًا.")
         color = Color(
-            name=str(payload["name"]).strip(),
-            hex_code=(payload.get("hex_code") or "").strip() or None,
+            name=name,
+            hex_code=hex_code,
             swatch_asset_id=payload.get("swatch_asset_id"),
             sort_order=int(payload.get("sort_order", 0)),
         )
-        __import__("app.extensions", fromlist=["db"]).db.session.add(color)
-        __import__("app.extensions", fromlist=["db"]).db.session.commit()
-        return {"item": {"id": color.id, "name": color.name, "hex_code": color.hex_code}}, 201
-    except KeyError as exc:
+        db.session.add(color)
+        db.session.commit()
+        return {"item": {
+            "id": color.id,
+            "name": color.name,
+            "hex_code": color.hex_code,
+            "swatch_asset_id": color.swatch_asset_id,
+        }}, 201
+    except (KeyError, TypeError, ValueError) as exc:
+        db.session.rollback() if "db" in locals() else None
         return {"error": "invalid_color", "detail": str(exc)}, 400
 
 
@@ -451,18 +465,32 @@ def create_badge():
     from ...extensions import db
     from ...models import Badge
     payload = request.get_json(silent=True) or {}
-    row = Badge(
-        name=str(payload["name"]).strip(),
-        code=str(payload["code"]).strip().lower(),
-        icon_asset_id=payload.get("icon_asset_id"),
-        bg_color=payload.get("bg_color"),
-        text_color=payload.get("text_color"),
-        style=payload.get("style"),
-        priority=int(payload.get("priority", 0)),
-    )
-    db.session.add(row)
-    db.session.commit()
-    return {"item": {"id": row.id, "name": row.name, "code": row.code}}, 201
+    try:
+        name = str(payload.get("name") or "").strip()
+        code = str(payload.get("code") or "").strip().lower()
+        if not name or not code:
+            raise ValueError("اسم الشارة والكود مطلوبان.")
+        if Badge.query.filter_by(code=code).first():
+            raise ValueError("كود الشارة مستخدم مسبقًا.")
+        row = Badge(
+            name=name,
+            code=code,
+            icon_asset_id=payload.get("icon_asset_id"),
+            bg_color=(payload.get("bg_color") or "").strip() or None,
+            text_color=(payload.get("text_color") or "").strip() or None,
+            style=(payload.get("style") or "solid").strip(),
+            priority=int(payload.get("priority", 0)),
+        )
+        db.session.add(row)
+        db.session.commit()
+        return {"item": {
+            "id": row.id, "name": row.name, "code": row.code,
+            "bg_color": row.bg_color, "text_color": row.text_color,
+            "style": row.style, "priority": row.priority,
+        }}, 201
+    except (TypeError, ValueError) as exc:
+        db.session.rollback()
+        return {"error": "invalid_badge", "detail": str(exc)}, 400
 
 
 @api_bp.post("/size-guides")
