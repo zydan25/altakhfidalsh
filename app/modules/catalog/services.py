@@ -87,12 +87,17 @@ class CatalogService:
         name = (payload.get("name") or "").strip()
         slug = (payload.get("slug") or "").strip().lower()
         parent_id = payload.get("parent_id")
-        if not name or not slug:
-            raise ValueError("name and slug are required")
+        if not name:
+            raise ValueError("name is required")
+        if not slug:
+            slug = _slugify(name, fallback="category")
         if parent_id is not None and not db.session.get(Category, int(parent_id)):
             raise ValueError("parent category was not found")
-        if Category.query.filter_by(parent_id=parent_id, slug=slug).first():
-            raise ValueError("slug already exists at this level")
+        base_slug = slug
+        index = 2
+        while Category.query.filter_by(parent_id=parent_id, slug=slug).first() is not None:
+            slug = f"{base_slug}-{index}"[:180]
+            index += 1
 
         category = Category(
             name=name,
