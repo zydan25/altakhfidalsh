@@ -7,6 +7,9 @@
 <form method="post" class="form-stack"><label>الاسم<input name="name" required></label><label>Code<input name="code" required dir="ltr"></label><div class="checklist">{% for permission in permissions %}<label class="check-row"><input type="checkbox" name="permission_ids" value="{{ permission.id }}"><span><strong>{{ permission.code }}</strong><small>{{ permission.name }}</small></span></label>{% endfor %}</div><button class="primary-button">إنشاء الدور</button></form>
 </article>
 <article class="panel"><div class="panel-heading"><div><span class="eyebrow">الأدوار</span><h3>السجل</h3></div><span class="status-pill">{{ roles|length }}</span></div>
-<div class="stack-list">{% for row in roles %}<div class="stack-row"><strong>{{ row.name }}</strong><span>{{ row.code }}</span></div>{% else %}<span class="muted">لا توجد أدوار.</span>{% endfor %}</div></article>
+<div class="stack-list">{% for row in roles %}<details class="panel" style="padding:12px"><summary><strong>{{ row.name }}</strong> <span class="muted">· {{ row.code }}</span></summary>
+<form method="post" class="form-stack" style="margin-top:10px"><input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ row.id }}"><label>الاسم<input name="name" value="{{ row.name }}" required></label><label>Code<input name="code" value="{{ row.code }}" required dir="ltr"></label>
+<div class="checklist">{% for permission in permissions %}<label class="check-row"><input type="checkbox" name="permission_ids" value="{{ permission.id }}" {% if permission.id in role_perms.get(row.id,set()) %}checked{% endif %}><span><strong>{{ permission.code }}</strong><small>{{ permission.name }}</small></span></label>{% endfor %}</div><button class="primary-button">حفظ التعديل</button></form>
+<form method="post" style="margin-top:8px"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button">أرشفة الدور</button></form></details>{% else %}<span class="muted">لا توجد أدوار فعالة.</span>{% endfor %}</div></article>
 </section>
 {% endblock %}
