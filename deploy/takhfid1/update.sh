@@ -27,6 +27,7 @@ nginx -t
 systemctl reload nginx
 
 echo "[takhfid1] PM2..."
+cp "$APP_ROOT/deploy/takhfid1/ecosystem.config.cjs" "$APP_ROOT/ecosystem.config.cjs"
 pm2 delete takhfid1 >/dev/null 2>&1 || true
 pm2 start "$APP_ROOT/ecosystem.config.cjs" --only takhfid1 --update-env
 pm2 save
