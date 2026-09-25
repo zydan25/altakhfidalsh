@@ -1,5 +1,5 @@
 from app.extensions import db
-from app.models import Customer, CustomerAddress, StorefrontPage, StorefrontSection, StorefrontSectionItem
+from app.models import Customer, CustomerAddress, Currency, Product, StorefrontPage, StorefrontSection, StorefrontSectionItem
 
 
 def test_customer_admin_profile_and_address(client, app):
@@ -51,13 +51,26 @@ def test_customer_admin_profile_and_address(client, app):
 
 def test_storefront_admin_builder(client, app):
     with app.app_context():
+        currency = Currency(code="USD", name_ar="دولار", is_base=True)
+        db.session.add(currency)
+        db.session.flush()
+        product = Product(
+            sku="TEST-SKU-001",
+            name="منتج تجريبي",
+            slug="test-product-001",
+            base_currency_id=currency.id,
+            base_price=10,
+            status="published",
+        )
+        db.session.add(product)
+        db.session.flush()
         page = StorefrontPage(code="home-test", name="الرئيسية", route="/home-test")
         db.session.add(page)
         db.session.flush()
         section = StorefrontSection(page_id=page.id, section_type="product_grid", title="منتجات")
         db.session.add(section)
         db.session.commit()
-        page_id, section_id = page.id, section.id
+        page_id, section_id, product_id = page.id, section.id, product.id
 
     with client.session_transaction() as session:
         session["admin_id"] = 1
@@ -68,7 +81,7 @@ def test_storefront_admin_builder(client, app):
 
     response = client.post(
         "/admin/storefront/sections/{}/items".format(section_id),
-        data={"item_type": "product", "item_id": "1", "custom_label": "مميز"},
+        data={"item_type": "product", "item_id": str(product_id), "custom_label": "مميز"},
     )
     assert response.status_code == 302
 
@@ -76,7 +89,7 @@ def test_storefront_admin_builder(client, app):
         row = StorefrontSectionItem.query.filter_by(section_id=section_id).first()
         assert row is not None
         assert row.item_type == "product"
-        assert row.item_id == 1
+        assert row.item_id == product_id
 
     response = client.post(
         "/admin/storefront/pages",
