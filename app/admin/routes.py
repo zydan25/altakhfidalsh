@@ -318,7 +318,10 @@ def register_admin_routes(admin_bp):
             description = (request.form.get("description") or "").strip()
             base_price_raw = (request.form.get("base_price") or "").strip()
             base_currency_id = request.form.get("base_currency_id", type=int)
-            category_id = request.form.get("category_id", type=int)
+            category_ids = request.form.getlist("category_ids", type=int)
+            legacy_category_id = request.form.get("category_id", type=int)
+            if not category_ids and legacy_category_id:
+                category_ids = [legacy_category_id]
 
             if not sku or not name or not base_price_raw or not base_currency_id:
                 error = "SKU واسم المنتج والسعر والعملة الأساسية حقول مطلوبة."
