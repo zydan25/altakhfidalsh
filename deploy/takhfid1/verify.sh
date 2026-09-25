@@ -16,6 +16,12 @@ fail(){ printf "\033[31m[FAIL]\033[0m %s\n" "$*" >&2; exit 1; }
 curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null || fail "تطبيق Flask لا يستجيب على 127.0.0.1:$PORT"
 ok "Flask health"
 
+ADMIN_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:$PORT/admin/)"
+case "$ADMIN_STATUS" in
+  200|302|303) ok "Admin route (HTTP $ADMIN_STATUS)" ;;
+  *) fail "مسار /admin/ يعيد HTTP $ADMIN_STATUS" ;;
+esac
+
 pm2 describe takhfid1 >/dev/null 2>&1 || fail "عملية PM2 takhfid1 غير موجودة"
 pm2 pid takhfid1 | grep -Eq '[0-9]+' || fail "عملية PM2 takhfid1 ليست قيد التشغيل"
 ok "PM2 takhfid1"
