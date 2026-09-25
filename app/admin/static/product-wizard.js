@@ -13,6 +13,7 @@
   let configRefs = null;
   let draftColorIds = new Set();
   let draftSizeIds = new Set();
+  let draftCategoryIds = new Set();
   let draftsInitialized = false;
 
   const notify = (text, type = "success") => {
@@ -190,8 +191,10 @@
       categoryParent.innerHTML = '<option value="">بدون أب</option>' +
         categories.filter(x => x.is_active).map(x => '<option value="' + x.id + '">↳ ' + escapeHtml(x.name) + '</option>').join("");
     }
-    const selectedCategories = new Set((snapshot.categories || []).map(x => String(x.id)));
-    document.getElementById("categorySelection").innerHTML = renderCategoryTree(categories, selectedCategories);
+    if (!draftsInitialized) {
+      draftCategoryIds = new Set((snapshot.categories || []).map(x => String(x.id)));
+    }
+    document.getElementById("categorySelection").innerHTML = renderCategoryTree(categories, draftCategoryIds);
 
     document.getElementById("optionsList").innerHTML = (snapshot.options || []).map(option => (
       '<details class="panel" style="padding:12px">' +
@@ -230,6 +233,7 @@
 
     configRefs = configRefs || optionRefs || {};
     if (!draftsInitialized) {
+      draftCategoryIds = new Set((snapshot.categories || []).map(x => String(x.id)));
       draftColorIds = new Set((snapshot.reference_colors || []).map(x => Number(x.id)));
       draftSizeIds = new Set((snapshot.reference_sizes || []).map(x => Number(x.id)));
       if (!draftColorIds.size) {
@@ -343,9 +347,6 @@
       mediaColor.innerHTML = '<option value="">صور عامة للمنتج</option>' +
         mediaColors.map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
     }
-    const size = document.getElementById("variantSize");
-    size.innerHTML = '<option value="">بدون مقاس</option>' + activeSizeOptions;
-
     const selectedBadges = new Set((snapshot.badges || []).map(x => String(x.id)));
     const selectedHashtags = new Set((snapshot.hashtags || []).map(x => String(x.id)));
     const selectedStrips = new Set((snapshot.promotional_strips || []).map(x => String(x.id)));
@@ -402,10 +403,11 @@
   };
 
   document.getElementById("categorySelection").addEventListener("change", (event) => {
-    if (!event.target.matches("[data-category-checkbox]")) return;
-    const checked = new Set([...document.querySelectorAll("[data-category-checkbox]:checked")].map(input => input.value));
-    // Keep the current category state in the DOM; the save button commits it.
-    event.target.closest(".category-picker-choice")?.classList.toggle("is-selected", event.target.checked);
+    const input = event.target.closest("[data-category-checkbox]");
+    if (!input) return;
+    if (input.checked) draftCategoryIds.add(input.value);
+    else draftCategoryIds.delete(input.value);
+    input.closest(".category-picker-choice")?.classList.toggle("is-selected", input.checked);
   });
 
   document.getElementById("productColors").addEventListener("change", (event) => {
@@ -585,8 +587,10 @@
     }),
     async item => {
       if (item.id) {
+        draftCategoryIds.add(String(item.id));
         const input = document.querySelector('[data-category-checkbox][value="' + item.id + '"]');
         if (input) input.checked = true;
+        document.getElementById("categorySelection").innerHTML = renderCategoryTree(configRefs?.categories || [], draftCategoryIds);
       }
     },
     "تم إنشاء التصنيف وإضافته إلى اختيار المنتج."
@@ -675,8 +679,7 @@
   document.getElementById("colorSearch").addEventListener("input", renderDimensionChoices);
   document.getElementById("sizeSearch").addEventListener("input", renderDimensionChoices);
   document.getElementById("categorySearch").addEventListener("input", () => {
-    const selected = new Set([...document.querySelectorAll("[data-category-checkbox]:checked")].map(x => x.value));
-    document.getElementById("categorySelection").innerHTML = renderCategoryTree(configRefs?.categories || [], selected);
+    document.getElementById("categorySelection").innerHTML = renderCategoryTree(configRefs?.categories || [], draftCategoryIds);
   });
 
   document.querySelectorAll("[data-dimension-action]").forEach(button => {
@@ -721,7 +724,7 @@
   });
 
   document.getElementById("saveCategories").addEventListener("click", async () => {
-    const categoryIds = [...document.querySelectorAll("[data-category-checkbox]:checked")].map(input => Number(input.value));
+    const categoryIds = [...draftCategoryIds].map(Number);
     try {
       await requestJson("/api/v1/catalog/products/" + productId + "/categories", { method: "POST", body: JSON.stringify({ category_ids: categoryIds }) });
       await load();
