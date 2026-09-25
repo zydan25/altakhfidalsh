@@ -116,6 +116,32 @@ class CustomerAuthService:
         }
 
     @staticmethod
+    def refresh(refresh_token, device_id=None):
+        token_hash = CustomerAuthService._hash_token(refresh_token)
+        session = AuthSession.query.filter_by(refresh_token_hash=token_hash).first()
+        if session is None or session.revoked_at is not None:
+            raise ValueError("invalid refresh token")
+        now = datetime.now(timezone.utc)
+        if session.expires_at <= now:
+            session.revoked_at = now
+            db.session.commit()
+            raise ValueError("refresh session expired")
+
+        new_access = secrets.token_urlsafe(32)
+        new_refresh = secrets.token_urlsafe(48)
+        session.access_token_hash = CustomerAuthService._hash_token(new_access)
+        session.refresh_token_hash = CustomerAuthService._hash_token(new_refresh)
+        session.device_id = device_id or session.device_id
+        db.session.commit()
+        return {
+            "customer_id": session.customer_id,
+            "access_token": new_access,
+            "refresh_token": new_refresh,
+            "expires_at": session.expires_at.isoformat(),
+        }
+
+
+    @staticmethod
     def revoke_access(token):
         session = AuthSession.query.filter_by(access_token_hash=CustomerAuthService._hash_token(token)).first()
         if session is None:
