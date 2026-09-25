@@ -88,10 +88,14 @@ final = converted + percent_add + fixed_markup
 - [x] Mobile-first ERP navigation
 - [x] Catalog category tree API
 - [x] Basic product listing API
+- [x] Domain modules: catalog/pricing/storefront/commerce/customer/support/promotions/geo/after_sales/notifications/reports/search/system
+- [x] Product filter definitions and product filter values
+- [x] Customer bearer access + refresh rotation
+- [x] Admin API permission decorator
 - [ ] Initial Alembic revision generated against PostgreSQL
 - [ ] CI test workflow
 
-### Sprint 02 — Admin Catalog
+### Sprint 02 — Admin Catalog (قيد التوسعة)
 - [ ] Product CRUD
 - [ ] Product wizard متعدد الخطوات
 - [ ] Media upload + Pillow optimization
@@ -199,3 +203,14 @@ final = converted + percent_add + fixed_markup
 ## 10. الخطوة التالية
 
 الأولوية العملية التالية هي Product CRUD الكامل من لوحة الإدارة، لأن معالج إضافة المنتج هو أكثر جزء كثافة في الصور، ولأنه سيختبر العلاقات بين الصور والخيارات والـVariants والمخزون والفئات والسياسات والشارات والتسعير قبل الانتقال إلى تطبيق العميل.
+
+
+## 11. الحالة الحالية في الفرع
+
+- 105 جداول SQLAlchemy للنواة الموسعة.
+- لوحة الإدارة PWA/ERP تعمل كهيكل Mobile-First.
+- معالج المنتج متعدد الخطوات موجود ويكتب إلى قاعدة البيانات.
+- التسعير حسب العميل/المدينة/المنطقة منفذ كخدمة مركزية.
+- الطلب/السلة/الدفع/الشحن/ما بعد البيع/المحادثة لها خدمات وواجهات أساسية.
+- البحث والفلاتر والهاشتاجات والحملات والواجهات الديناميكية لها Domains مستقلة.
+- المهاجرات والبنية موجودة، بينما ملف migration الأول الفعلي سيُولد ويُراجع على PostgreSQL في بيئة CI/التشغيل قبل اعتماده للإنتاج.
