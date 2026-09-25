@@ -15,7 +15,7 @@
       ("basics","الأساس"),
       ("categories","التصنيفات"),
       ("media","الصور"),
-      ("options","الخيارات"),
+      ("options","الألوان والمقاسات"),
       ("marketing","الشارات والهاشتاج"),
       ("variants","المتغيرات"),
       ("inventory","المخزون"),
@@ -57,48 +57,101 @@
   </div>
 
   <div class="wizard-panel" data-panel="media" hidden>
-    <div class="panel-heading"><div><span class="eyebrow">الصور</span><h3>وسائط المنتج</h3></div></div>
-    <div class="form-grid">
-      <label>ربط الصور باللون<select id="mediaColor"><option value="">صور عامة للمنتج</option></select><small class="field-help">يمكن رفع مجموعة صور مستقلة لكل لون، وسيتم عرضها عند اختيار اللون في تطبيق العميل.</small></label>
+    <div class="panel-heading">
+      <div><span class="eyebrow">المعرض</span><h3>صور المنتج حسب اللون</h3></div>
+      <span id="mediaTotalCount" class="status-pill">0 صورة</span>
     </div>
-    <label class="upload-zone">
-      <span class="upload-icon">＋</span>
-      <strong>اختر صورًا متعددة</strong>
-      <small>سيتم تحسينها وتصغيرها وتحويلها إلى WebP على الخادم.</small>
-      <input id="productMedia" type="file" accept="image/*" multiple>
-    </label>
+    <div class="media-global-upload panel">
+      <div class="split-heading">
+        <div><strong>صور عامة للمنتج</strong><small class="field-help">تُعرض عندما لا يكون هناك لون محدد.</small></div>
+        <select id="mediaColor" aria-label="لون الصور"><option value="">صور عامة للمنتج</option></select>
+      </div>
+      <label class="upload-zone compact-upload">
+        <span class="upload-icon">＋</span>
+        <strong>اختر عدة صور</strong>
+        <small>اختر اللون أولًا لرفع صور خاصة به، أو اتركه عامًا.</small>
+        <input id="productMedia" type="file" accept="image/*" multiple>
+      </label>
+      <button id="uploadMedia" class="primary-button" type="button">رفع الصور المحددة</button>
+    </div>
+    <div class="media-section-head">
+      <div><span class="eyebrow">حسب اللون</span><strong>مجموعة مستقلة لكل لون</strong></div>
+      <small class="muted">كل بطاقة تعرض الصور الحالية وتتيح رفع صور إضافية لنفس اللون.</small>
+    </div>
+    <div id="mediaColorGroups" class="color-media-groups"></div>
+    <div class="media-section-head">
+      <div><span class="eyebrow">كل الوسائط</span><strong>المعرض الكامل</strong></div>
+    </div>
     <div id="mediaPreview" class="media-grid"></div>
-    <div id="mediaColorGroups" class="stack-list"></div>
-    <button id="uploadMedia" class="primary-button" type="button">رفع الصور</button>
   </div>
 
   <div class="wizard-panel" data-panel="options" hidden>
-    <div class="panel-heading"><div><span class="eyebrow">الخصائص</span><h3>ألوان ومقاسات وخيارات</h3></div></div>
-    <p class="muted">أنشئ اللون والمقاس من «الشارات والسياسات»/إعدادات الكتالوج ثم اربطهما بالمتغيرات. صور اللون تدار من خطوة الصور.</p>
-    <form id="optionForm" class="form-stack">
-      <label>اسم الخيار<input name="name" required placeholder="اللون / المقاس / الخامة"></label>
-      <label>نوع الخيار
-        <select name="option_type">
-          <option value="color">لون</option>
-          <option value="size">مقاس</option>
-          <option value="custom">مخصص</option>
-        </select>
-      </label>
-      <label>القيم — قيمة في كل سطر<textarea name="values_text" rows="5" placeholder="أسود&#10;أبيض&#10;بيج"></textarea></label>
+    <div class="panel-heading">
+      <div><span class="eyebrow">الخصائص</span><h3>الألوان والمقاسات وخيارات المنتج</h3></div>
+    </div>
+
+    <div class="quick-config-grid">
+      <article class="quick-config-card">
+        <div class="quick-config-head">
+          <div class="quick-config-title">
+            <span id="productColorCount" class="status-pill">0</span>
+            <div><strong>ألوان المنتج</strong><small>الألوان المستخدمة في الـVariants</small></div>
+          </div>
+          <button class="primary-button quick-add-button" type="button" data-open-modal="quickColorModal">＋ إضافة لون</button>
+        </div>
+        <div id="productColors" class="swatch-list"></div>
+        <div class="mini-callout">
+          <strong>كيف يعمل اللون؟</strong>
+          <span>أضف اللون من هنا، ثم استخدمه في المتغير. ويمكن رفع صور مستقلة له من خطوة الصور.</span>
+        </div>
+      </article>
+
+      <article class="quick-config-card">
+        <div class="quick-config-head">
+          <div class="quick-config-title">
+            <span id="availableSizeCount" class="status-pill">0</span>
+            <div><strong>المقاسات</strong><small>مرجع المقاسات المتاح للمتغيرات</small></div>
+          </div>
+          <button class="ghost-button quick-add-button" type="button" data-open-modal="quickSizeModal">＋ إدارة المقاسات</button>
+        </div>
+        <div id="sizeReferencePreview" class="size-chip-list"></div>
+      </article>
+    </div>
+
+    <form id="optionForm" class="form-stack quick-option-form">
+      <div class="panel-heading">
+        <div><span class="eyebrow">خيارات إضافية</span><strong>خيار مخصص للمنتج</strong></div>
+      </div>
+      <div class="form-grid">
+        <label>اسم الخيار<input name="name" required placeholder="الخامة / التصميم / المقاس"></label>
+        <label>نوع الخيار
+          <select name="option_type">
+            <option value="custom">مخصص</option>
+            <option value="color">لون</option>
+            <option value="size">مقاس</option>
+          </select>
+        </label>
+      </div>
+      <label>القيم — قيمة في كل سطر<textarea name="values_text" rows="4" placeholder="قطن&#10;كتان&#10;مخلوط"></textarea></label>
       <label class="check-row"><input name="required" type="checkbox"><span><strong>إجباري</strong><small>يجب اختيار القيمة قبل إضافة المنتج للعربة</small></span></label>
-      <button class="primary-button" type="submit">إضافة الخيار</button>
+      <button class="primary-button" type="submit">＋ إضافة الخيار</button>
     </form>
     <div id="optionsList" class="stack-list"></div>
   </div>
 
   <div class="wizard-panel" data-panel="marketing" hidden>
-    <div class="panel-heading"><div><span class="eyebrow">هوية العرض</span><h3>الشارات والهاشتاجات</h3></div></div>
+    <div class="panel-heading">
+      <div><span class="eyebrow">التسويق</span><h3>الشارات والهاشتاجات</h3></div>
+    </div>
     <div class="two-panel">
-      <article class="panel">
-        <div class="panel-heading"><div><span class="eyebrow">الشارات</span><strong>ما يظهر على بطاقة المنتج</strong></div></div>
+      <article class="panel marketing-card">
+        <div class="panel-heading">
+          <div><span class="eyebrow">الشارات</span><strong>علامات العرض على المنتج</strong></div>
+          <button class="primary-button quick-add-button" type="button" data-open-modal="quickBadgeModal">＋ إضافة شارة</button>
+        </div>
         <div id="badgeSelection" class="selection-list"></div>
       </article>
-      <article class="panel">
+      <article class="panel marketing-card">
         <div class="panel-heading"><div><span class="eyebrow">الهاشتاجات</span><strong>الترند والبحث</strong></div></div>
         <div id="hashtagSelection" class="selection-list"></div>
       </article>
@@ -162,5 +215,80 @@
     <button id="publishProduct" class="primary-button" type="button">نشر المنتج</button>
   </div>
 </section>
+
+<div class="admin-modal" data-modal="quickColorModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">مرجع الكتالوج</span><h3>إضافة لون جديد</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickColorForm" class="form-stack">
+      <label>اسم اللون<input name="name" required placeholder="أسود"></label>
+      <label>اللون
+        <span class="color-input-row">
+          <input name="hex_code" type="color" value="#111111">
+          <input name="hex_code_text" class="color-text-input" value="#111111" dir="ltr" maxlength="7">
+        </span>
+      </label>
+      <label>الترتيب<input name="sort_order" type="number" value="0"></label>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء اللون</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="admin-modal" data-modal="quickSizeModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">مرجع الكتالوج</span><h3>إضافة مقاس</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickSizeForm" class="form-stack">
+      <label>المجموعة<input name="group" required placeholder="EU"></label>
+      <label>Code<input name="code" required dir="ltr" placeholder="M"></label>
+      <label>الاسم الظاهر<input name="label" required placeholder="متوسط"></label>
+      <label>الترتيب<input name="sort_order" type="number" value="0"></label>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء المقاس</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="admin-modal" data-modal="quickBadgeModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">التسويق</span><h3>إضافة شارة جديدة</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickBadgeForm" class="form-stack">
+      <label>اسم الشارة<input name="name" required placeholder="خصم جديد"></label>
+      <label>الكود<input name="code" required dir="ltr" placeholder="new"></label>
+      <div class="form-grid">
+        <label>لون الخلفية
+          <span class="color-input-row"><input name="bg_color" type="color" value="#111827"><input name="bg_color_text" class="color-text-input" value="#111827" dir="ltr"></span>
+        </label>
+        <label>لون النص
+          <span class="color-input-row"><input name="text_color" type="color" value="#ffffff"><input name="text_color_text" class="color-text-input" value="#ffffff" dir="ltr"></span>
+        </label>
+      </div>
+      <div class="form-grid">
+        <label>النمط<select name="style"><option value="solid">Solid</option><option value="outline">Outline</option><option value="soft">Soft</option></select></label>
+        <label>الأولوية<input name="priority" type="number" value="0"></label>
+      </div>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء الشارة</button>
+      </div>
+    </form>
+  </section>
+</div>
+
 <script src="{{ url_for('admin.static', filename='product-wizard.js') }}" defer></script>
 {% endblock %}
