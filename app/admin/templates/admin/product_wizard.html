@@ -28,7 +28,7 @@
 
   <div class="wizard-panel is-active" data-panel="basics">
     <div class="panel-heading"><div><span class="eyebrow">الهوية والسعر</span><h3>بيانات المنتج الأساسية</h3></div></div>
-    <form id="basicsForm" class="form-stack">
+    <form id="basicsForm" class="form-stack" data-slug-form>
       <label>SKU<input id="productSku" name="sku" value="{{ product.sku or '' }}" required dir="ltr"></label>
       <label>الاسم<input id="productName" name="name" value="{{ product.name or '' }}" required></label>
       <label>Slug <small class="muted">(يُولد تلقائيًا ويمكن تعديله)</small><input id="productSlug" name="slug" value="{{ product.slug or '' }}" dir="ltr" data-slug-manual></label>
