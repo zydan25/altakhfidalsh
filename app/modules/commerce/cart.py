@@ -48,3 +48,13 @@ class CartService:
         db.session.delete(item)
         db.session.commit()
         return {"ok": True}
+
+
+    @staticmethod
+    def clear_cart(customer_id):
+        cart = Cart.query.filter_by(customer_id=customer_id).first()
+        if cart is None:
+            return {"ok": True}
+        CartItem.query.filter_by(cart_id=cart.id).delete()
+        db.session.commit()
+        return {"ok": True}
