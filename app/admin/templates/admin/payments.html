@@ -1,0 +1,37 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المبيعات والطلبات</span><h2>الدفع</h2><p class="muted">إدارة طرق الدفع وتسجيل المدفوعات وربطها بالطلب مع العملة والمرجع والحالة.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="two-panel">
+<article class="panel">
+<div class="panel-heading"><div><span class="eyebrow">طريقة دفع</span><h3>إضافة طريقة</h3></div></div>
+<form method="post" class="form-stack">
+<input type="hidden" name="action" value="method">
+<label>الاسم<input name="name" required placeholder="تحويل بنكي"></label>
+<label>Code<input name="code" required dir="ltr" placeholder="bank_transfer"></label>
+<label>المزود<input name="provider" placeholder="manual"></label>
+<label class="check-row"><input name="supports_proof" type="checkbox"><span><strong>يدعم إثبات الدفع</strong></span></label>
+<button class="primary-button">حفظ الطريقة</button>
+</form>
+</article>
+
+<article class="panel">
+<div class="panel-heading"><div><span class="eyebrow">تسجيل</span><h3>عملية دفع</h3></div></div>
+<form method="post" class="form-stack">
+<input type="hidden" name="action" value="transaction">
+<label>الطلب<select name="order_id" required>{% for order in orders %}<option value="{{ order.id }}">{{ order.order_no }} · {{ order.total }} · {{ order.status }}</option>{% endfor %}</select></label>
+<label>الطريقة<select name="method_id" required>{% for method in methods %}<option value="{{ method.id }}">{{ method.name }}</option>{% endfor %}</select></label>
+<label>العملة<select name="currency_id" required>{% for currency in currencies %}<option value="{{ currency.id }}">{{ currency.code }}</option>{% endfor %}</select></label>
+<label>المبلغ<input name="amount" type="number" min="0" step="0.0001" required></label>
+<label>مرجع المزود<input name="provider_ref" dir="ltr"></label>
+<label>الحالة<select name="status"><option value="pending">pending</option><option value="paid">paid</option><option value="failed">failed</option></select></label>
+<button class="primary-button">تسجيل الدفع</button>
+</form>
+</article>
+</section>
+
+<section class="panel" style="margin-top:12px"><div class="panel-heading"><div><span class="eyebrow">السجل</span><h3>عمليات الدفع</h3></div><span class="status-pill">{{ transactions|length }}</span></div>
+<div class="stack-list">{% for row in transactions %}<div class="stack-row"><strong>#{{ row.id }} · طلب #{{ row.order_id }}</strong><span>{{ row.amount }} · عملة #{{ row.currency_id }} · {{ row.status }}{% if row.provider_ref %} · {{ row.provider_ref }}{% endif %}</span></div>{% else %}<span class="muted">لا توجد عمليات.</span>{% endfor %}</div></section>
+{% endblock %}
