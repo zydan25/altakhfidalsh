@@ -138,6 +138,10 @@ def seed():
         if admin_username and admin_password:
             from app.admin.auth import AdminAuthService
             admin = AdminAuthService.bootstrap(admin_username, admin_password)
+            from app.services.phone import normalize_phone
+            from app.models import Admin
+            admin_row_model = db.session.get(Admin, admin["id"])
+            admin_row_model.phone = normalize_phone(os.getenv("ADMIN_PHONE", "774952665"))
             admin_row = AdminRole.query.filter_by(admin_id=admin["id"], role_id=role.id).first()
             if admin_row is None:
                 db.session.add(AdminRole(admin_id=admin["id"], role_id=role.id))
