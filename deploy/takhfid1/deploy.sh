@@ -166,7 +166,7 @@ set -a
 source "$APP_ROOT/.env"
 set +a
 "$APP_ROOT/.venv/bin/flask" db upgrade
-"$APP_ROOT/.venv/bin/python" "$APP_ROOT/scripts/seed.py"
+PYTHONPATH="$APP_ROOT" "$APP_ROOT/.venv/bin/python" "$APP_ROOT/scripts/seed.py"
 
 log "ضبط Nginx..."
 cp "$APP_ROOT/deploy/takhfid1/ecosystem.config.cjs" "$APP_ROOT/ecosystem.config.cjs"
