@@ -92,7 +92,36 @@
           {% endif %}
           {% if field.help %}<small class="field-help">{{ field.help }}</small>{% endif %}
         </label>
-      {% endfor %}
+      {% if record.edit_action %}
+      <details style="margin-top:10px">
+        <summary class="ghost-button" style="cursor:pointer">تعديل السجل</summary>
+        <form method="post" enctype="multipart/form-data" class="form-stack" style="margin-top:10px">
+          <input type="hidden" name="action" value="{{ record.edit_action }}">
+          <input type="hidden" name="id" value="{{ record.id }}">
+          {% for field in record.edit_fields %}
+            {% if field.type == "textarea" %}
+              <label>{{ field.label }}{% if field.required %} <b class="required-mark">*</b>{% endif %}<textarea name="{{ field.name }}" {% if field.required %}required{% endif %}>{{ field.value or "" }}</textarea></label>
+            {% elif field.type == "select" %}
+              <label>{{ field.label }}<select name="{{ field.name }}">{% for option in field.options %}<option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>{% endfor %}</select></label>
+            {% elif field.type == "file" %}
+              <label>{{ field.label }}<input name="{{ field.name }}" type="file" accept="{{ field.accept or "image/*" }}"></label>
+            {% elif field.type == "color" %}
+              <label>{{ field.label }}<span class="color-input-row"><input name="{{ field.name }}" type="color" value="{{ field.value or "#111827" }}"><input class="color-text-input" data-color-text value="{{ field.value or "#111827" }}" dir="ltr"></span></label>
+            {% else %}
+              <label>{{ field.label }}{% if field.required %} <b class="required-mark">*</b>{% endif %}<input name="{{ field.name }}" type="{{ field.type or "text" }}" value="{{ field.value or "" }}" {% if field.required %}required{% endif %} {% if field.dir %}dir="{{ field.dir }}"{% endif %}></label>
+            {% endif %}
+          {% endfor %}
+          <div class="modal-actions"><button class="primary-button" type="submit">حفظ التعديل</button></div>
+        </form>
+      </details>
+      {% endif %}
+      {% if record.archive_action %}
+      <form method="post" style="margin-top:8px">
+        <input type="hidden" name="action" value="{{ record.archive_action }}">
+        <input type="hidden" name="id" value="{{ record.id }}">
+        <button class="ghost-button" type="submit">أرشفة</button>
+      </form>
+      {% endif %}
       <div class="modal-actions">
         <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
         <button class="primary-button" type="submit">حفظ</button>
