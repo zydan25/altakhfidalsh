@@ -713,7 +713,7 @@ def register_entity_views(admin_bp):
 
     @admin_bp.route("/options", methods=["GET", "POST"])
     def options():
-        from ..models import Color, Size, ProductOptionValue, ProductVariant
+        from ..models import Color, Size, ProductVariant
         error = None
         success = None
         if request.method == "POST":
@@ -722,42 +722,109 @@ def register_entity_views(admin_bp):
                 if action.startswith("color_"):
                     row = db.session.get(Color, request.form.get("id", type=int))
                     if action == "color_create":
-                        name=(request.form.get("name") or "").strip()
-                        if not name: raise ValueError("اسم اللون مطلوب.")
-                        db.session.add(Color(name=name, hex_code=(request.form.get("hex_code") or "").strip() or None, sort_order=request.form.get("sort_order",0,type=int)))
-                        success="تم إنشاء اللون."
-                    elif row is None: raise ValueError("اللون غير موجود.")
+                        name = (request.form.get("name") or "").strip()
+                        if not name:
+                            raise ValueError("اسم اللون مطلوب.")
+                        if Color.query.filter(Color.name == name, Color.is_active.is_(True)).first():
+                            raise ValueError("هذا اللون الفعال موجود مسبقًا.")
+                        db.session.add(Color(
+                            name=name,
+                            hex_code=(request.form.get("hex_code") or "").strip() or None,
+                            sort_order=request.form.get("sort_order", 0, type=int),
+                            is_active=True,
+                        ))
+                        success = "تم إنشاء اللون وإتاحته للمنتجات."
+                    elif row is None:
+                        raise ValueError("اللون غير موجود.")
                     elif action == "color_archive":
-                        if ProductVariant.query.filter_by(color_id=row.id, is_active=True).first(): raise ValueError("لا يمكن أرشفة لون مستخدم في متغير نشط.")
-                        row.is_active=False; success="تمت أرشفة اللون."
+                        if ProductVariant.query.filter_by(color_id=row.id, is_active=True).first():
+                            raise ValueError("لا يمكن أرشفة لون مستخدم في متغير نشط.")
+                        row.is_active = False
+                        success = "تمت أرشفة اللون. ويمكن استعادته من الأرشيف."
+                    elif action == "color_restore":
+                        row.is_active = True
+                        success = "تمت إعادة تفعيل اللون وأصبح متاحًا للمنتجات."
+                    elif action == "color_update":
+                        name = (request.form.get("name") or "").strip()
+                        if not name:
+                            raise ValueError("اسم اللون مطلوب.")
+                        duplicate = Color.query.filter(
+                            Color.id != row.id,
+                            Color.name == name,
+                            Color.is_active.is_(True),
+                        ).first()
+                        if duplicate:
+                            raise ValueError("هذا اللون الفعال موجود مسبقًا.")
+                        row.name = name
+                        row.hex_code = (request.form.get("hex_code") or "").strip() or None
+                        row.sort_order = request.form.get("sort_order", 0, type=int)
+                        success = "تم تحديث اللون."
                     else:
-                        name=(request.form.get("name") or "").strip()
-                        if not name: raise ValueError("اسم اللون مطلوب.")
-                        row.name=name; row.hex_code=(request.form.get("hex_code") or "").strip() or None; row.sort_order=request.form.get("sort_order",0,type=int); success="تم تحديث اللون."
+                        raise ValueError("إجراء اللون غير معروف.")
                 elif action.startswith("size_"):
                     row = db.session.get(Size, request.form.get("id", type=int))
                     if action == "size_create":
-                        group=(request.form.get("group") or "").strip(); code=(request.form.get("code") or "").strip().upper(); label=(request.form.get("label") or "").strip()
-                        if not group or not code or not label: raise ValueError("المجموعة والكود والاسم الظاهر مطلوبة.")
-                        if Size.query.filter_by(group=group,code=code).first(): raise ValueError("كود المقاس مستخدم داخل المجموعة.")
-                        db.session.add(Size(group=group,code=code,label=label,sort_order=request.form.get("sort_order",0,type=int))); success="تم إنشاء المقاس."
-                    elif row is None: raise ValueError("المقاس غير موجود.")
+                        group = (request.form.get("group") or "").strip()
+                        code = (request.form.get("code") or "").strip().upper()
+                        label = (request.form.get("label") or "").strip()
+                        if not group or not code or not label:
+                            raise ValueError("المجموعة والكود والاسم الظاهر مطلوبة.")
+                        if Size.query.filter_by(group=group, code=code).first():
+                            raise ValueError("كود المقاس مستخدم داخل المجموعة، حتى لو كان مؤرشفًا. استعده بدل إنشاء نسخة جديدة.")
+                        db.session.add(Size(group=group, code=code, label=label, sort_order=request.form.get("sort_order", 0, type=int), is_active=True))
+                        success = "تم إنشاء المقاس وإتاحته للمنتجات."
+                    elif row is None:
+                        raise ValueError("المقاس غير موجود.")
                     elif action == "size_archive":
-                        if ProductVariant.query.filter_by(size_id=row.id, is_active=True).first(): raise ValueError("لا يمكن أرشفة مقاس مستخدم في متغير نشط.")
-                        row.is_active=False; success="تمت أرشفة المقاس."
+                        if ProductVariant.query.filter_by(size_id=row.id, is_active=True).first():
+                            raise ValueError("لا يمكن أرشفة مقاس مستخدم في متغير نشط.")
+                        row.is_active = False
+                        success = "تمت أرشفة المقاس. ويمكن استعادته من الأرشيف."
+                    elif action == "size_restore":
+                        row.is_active = True
+                        success = "تمت إعادة تفعيل المقاس وأصبح متاحًا للمنتجات."
+                    elif action == "size_update":
+                        group = (request.form.get("group") or "").strip()
+                        code = (request.form.get("code") or "").strip().upper()
+                        label = (request.form.get("label") or "").strip()
+                        if not group or not code or not label:
+                            raise ValueError("المجموعة والكود والاسم الظاهر مطلوبة.")
+                        duplicate = Size.query.filter(
+                            Size.id != row.id,
+                            Size.group == group,
+                            Size.code == code,
+                        ).first()
+                        if duplicate:
+                            raise ValueError("كود المقاس مستخدم داخل المجموعة.")
+                        row.group = group
+                        row.code = code
+                        row.label = label
+                        row.sort_order = request.form.get("sort_order", 0, type=int)
+                        success = "تم تحديث المقاس."
                     else:
-                        group=(request.form.get("group") or "").strip(); code=(request.form.get("code") or "").strip().upper(); label=(request.form.get("label") or "").strip()
-                        if not group or not code or not label: raise ValueError("المجموعة والكود والاسم الظاهر مطلوبة.")
-                        duplicate=Size.query.filter(Size.id != row.id, Size.group==group, Size.code==code).first()
-                        if duplicate: raise ValueError("كود المقاس مستخدم داخل المجموعة.")
-                        row.group=group; row.code=code; row.label=label; row.sort_order=request.form.get("sort_order",0,type=int); success="تم تحديث المقاس."
-                else: raise ValueError("إجراء الخيارات غير معروف.")
+                        raise ValueError("إجراء المقاس غير معروف.")
+                else:
+                    raise ValueError("إجراء الخيارات غير معروف.")
                 db.session.commit()
             except (ValueError, TypeError) as exc:
-                db.session.rollback(); error=str(exc)
-        colors=Color.query.filter_by(is_active=True).order_by(Color.sort_order,Color.name).limit(300).all()
-        sizes=Size.query.filter_by(is_active=True).order_by(Size.group,Size.sort_order,Size.label).limit(300).all()
-        return render_template("admin/options.html",title="الألوان والمقاسات",colors=colors,sizes=sizes,success=success,error=error,**build_admin_context())
+                db.session.rollback()
+                error = str(exc)
+
+        colors = Color.query.filter_by(is_active=True).order_by(Color.sort_order, Color.name).limit(300).all()
+        archived_colors = Color.query.filter_by(is_active=False).order_by(Color.sort_order, Color.name).limit(300).all()
+        sizes = Size.query.filter_by(is_active=True).order_by(Size.group, Size.sort_order, Size.label).limit(300).all()
+        archived_sizes = Size.query.filter_by(is_active=False).order_by(Size.group, Size.sort_order, Size.label).limit(300).all()
+        return render_template(
+            "admin/options.html",
+            title="الألوان والمقاسات",
+            colors=colors,
+            archived_colors=archived_colors,
+            sizes=sizes,
+            archived_sizes=archived_sizes,
+            success=success,
+            error=error,
+            **build_admin_context(),
+        )
 
     @admin_bp.route("/category-strip", methods=["GET", "POST"])
     def category_strip():

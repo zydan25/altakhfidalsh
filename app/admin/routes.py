@@ -251,22 +251,55 @@ def register_admin_routes(admin_bp):
 
     @admin_bp.route("/products", methods=["GET", "POST"])
     def products():
-        context=_navigation_context(); error=None; success=None
-        if request.method=="POST":
+        context = _navigation_context()
+        error = None
+        success = None
+        if request.method == "POST":
             try:
-                product_id=request.form.get("id",type=int)
-                product=db.session.get(Product,product_id)
-                if product is None: raise ValueError("المنتج غير موجود.")
-                action=(request.form.get("action") or "").strip()
-                if action=="archive":
-                    product.is_active=False; product.status="archived"; success="تمت أرشفة المنتج."
+                product_id = request.form.get("id", type=int)
+                product = db.session.get(Product, product_id)
+                if product is None:
+                    raise ValueError("المنتج غير موجود.")
+                action = (request.form.get("action") or "").strip()
+                if action == "archive":
+                    product.is_active = False
+                    product.status = "archived"
+                    success = "تمت أرشفة المنتج."
+                elif action == "restore":
+                    product.is_active = True
+                    product.status = "draft"
+                    success = "تمت إعادة تفعيل المنتج كمسودة. راجع بياناته ثم انشره عند الجاهزية."
                 else:
                     raise ValueError("إجراء المنتج غير معروف.")
                 db.session.commit()
             except ValueError as exc:
-                db.session.rollback(); error=str(exc)
-        items=Product.query.filter(Product.is_active.is_(True)).order_by(Product.id.desc()).limit(100).all()
-        return render_template("admin/products.html",title="المنتجات",products=items,error=error,success=success,**context)
+                db.session.rollback()
+                error = str(exc)
+
+        view = (request.args.get("view") or "active").strip().lower()
+        if view not in {"active", "archived", "all"}:
+            view = "active"
+
+        base_query = Product.query.order_by(Product.id.desc())
+        if view == "active":
+            base_query = base_query.filter(Product.is_active.is_(True))
+        elif view == "archived":
+            base_query = base_query.filter(Product.is_active.is_(False))
+        items = base_query.limit(200).all()
+        active_count = Product.query.filter(Product.is_active.is_(True)).count()
+        archived_count = Product.query.filter(Product.is_active.is_(False)).count()
+
+        return render_template(
+            "admin/products.html",
+            title="المنتجات",
+            products=items,
+            view=view,
+            active_count=active_count,
+            archived_count=archived_count,
+            success=success,
+            error=error,
+            **context,
+        )
 
     @admin_bp.route("/products/new", methods=["GET", "POST"])
     def product_new():
