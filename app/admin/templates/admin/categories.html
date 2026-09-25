@@ -1,10 +1,9 @@
 {% extends "admin/base.html" %}
-
 {% block content %}
 <section class="module-header">
   <span class="eyebrow">الكتالوج</span>
   <h2>شجرة التصنيفات</h2>
-  <p class="muted">كل فئة يمكن أن تكون رئيسية أو فرعًا من فئة أخرى، بلا حد ثابت لعدد المستويات.</p>
+  <p class="muted">الفئات متعددة العمق. كل فئة تحمل ترتيبها، نمط ظهورها، أيقونتها، شارتها وحالتها، ويمكن تعديلها من الهاتف مباشرة.</p>
 </section>
 
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
@@ -15,15 +14,14 @@
     <div class="panel-heading">
       <div><span class="eyebrow">إضافة</span><h3>فئة جديدة</h3></div>
     </div>
-    <form method="post" class="form-stack">
+    <form method="post" enctype="multipart/form-data" class="form-stack">
+      <input type="hidden" name="action" value="create">
       <label>اسم الفئة<input name="name" required autocomplete="off" placeholder="مثال: ملابس نسائية"></label>
       <label>Slug<input name="slug" required dir="ltr" autocomplete="off" placeholder="women-clothes"></label>
       <label>الأب
         <select name="parent_id">
           <option value="">فئة رئيسية</option>
-          {% for parent in parents %}
-          <option value="{{ parent.id }}">{{ parent.name }}</option>
-          {% endfor %}
+          {% for parent in parents %}<option value="{{ parent.id }}">{{ parent.name }}</option>{% endfor %}
         </select>
       </label>
       <label>نمط العرض
@@ -34,6 +32,20 @@
           <option value="filter">فلتر</option>
         </select>
       </label>
+      <label>الترتيب<input name="sort_order" type="number" value="0"></label>
+      <label>الشارة
+        <select name="badge_id">
+          <option value="">بدون شارة</option>
+          {% for badge in badges %}<option value="{{ badge.id }}">{{ badge.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="upload-zone">
+        <input name="icon_file" type="file" accept="image/*">
+        <span class="upload-icon">◉</span>
+        <strong>أيقونة الفئة</strong>
+        <small>اختيارية — سيتم تحسين الصورة وحفظها WebP</small>
+      </label>
+      <label class="check-row"><input name="is_featured" type="checkbox"><span><strong>فئة مميزة</strong><small>يمكن عرضها في دوائر الفئات والمحتوى المميز.</small></span></label>
       <button class="primary-button" type="submit">حفظ الفئة</button>
     </form>
   </article>
@@ -45,13 +57,60 @@
     </div>
     <div class="category-tree">
       {% for category, depth in rows %}
-      <div class="category-row" style="--depth: {{ depth }}">
-        <span class="tree-marker">{% if depth == 0 %}●{% else %}└{% endif %}</span>
-        <div>
-          <strong>{{ category.name }}</strong>
-          <small>{{ category.slug }} · {{ category.display_style }}</small>
+      <details class="category-editor" style="margin-inline-start: {{ depth * 14 }}px">
+        <summary class="category-row">
+          <span class="tree-marker">{% if depth == 0 %}●{% else %}└{% endif %}</span>
+          <div>
+            <strong>{{ category.name }}</strong>
+            <small>{{ category.slug }} · {{ category.display_style }} · ترتيب {{ category.sort_order }}{% if category.is_featured %} · مميزة{% endif %}</small>
+          </div>
+        </summary>
+        <div class="panel" style="margin:6px 0 8px;padding:12px">
+          <form method="post" enctype="multipart/form-data" class="form-stack">
+            <input type="hidden" name="action" value="update">
+            <input type="hidden" name="category_id" value="{{ category.id }}">
+            <label>الاسم<input name="name" value="{{ category.name }}" required></label>
+            <label>Slug<input name="slug" value="{{ category.slug }}" dir="ltr" required></label>
+            <label>الأب
+              <select name="parent_id">
+                <option value="">فئة رئيسية</option>
+                {% for parent in parents %}
+                  {% if parent.id != category.id %}
+                  <option value="{{ parent.id }}" {% if category.parent_id == parent.id %}selected{% endif %}>{{ parent.name }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </label>
+            <label>نمط العرض
+              <select name="display_style">
+                {% for style, label in [("circle","دائرة"),("hero","Hero"),("list","قائمة"),("filter","فلتر")] %}
+                <option value="{{ style }}" {% if category.display_style == style %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>الترتيب<input name="sort_order" type="number" value="{{ category.sort_order }}"></label>
+            <label>الشارة
+              <select name="badge_id">
+                <option value="">بدون شارة</option>
+                {% for badge in badges %}<option value="{{ badge.id }}" {% if category.badge_id == badge.id %}selected{% endif %}>{{ badge.name }}</option>{% endfor %}
+              </select>
+            </label>
+            <label class="upload-zone">
+              <input name="icon_file" type="file" accept="image/*">
+              <span class="upload-icon">◉</span>
+              <strong>استبدال الأيقونة</strong>
+              <small>اتركها فارغة للاحتفاظ بالأيقونة الحالية.</small>
+            </label>
+            <label class="check-row"><input name="is_featured" type="checkbox" {% if category.is_featured %}checked{% endif %}><span><strong>فئة مميزة</strong></span></label>
+            <button class="primary-button" type="submit">حفظ التعديل</button>
+          </form>
+          <form method="post" class="form-actions" style="margin-top:8px" onsubmit="return confirm('سيتم أرشفة هذه الفئة. هل أنت متأكد؟')">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="category_id" value="{{ category.id }}">
+            <button class="ghost-button" type="submit">أرشفة الفئة</button>
+          </form>
         </div>
-      </div>
+      </details>
       {% else %}
       <div class="empty-state compact"><div class="empty-icon">◫</div><strong>لا توجد فئات بعد</strong><p class="muted">ابدأ بفئة رئيسية ثم أضف فروعها.</p></div>
       {% endfor %}
