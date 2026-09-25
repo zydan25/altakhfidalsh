@@ -217,12 +217,11 @@ def register_admin_routes(admin_bp):
                     )
                 db.session.commit()
                 return render_template(
-                    "admin/product_form.html",
-                    title="إضافة منتج",
-                    currencies=currencies,
+                    "admin/product_wizard.html",
+                    title="إعداد المنتج",
+                    product_id=product.id,
+                    product=product,
                     categories=categories,
-                    error=None,
-                    success="تم إنشاء المنتج كمسودة. الخطوة التالية ستضيف الوسائط والخيارات والـVariants والسياسات.",
                     **context,
                 )
 
@@ -233,6 +232,28 @@ def register_admin_routes(admin_bp):
             categories=categories,
             error=error,
             success=None,
+            **context,
+        )
+
+    @admin_bp.get("/products/<int:product_id>/edit")
+    def product_edit(product_id):
+        context = _navigation_context()
+        product = db.session.get(Product, product_id)
+        if product is None:
+            return render_template(
+                "admin/module.html",
+                title="المنتج غير موجود",
+                section="الكتالوج",
+                requested_path=request.path,
+                **context,
+            ), 404
+        categories = Category.query.filter_by(is_active=True).order_by(Category.name).all()
+        return render_template(
+            "admin/product_wizard.html",
+            title=f"إعداد المنتج · {product.name}",
+            product_id=product.id,
+            product=product,
+            categories=categories,
             **context,
         )
 
