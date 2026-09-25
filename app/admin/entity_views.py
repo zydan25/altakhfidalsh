@@ -281,7 +281,6 @@ def register_entity_views(admin_bp):
                        "العملاء والتواصل")
 
     @admin_bp.route("/payments", methods=["GET", "POST"])
-    @admin_bp.route("/payments", methods=["GET", "POST"])
     def payments():
         from ..models import Currency, Order, PaymentMethod
         error=None; success=None
@@ -452,7 +451,6 @@ def register_entity_views(admin_bp):
             **build_admin_context(),
         )
 
-    @admin_bp.route("/promotions/coupons", methods=["GET", "POST"])
     @admin_bp.route("/promotions/coupons", methods=["GET", "POST"])
     def coupons():
         error=None; success=None
