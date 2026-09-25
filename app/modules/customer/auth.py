@@ -114,3 +114,12 @@ class CustomerAuthService:
             "refresh_token": refresh_token,
             "expires_at": session.expires_at.isoformat(),
         }
+
+    @staticmethod
+    def revoke_access(token):
+        session = AuthSession.query.filter_by(access_token_hash=CustomerAuthService._hash_token(token)).first()
+        if session is None:
+            return False
+        session.revoked_at = datetime.now(timezone.utc)
+        db.session.commit()
+        return True
