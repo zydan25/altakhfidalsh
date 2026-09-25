@@ -100,6 +100,20 @@ def seed():
             ("order.manage", "إدارة الطلبات"),
             ("customer.view", "عرض العملاء"),
             ("customer.manage", "إدارة العملاء"),
+            ("inventory.manage", "إدارة المخزون"),
+            ("policy.manage", "إدارة السياسات"),
+            ("content.manage", "إدارة محتوى المتجر"),
+            ("payment.manage", "إدارة الدفعات"),
+            ("shipping.manage", "إدارة الشحن"),
+            ("refund.approve", "اعتماد الاسترداد"),
+            ("promotion.manage", "إدارة الترويج"),
+            ("wallet.adjust", "تعديل المحافظ"),
+            ("campaign.manage", "إدارة الحملات"),
+            ("system.manage", "إدارة النظام"),
+            ("theme.manage", "إدارة الثيم"),
+            ("geo.manage", "إدارة الجغرافيا"),
+            ("report.view", "عرض التقارير"),
+            ("product.publish", "نشر المنتجات"),
         ]
         permission_rows = []
         for code, name in permissions:
