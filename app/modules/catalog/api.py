@@ -190,3 +190,119 @@ def product_wizard(product_id):
         return {"item": CatalogService.wizard_snapshot(product_id)}
     except LookupError as exc:
         return {"error": "not_found", "detail": str(exc)}, 404
+
+
+@api_bp.post("/reference/colors")
+def create_color():
+    payload = request.get_json(silent=True) or {}
+    try:
+        from ...models import Color
+        color = Color(
+            name=str(payload["name"]).strip(),
+            hex_code=(payload.get("hex_code") or "").strip() or None,
+            swatch_asset_id=payload.get("swatch_asset_id"),
+            sort_order=int(payload.get("sort_order", 0)),
+        )
+        __import__("app.extensions", fromlist=["db"]).db.session.add(color)
+        __import__("app.extensions", fromlist=["db"]).db.session.commit()
+        return {"item": {"id": color.id, "name": color.name, "hex_code": color.hex_code}}, 201
+    except KeyError as exc:
+        return {"error": "invalid_color", "detail": str(exc)}, 400
+
+
+@api_bp.post("/reference/sizes")
+def create_size():
+    payload = request.get_json(silent=True) or {}
+    try:
+        from ...models import Size
+        size = Size(
+            group=str(payload["group"]).strip(),
+            code=str(payload["code"]).strip().upper(),
+            label=str(payload["label"]).strip(),
+            sort_order=int(payload.get("sort_order", 0)),
+        )
+        __import__("app.extensions", fromlist=["db"]).db.session.add(size)
+        __import__("app.extensions", fromlist=["db"]).db.session.commit()
+        return {"item": {"id": size.id, "group": size.group, "code": size.code, "label": size.label}}, 201
+    except KeyError as exc:
+        return {"error": "invalid_size", "detail": str(exc)}, 400
+
+
+@api_bp.get("/reference/policies")
+def policy_references():
+    from ...models import ReturnPolicy, ShippingPolicy, WarrantyPolicy
+    return {
+        "shipping": [{"id": x.id, "name": x.name, "delivery_window": x.delivery_window} for x in ShippingPolicy.query.filter_by(is_active=True).order_by(ShippingPolicy.name).all()],
+        "return": [{"id": x.id, "name": x.name, "return_window_days": x.return_window_days} for x in ReturnPolicy.query.filter_by(is_active=True).order_by(ReturnPolicy.name).all()],
+        "warranty": [{"id": x.id, "name": x.name, "duration_days": x.duration_days} for x in WarrantyPolicy.query.filter_by(is_active=True).order_by(WarrantyPolicy.name).all()],
+    }
+
+
+@api_bp.post("/policies/shipping")
+def create_shipping_policy():
+    from ...extensions import db
+    from ...models import ShippingPolicy
+    payload = request.get_json(silent=True) or {}
+    row = ShippingPolicy(
+        name=str(payload["name"]).strip(),
+        free_shipping_enabled=bool(payload.get("free_shipping_enabled", False)),
+        min_order_amount=payload.get("min_order_amount"),
+        promo_text=payload.get("promo_text"),
+        delivery_window=payload.get("delivery_window"),
+    )
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "name": row.name}}, 201
+
+
+@api_bp.post("/policies/return")
+def create_return_policy():
+    from ...extensions import db
+    from ...models import ReturnPolicy
+    payload = request.get_json(silent=True) or {}
+    row = ReturnPolicy(
+        name=str(payload["name"]).strip(),
+        return_window_days=int(payload.get("return_window_days", 0)),
+        conditions=payload.get("conditions"),
+        fee_rule=payload.get("fee_rule"),
+        refund_method=payload.get("refund_method"),
+    )
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "name": row.name, "return_window_days": row.return_window_days}}, 201
+
+
+@api_bp.post("/policies/warranty")
+def create_warranty_policy():
+    from ...extensions import db
+    from ...models import WarrantyPolicy
+    payload = request.get_json(silent=True) or {}
+    row = WarrantyPolicy(
+        name=str(payload["name"]).strip(),
+        duration_days=int(payload.get("duration_days", 0)),
+        coverage=payload.get("coverage"),
+        exclusions=payload.get("exclusions"),
+        claim_method=payload.get("claim_method"),
+    )
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "name": row.name, "duration_days": row.duration_days}}, 201
+
+
+@api_bp.post("/badges")
+def create_badge():
+    from ...extensions import db
+    from ...models import Badge
+    payload = request.get_json(silent=True) or {}
+    row = Badge(
+        name=str(payload["name"]).strip(),
+        code=str(payload["code"]).strip().lower(),
+        icon_asset_id=payload.get("icon_asset_id"),
+        bg_color=payload.get("bg_color"),
+        text_color=payload.get("text_color"),
+        style=payload.get("style"),
+        priority=int(payload.get("priority", 0)),
+    )
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "name": row.name, "code": row.code}}, 201
