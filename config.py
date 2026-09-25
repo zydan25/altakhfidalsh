@@ -19,3 +19,7 @@ class Config:
     MEDIA_BASE_URL = os.getenv("MEDIA_BASE_URL", "/media")
     MEDIA_MAX_SIDE = int(os.getenv("MEDIA_MAX_SIDE", "1600"))
     MEDIA_WEBP_QUALITY = int(os.getenv("MEDIA_WEBP_QUALITY", "82"))
+    ADMIN_DEV_BYPASS = os.getenv("ADMIN_DEV_BYPASS", "0") == "1"
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "0") == "1"
