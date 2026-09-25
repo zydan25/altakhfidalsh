@@ -1,8 +1,32 @@
-from ...extensions import db
 from flask import request
 
 from . import api_bp
+from .auth import CustomerAuthService
+from ...extensions import db
 from ...models import Customer, CustomerAddress
+
+
+@api_bp.post("/auth/request-otp")
+def request_otp():
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CustomerAuthService.request_otp(payload.get("phone"), payload.get("purpose", "login"))}, 201
+    except ValueError as exc:
+        return {"error": "otp_request_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/auth/verify-otp")
+def verify_otp():
+    payload = request.get_json(silent=True) or {}
+    try:
+        result = CustomerAuthService.verify_otp(
+            int(payload["otp_request_id"]),
+            str(payload["code"]),
+            payload.get("device_id"),
+        )
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "otp_verification_failed", "detail": str(exc)}, 400
+    return {"item": result}
 
 
 @api_bp.get("/customers/<int:customer_id>")
@@ -10,7 +34,9 @@ def customer(customer_id):
     item = db.session.get(Customer, customer_id)
     if item is None:
         return {"error": "not_found"}, 404
-    addresses = CustomerAddress.query.filter_by(customer_id=customer_id, is_active=True).order_by(CustomerAddress.is_default.desc(), CustomerAddress.id).all()
+    addresses = CustomerAddress.query.filter_by(customer_id=customer_id, is_active=True).order_by(
+        CustomerAddress.is_default.desc(), CustomerAddress.id
+    ).all()
     return {
         "id": item.id,
         "phone_normalized": item.phone_normalized,
@@ -23,6 +49,7 @@ def customer(customer_id):
                 "id": x.id,
                 "recipient_name": x.recipient_name,
                 "phone": x.phone,
+                "country_id": x.country_id,
                 "city_id": x.city_id,
                 "district": x.district,
                 "street": x.street,
