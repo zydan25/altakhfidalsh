@@ -16,6 +16,7 @@
       ("categories","التصنيفات"),
       ("media","الصور"),
       ("options","الخيارات"),
+      ("marketing","الشارات والهاشتاج"),
       ("variants","المتغيرات"),
       ("inventory","المخزون"),
       ("policies","السياسات"),
@@ -81,12 +82,27 @@
     <div id="optionsList" class="stack-list"></div>
   </div>
 
+  <div class="wizard-panel" data-panel="marketing" hidden>
+    <div class="panel-heading"><div><span class="eyebrow">هوية العرض</span><h3>الشارات والهاشتاجات</h3></div></div>
+    <div class="two-panel">
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">الشارات</span><strong>ما يظهر على بطاقة المنتج</strong></div></div>
+        <div id="badgeSelection" class="selection-list"></div>
+      </article>
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">الهاشتاجات</span><strong>الترند والبحث</strong></div></div>
+        <div id="hashtagSelection" class="selection-list"></div>
+      </article>
+    </div>
+    <button id="saveMarketing" class="primary-button" type="button">حفظ الشارات والهاشتاجات</button>
+  </div>
+
   <div class="wizard-panel" data-panel="variants" hidden>
     <div class="panel-heading"><div><span class="eyebrow">SKU فعلي</span><h3>المتغيرات والمخزون</h3></div></div>
     <form id="variantForm" class="form-stack">
       <label>SKU للمتغير<input name="sku" required dir="ltr" placeholder="SHP-10001-BLK-M"></label>
-      <label>Color ID<input name="color_id" type="number" min="1" inputmode="numeric"></label>
-      <label>Size ID<input name="size_id" type="number" min="1" inputmode="numeric"></label>
+      <label>اللون<select id="variantColor" name="color_id"><option value="">بدون لون</option></select></label>
+      <label>المقاس<select id="variantSize" name="size_id"><option value="">بدون مقاس</option></select></label>
       <label>Barcode<input name="barcode" dir="ltr"></label>
       <label>الوزن<input name="weight" type="number" min="0" step="0.0001" inputmode="decimal"></label>
       <button class="primary-button" type="submit">إضافة Variant</button>
