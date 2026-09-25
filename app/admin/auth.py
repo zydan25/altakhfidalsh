@@ -5,10 +5,16 @@ from flask import current_app, redirect, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..extensions import db
-from ..models import Admin
+from ..models import Admin, OTPRequest
+from ..services.phone import normalize_phone
 
 
 class AdminAuthService:
+    @staticmethod
+    def _hash_code(code):
+        secret = current_app.config["SECRET_KEY"].encode()
+        return hmac.new(secret, str(code).encode(), hashlib.sha256).hexdigest()
+
     @staticmethod
     def login(username, password):
         admin = Admin.query.filter_by(username=username, is_active=True).first()
@@ -20,6 +26,76 @@ class AdminAuthService:
         session["admin_id"] = admin.id
         session["admin_username"] = admin.username
         return {"id": admin.id, "username": admin.username}
+
+
+    @staticmethod
+    def request_otp(raw_phone):
+        phone = normalize_phone(raw_phone)
+        if not phone:
+            raise ValueError("phone is required")
+        admin = Admin.query.filter_by(phone=phone, is_active=True).first()
+        if admin is None:
+            raise ValueError("admin phone is not authorized")
+        now = datetime.now(timezone.utc)
+        recent = OTPRequest.query.filter(
+            OTPRequest.phone == phone,
+            OTPRequest.purpose == "admin_login",
+            OTPRequest.created_at >= now - timedelta(minutes=15),
+        ).count()
+        if recent >= 3:
+            raise ValueError("too many OTP requests; try again later")
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        otp = OTPRequest(
+            phone=phone,
+            purpose="admin_login",
+            code_hash=AdminAuthService._hash_code(code),
+            expires_at=now + timedelta(minutes=5),
+            attempts=0,
+            status="pending",
+        )
+        db.session.add(otp)
+        db.session.commit()
+        return {
+            "otp_request_id": otp.id,
+            "expires_at": otp.expires_at.isoformat(),
+            "phone": phone,
+            "debug_code": code if current_app.debug else None,
+        }
+
+    @staticmethod
+    def verify_otp(otp_request_id, raw_code):
+        now = datetime.now(timezone.utc)
+        otp = db.session.get(OTPRequest, int(otp_request_id))
+        if otp is None or otp.purpose != "admin_login":
+            raise LookupError("OTP request not found")
+        if otp.status != "pending":
+            raise ValueError("OTP request is no longer pending")
+        expires_at = otp.expires_at if otp.expires_at.tzinfo else otp.expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < now:
+            otp.status = "expired"
+            db.session.commit()
+            raise ValueError("OTP has expired")
+        if otp.attempts >= 5:
+            otp.status = "blocked"
+            db.session.commit()
+            raise ValueError("too many verification attempts")
+        otp.attempts += 1
+        if not hmac.compare_digest(otp.code_hash, AdminAuthService._hash_code(raw_code)):
+            if otp.attempts >= 5:
+                otp.status = "blocked"
+            db.session.commit()
+            raise ValueError("invalid OTP")
+        otp.status = "verified"
+        admin = Admin.query.filter_by(phone=otp.phone, is_active=True).first()
+        if admin is None:
+            db.session.rollback()
+            raise ValueError("admin is not authorized")
+        admin.last_login = now
+        db.session.commit()
+        session.clear()
+        session["admin_id"] = admin.id
+        session["admin_username"] = admin.username
+        return {"id": admin.id, "username": admin.username, "phone": admin.phone}
 
     @staticmethod
     def logout():
