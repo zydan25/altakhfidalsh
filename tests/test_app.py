@@ -14,7 +14,7 @@ def test_module_blueprints_are_registered(client):
     expected = {
         "/api/v1/catalog/categories": 200,
         "/api/v1/pricing/groups": 200,
-        "/api/v1/customer/auth/request-otp": 201,
+        "/api/v1/customer/auth/request-otp": None,
         "/api/v1/system/health": 200,
         "/api/v1/geo/countries": 200,
         "/api/v1/storefront/pages": 200,
@@ -27,4 +27,8 @@ def test_module_blueprints_are_registered(client):
         "/api/v1/search/products": 200,
     }
     for path, status in expected.items():
-        assert client.get(path).status_code == status, path
+        if status is None:
+            response = client.post(path, json={"phone": "771234567"})
+        else:
+            response = client.get(path)
+        assert response.status_code == status or (path.endswith("/request-otp") and response.status_code == 201), path
