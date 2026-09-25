@@ -104,8 +104,8 @@ class PricingAdminService:
             raise ValueError("pricing group not found")
         city_id = payload.get("city_id")
         region_id = payload.get("region_id")
-        if city_id is None and region_id is None:
-            raise ValueError("city_id or region_id is required")
+        if (city_id is None) == (region_id is None):
+            raise ValueError("exactly one of city_id or region_id is required")
         if city_id is not None and db.session.get(__import__("app.models", fromlist=["City"]).City, int(city_id)) is None:
             raise ValueError("city not found")
         if region_id is not None and db.session.get(__import__("app.models", fromlist=["Region"]).Region, int(region_id)) is None:
