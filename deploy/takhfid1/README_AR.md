@@ -106,3 +106,23 @@ pm2 save
 ```
 
 السكربت يحاول تفعيل `pm2-root` لإعادة الإحياء بعد إعادة تشغيل Ubuntu.
+
+## التحديثات اللاحقة
+
+بعد أي تحديث مدموج في `main`:
+
+```bash
+cd /home/root/projects/takhfid1
+bash deploy/takhfid1/update.sh
+```
+
+هذا يسحب `main`، يثبت المتطلبات، يشغّل migrations وseed، يختبر Nginx ويعيد تشغيل PM2.
+
+## فحص النظام
+
+```bash
+cd /home/root/projects/takhfid1
+bash deploy/takhfid1/verify.sh
+```
+
+يفحص Flask على 4006 وPM2 وNginx واتصال PostgreSQL.
