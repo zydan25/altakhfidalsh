@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from decimal import Decimal
+from uuid import uuid4
 
 from sqlalchemy import and_, or_
 
@@ -170,8 +171,16 @@ class CommerceService:
                 currency_id=context.currency_id,
                 pricing_group_id=context.pricing_group_id,
                 fx_rate=order_items[0]["price"].fx_rate,
-                markup_percent=Decimal("0"),
-                markup_fixed=Decimal("0"),
+                markup_percent=(
+                    order_items[0]["context"].override_percent
+                    if order_items[0]["context"].override_percent is not None
+                    else order_items[0]["context"].rule.percent_markup
+                ),
+                markup_fixed=(
+                    order_items[0]["context"].override_fixed
+                    if order_items[0]["context"].override_fixed is not None
+                    else order_items[0]["context"].rule.fixed_markup
+                ),
                 subtotal=subtotal,
                 discount=Decimal("0"),
                 shipping=shipping,
@@ -196,8 +205,16 @@ class CommerceService:
                         name_snapshot=product.name,
                         base_price_sar=price.base_sar,
                         fx_rate=price.fx_rate,
-                        markup_percent=context.rule.percent_markup,
-                        markup_fixed=context.rule.fixed_markup,
+                        markup_percent=(
+                            context.override_percent
+                            if context.override_percent is not None
+                            else context.rule.percent_markup
+                        ),
+                        markup_fixed=(
+                            context.override_fixed
+                            if context.override_fixed is not None
+                            else context.rule.fixed_markup
+                        ),
                         sale_price_display=price.final,
                         qty=item["qty"],
                         total=price.final * item["qty"],
