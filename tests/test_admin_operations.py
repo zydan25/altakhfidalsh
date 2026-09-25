@@ -238,6 +238,10 @@ def test_catalog_archive_restore_and_active_references(client, app):
         size_id = size.id
         product_id = product.id
 
+    with app.app_context():
+        db.session.get(ProductVariant, variant.id).is_active = False
+        db.session.commit()
+
     response = client.post(
         "/admin/options",
         data={"action": "color_archive", "id": str(color_id)},
@@ -249,10 +253,6 @@ def test_catalog_archive_restore_and_active_references(client, app):
         data={"action": "size_archive", "id": str(size_id)},
     )
     assert response.status_code == 200
-
-    with app.app_context():
-        db.session.get(ProductVariant, variant.id).is_active = False
-        db.session.commit()
 
     response = client.post(
         "/admin/options",
