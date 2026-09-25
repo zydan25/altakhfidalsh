@@ -1,27 +1,60 @@
-const CACHE = "altakhfidalsh-admin-v1";
-const SHELL = ["/admin/", "/admin/static/admin.css", "/admin/static/admin.js"];
+const CACHE = "altakhfidalsh-admin-v2";
+const STATIC_SHELL = [
+  "/admin/static/admin.css",
+  "/admin/static/admin.js",
+  "/admin/static/manifest.json",
+  "/admin/static/icon.svg"
+];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(SHELL)));
+  event.waitUntil(
+    caches.open(CACHE).then(cache => cache.addAll(STATIC_SHELL))
+  );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(key => key !== CACHE).map(key => caches.delete(key))
-    ))
+    caches.keys().then(keys =>
+      Promise.all(
+        keys.filter(key => key !== CACHE).map(key => caches.delete(key))
+      )
+    )
   );
   self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
-  event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {
-      const copy = response.clone();
-      caches.open(CACHE).then(cache => cache.put(event.request, copy));
-      return response;
-    }).catch(() => cached))
-  );
+
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+
+  // Never cache API responses or authenticated admin HTML. These must stay fresh.
+  if (url.pathname.startsWith("/api/")) return;
+
+  // Static assets: cache-first.
+  if (url.pathname.startsWith("/admin/static/")) {
+    event.respondWith(
+      caches.match(event.request).then(cached =>
+        cached || fetch(event.request).then(response => {
+          const copy = response.clone();
+          caches.open(CACHE).then(cache => cache.put(event.request, copy));
+          return response;
+        })
+      )
+    );
+    return;
+  }
+
+  // Admin pages: network-first, cached fallback only when offline.
+  if (event.request.mode === "navigate" || url.pathname.startsWith("/admin/")) {
+    event.respondWith(
+      fetch(event.request).then(response => {
+        const copy = response.clone();
+        caches.open(CACHE).then(cache => cache.put(event.request, copy));
+        return response;
+      }).catch(() => caches.match(event.request).then(cached => cached || caches.match("/admin/")))
+    );
+  }
 });
