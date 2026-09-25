@@ -34,6 +34,11 @@ from ...models import (
     Brand,
     Hashtag,
     ProductHashtag,
+    PromotionalStrip,
+    ProductPromotionalStrip,
+    Campaign,
+    CampaignProduct,
+    SizeGuide,
 )
 
 
@@ -338,6 +343,40 @@ class CatalogService:
         ProductHashtag.query.filter_by(product_id=product_id).delete()
         for hashtag_id in normalized:
             db.session.add(ProductHashtag(product_id=product_id, hashtag_id=hashtag_id))
+        db.session.commit()
+        return normalized
+
+    @staticmethod
+    def set_product_promotional_strips(product_id, strip_ids):
+        if db.session.get(Product, product_id) is None:
+            raise LookupError("product not found")
+        normalized = []
+        for raw in strip_ids:
+            strip_id = int(raw)
+            if db.session.get(PromotionalStrip, strip_id) is None:
+                raise ValueError(f"promotional strip {strip_id} not found")
+            if strip_id not in normalized:
+                normalized.append(strip_id)
+        ProductPromotionalStrip.query.filter_by(product_id=product_id).delete()
+        for position, strip_id in enumerate(normalized):
+            db.session.add(ProductPromotionalStrip(product_id=product_id, strip_id=strip_id, sort_order=position))
+        db.session.commit()
+        return normalized
+
+    @staticmethod
+    def set_product_campaigns(product_id, campaign_ids):
+        if db.session.get(Product, product_id) is None:
+            raise LookupError("product not found")
+        normalized = []
+        for raw in campaign_ids:
+            campaign_id = int(raw)
+            if db.session.get(Campaign, campaign_id) is None:
+                raise ValueError(f"campaign {campaign_id} not found")
+            if campaign_id not in normalized:
+                normalized.append(campaign_id)
+        CampaignProduct.query.filter_by(product_id=product_id).delete()
+        for position, campaign_id in enumerate(normalized):
+            db.session.add(CampaignProduct(product_id=product_id, campaign_id=campaign_id, sort_order=position))
         db.session.commit()
         return normalized
 
@@ -765,6 +804,107 @@ class CatalogService:
         }
 
     @staticmethod
+    def product_reference_data(product_id=None):
+        product = db.session.get(Product, int(product_id)) if product_id else None
+        if product_id and product is None:
+            raise LookupError("product not found")
+
+        current_category_ids = {int(x.category_id) for x in ProductCategory.query.filter_by(product_id=product_id).all()} if product_id else set()
+        current_badge_ids = {int(x.badge_id) for x in ProductBadge.query.filter_by(product_id=product_id).all()} if product_id else set()
+        current_hashtag_ids = {int(x.hashtag_id) for x in ProductHashtag.query.filter_by(product_id=product_id).all()} if product_id else set()
+        current_strip_ids = {int(x.strip_id) for x in ProductPromotionalStrip.query.filter_by(product_id=product_id).all()} if product_id else set()
+        current_campaign_ids = {int(x.campaign_id) for x in CampaignProduct.query.filter_by(product_id=product_id).all()} if product_id else set()
+
+        def active_or_current(model, ids, order_by):
+            condition = or_(model.is_active.is_(True), model.id.in_(ids) if ids else False)
+            return model.query.filter(condition).order_by(*order_by).all()
+
+        categories = active_or_current(Category, current_category_ids, (Category.parent_id, Category.sort_order, Category.name))
+        brands = active_or_current(Brand, {product.brand_id} if product and product.brand_id else set(), (Brand.name,))
+        badges = active_or_current(Badge, current_badge_ids, (Badge.priority.desc(), Badge.name))
+        hashtags = active_or_current(Hashtag, current_hashtag_ids, (Hashtag.sort_order, Hashtag.name))
+        strips = active_or_current(PromotionalStrip, current_strip_ids, (PromotionalStrip.id.desc(),))
+        campaigns = active_or_current(Campaign, current_campaign_ids, (Campaign.display_priority.desc(), Campaign.name))
+
+        assignment = db.session.get(ProductPolicyAssignment, int(product_id)) if product_id else None
+        policy_specs = (
+            ("shipping", ShippingPolicy, assignment.shipping_policy_id if assignment else None),
+            ("return", ReturnPolicy, assignment.return_policy_id if assignment else None),
+            ("warranty", WarrantyPolicy, assignment.warranty_policy_id if assignment else None),
+        )
+        policies = {}
+        for key, model, current_id in policy_specs:
+            ids = {int(current_id)} if current_id else set()
+            rows = active_or_current(model, ids, (model.name,))
+            policies[key] = [
+                {
+                    "id": row.id,
+                    "name": row.name,
+                    "is_active": bool(row.is_active),
+                    "summary": (
+                        row.delivery_window if key == "shipping"
+                        else f"{row.return_window_days} يوم" if key == "return"
+                        else f"{row.duration_days} يوم"
+                    ),
+                }
+                for row in rows
+            ]
+
+        size_guides = SizeGuide.query.filter_by(is_active=True).order_by(SizeGuide.name).all()
+        return {
+            "categories": [
+                {
+                    "id": row.id, "name": row.name, "slug": row.slug,
+                    "parent_id": row.parent_id, "is_active": bool(row.is_active),
+                }
+                for row in categories
+            ],
+            "brands": [
+                {
+                    "id": row.id, "name": row.name, "slug": row.slug,
+                    "logo_asset_id": row.logo_asset_id, "is_active": bool(row.is_active),
+                }
+                for row in brands
+            ],
+            "badges": [
+                {
+                    "id": row.id, "name": row.name, "code": row.code,
+                    "bg_color": row.bg_color, "text_color": row.text_color,
+                    "style": row.style, "priority": row.priority, "is_active": bool(row.is_active),
+                }
+                for row in badges
+            ],
+            "hashtags": [
+                {
+                    "id": row.id, "name": row.name, "slug": row.slug,
+                    "display_name": row.display_name, "is_active": bool(row.is_active),
+                }
+                for row in hashtags
+            ],
+            "promotional_strips": [
+                {
+                    "id": row.id, "name": row.name, "text_prefix": row.text_prefix,
+                    "text_body": row.text_body, "background_color": row.background_color,
+                    "text_color": row.text_color, "is_active": bool(row.is_active),
+                }
+                for row in strips
+            ],
+            "campaigns": [
+                {
+                    "id": row.id, "name": row.name, "slug": row.slug,
+                    "status": row.status, "display_priority": row.display_priority,
+                    "badge_id": row.badge_id, "is_active": bool(row.is_active),
+                }
+                for row in campaigns
+            ],
+            "policies": policies,
+            "size_guides": [
+                {"id": row.id, "name": row.name, "guide_type": row.guide_type, "fit_type": row.fit_type}
+                for row in size_guides
+            ],
+        }
+
+    @staticmethod
     def publish_product(product_id):
         product = db.session.get(Product, product_id)
         if not product:
@@ -833,6 +973,14 @@ class CatalogService:
             {"id": row.hashtag_id}
             for row in ProductHashtag.query.filter_by(product_id=product_id).order_by(ProductHashtag.id).all()
         ]
+        promotional_strips = [
+            {"id": row.strip_id}
+            for row in ProductPromotionalStrip.query.filter_by(product_id=product_id).order_by(ProductPromotionalStrip.sort_order, ProductPromotionalStrip.id).all()
+        ]
+        campaigns = [
+            {"id": row.campaign_id}
+            for row in CampaignProduct.query.filter_by(product_id=product_id).order_by(CampaignProduct.sort_order, CampaignProduct.id).all()
+        ]
         media_rows = (
             db.session.query(ProductMedia, MediaAsset, Color)
             .join(MediaAsset, MediaAsset.id == ProductMedia.asset_id)
@@ -880,6 +1028,8 @@ class CatalogService:
             "media": media,
             "badges": badges,
             "hashtags": hashtags,
+            "promotional_strips": promotional_strips,
+            "campaigns": campaigns,
             "inventory": inventory,
             "locations": CatalogService.list_inventory_locations(),
             "display": {
