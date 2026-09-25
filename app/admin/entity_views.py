@@ -1,4 +1,4 @@
-from flask import render_template, request
+from flask import redirect, render_template, request
 
 from ..extensions import db
 from ..models import (
@@ -27,6 +27,8 @@ from ..models import (
     Wallet,
 )
 from .context import build_admin_context
+from ..modules.commerce.services import CommerceService
+from ..modules.support.services import SupportService
 
 
 def _ctx():
@@ -56,9 +58,80 @@ def register_entity_views(admin_bp):
     @admin_bp.get("/orders")
     def orders():
         rows = Order.query.order_by(Order.id.desc()).limit(200).all()
-        return _render("الطلبات", ["الطلب", "العميل", "الإجمالي", "الحالة", "الدفع", "الشحن"],
-                       [[x.order_no, x.customer_id, x.total, x.status, x.payment_status, x.shipping_status] for x in rows],
-                       "المبيعات والطلبات")
+        return render_template(
+            "admin/orders.html",
+            title="الطلبات",
+            orders=rows,
+            **build_admin_context(),
+        )
+
+    @admin_bp.route("/orders/<int:order_id>", methods=["GET", "POST"])
+    def order_detail_page(order_id):
+        order = db.session.get(Order, order_id)
+        if order is None:
+            return render_template(
+                "admin/module.html",
+                title="الطلب غير موجود",
+                section="المبيعات والطلبات",
+                requested_path=request.path,
+                **build_admin_context(),
+            ), 404
+
+        error = None
+        success = None
+        if request.method == "POST":
+            action = (request.form.get("action") or "").strip()
+            try:
+                if action == "status":
+                    CommerceService.transition_order(
+                        order.id,
+                        str(request.form["status"]),
+                        actor_type="admin",
+                        actor_id=request.environ.get("admin_id"),
+                        note=(request.form.get("note") or "").strip() or None,
+                    )
+                    success = "تم تحديث حالة الطلب."
+                elif action == "message":
+                    conversation = Conversation.query.filter_by(order_id=order.id).order_by(Conversation.id.desc()).first()
+                    if conversation is None:
+                        conversation = Conversation(
+                            customer_id=order.customer_id,
+                            order_id=order.id,
+                            type="order_support",
+                            subject=f"الطلب {order.order_no}",
+                            status="open",
+                        )
+                        db.session.add(conversation)
+                        db.session.commit()
+                    SupportService.send_message(
+                        conversation.id,
+                        "admin",
+                        request.environ.get("admin_id") or 0,
+                        (request.form.get("body") or "").strip(),
+                        "text",
+                    )
+                    success = "تم إرسال الرسالة للعميل."
+                else:
+                    raise ValueError("إجراء الطلب غير معروف.")
+            except (KeyError, ValueError, LookupError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+            order = db.session.get(Order, order_id)
+
+        detail = CommerceService.serialize_order_detail(order)
+        return render_template(
+            "admin/order_detail.html",
+            title=f"الطلب {order.order_no}",
+            order=detail,
+            status_choices=(
+                "created", "awaiting_payment", "paid", "processing",
+                "shipped", "delivered", "returned", "cancelled",
+            ),
+            error=error,
+            success=success,
+            **build_admin_context(),
+        )
 
     @admin_bp.get("/chat")
     def chat():
