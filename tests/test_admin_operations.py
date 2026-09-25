@@ -196,3 +196,98 @@ def test_product_wizard_media_snapshot_exposes_color_data(client, app):
     assert media["url"] == "/media/products/test/asset.webp"
     assert media["color_id"] == color_id
     assert media["color_name"] == "أبيض"
+
+
+def test_catalog_archive_restore_and_active_references(client, app):
+    with client.session_transaction() as session:
+        session["admin_id"] = 1
+
+    with app.app_context():
+        from app.models import Color, Currency, Product, ProductVariant, Size
+
+        currency = Currency(code="YER", name_ar="ريال", is_base=True)
+        db.session.add(currency)
+        db.session.flush()
+
+        color = Color(name="لون أرشيف", hex_code="#222222", is_active=True)
+        size = Size(group="TEST", code="L", label="كبير", is_active=True)
+        product = Product(
+            sku="ARCHIVE-PRODUCT-001",
+            name="منتج أرشيف",
+            slug="archive-product-001",
+            base_currency_id=currency.id,
+            base_price=50,
+            status="draft",
+            is_active=True,
+        )
+        db.session.add_all([color, size, product])
+        db.session.flush()
+
+        variant = ProductVariant(
+            product_id=product.id,
+            sku="ARCHIVE-VARIANT-001",
+            color_id=color.id,
+            size_id=size.id,
+            status="active",
+            is_active=True,
+        )
+        db.session.add(variant)
+        db.session.commit()
+
+        color_id = color.id
+        size_id = size.id
+        product_id = product.id
+
+    response = client.post(
+        "/admin/options",
+        data={"action": "color_archive", "id": str(color_id)},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        "/admin/options",
+        data={"action": "size_archive", "id": str(size_id)},
+    )
+    assert response.status_code == 200
+
+    with app.app_context():
+        db.session.get(ProductVariant, variant.id).is_active = False
+        db.session.commit()
+
+    response = client.post(
+        "/admin/options",
+        data={"action": "color_restore", "id": str(color_id)},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        "/admin/options",
+        data={"action": "size_restore", "id": str(size_id)},
+    )
+    assert response.status_code == 200
+
+    response = client.get("/api/v1/catalog/reference/options")
+    payload = response.get_json()["item"]
+    assert any(x["id"] == color_id and x["is_active"] for x in payload["colors"])
+    assert any(x["id"] == size_id and x["is_active"] for x in payload["sizes"])
+
+    response = client.post(
+        "/admin/products",
+        data={"action": "archive", "id": str(product_id)},
+    )
+    assert response.status_code == 200
+
+    response = client.get("/admin/products?view=archived")
+    assert response.status_code == 200
+    assert "منتج أرشيف" in response.get_data(as_text=True)
+
+    response = client.post(
+        "/admin/products",
+        data={"action": "restore", "id": str(product_id)},
+    )
+    assert response.status_code == 200
+
+    with app.app_context():
+        product = db.session.get(Product, product_id)
+        assert product.is_active is True
+        assert product.status == "draft"
