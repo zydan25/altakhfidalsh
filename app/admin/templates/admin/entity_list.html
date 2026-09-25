@@ -1,0 +1,22 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">{{ section }}</span>
+  <div class="split-heading"><div><h2>{{ title }}</h2><p class="muted">بيانات الوحدة من قاعدة البيانات الحالية، بتخطيط بطاقات مناسب للهاتف.</p></div>{% for action in actions %}<a class="primary-button" href="{{ action.href }}">{{ action.label }}</a>{% endfor %}</div>
+</section>
+
+<section class="entity-grid">
+  {% for row in rows %}
+  <article class="entity-card panel">
+    {% for value in row %}
+      <div class="entity-field">
+        {% if loop.index0 < columns|length %}<span class="entity-label">{{ columns[loop.index0] }}</span>{% endif %}
+        <strong>{{ value }}</strong>
+      </div>
+    {% endfor %}
+  </article>
+  {% else %}
+  <section class="empty-state panel"><div class="empty-icon">◈</div><h3>لا توجد بيانات</h3><p class="muted">ستظهر السجلات هنا بعد إضافة البيانات من الوحدة الخاصة بها.</p></section>
+  {% endfor %}
+</section>
+{% endblock %}
