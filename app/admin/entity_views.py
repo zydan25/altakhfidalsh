@@ -28,6 +28,7 @@ from ..models import (
 )
 from .context import build_admin_context
 from ..modules.commerce.services import CommerceService
+from ..modules.catalog.services import MediaService
 from ..modules.support.services import SupportService
 
 
