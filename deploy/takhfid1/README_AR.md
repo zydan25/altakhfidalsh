@@ -1,128 +1,185 @@
 # نشر takhfid1 على Ubuntu
 
-هذه الحزمة تجهز المشروع في:
+هذه الحزمة تنشر المشروع في:
 
-/home/root/projects/takhfid1
+`/home/root/projects/takhfid1`
 
-وتشغله عبر PM2 خلف Nginx على:
+وتشغله عبر PM2 باسم:
 
-https://takhfidsh.alattab.site
+`takhfid1`
 
-المنفذ الداخلي للتطبيق:
+على المنفذ الداخلي:
 
-127.0.0.1:4006
+`127.0.0.1:4006`
 
-## المتطلبات
+والنطاق:
 
-Python وPostgreSQL وNginx وNode.js وPM2 وGit موجودة مسبقًا حسب بيئة الخادم المطلوبة.
+`takhfidsh.alattab.site`
 
-## التنفيذ
+## التنفيذ الموصى به
 
-من داخل نسخة المشروع:
+لا تحتاج إلى إنشاء مجلد جديد إذا كان المشروع موجودًا.
 
-sudo -E bash deploy/takhfid1/setup.sh
+بعد سحب `main` إلى الخادم:
 
-السكربت:
-1. ينشئ قاعدة PostgreSQL باسم takhfid1 والمستخدم takhfid1 وكلمة المرور الافتراضية takhfid1 (ويمكن تجاوزها عبر TAKHFID1_DB_PASSWORD).
-2. ينشئ البيئة الافتراضية ويثبت requirements.
-3. يكتب .env الإنتاجي داخل المشروع.
-4. يشغّل migrations وseed.
-5. يجهز مجلد الوسائط.
-6. ينسخ إعداد PM2 إلى /home/root/projects/takhfid1/ecosystem.config.cjs.
-7. يثبت إعداد Nginx للنطاق.
-8. يبدأ PM2 باسم takhfid1 ويشغّل الحفظ pm2 save.
-9. يطبع أوامر certbot عند الحاجة.
+```bash
+cd /home/root/projects/takhfid1
+git fetch origin main
+git checkout -B main origin/main
+git reset --hard origin/main
+chmod +x deploy/takhfid1/deploy.sh
+bash deploy/takhfid1/deploy.sh
+```
 
-## نقطة الاختبار
+أو يمكن تشغيله من أي مكان بعد سحب المشروع:
 
-curl -fsS http://127.0.0.1:4006/health
+```bash
+cd /home/root/projects/takhfid1
+bash deploy/takhfid1/deploy.sh
+```
 
-بعد SSL:
+سيطلب السكربت منك:
 
-curl -fsS https://takhfidsh.alattab.site/health
+```text
+WHATSAPP_API_KEY
+```
+
+ثم يحفظه داخل:
+
+```text
+/home/root/projects/takhfid1/.env
+```
+
+ولا يطبعه في الشاشة.
+
+## ماذا ينفذ deploy.sh
+
+السكربت الواحد يقوم بالخطوات التالية:
+
+1. يستخدم المجلد الموجود `/home/root/projects/takhfid1` إن كان موجودًا.
+2. يسحب `main` من GitHub ويجعل نسخة الخادم مطابقة له بدون حذف الملفات غير المتتبعة مثل `.env` والوسائط.
+3. ينشئ أو يحدث Python virtualenv ويثبت `requirements.txt`.
+4. ينشئ قاعدة PostgreSQL باسم `takhfid1` والمستخدم `takhfid1`.
+5. يجهز `.env` ويحدّث قيم الإنتاج وWhatsApp فعليًا حتى لو كان `.env` موجودًا مسبقًا.
+6. يولد تلقائيًا `SECRET_KEY` وكلمة مرور الإدارة و`WHATSAPP_WEBHOOK_SECRET` عند عدم وجودها في متغيرات البيئة.
+7. يشغل `flask db upgrade` و`scripts/seed.py`.
+8. يثبت إعداد PM2 باسم `takhfid1` على المنفذ `4006`.
+9. يثبت إعداد Nginx للنطاق `takhfidsh.alattab.site`.
+10. يعيد تشغيل PM2 ويحاول تفعيل `pm2-root` للإقلاع بعد إعادة تشغيل الخادم.
+11. يفحص `/health` محليًا وينتظر حتى يصبح التطبيق جاهزًا.
+12. يحاول تفعيل SSL تلقائيًا بواسطة Certbot إذا كان DNS للنطاق محلولًا وCertbot مثبتًا.
 
 ## WhatsApp
 
-التكوين الافتراضي:
+القيم الافتراضية:
+
+```env
 WHATSAPP_BASE_URL=https://whatsapp.alattab.site
 WHATSAPP_SESSION=basheer
+WHATSAPP_TIMEOUT=20
+WHATSAPP_EXTERNAL_URL=https://takhfidsh.alattab.site
+```
 
-الـWebhook الذي يضبطه التكامل الخارجي هو:
+ويتم وضع:
 
+```env
+WHATSAPP_API_KEY=<المفتاح الذي تدخله أثناء النشر>
+WHATSAPP_WEBHOOK_SECRET=<يولد تلقائيًا>
+```
+
+داخل `.env`.
+
+مسارات الـWebhook المستخدمة من المشروع:
+
+```text
 https://takhfidsh.alattab.site/webhook/whatsapp
 https://takhfidsh.alattab.site/webhook/session-status
 https://takhfidsh.alattab.site/webhook/qr
-
-وفق دليل WhatsApp الحالي، جلسة basheer تستخدم هذه المسارات عبر apiBaseUrl. fileciteturn368file0L563-L595
-
-الإرسال من النظام يستخدم:
-POST /api/sessions/basheer/send
-multipart/form-data:
-phoneNumber
-message
-media اختياري
-
-وهذا مطابق للعقد الموثق في الدليل. fileciteturn368file0L230-L279
-
-## أمان
-
-لا تترك API الخاص بواتساب مكشوفًا للعامة دون حماية مناسبة. دليل التكامل الحالي يذكر صراحة غياب Authorization مخصص في الواجهة الحالية ويوصي بطبقة API Key/Bearer أو تقييد IP وHTTPS وrate limiting لمسار /send وعدم تسجيل QR في سجلات عامة. fileciteturn368file0L840-L849
-
-## سحب المشروع وتشغيله
-
-من الخادم كـroot:
-
-```bash
-mkdir -p /home/root/projects
-cd /home/root/projects
-git clone --branch main --single-branch https://github.com/zydan25/altakhfidalsh.git takhfid1
-cd /home/root/projects/takhfid1
-sudo -E bash deploy/takhfid1/setup.sh
 ```
 
-إذا كان المجلد موجودًا بالفعل، فالسكربت يسحب `main` ويعمل `reset --hard origin/main` قبل الإعداد. لا تضع `.env` أو مفاتيح WhatsApp في Git.
+ولوحة WhatsApp:
 
-## DNS وNginx وSSL
+```text
+https://takhfidsh.alattab.site/admin/whatsapp
+```
 
-اربط `takhfidsh.alattab.site` بعنوان الخادم. إعداد Nginx الموجود في `deploy/takhfid1/nginx/takhfidsh.alattab.site.conf` يوجه إلى `127.0.0.1:4006`.
+## Nginx
 
-بعد التأكد من نجاح HTTP:
+الإعداد موجود في:
+
+```text
+deploy/takhfid1/nginx/takhfidsh.alattab.site.conf
+```
+
+ويوجه الطلبات إلى:
+
+```text
+127.0.0.1:4006
+```
+
+ويخدم الوسائط من:
+
+```text
+/home/root/projects/takhfid1/storage/media/
+```
+
+## SSL
+
+إذا كان:
+
+```text
+takhfidsh.alattab.site
+```
+
+يشير عبر DNS إلى عنوان الخادم، والـCertbot مثبت، فإن `deploy.sh` يحاول تنفيذ SSL تلقائيًا.
+
+إذا تم تجاوز SSL أو فشل بسبب DNS، نفذ بعد تصحيح DNS:
 
 ```bash
-certbot --nginx -d takhfidsh.alattab.site
+certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email -d takhfidsh.alattab.site --redirect
 nginx -t
 systemctl reload nginx
-curl -fsS https://takhfidsh.alattab.site/health
 ```
 
-## PM2
+## التحقق
 
-اسم العملية `takhfid1`، وحالة التشغيل:
-
-```bash
-pm2 status
-pm2 logs takhfid1 --lines 100
-pm2 save
-```
-
-السكربت يحاول تفعيل `pm2-root` لإعادة الإحياء بعد إعادة تشغيل Ubuntu.
-
-## التحديثات اللاحقة
-
-بعد أي تحديث مدموج في `main`:
-
-```bash
-cd /home/root/projects/takhfid1
-bash deploy/takhfid1/update.sh
-```
-
-هذا يسحب `main`، يثبت المتطلبات، يشغّل migrations وseed، يختبر Nginx ويعيد تشغيل PM2.
-
-## فحص النظام
+بعد النشر:
 
 ```bash
 cd /home/root/projects/takhfid1
 bash deploy/takhfid1/verify.sh
 ```
 
-يفحص Flask على 4006 وPM2 وNginx واتصال PostgreSQL.
+أو:
+
+```bash
+pm2 status
+pm2 logs takhfid1 --lines 100
+curl -fsS http://127.0.0.1:4006/health
+```
+
+وبعد SSL:
+
+```bash
+curl -fsS https://takhfidsh.alattab.site/health
+```
+
+## التحديثات اللاحقة
+
+بعد دمج أي تغيير في `main`:
+
+```bash
+cd /home/root/projects/takhfid1
+bash deploy/takhfid1/update.sh
+```
+
+## ملاحظات مهمة
+
+لا تضع `.env` أو `WHATSAPP_API_KEY` داخل Git.
+
+كلمة مرور PostgreSQL الافتراضية في حزمة النشر هي `takhfid1` ويمكن تغييرها قبل التشغيل عبر:
+
+```bash
+export TAKHFID1_DB_PASSWORD='كلمة_مرور_أقوى'
+bash deploy/takhfid1/deploy.sh
+```
