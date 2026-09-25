@@ -70,3 +70,21 @@ def send_message(conversation_id):
         )}, 201
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "message_send_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/conversations/<int:conversation_id>/attachments")
+def send_attachments(conversation_id):
+    sender_type = request.form.get("sender_type", "customer")
+    sender_id = request.form.get("sender_id", type=int)
+    if sender_id is None:
+        return {"error": "sender_id_required"}, 400
+    try:
+        return {"item": SupportService.send_message_with_files(
+            conversation_id,
+            sender_type,
+            sender_id,
+            request.form.get("body"),
+            request.files.getlist("files"),
+        )}, 201
+    except (ValueError, LookupError) as exc:
+        return {"error": "attachment_send_failed", "detail": str(exc)}, 400
