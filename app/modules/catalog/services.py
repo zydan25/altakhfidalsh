@@ -589,6 +589,68 @@ class CatalogService:
 
 class MediaService:
     @staticmethod
+    def save_generic_files(files, owner_folder):
+        root = Path(current_app.config["MEDIA_ROOT"])
+        root.mkdir(parents=True, exist_ok=True)
+        results = []
+        for incoming in files:
+            if not incoming or not incoming.filename:
+                continue
+            asset_id = uuid4().hex
+            original = incoming.filename
+            suffix = Path(original).suffix.lower()[:12]
+            try:
+                incoming.stream.seek(0)
+                is_image = (incoming.mimetype or "").startswith("image/")
+                if is_image:
+                    image = ImageOps.exif_transpose(Image.open(incoming.stream))
+                    if image.mode not in ("RGB", "RGBA"):
+                        image = image.convert("RGBA" if "transparency" in image.info else "RGB")
+                    image.thumbnail((current_app.config["MEDIA_MAX_SIDE"], current_app.config["MEDIA_MAX_SIDE"]), Image.Resampling.LANCZOS)
+                    if image.mode == "RGBA":
+                        background = Image.new("RGB", image.size, "white")
+                        background.paste(image, mask=image.getchannel("A"))
+                        image = background
+                    rel_path = f"{owner_folder}/{asset_id}.webp"
+                    out_path = root / rel_path
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                    image.save(out_path, "WEBP", quality=current_app.config["MEDIA_WEBP_QUALITY"], method=6)
+                    mime_type = "image/webp"
+                    width, height = image.width, image.height
+                else:
+                    rel_path = f"{owner_folder}/{asset_id}{suffix}"
+                    out_path = root / rel_path
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                    incoming.save(out_path)
+                    mime_type = incoming.mimetype or "application/octet-stream"
+                    width = height = None
+
+                asset = MediaAsset(
+                    storage_key=rel_path,
+                    url=f"{current_app.config.get('MEDIA_BASE_URL', '/media')}/{rel_path}",
+                    mime_type=mime_type,
+                    width=width,
+                    height=height,
+                    size_bytes=out_path.stat().st_size,
+                    metadata_json={"source_name": original},
+                )
+                db.session.add(asset)
+                db.session.flush()
+                results.append({
+                    "id": asset.id,
+                    "url": asset.url,
+                    "mime_type": asset.mime_type,
+                    "width": asset.width,
+                    "height": asset.height,
+                    "size_bytes": asset.size_bytes,
+                })
+            except Exception as exc:
+                db.session.rollback()
+                raise ValueError(f"file processing failed: {exc}") from exc
+        db.session.commit()
+        return results
+
+    @staticmethod
     def attach_product_files(product_id, files):
         product = db.session.get(Product, product_id)
         if product is None:
