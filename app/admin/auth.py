@@ -7,6 +7,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from ..extensions import db
 from ..models import Admin, OTPRequest
 from ..services.phone import normalize_phone
+from ..services.whatsapp import WhatsAppService
 
 
 class AdminAuthService:
@@ -55,6 +56,13 @@ class AdminAuthService:
         )
         db.session.add(otp)
         db.session.commit()
+        message = current_app.config.get("ADMIN_OTP_MESSAGE", "رمز دخول لوحة إدارة التخفيض: {code}").format(code=code)
+        try:
+            WhatsAppService.send_text(phone, message)
+        except Exception as exc:
+            otp.status = "send_failed"
+            db.session.commit()
+            raise ValueError(f"تعذر إرسال رمز التحقق عبر WhatsApp: {exc}") from exc
         return {
             "otp_request_id": otp.id,
             "expires_at": otp.expires_at.isoformat(),
