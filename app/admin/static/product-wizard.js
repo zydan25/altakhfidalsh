@@ -10,6 +10,7 @@
   let policyRefs = null;
   let marketingRefs = null;
   let optionRefs = null;
+  let configRefs = null;
 
   const notify = (text, type = "success") => {
     message.textContent = text;
@@ -39,11 +40,13 @@
         requestJson("/api/v1/catalog/reference/policies"),
         requestJson("/api/v1/catalog/reference/marketing"),
         requestJson("/api/v1/catalog/reference/options?product_id=" + encodeURIComponent(productId)),
+        requestJson("/api/v1/catalog/reference/product-config?product_id=" + encodeURIComponent(productId)),
       ]);
       snapshot = result.item;
       policyRefs = refs;
       marketingRefs = marketing;
       optionRefs = options.item || options;
+      configRefs = config.item || config;
       hydrate();
     } catch (error) {
       notify(error.message, "error");
@@ -51,10 +54,19 @@
   };
 
   const hydrate = () => {
-    const selected = new Set((snapshot.categories || []).map(x => String(x.id)));
-    document.querySelectorAll("[data-category-checkbox]").forEach((input) => {
-      input.checked = selected.has(input.value);
-    });
+    const categories = configRefs?.categories || [];
+    const selectedCategories = new Set((snapshot.categories || []).map(x => String(x.id)));
+    document.getElementById("categorySelection").innerHTML = categories.length
+      ? categories.map(category =>
+          '<label class="check-row">' +
+          '<input type="checkbox" value="' + category.id + '" data-category-checkbox ' +
+            (selectedCategories.has(String(category.id)) ? 'checked' : '') +
+            (category.is_active ? '' : 'disabled') + '>' +
+          '<span><strong>' + escapeHtml(category.name) + '</strong><small>' +
+            escapeHtml(category.slug) + (!category.is_active ? ' · مؤرشف' : '') +
+          '</small></span></label>'
+        ).join("")
+      : '<div class="empty-state compact"><strong>لا توجد تصنيفات متاحة.</strong><span class="muted">أضف تصنيفًا جديدًا من الزر أعلاه.</span></div>';
 
     document.getElementById("optionsList").innerHTML = (snapshot.options || []).map(option => (
       '<details class="panel" style="padding:12px">' +
@@ -107,8 +119,12 @@
       : '<div class="empty-state compact"><strong>لا توجد ألوان.</strong><span class="muted">أضف أول لون من الزر أعلاه.</span></div>';
 
     document.getElementById("availableSizeCount").textContent = (optionRefs?.sizes || []).length;
-    document.getElementById("sizeReferencePreview").innerHTML = (optionRefs?.sizes || []).slice(0, 18).map(size => (
-      '<span class="size-chip"><strong>' + escapeHtml(size.label) + '</strong><small>' + escapeHtml(size.group) + '</small></span>'
+    document.getElementById("sizeReferencePreview").innerHTML = (optionRefs?.sizes || []).slice(0, 40).map(size => (
+      '<div class="size-reference-item">' +
+      '<span class="size-chip"><strong>' + escapeHtml(size.label) + '</strong><small>' + escapeHtml(size.group) + ' · ' + escapeHtml(size.code) + '</small></span>' +
+      '<button type="button" class="ghost-button use-size-button" data-use-size="' + size.id + '"' +
+        (!size.is_active ? ' disabled' : '') + '>اختيار</button>' +
+      '</div>'
     )).join("") || '<span class="muted">لا توجد مقاسات مرجعية.</span>';
 
     document.getElementById("mediaColorGroups").innerHTML = colors.length
@@ -141,12 +157,16 @@
 
     const fillPolicies = (id, rows, selected) => {
       const select = document.getElementById(id);
-      select.innerHTML = '<option value="">بدون سياسة</option>' + rows.map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+      select.innerHTML = '<option value="">بدون سياسة</option>' +
+        rows.map(x => '<option value="' + x.id + '"' + (!x.is_active ? ' disabled' : '') + '>' +
+          escapeHtml(x.name) + (x.summary ? ' · ' + escapeHtml(x.summary) : '') +
+          (!x.is_active ? ' · مؤرشف' : '') + '</option>').join("");
       if (selected) select.value = String(selected);
     };
-    fillPolicies("shippingPolicyId", policyRefs?.shipping || [], snapshot.policies?.shipping_policy_id);
-    fillPolicies("returnPolicyId", policyRefs?.return || [], snapshot.policies?.return_policy_id);
-    fillPolicies("warrantyPolicyId", policyRefs?.warranty || [], snapshot.policies?.warranty_policy_id);
+    const referencePolicies = configRefs?.policies || policyRefs || {};
+    fillPolicies("shippingPolicyId", referencePolicies.shipping || [], snapshot.policies?.shipping_policy_id);
+    fillPolicies("returnPolicyId", referencePolicies.return || [], snapshot.policies?.return_policy_id);
+    fillPolicies("warrantyPolicyId", referencePolicies.warranty || [], snapshot.policies?.warranty_policy_id);
 
     const steps = {
       basics: snapshot.steps.basics,
@@ -166,9 +186,17 @@
       ["المخزون", steps.inventory],
       ["جاهز للنشر", snapshot.publishable],
     ].map(([label, ok]) => '<div class="checklist-row"><span class="' + (ok ? "ok" : "pending") + '">' + (ok ? "✓" : "•") + '</span><strong>' + label + '</strong><small>' + (ok ? "مكتمل" : "يحتاج إعدادًا") + '</small></div>').join("");
+    const campaignBadgeSelect = document.getElementById("campaignBadgeId");
+    if (campaignBadgeSelect) {
+      campaignBadgeSelect.innerHTML = '<option value="">بدون شارة</option>' +
+        (configRefs?.badges || []).filter(x => x.is_active).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+    }
+
     const brand = document.getElementById("productBrand");
+    const brands = configRefs?.brands || marketingRefs?.brands || [];
     brand.innerHTML = '<option value="">بدون علامة تجارية</option>' +
-      (marketingRefs?.brands || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+      brands.map(x => '<option value="' + x.id + '"' + (!x.is_active ? ' disabled' : '') + '>' +
+        escapeHtml(x.name) + (!x.is_active ? ' · مؤرشف' : '') + '</option>').join("");
     if (snapshot.product?.brand_id) brand.value = String(snapshot.product.brand_id);
 
     const activeColorOptions = (optionRefs?.colors || []).map(x =>
@@ -214,19 +242,35 @@
     const size = document.getElementById("variantSize");
     size.innerHTML = '<option value="">بدون مقاس</option>' + activeSizeOptions;
 
-    document.getElementById("badgeSelection").innerHTML = (marketingRefs?.badges || []).map(x => (
-      '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-badge-checkbox><span><strong>' +
-      escapeHtml(x.name) + '</strong><small>' + escapeHtml(x.code) + '</small></span></label>'
-    )).join("");
     const selectedBadges = new Set((snapshot.badges || []).map(x => String(x.id)));
-    document.querySelectorAll("[data-badge-checkbox]").forEach(input => input.checked = selectedBadges.has(input.value));
-
-    document.getElementById("hashtagSelection").innerHTML = (marketingRefs?.hashtags || []).map(x => (
-      '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-hashtag-checkbox><span><strong>' +
-      escapeHtml(x.display_name || x.name) + '</strong><small>#' + escapeHtml(x.slug) + '</small></span></label>'
-    )).join("");
     const selectedHashtags = new Set((snapshot.hashtags || []).map(x => String(x.id)));
-    document.querySelectorAll("[data-hashtag-checkbox]").forEach(input => input.checked = selectedHashtags.has(input.value));
+    const selectedStrips = new Set((snapshot.promotional_strips || []).map(x => String(x.id)));
+    const selectedCampaigns = new Set((snapshot.campaigns || []).map(x => String(x.id)));
+    const marketing = configRefs || marketingRefs || {};
+
+    document.getElementById("badgeSelection").innerHTML = (marketing.badges || []).map(x => (
+      '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-badge-checkbox ' +
+        (selectedBadges.has(String(x.id)) ? 'checked' : '') + (!x.is_active ? ' disabled' : '') + '><span><strong>' +
+      escapeHtml(x.name) + '</strong><small>' + escapeHtml(x.code) + (!x.is_active ? ' · مؤرشف' : '') + '</small></span></label>'
+    )).join("") || '<div class="empty-state compact"><strong>لا توجد شارات.</strong><span class="muted">أضف شارة جديدة من الزر.</span></div>';
+
+    document.getElementById("hashtagSelection").innerHTML = (marketing.hashtags || []).map(x => (
+      '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-hashtag-checkbox ' +
+        (selectedHashtags.has(String(x.id)) ? 'checked' : '') + (!x.is_active ? ' disabled' : '') + '><span><strong>' +
+      escapeHtml(x.display_name || x.name) + '</strong><small>#' + escapeHtml(x.slug) + (!x.is_active ? ' · مؤرشف' : '') + '</small></span></label>'
+    )).join("") || '<div class="empty-state compact"><strong>لا توجد هاشتاجات.</strong><span class="muted">أضف هاشتاجًا جديدًا من الزر.</span></div>';
+
+    document.getElementById("stripSelection").innerHTML = (marketing.promotional_strips || []).map(x => (
+      '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-strip-checkbox ' +
+        (selectedStrips.has(String(x.id)) ? 'checked' : '') + (!x.is_active ? ' disabled' : '') + '><span><strong>' +
+      escapeHtml(x.name) + '</strong><small>' + escapeHtml(x.text_body || '') + (!x.is_active ? ' · مؤرشف' : '') + '</small></span></label>'
+    )).join("") || '<div class="empty-state compact"><strong>لا توجد شرائط عروض.</strong><span class="muted">أضف شريطًا جديدًا من الزر.</span></div>';
+
+    document.getElementById("campaignSelection").innerHTML = (marketing.campaigns || []).map(x => (
+      '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-campaign-checkbox ' +
+        (selectedCampaigns.has(String(x.id)) ? 'checked' : '') + (!x.is_active ? ' disabled' : '') + '><span><strong>' +
+      escapeHtml(x.name) + '</strong><small>' + escapeHtml(x.status || '') + (!x.is_active ? ' · مؤرشف' : '') + '</small></span></label>'
+    )).join("") || '<div class="empty-state compact"><strong>لا توجد حملات.</strong><span class="muted">أضف حملة جديدة من الزر.</span></div>';
 
     document.getElementById("publishProduct").disabled = !snapshot.publishable;
   };
@@ -255,9 +299,18 @@
 
   document.getElementById("productColors").addEventListener("click", (event) => {
     const button = event.target.closest("[data-use-color]");
-    if (!button) return;
+    if (!button || button.disabled) return;
     const select = document.getElementById("variantColor");
     select.value = button.dataset.useColor;
+    activate("variants");
+    select.focus();
+  });
+
+  document.getElementById("sizeReferencePreview").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-use-size]");
+    if (!button || button.disabled) return;
+    const select = document.getElementById("variantSize");
+    select.value = button.dataset.useSize;
     activate("variants");
     select.focus();
   });
@@ -361,6 +414,130 @@
     } catch (error) { notify(error.message, "error"); }
   });
 
+  const submitQuickReference = async (formId, url, payloadBuilder, afterCreate, successText) => {
+    const formEl = document.getElementById(formId);
+    if (!formEl) return;
+    formEl.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      try {
+        const created = await requestJson(url, {
+          method: "POST",
+          body: JSON.stringify(payloadBuilder(form)),
+        });
+        closeModal(event.currentTarget.closest(".admin-modal")?.dataset.modal);
+        event.currentTarget.reset();
+        await load();
+        await afterCreate(created.item || {});
+        notify(successText);
+      } catch (error) { notify(error.message, "error"); }
+    });
+  };
+
+  submitQuickReference(
+    "quickBrandForm",
+    "/api/v1/catalog/reference/brands",
+    form => ({ name: form.get("name"), slug: form.get("slug") }),
+    async item => { if (item.id) document.getElementById("productBrand").value = String(item.id); },
+    "تم إنشاء العلامة وإضافتها لقائمة العلامات التجارية."
+  );
+
+  submitQuickReference(
+    "quickCategoryForm",
+    "/api/v1/catalog/reference/categories",
+    form => ({
+      name: form.get("name"), slug: form.get("slug"), parent_id: form.get("parent_id") ? Number(form.get("parent_id")) : null,
+      display_style: form.get("display_style"), sort_order: Number(form.get("sort_order") || 0),
+    }),
+    async item => {
+      if (item.id) {
+        const input = document.querySelector('[data-category-checkbox][value="' + item.id + '"]');
+        if (input) input.checked = true;
+      }
+    },
+    "تم إنشاء التصنيف وإضافته إلى اختيار المنتج."
+  );
+
+  submitQuickReference(
+    "quickHashtagForm",
+    "/api/v1/catalog/reference/hashtags",
+    form => ({
+      name: form.get("name"), display_name: form.get("display_name"), slug: form.get("slug"),
+      sort_order: Number(form.get("sort_order") || 0),
+    }),
+    async item => {
+      if (item.id) {
+        const input = document.querySelector('[data-hashtag-checkbox][value="' + item.id + '"]');
+        if (input) input.checked = true;
+      }
+    },
+    "تم إنشاء الهاشتاج وإضافته لقائمة المنتج."
+  );
+
+  submitQuickReference(
+    "quickStripForm",
+    "/api/v1/catalog/reference/promotional-strips",
+    form => ({
+      name: form.get("name"), text_prefix: form.get("text_prefix"), text_body: form.get("text_body"),
+      background_color: form.get("background_color"), text_color: form.get("text_color"),
+    }),
+    async item => {
+      if (item.id) {
+        const input = document.querySelector('[data-strip-checkbox][value="' + item.id + '"]');
+        if (input) input.checked = true;
+      }
+    },
+    "تم إنشاء شريط العرض وإضافته لقائمة المنتج."
+  );
+
+  submitQuickReference(
+    "quickCampaignForm",
+    "/api/v1/catalog/reference/campaigns",
+    form => ({
+      name: form.get("name"), slug: form.get("slug"), badge_id: form.get("badge_id") ? Number(form.get("badge_id")) : null,
+      status: form.get("status"), display_priority: Number(form.get("display_priority") || 0),
+    }),
+    async item => {
+      if (item.id) {
+        const input = document.querySelector('[data-campaign-checkbox][value="' + item.id + '"]');
+        if (input) input.checked = true;
+      }
+    },
+    "تم إنشاء الحملة وإضافتها لقائمة المنتج."
+  );
+
+  const createPolicyQuick = async (formId, url, build, after, successText) => {
+    const formEl = document.getElementById(formId);
+    if (!formEl) return;
+    formEl.addEventListener("submit", async event => {
+      event.preventDefault();
+      const form = new FormData(event.currentTarget);
+      try {
+        const created = await requestJson(url, { method: "POST", body: JSON.stringify(build(form)) });
+        closeModal(event.currentTarget.closest(".admin-modal")?.dataset.modal);
+        event.currentTarget.reset();
+        await load();
+        if (created.item?.id) document.getElementById(after).value = String(created.item.id);
+        notify(successText);
+      } catch (error) { notify(error.message, "error"); }
+    });
+  };
+
+  createPolicyQuick("quickShippingPolicyForm", "/api/v1/catalog/policies/shipping",
+    form => ({ name: form.get("name"), delivery_window: form.get("delivery_window"), promo_text: form.get("promo_text"),
+      min_order_amount: form.get("min_order_amount") || 0, free_shipping_enabled: form.get("free_shipping_enabled") === "on" }),
+    "shippingPolicyId", "تم إنشاء سياسة الشحن واختيارها للمنتج.");
+
+  createPolicyQuick("quickReturnPolicyForm", "/api/v1/catalog/policies/return",
+    form => ({ name: form.get("name"), return_window_days: Number(form.get("return_window_days") || 0), conditions: form.get("conditions"),
+      fee_rule: form.get("fee_rule"), refund_method: form.get("refund_method") }),
+    "returnPolicyId", "تم إنشاء سياسة الإرجاع واختيارها للمنتج.");
+
+  createPolicyQuick("quickWarrantyPolicyForm", "/api/v1/catalog/policies/warranty",
+    form => ({ name: form.get("name"), duration_days: Number(form.get("duration_days") || 0), coverage: form.get("coverage"),
+      exclusions: form.get("exclusions"), claim_method: form.get("claim_method") }),
+    "warrantyPolicyId", "تم إنشاء سياسة الضمان واختيارها للمنتج.");
+
   document.getElementById("basicsForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const body = {
@@ -441,6 +618,8 @@
   document.getElementById("saveMarketing").addEventListener("click", async () => {
     const badgeIds = [...document.querySelectorAll("[data-badge-checkbox]:checked")].map(input => Number(input.value));
     const hashtagIds = [...document.querySelectorAll("[data-hashtag-checkbox]:checked")].map(input => Number(input.value));
+    const stripIds = [...document.querySelectorAll("[data-strip-checkbox]:checked")].map(input => Number(input.value));
+    const campaignIds = [...document.querySelectorAll("[data-campaign-checkbox]:checked")].map(input => Number(input.value));
     try {
       await requestJson("/api/v1/catalog/products/" + productId + "/badges", {
         method: "POST",
@@ -450,8 +629,16 @@
         method: "POST",
         body: JSON.stringify({ hashtag_ids: hashtagIds }),
       });
+      await requestJson("/api/v1/catalog/products/" + productId + "/promotional-strips", {
+        method: "POST",
+        body: JSON.stringify({ strip_ids: stripIds }),
+      });
+      await requestJson("/api/v1/catalog/products/" + productId + "/campaigns", {
+        method: "POST",
+        body: JSON.stringify({ campaign_ids: campaignIds }),
+      });
       await load();
-      notify("تم حفظ الشارات والهاشتاجات.");
+      notify("تم حفظ الشارات والهاشتاجات وشرائط العروض والحملات.");
     } catch (error) { notify(error.message, "error"); }
   });
 
