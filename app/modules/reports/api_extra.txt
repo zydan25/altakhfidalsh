@@ -1,0 +1,1 @@
+Report domain is read-only by design; write operations stay in their source domains.
