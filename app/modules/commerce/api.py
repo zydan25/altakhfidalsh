@@ -48,6 +48,15 @@ def create_order():
         return {"error": "order_creation_failed", "detail": str(exc)}, 400
 
 
+@api_bp.get("/orders/<int:order_id>/detail")
+@admin_api_required("order.view")
+def order_detail(order_id):
+    item = db.session.get(Order, order_id)
+    if item is None:
+        return {"error": "not_found"}, 404
+    return {"item": CommerceService.serialize_order_detail(item)}
+
+
 @api_bp.post("/orders/<int:order_id>/status")
 @admin_api_required("order.manage")
 def transition_order(order_id):
@@ -189,6 +198,15 @@ def my_order(order_id):
     if order is None or order.customer_id != current_customer().id:
         return {"error": "not_found"}, 404
     return {"item": CommerceService.serialize_order(order)}
+
+
+@api_bp.get("/me/orders/<int:order_id>/detail")
+@customer_required
+def my_order_detail(order_id):
+    order = db.session.get(Order, order_id)
+    if order is None or order.customer_id != current_customer().id:
+        return {"error": "not_found"}, 404
+    return {"item": CommerceService.serialize_order_detail(order)}
 
 
 @api_bp.post("/me/cart/items")
