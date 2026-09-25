@@ -1,0 +1,15 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">{{ section }}</span>
+  <h2>{{ title }}</h2>
+  <p class="muted">المسار: <code>{{ requested_path }}</code></p>
+</section>
+
+<section class="empty-state panel">
+  <div class="empty-icon">◈</div>
+  <h3>هيكل الوحدة موجود</h3>
+  <p>هذه الصفحة هي نقطة الربط الأولى للوحدة. سيتم تحويلها تدريجيًا إلى شاشة CRUD/API كاملة دون تغيير المسار أو مكانها في شجرة الإدارة.</p>
+</section>
+{% endblock %}
