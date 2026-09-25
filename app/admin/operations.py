@@ -328,43 +328,99 @@ def register_operation_routes(admin_bp):
 
     @admin_bp.route("/campaigns", methods=["GET", "POST"])
     def campaigns():
+        from .entity_views import _unique_slug
         context = _ctx()
         error = None
         success = None
         if request.method == "POST":
-            name = (request.form.get("name") or "").strip()
-            slug = (request.form.get("slug") or "").strip().lower()
-            if not name or not slug:
-                error = "اسم الحملة وSlug مطلوبان."
-            else:
+            try:
+                name = (request.form.get("name") or "").strip()
+                if not name:
+                    raise ValueError("اسم الحملة مطلوب.")
+                slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(Campaign, name, fallback="campaign")
+                if Campaign.query.filter_by(slug=slug).first():
+                    raise ValueError("الـSlug مستخدم مسبقًا.")
                 db.session.add(Campaign(
                     name=name,
                     slug=slug,
                     start_at=None,
                     end_at=None,
-                    status="draft",
+                    status=(request.form.get("status") or "draft").strip(),
+                    display_priority=request.form.get("display_priority", 0, type=int),
                 ))
                 db.session.commit()
                 success = "تم إنشاء الحملة كمسودة."
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = Campaign.query.order_by(Campaign.id.desc()).limit(100).all()
-        return render_template("admin/campaigns.html", title="الحملات", campaigns=rows, success=success, error=error, **context)
+        records = [{
+            "title": row.name,
+            "badge": row.status,
+            "fields": [
+                {"label": "Slug", "value": row.slug, "dir": "ltr"},
+                {"label": "الأولوية", "value": row.display_priority},
+            ],
+        } for row in rows]
+        return render_template(
+            "admin/manage.html", title="الحملات", section="المحتوى والمتجر",
+            description="أنشئ الحملة من الزر، والـSlug يُولد تلقائيًا ويمكن تعديله.",
+            fields=[
+                {"name": "name", "label": "اسم الحملة", "required": True, "placeholder": "مثال: تخفيضات الخريف"},
+                {"name": "slug", "label": "Slug", "dir": "ltr", "placeholder": "يُولد تلقائيًا"},
+                {"name": "status", "label": "الحالة", "type": "select", "options": [
+                    {"value": "draft", "label": "مسودة", "selected": True},
+                    {"value": "scheduled", "label": "مجدولة"},
+                    {"value": "active", "label": "نشطة"},
+                ]},
+                {"name": "display_priority", "label": "الأولوية", "type": "number", "value": 0, "min": 0},
+            ],
+            records=records, modal_id="campaignAddModal", success=success, error=error, **context,
+        )
 
     @admin_bp.route("/hashtags", methods=["GET", "POST"])
     def hashtags():
+        from .entity_views import _unique_slug
         context = _ctx()
         error = None
         success = None
         if request.method == "POST":
-            name = (request.form.get("name") or "").strip()
-            slug = (request.form.get("slug") or "").strip().lower()
-            if not name or not slug:
-                error = "اسم الوسم وSlug مطلوبان."
-            else:
-                db.session.add(Hashtag(name=name, slug=slug, display_name=request.form.get("display_name") or name))
+            try:
+                name = (request.form.get("name") or "").strip()
+                if not name:
+                    raise ValueError("اسم الوسم مطلوب.")
+                display_name = (request.form.get("display_name") or "").strip() or name
+                slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(Hashtag, display_name, fallback="tag")
+                if Hashtag.query.filter_by(slug=slug).first():
+                    raise ValueError("الـSlug مستخدم مسبقًا.")
+                db.session.add(Hashtag(name=name, slug=slug, display_name=display_name,
+                                       sort_order=request.form.get("sort_order", 0, type=int)))
                 db.session.commit()
                 success = "تم إنشاء الوسم."
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
         rows = Hashtag.query.order_by(Hashtag.sort_order, Hashtag.id.desc()).limit(200).all()
-        return render_template("admin/hashtags.html", title="الهاشتاجات", hashtags=rows, success=success, error=error, **context)
+        records = [{
+            "title": row.display_name or row.name,
+            "badge": f"#{row.id}",
+            "fields": [
+                {"label": "Slug", "value": row.slug, "dir": "ltr"},
+                {"label": "الاسم الداخلي", "value": row.name},
+                {"label": "الترتيب", "value": row.sort_order},
+            ],
+        } for row in rows]
+        return render_template(
+            "admin/manage.html", title="الهاشتاجات", section="المحتوى والمتجر",
+            description="قائمة الهاشتاجات أولًا، والإضافة من نافذة مستقلة مع Slug تلقائي.",
+            fields=[
+                {"name": "name", "label": "الاسم", "required": True, "placeholder": "مثال: عروض_العيد"},
+                {"name": "slug", "label": "Slug", "dir": "ltr", "placeholder": "يُولد تلقائيًا"},
+                {"name": "display_name", "label": "اسم العرض", "placeholder": "#عروض_العيد"},
+                {"name": "sort_order", "label": "الترتيب", "type": "number", "value": 0, "min": 0},
+            ],
+            records=records, modal_id="hashtagLegacyAddModal", success=success, error=error, **context,
+        )
 
 
 def _ctx():
