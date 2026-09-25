@@ -381,17 +381,26 @@ def create_color():
 def create_size():
     payload = request.get_json(silent=True) or {}
     try:
+        from ...extensions import db
         from ...models import Size
+        group = str(payload.get("group") or "").strip()
+        code = str(payload.get("code") or "").strip().upper()
+        label = str(payload.get("label") or "").strip()
+        if not group or not code or not label:
+            raise ValueError("مجموعة المقاس والكود والاسم الظاهر مطلوبة.")
+        if Size.query.filter_by(group=group, code=code).first():
+            raise ValueError("كود المقاس مستخدم داخل المجموعة.")
         size = Size(
-            group=str(payload["group"]).strip(),
-            code=str(payload["code"]).strip().upper(),
-            label=str(payload["label"]).strip(),
+            group=group,
+            code=code,
+            label=label,
             sort_order=int(payload.get("sort_order", 0)),
         )
-        __import__("app.extensions", fromlist=["db"]).db.session.add(size)
-        __import__("app.extensions", fromlist=["db"]).db.session.commit()
+        db.session.add(size)
+        db.session.commit()
         return {"item": {"id": size.id, "group": size.group, "code": size.code, "label": size.label}}, 201
-    except KeyError as exc:
+    except (KeyError, TypeError, ValueError) as exc:
+        db.session.rollback() if "db" in locals() else None
         return {"error": "invalid_size", "detail": str(exc)}, 400
 
 
