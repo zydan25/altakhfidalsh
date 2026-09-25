@@ -14,13 +14,20 @@ from ...models import (
     MediaAsset,
     Product,
     ProductCategory,
+    ProductDisplaySettings,
     ProductMedia,
     ProductOption,
     ProductOptionValue,
     ProductVariant,
     StockInventory,
     InventoryLocation,
+    ProductPolicyAssignment,
+    ShippingPolicy,
+    ReturnPolicy,
+    WarrantyPolicy,
     VariantOptionValue,
+    ProductBadge,
+    Badge,
 )
 
 
@@ -371,6 +378,97 @@ class CatalogService:
             "on_hand": stock.on_hand,
             "reserved": stock.reserved,
             "available": stock.available,
+        }
+
+    @staticmethod
+    def set_display_settings(product_id, payload):
+        product = db.session.get(Product, product_id)
+        if product is None:
+            raise LookupError("product not found")
+        settings = db.session.get(ProductDisplaySettings, product_id)
+        if settings is None:
+            settings = ProductDisplaySettings(product_id=product_id)
+            db.session.add(settings)
+        for field in (
+            "show_rating", "show_sold_badge", "show_shipping_banner",
+            "show_return", "show_review_count",
+        ):
+            if field in payload:
+                setattr(settings, field, bool(payload[field]))
+        if "card_aspect_ratio" in payload:
+            settings.card_aspect_ratio = str(payload["card_aspect_ratio"])
+        if "card_radius" in payload:
+            settings.card_radius = max(0, int(payload["card_radius"]))
+        db.session.commit()
+        return {
+            "product_id": product_id,
+            "show_rating": settings.show_rating,
+            "show_sold_badge": settings.show_sold_badge,
+            "show_shipping_banner": settings.show_shipping_banner,
+            "show_return": settings.show_return,
+            "show_review_count": settings.show_review_count,
+            "card_aspect_ratio": settings.card_aspect_ratio,
+            "card_radius": settings.card_radius,
+        }
+
+    @staticmethod
+    def set_policies(product_id, payload):
+        if db.session.get(Product, product_id) is None:
+            raise LookupError("product not found")
+        policy = db.session.get(ProductPolicyAssignment, product_id)
+        if policy is None:
+            policy = ProductPolicyAssignment(product_id=product_id)
+            db.session.add(policy)
+        mappings = (
+            ("shipping_policy_id", ShippingPolicy),
+            ("return_policy_id", ReturnPolicy),
+            ("warranty_policy_id", WarrantyPolicy),
+        )
+        for field, model in mappings:
+            if field in payload and payload[field] is not None:
+                if db.session.get(model, int(payload[field])) is None:
+                    raise ValueError(f"{field} not found")
+                setattr(policy, field, int(payload[field]))
+        db.session.commit()
+        return {
+            "product_id": product_id,
+            "shipping_policy_id": policy.shipping_policy_id,
+            "return_policy_id": policy.return_policy_id,
+            "warranty_policy_id": policy.warranty_policy_id,
+        }
+
+    @staticmethod
+    def create_inventory_location(payload):
+        name = (payload.get("name") or "").strip()
+        code = (payload.get("code") or "").strip().upper()
+        if not name or not code:
+            raise ValueError("name and code are required")
+        if InventoryLocation.query.filter_by(code=code).first():
+            raise ValueError("location code already exists")
+        location = InventoryLocation(name=name, code=code, city_id=payload.get("city_id"))
+        db.session.add(location)
+        db.session.commit()
+        return {"id": location.id, "name": location.name, "code": location.code, "city_id": location.city_id}
+
+    @staticmethod
+    def list_inventory_locations():
+        return [
+            {"id": x.id, "name": x.name, "code": x.code, "city_id": x.city_id}
+            for x in InventoryLocation.query.filter_by(is_active=True).order_by(InventoryLocation.name).all()
+        ]
+
+    @staticmethod
+    def option_references():
+        from ...models import Size
+        return {
+            "colors": [
+                {"id": x.id, "name": x.name, "hex_code": x.hex_code, "swatch_asset_id": x.swatch_asset_id}
+                for x in Color.query.filter_by(is_active=True).order_by(Color.sort_order, Color.name).all()
+            ],
+            "sizes": [
+                {"id": x.id, "group": x.group, "code": x.code, "label": x.label}
+                for x in Size.query.filter_by(is_active=True).order_by(Size.sort_order, Size.label).all()
+            ],
         }
 
     @staticmethod
