@@ -215,6 +215,7 @@ class AuthSession(TimestampMixin, db.Model):
     id = db.Column(Integer, primary_key=True)
     customer_id = db.Column(ForeignKey("customers.id", ondelete="CASCADE"), nullable=False)
     refresh_token_hash = db.Column(String(255), nullable=False, unique=True)
+    access_token_hash = db.Column(String(255), unique=True)
     device_id = db.Column(String(255))
     expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
     revoked_at = db.Column(db.DateTime(timezone=True))
