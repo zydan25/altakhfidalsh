@@ -47,11 +47,11 @@ jobs:
       - name: Compile
         run: python -m compileall app tests
 
-      - name: Generate migration from metadata
-        run: flask --app wsgi.py db migrate -m "ci schema validation"
-
-      - name: Apply schema
+      - name: Apply checked-in migration
         run: flask --app wsgi.py db upgrade
+
+      - name: Verify migration state
+        run: flask --app wsgi.py db current
 
       - name: Test
         run: pytest
