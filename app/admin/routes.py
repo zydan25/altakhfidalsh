@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation
 from flask import render_template, request
 from sqlalchemy import func
 
-from .navigation import NAVIGATION
+from .context import build_admin_context
 from ..extensions import db
 from ..models import (
     Category,
@@ -25,26 +25,7 @@ def _safe_count(model):
 
 
 def _navigation_context():
-    current_path = request.path
-    page_item_map = []
-    for section in NAVIGATION:
-        section.active = any(
-            current_path == child.route or current_path.startswith(child.route + "/")
-            for child in section.children
-        )
-        for child in section.children:
-            page_item_map.append(
-                {
-                    "label": child.label,
-                    "route": child.route,
-                    "section": section.label,
-                }
-            )
-    return {
-        "navigation": NAVIGATION,
-        "current_path": current_path,
-        "page_item_map": page_item_map,
-    }
+    return build_admin_context()
 
 
 def _category_tree_rows():
