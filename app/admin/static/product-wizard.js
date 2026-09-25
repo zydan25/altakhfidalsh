@@ -16,9 +16,12 @@
   };
 
   const requestJson = async (url, options = {}) => {
+    const headers = options.body instanceof FormData
+      ? {}
+      : { "Content-Type": "application/json" };
     const response = await fetch(url, {
-      headers: { "Content-Type": "application/json", ...(options.body instanceof FormData ? {} : {}) },
       ...options,
+      headers: { ...headers, ...(options.headers || {}) },
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.detail || data.error || "تعذر تنفيذ العملية");
