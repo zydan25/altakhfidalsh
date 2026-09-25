@@ -7,6 +7,7 @@ from ...models import Customer, Order, Product, ProductVariant, StockInventory
 
 
 @api_bp.get("/sales")
+@admin_api_required("report.view")
 def sales_report():
     row = db.session.query(
         func.count(Order.id),
@@ -25,12 +26,14 @@ def sales_report():
 
 
 @api_bp.get("/orders/status")
+@admin_api_required("report.view")
 def orders_by_status():
     rows = db.session.query(Order.status, func.count(Order.id)).group_by(Order.status).order_by(func.count(Order.id).desc()).all()
     return {"items": [{"status": status, "count": int(count)} for status, count in rows]}
 
 
 @api_bp.get("/customers")
+@admin_api_required("report.view")
 def customers_report():
     row = db.session.query(func.count(Customer.id)).one()
     active = db.session.query(func.count(Customer.id)).filter(Customer.is_active.is_(True)).scalar() or 0
@@ -38,6 +41,7 @@ def customers_report():
 
 
 @api_bp.get("/inventory")
+@admin_api_required("report.view")
 def inventory_report():
     row = db.session.query(
         func.count(ProductVariant.id),
@@ -54,6 +58,7 @@ def inventory_report():
 
 
 @api_bp.get("/catalog")
+@admin_api_required("report.view")
 def catalog_report():
     return {
         "products": int(db.session.query(func.count(Product.id)).scalar() or 0),
