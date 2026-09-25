@@ -63,7 +63,7 @@ def init_admin_security(admin_bp):
     @admin_bp.before_request
     def protect():
         endpoint = request.endpoint or ""
-        if endpoint in {"admin.login", "admin.logout"}:
+        if endpoint in {"admin.login", "admin.logout", "admin.static"}:
             return None
         code = permission_code(request.path, request.method)
         if not session.get("admin_id") and not current_app.config.get("ADMIN_DEV_BYPASS", False):
