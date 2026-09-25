@@ -128,7 +128,7 @@ class PricingGroupCity(TimestampMixin, ActiveMixin, db.Model):
     ends_at = db.Column(db.DateTime(timezone=True))
     __table_args__ = (
         CheckConstraint(
-            "(city_id IS NOT NULL) OR (region_id IS NOT NULL)",
+            "(city_id IS NOT NULL) <> (region_id IS NOT NULL)",
             name="ck_pricing_group_city_or_region",
         ),
         Index("ix_pricing_group_city_lookup", "city_id", "priority"),
