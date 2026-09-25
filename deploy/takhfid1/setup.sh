@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+export PM2_HOME="${PM2_HOME:-/home/root/.pm2}"
 APP_ROOT="/home/root/projects/takhfid1"
 REPO_URL="${REPO_URL:-https://github.com/zydan25/altakhfidalsh.git}"
 DOMAIN="takhfidsh.alattab.site"
