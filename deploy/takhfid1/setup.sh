@@ -40,10 +40,13 @@ python3 -m venv "$APP_ROOT/.venv"
 mkdir -p "$APP_ROOT/storage/media"
 
 ENV_FILE="$APP_ROOT/.env"
-SECRET_KEY="${TAKHFID1_SECRET_KEY:-$(openssl rand -hex 32)}"
-ADMIN_PASSWORD="${TAKHFID1_ADMIN_PASSWORD:-$(openssl rand -hex 24)}"
-
-cat > "$ENV_FILE" <<EOF
+if [ -f "$ENV_FILE" ]; then
+  log "الملف .env موجود؛ سيتم الحفاظ على الأسرار الحالية."
+else
+  SECRET_KEY="${TAKHIFID1_SECRET_KEY:-$(openssl rand -hex 32)}"
+  ADMIN_PASSWORD="${TAKHIFID1_ADMIN_PASSWORD:-$(openssl rand -hex 24)}"
+  WHATSAPP_API_KEY="${WHATSAPP_API_KEY:-}"
+  cat > "$ENV_FILE" <<EOF
 FLASK_APP=app:create_app
 FLASK_ENV=production
 SECRET_KEY=$SECRET_KEY
@@ -67,10 +70,12 @@ ADMIN_OTP_MESSAGE=رمز دخول لوحة إدارة التخفيض: {code}
 
 WHATSAPP_BASE_URL=https://whatsapp.alattab.site
 WHATSAPP_SESSION=basheer
+WHATSAPP_API_KEY=$WHATSAPP_API_KEY
 WHATSAPP_TIMEOUT=20
 WHATSAPP_EXTERNAL_URL=https://$DOMAIN
 EOF
-chmod 600 "$ENV_FILE"
+  chmod 600 "$ENV_FILE"
+fi
 
 set -a
 source "$ENV_FILE"
