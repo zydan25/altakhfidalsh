@@ -1,6 +1,7 @@
 from flask import request
 
 from . import api_bp
+from ...security import admin_api_required
 from .services import AfterSalesService
 from ...extensions import db
 from ...models import Review, ReviewMedia, WarrantyClaim
@@ -90,6 +91,7 @@ def review_media_upload(review_id):
 
 
 @api_bp.post("/refunds")
+@admin_api_required("refund.approve")
 def process_refund():
     payload = request.get_json(silent=True) or {}
     try:
