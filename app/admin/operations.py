@@ -148,6 +148,58 @@ def register_operation_routes(admin_bp):
                     db.session.commit()
                     success = "تم إنشاء مجموعة التسعير وقواعد العملات."
 
+                elif action == "update_group":
+                    group_id = request.form.get("id", type=int)
+                    group = db.session.get(PricingGroup, group_id)
+                    if group is None:
+                        raise ValueError("مجموعة التسعير غير موجودة.")
+                    name = (request.form.get("name") or "").strip()
+                    default_currency_id = request.form.get("default_currency_id", type=int)
+                    if not name or not default_currency_id:
+                        raise ValueError("اسم المجموعة والعملة الافتراضية مطلوبان.")
+                    if request.form.get("is_default") == "on" and not group.is_default and PricingGroup.query.filter(PricingGroup.id != group.id, PricingGroup.is_default.is_(True), PricingGroup.is_active.is_(True)).first():
+                        raise ValueError("توجد مجموعة افتراضية فعالة بالفعل.")
+                    group.name = name
+                    group.description = (request.form.get("description") or "").strip() or None
+                    group.default_currency_id = default_currency_id
+                    group.priority = request.form.get("priority", 0, type=int)
+                    group.is_default = request.form.get("is_default") == "on"
+                    PricingGroupRule.query.filter_by(group_id=group.id).delete()
+                    currency_ids = request.form.getlist("rule_currency_id")
+                    percents = request.form.getlist("rule_percent_markup")
+                    fixeds = request.form.getlist("rule_fixed_markup")
+                    decimals = request.form.getlist("rule_decimals")
+                    roundings = request.form.getlist("rule_rounding_rule")
+                    if not currency_ids:
+                        currency_ids = [str(default_currency_id)]
+                        percents = ["0"]; fixeds = ["0"]; decimals = ["2"]; roundings = ["nearest"]
+                    seen=set()
+                    for idx, raw_currency in enumerate(currency_ids):
+                        cid=int(raw_currency)
+                        if cid in seen or db.session.get(Currency, cid) is None:
+                            raise ValueError("قواعد العملات تحتوي عملة غير صالحة أو مكررة.")
+                        seen.add(cid)
+                        def at(values, default):
+                            return values[idx] if idx < len(values) and values[idx] != "" else default
+                        db.session.add(PricingGroupRule(group_id=group.id,currency_id=cid,percent_markup=Decimal(at(percents,"0")),fixed_markup=Decimal(at(fixeds,"0")),rounding_rule=at(roundings,"nearest"),decimals=int(at(decimals,"2"))))
+                    success="تم تحديث مجموعة التسعير."
+                elif action == "archive_group":
+                    group = db.session.get(PricingGroup, request.form.get("id", type=int))
+                    if group is None:
+                        raise ValueError("مجموعة التسعير غير موجودة.")
+                    group.is_active=False
+                    if group.is_default:
+                        group.is_default=False
+                    success="تمت أرشفة مجموعة التسعير."
+                elif action == "delete_location_assignment":
+                    row=db.session.get(PricingGroupCity,request.form.get("id",type=int))
+                    if row is None: raise ValueError("تعيين الموقع غير موجود.")
+                    db.session.delete(row); success="تم حذف تعيين الموقع."
+                elif action == "delete_customer_assignment":
+                    row=db.session.get(CustomerPricingAssignment,request.form.get("id",type=int))
+                    if row is None: raise ValueError("تعيين العميل غير موجود.")
+                    db.session.delete(row); success="تم حذف تعيين العميل."
+
                 elif action == "assign_location":
                     group_id = request.form.get("location_group_id", type=int)
                     location_id = request.form.get("location_id", type=int)
