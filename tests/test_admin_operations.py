@@ -292,3 +292,110 @@ def test_catalog_archive_restore_and_active_references(client, app):
         product = db.session.get(Product, product_id)
         assert product.is_active is True
         assert product.status == "draft"
+
+
+def test_product_wizard_uses_existing_reference_tables_and_supports_quick_create(client, app):
+    with client.session_transaction() as session:
+        session["admin_id"] = 1
+
+    with app.app_context():
+        from app.models import (
+            Badge, Brand, Campaign, Category, Hashtag, ProductCategory,
+            ProductBadge, ProductHashtag, ProductPromotionalStrip,
+            CampaignProduct, PromotionalStrip, ShippingPolicy,
+        )
+
+        currency = Currency(code="SAR", name_ar="ريال سعودي", is_base=True)
+        category = Category(name="قسم مرجعي", slug="reference-category")
+        brand = Brand(name="علامة مرجعية", slug="reference-brand")
+        color = Color(name="أزرق مرجعي", hex_code="#123456")
+        size = __import__("app.models", fromlist=["Size"]).Size(
+            group="REF", code="M", label="متوسط مرجعي"
+        )
+        badge = Badge(name="شارة مرجعية", code="reference-badge", bg_color="#111111")
+        hashtag = Hashtag(name="وسم_مرجعي", slug="reference-hashtag", display_name="#وسم_مرجعي")
+        strip = PromotionalStrip(name="شريط مرجعي", text_body="عرض مرجعي")
+        campaign = Campaign(name="حملة مرجعية", slug="reference-campaign", status="active")
+        shipping = ShippingPolicy(name="شحن مرجعي", delivery_window="3-5 أيام")
+        product = Product(
+            sku="REFERENCE-WIZARD-001",
+            name="منتج اختبار المراجع",
+            slug="reference-wizard-product",
+            base_currency_id=1,
+            base_price=100,
+            status="draft",
+        )
+        db.session.add(currency)
+        db.session.flush()
+        product.base_currency_id = currency.id
+        db.session.add_all([category, brand, color, size, badge, hashtag, strip, campaign, shipping, product])
+        db.session.flush()
+        db.session.add_all([
+            ProductCategory(product_id=product.id, category_id=category.id, is_primary=True),
+            ProductBadge(product_id=product.id, badge_id=badge.id),
+            ProductHashtag(product_id=product.id, hashtag_id=hashtag.id),
+            ProductPromotionalStrip(product_id=product.id, strip_id=strip.id),
+            CampaignProduct(product_id=product.id, campaign_id=campaign.id),
+        ])
+        from app.models import ProductPolicyAssignment
+        db.session.add(ProductPolicyAssignment(product_id=product.id, shipping_policy_id=shipping.id))
+        db.session.commit()
+        product_id = product.id
+
+    response = client.get(f"/api/v1/catalog/reference/product-config?product_id={product_id}")
+    assert response.status_code == 200
+    config = response.get_json()["item"]
+    assert any(x["name"] == "قسم مرجعي" for x in config["categories"])
+    assert any(x["name"] == "علامة مرجعية" for x in config["brands"])
+    assert any(x["name"] == "شارة مرجعية" for x in config["badges"])
+    assert any(x["name"] == "وسم_مرجعي" for x in config["hashtags"])
+    assert any(x["name"] == "شريط مرجعي" for x in config["promotional_strips"])
+    assert any(x["name"] == "حملة مرجعية" for x in config["campaigns"])
+    assert any(x["name"] == "شحن مرجعي" for x in config["policies"]["shipping"])
+
+    response = client.post("/api/v1/catalog/reference/brands", json={"name": "علامة جديدة من المنتج"})
+    assert response.status_code == 201
+    brand_id = response.get_json()["item"]["id"]
+
+    response = client.post("/api/v1/catalog/reference/hashtags", json={"name": "وسم جديد من المنتج"})
+    assert response.status_code == 201
+    hashtag_id = response.get_json()["item"]["id"]
+
+    response = client.post(
+        f"/api/v1/catalog/products/{product_id}/categories",
+        json={"category_ids": [config["categories"][0]["id"]]},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        f"/api/v1/catalog/products/{product_id}/badges",
+        json={"badge_ids": [config["badges"][0]["id"]]},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        f"/api/v1/catalog/products/{product_id}/hashtags",
+        json={"hashtag_ids": [hashtag_id]},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        f"/api/v1/catalog/products/{product_id}/promotional-strips",
+        json={"strip_ids": [config["promotional_strips"][0]["id"]]},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        f"/api/v1/catalog/products/{product_id}/campaigns",
+        json={"campaign_ids": [config["campaigns"][0]["id"]]},
+    )
+    assert response.status_code == 200
+
+    response = client.get(f"/api/v1/catalog/products/{product_id}/wizard")
+    assert response.status_code == 200
+    snapshot = response.get_json()["item"]
+    assert snapshot["badges"][0]["id"] == config["badges"][0]["id"]
+    assert snapshot["hashtags"][0]["id"] == hashtag_id
+    assert snapshot["promotional_strips"][0]["id"] == config["promotional_strips"][0]["id"]
+    assert snapshot["campaigns"][0]["id"] == config["campaigns"][0]["id"]
+    assert brand_id != 0

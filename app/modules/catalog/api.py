@@ -198,6 +198,25 @@ def upload_product_media(product_id):
 
 
 
+@api_bp.get("/reference/product-config")
+def product_config_references():
+    product_id = request.args.get("product_id", type=int)
+    try:
+        return {"item": CatalogService.product_reference_data(product_id=product_id)}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+
+
+@api_bp.post("/reference/categories")
+@admin_api_required("category.manage")
+def create_category_reference():
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CatalogService.create_category(payload)}, 201
+    except (LookupError, ValueError, TypeError) as exc:
+        return {"error": "invalid_category", "detail": str(exc)}, 400
+
+
 @api_bp.get("/reference/options")
 def option_references():
     product_id = request.args.get("product_id", type=int)
@@ -228,6 +247,30 @@ def marketing_references():
             for x in Hashtag.query.filter_by(is_active=True).order_by(Hashtag.sort_order, Hashtag.name).all()
         ],
     }
+
+
+@api_bp.post("/products/<int:product_id>/promotional-strips")
+@admin_api_required("product.edit")
+def set_product_promotional_strips(product_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"items": CatalogService.set_product_promotional_strips(product_id, payload.get("strip_ids", []))}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_promotional_strips", "detail": str(exc)}, 400
+
+
+@api_bp.post("/products/<int:product_id>/campaigns")
+@admin_api_required("product.edit")
+def set_product_campaigns(product_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"items": CatalogService.set_product_campaigns(product_id, payload.get("campaign_ids", []))}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_campaigns", "detail": str(exc)}, 400
 
 
 @api_bp.post("/products/<int:product_id>/badges")
@@ -413,6 +456,110 @@ def policy_references():
         "return": [{"id": x.id, "name": x.name, "return_window_days": x.return_window_days} for x in ReturnPolicy.query.filter_by(is_active=True).order_by(ReturnPolicy.name).all()],
         "warranty": [{"id": x.id, "name": x.name, "duration_days": x.duration_days} for x in WarrantyPolicy.query.filter_by(is_active=True).order_by(WarrantyPolicy.name).all()],
     }
+
+
+@api_bp.post("/reference/brands")
+@admin_api_required("product.edit")
+def create_brand_reference():
+    from ...extensions import db
+    from ...models import Brand
+    payload = request.get_json(silent=True) or {}
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        return {"error": "invalid_brand", "detail": "اسم العلامة التجارية مطلوب."}, 400
+    slug = str(payload.get("slug") or "").strip().lower()
+    if not slug:
+        from .services import _slugify
+        slug = _slugify(name, fallback="brand")
+    base_slug = slug
+    index = 2
+    while Brand.query.filter_by(slug=slug).first() is not None:
+        slug = f"{base_slug}-{index}"[:180]
+        index += 1
+    row = Brand(name=name, slug=slug, logo_asset_id=payload.get("logo_asset_id"))
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "name": row.name, "slug": row.slug, "is_active": bool(row.is_active)}}, 201
+
+
+@api_bp.post("/reference/hashtags")
+@admin_api_required("product.edit")
+def create_hashtag_reference():
+    from ...extensions import db
+    from ...models import Hashtag
+    payload = request.get_json(silent=True) or {}
+    name = str(payload.get("name") or "").strip()
+    display_name = str(payload.get("display_name") or "").strip() or None
+    if not name:
+        return {"error": "invalid_hashtag", "detail": "اسم الهاشتاج مطلوب."}, 400
+    slug = str(payload.get("slug") or "").strip().lower()
+    if not slug:
+        from .services import _slugify
+        slug = _slugify(display_name or name, fallback="tag")
+    base_slug = slug
+    index = 2
+    while Hashtag.query.filter_by(slug=slug).first() is not None:
+        slug = f"{base_slug}-{index}"[:180]
+        index += 1
+    row = Hashtag(name=name, slug=slug, display_name=display_name, sort_order=int(payload.get("sort_order", 0)))
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "name": row.name, "slug": row.slug, "display_name": row.display_name, "is_active": bool(row.is_active)}}, 201
+
+
+@api_bp.post("/reference/promotional-strips")
+@admin_api_required("product.edit")
+def create_promotional_strip_reference():
+    from ...extensions import db
+    from ...models import PromotionalStrip
+    payload = request.get_json(silent=True) or {}
+    name = str(payload.get("name") or "").strip()
+    text_body = str(payload.get("text_body") or "").strip()
+    if not name or not text_body:
+        return {"error": "invalid_promotional_strip", "detail": "اسم الشريط والنص مطلوبان."}, 400
+    row = PromotionalStrip(
+        name=name,
+        text_prefix=str(payload.get("text_prefix") or "").strip() or None,
+        text_body=text_body,
+        background_color=str(payload.get("background_color") or "").strip() or None,
+        text_color=str(payload.get("text_color") or "").strip() or None,
+    )
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "name": row.name, "text_body": row.text_body, "is_active": bool(row.is_active)}}, 201
+
+
+@api_bp.post("/reference/campaigns")
+@admin_api_required("product.edit")
+def create_campaign_reference():
+    from ...extensions import db
+    from ...models import Campaign, Badge
+    payload = request.get_json(silent=True) or {}
+    name = str(payload.get("name") or "").strip()
+    if not name:
+        return {"error": "invalid_campaign", "detail": "اسم الحملة مطلوب."}, 400
+    slug = str(payload.get("slug") or "").strip().lower()
+    if not slug:
+        from .services import _slugify
+        slug = _slugify(name, fallback="campaign")
+    base_slug = slug
+    index = 2
+    while Campaign.query.filter_by(slug=slug).first() is not None:
+        slug = f"{base_slug}-{index}"[:200]
+        index += 1
+    badge_id = payload.get("badge_id")
+    if badge_id not in (None, "") and db.session.get(Badge, int(badge_id)) is None:
+        return {"error": "invalid_campaign", "detail": "الشارة المختارة غير موجودة."}, 400
+    row = Campaign(
+        name=name,
+        slug=slug,
+        badge_id=int(badge_id) if badge_id not in (None, "") else None,
+        status=str(payload.get("status") or "draft").strip(),
+        display_priority=int(payload.get("display_priority", 0)),
+    )
+    db.session.add(row)
+    db.session.commit()
+    return {"item": {"id": row.id, "name": row.name, "slug": row.slug, "status": row.status, "is_active": bool(row.is_active)}}, 201
 
 
 @api_bp.post("/policies/shipping")
