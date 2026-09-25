@@ -184,6 +184,47 @@ def product_policies(product_id):
         return {"error": "invalid_policy_assignment", "detail": str(exc)}, 400
 
 
+
+@api_bp.post("/categories/<int:category_id>/filters")
+def create_filter(category_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CatalogService.create_filter(category_id, payload)}, 201
+    except LookupError as exc:
+        return {"error": "category_not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "filter_creation_failed", "detail": str(exc)}, 400
+
+
+@api_bp.get("/categories/<int:category_id>/filters")
+def category_filters(category_id):
+    try:
+        return {"items": CatalogService.category_filters(category_id)}
+    except LookupError as exc:
+        return {"error": "category_not_found", "detail": str(exc)}, 404
+
+
+@api_bp.post("/filters/<int:filter_id>/values")
+def create_filter_value(filter_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CatalogService.create_filter_value(filter_id, payload)}, 201
+    except LookupError as exc:
+        return {"error": "filter_not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "filter_value_creation_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/products/<int:product_id>/filter-values")
+def set_product_filter_values(product_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"items": CatalogService.set_product_filter_values(product_id, payload.get("value_ids", []))}
+    except LookupError as exc:
+        return {"error": "product_not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "product_filter_values_failed", "detail": str(exc)}, 400
+
 @api_bp.get("/products/<int:product_id>/wizard")
 def product_wizard(product_id):
     try:
