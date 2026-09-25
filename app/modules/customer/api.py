@@ -66,7 +66,7 @@ def customer(customer_id):
 def update_customer(customer_id):
     payload = request.get_json(silent=True) or {}
     try:
-        return {"item": CustomerService.serialize(CustomerService.update_profile(customer_id, payload))}
+        return {"item": CustomerService.update_profile(customer_id, payload)}
     except LookupError as exc:
         return {"error": "not_found", "detail": str(exc)}, 404
 
