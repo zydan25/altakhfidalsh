@@ -337,14 +337,25 @@ def register_operation_routes(admin_bp):
                     elif target_type not in models or db.session.get(models[target_type],target_id) is None: raise ValueError("هدف البانر غير صحيح.")
                     db.session.add(BannerTarget(banner_id=banner_id,target_type=target_type,target_id=target_id,url=url,priority=request.form.get("target_priority",0,type=int))); success="تم ربط الهدف."
                 elif action=="update_banner":
-                    if row is None: raise ValueError("البانر غير موجود.")
+                    if row is None:
+                        raise ValueError("البانر غير موجود.")
                     name=(request.form.get("name") or "").strip()
-                    if not name: raise ValueError("اسم البانر مطلوب.")
-                    row.name=name; row.size_spec=(request.form.get("size_spec") or "").strip() or None; row.overlay_text=(request.form.get("overlay_text") or "").strip() or None; row.position_text=(request.form.get("position_text") or "").strip() or None; row.duration=request.form.get("duration",type=int); row.status=(request.form.get("status") or row.status).strip()
-                    image=request.files.get("image_file"); mobile=request.files.get("mobile_image_file")
-                    files=[f for f in [image,mobile] if f and f.filename]
-                    if files:
-                        assets=MediaService.save_generic_files(files,"banners"); row.image_asset_id=assets[0]["id"]; row.mobile_asset_id=assets[1]["id"] if len(assets)>1 else row.mobile_asset_id
+                    if not name:
+                        raise ValueError("اسم البانر مطلوب.")
+                    row.name=name
+                    row.size_spec=(request.form.get("size_spec") or "").strip() or None
+                    row.overlay_text=(request.form.get("overlay_text") or "").strip() or None
+                    row.position_text=(request.form.get("position_text") or "").strip() or None
+                    row.duration=request.form.get("duration",type=int)
+                    row.status=(request.form.get("status") or row.status).strip()
+                    image=request.files.get("image_file")
+                    mobile=request.files.get("mobile_image_file")
+                    if image and image.filename:
+                        assets=MediaService.save_generic_files([image],"banners")
+                        if assets: row.image_asset_id=assets[0]["id"]
+                    if mobile and mobile.filename:
+                        assets=MediaService.save_generic_files([mobile],"banners")
+                        if assets: row.mobile_asset_id=assets[0]["id"]
                     success="تم تحديث البانر."
                 elif action=="archive_banner":
                     if row is None: raise ValueError("البانر غير موجود.")
