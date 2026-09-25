@@ -1,6 +1,7 @@
 from flask import request
 
 from . import api_bp
+from ..customer.security import customer_required, current_customer
 from ...security import admin_api_required
 from .services import AfterSalesService
 from ...extensions import db
@@ -8,8 +9,10 @@ from ...models import Review, ReviewMedia, WarrantyClaim
 
 
 @api_bp.post("/returns")
+@customer_required
 def create_return():
     payload = request.get_json(silent=True) or {}
+    payload["customer_id"] = current_customer().id
     try:
         return {"item": AfterSalesService.create_return(payload)}, 201
     except (KeyError, ValueError, LookupError) as exc:
@@ -17,8 +20,10 @@ def create_return():
 
 
 @api_bp.post("/warranty/claims")
+@customer_required
 def warranty_claim():
     payload = request.get_json(silent=True) or {}
+    payload["customer_id"] = current_customer().id
     try:
         return {"item": AfterSalesService.create_warranty_claim(payload)}, 201
     except (KeyError, ValueError, LookupError) as exc:
@@ -26,8 +31,10 @@ def warranty_claim():
 
 
 @api_bp.post("/reviews")
+@customer_required
 def create_review():
     payload = request.get_json(silent=True) or {}
+    payload["customer_id"] = current_customer().id
     try:
         return {"item": AfterSalesService.create_review(payload)}, 201
     except (KeyError, ValueError, LookupError) as exc:
@@ -75,6 +82,7 @@ def warranty_claim_detail(claim_id):
 
 
 @api_bp.post("/reviews/<int:review_id>/media")
+@customer_required
 def review_media_upload(review_id):
     from ..catalog.services import MediaService
     review = db.session.get(Review, review_id)
