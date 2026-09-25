@@ -4,20 +4,21 @@ set -Eeuo pipefail
 export PM2_HOME="/home/root/.pm2"
 
 APP_ROOT="/home/root/projects/takhfid1"
-REPO_URL="${REPO_URL:-https://github.com/zydan25/altakhfidalsh.git}"
+REPO_URL="\${REPO_URL:-https://github.com/zydan25/altakhfidalsh.git}"
 DOMAIN="takhfidsh.alattab.site"
 PORT="4006"
 DB_NAME="takhfid1"
 DB_USER="takhfid1"
-DB_PASSWORD="${TAKHFID1_DB_PASSWORD:-takhfid1}"
-ADMIN_PHONE="${ADMIN_PHONE:-967774952665}"
-WHATSAPP_BASE_URL="${WHATSAPP_BASE_URL:-https://whatsapp.alattab.site}"
-WHATSAPP_SESSION="${WHATSAPP_SESSION:-basheer}"
+DB_PASSWORD="\${TAKHFID1_DB_PASSWORD:-takhfid1}"
+ADMIN_PHONE="\${ADMIN_PHONE:-967774952665}"
+WHATSAPP_BASE_URL="\${WHATSAPP_BASE_URL:-https://whatsapp.alattab.site}"
+WHATSAPP_SESSION="\${WHATSAPP_SESSION:-basheer}"
 
 log() { printf '\n[takhfid1] %s\n' "$*"; }
 die() { echo "[takhfid1][ERROR] $*" >&2; exit 1; }
 
 [ "$(id -u)" -eq 0 ] || die "شغّل السكربت كـroot."
+
 for cmd in git python3 psql nginx node pm2 openssl curl runuser; do
   command -v "$cmd" >/dev/null 2>&1 || die "الأمر غير موجود: $cmd"
 done
@@ -31,9 +32,8 @@ mkdir -p "$(dirname "$APP_ROOT")"
 if [ -d "$APP_ROOT/.git" ]; then
   log "تحديث المشروع الموجود إلى main..."
   git -C "$APP_ROOT" fetch --prune origin main
-  git -C "$APP_ROOT" checkout -f main 2>/dev/null || true
+  git -C "$APP_ROOT" checkout -B main origin/main
   git -C "$APP_ROOT" reset --hard origin/main
-  git -C "$APP_ROOT" clean -fd
 else
   log "سحب main إلى $APP_ROOT..."
   git clone --branch main --single-branch "$REPO_URL" "$APP_ROOT"
@@ -54,13 +54,13 @@ if [ -t 0 ]; then
   read -rsp "WHATSAPP_API_KEY: " WHATSAPP_API_KEY
   echo
 else
-  WHATSAPP_API_KEY="${WHATSAPP_API_KEY:-}"
+  WHATSAPP_API_KEY="\${WHATSAPP_API_KEY:-}"
 fi
-[ -n "${WHATSAPP_API_KEY:-}" ] || die "WHATSAPP_API_KEY مطلوب."
+[ -n "\${WHATSAPP_API_KEY:-}" ] || die "WHATSAPP_API_KEY مطلوب."
 
-TAKHIFID1_SECRET_KEY="${TAKHIFID1_SECRET_KEY:-}"
-TAKHIFID1_ADMIN_PASSWORD="${TAKHIFID1_ADMIN_PASSWORD:-}"
-WHATSAPP_WEBHOOK_SECRET="${WHATSAPP_WEBHOOK_SECRET:-}"
+TAKHIFID1_SECRET_KEY="\${TAKHIFID1_SECRET_KEY:-}"
+TAKHIFID1_ADMIN_PASSWORD="\${TAKHIFID1_ADMIN_PASSWORD:-}"
+WHATSAPP_WEBHOOK_SECRET="\${WHATSAPP_WEBHOOK_SECRET:-}"
 
 [ -n "$TAKHIFID1_SECRET_KEY" ] || TAKHIFID1_SECRET_KEY="$(openssl rand -hex 32)"
 [ -n "$TAKHIFID1_ADMIN_PASSWORD" ] || TAKHIFID1_ADMIN_PASSWORD="$(openssl rand -hex 24)"
@@ -75,7 +75,7 @@ runuser -u postgres -- psql -v ON_ERROR_STOP=1 \
   -v db_password="$DB_PASSWORD" \
   -f "$APP_ROOT/deploy/takhfid1/postgres/init_takhfid1.sql"
 
-log "إنشاء .env وتحديث القيم الفعلية..."
+log "إنشاء/تحديث .env..."
 "$APP_ROOT/.venv/bin/python" - <<'PY'
 from pathlib import Path
 import os
@@ -116,11 +116,11 @@ managed = {
 existing = {}
 if env_file.exists():
     for raw in env_file.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#") or "=" not in raw:
             continue
-        key = line.split("=", 1)[0].strip()
-        if key and key not in existing:
+        key = raw.split("=", 1)[0].strip()
+        if key:
             existing[key] = raw
 
 for key, value in managed.items():
@@ -130,11 +130,11 @@ order = []
 seen = set()
 if env_file.exists():
     for raw in env_file.read_text(encoding="utf-8").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#") or "=" not in raw:
             order.append(("__RAW__", raw))
             continue
-        key = line.split("=", 1)[0].strip()
+        key = raw.split("=", 1)[0].strip()
         if key and key not in seen:
             order.append((key, None))
             seen.add(key)
@@ -146,10 +146,7 @@ for key in managed:
 
 lines = []
 for key, raw in order:
-    if key == "__RAW__":
-        lines.append(raw)
-    else:
-        lines.append(existing[key])
+    lines.append(raw if key == "__RAW__" else existing[key])
 
 fd, tmp = tempfile.mkstemp(prefix=".env.", dir=str(app_root), text=True)
 tmp_path = Path(tmp)
@@ -164,37 +161,32 @@ finally:
 PY
 chmod 600 "$APP_ROOT/.env"
 
-log "فحص الإعدادات وتشغيل migrations..."
+log "تشغيل migrations وseed..."
 set -a
 source "$APP_ROOT/.env"
 set +a
-
 "$APP_ROOT/.venv/bin/flask" db upgrade
 "$APP_ROOT/.venv/bin/python" "$APP_ROOT/scripts/seed.py"
 
-log "تثبيت PM2 + Nginx..."
+log "ضبط Nginx..."
 cp "$APP_ROOT/deploy/takhfid1/ecosystem.config.cjs" "$APP_ROOT/ecosystem.config.cjs"
-
 ln -sf "$APP_ROOT/deploy/takhfid1/nginx/$DOMAIN.conf" "/etc/nginx/sites-available/$DOMAIN.conf"
 ln -sf "/etc/nginx/sites-available/$DOMAIN.conf" "/etc/nginx/sites-enabled/$DOMAIN.conf"
 rm -f /etc/nginx/sites-enabled/default || true
-
 nginx -t
 systemctl reload nginx
 
-log "تشغيل التطبيق بواسطة PM2..."
+log "تشغيل PM2..."
 pm2 delete takhfid1 >/dev/null 2>&1 || true
 pm2 start "$APP_ROOT/ecosystem.config.cjs"
 pm2 save
 
-if command -v systemctl >/dev/null 2>&1; then
-  pm2 startup systemd -u root --hp /home/root >/tmp/takhfid1-pm2-startup.txt 2>&1 || true
-  systemctl enable pm2-root >/dev/null 2>&1 || true
-  systemctl start pm2-root >/dev/null 2>&1 || true
-  pm2 save
-fi
+pm2 startup systemd -u root --hp /home/root >/tmp/takhfid1-pm2-startup.txt 2>&1 || true
+systemctl enable pm2-root >/dev/null 2>&1 || true
+systemctl start pm2-root >/dev/null 2>&1 || true
+pm2 save
 
-log "انتظار health..."
+log "فحص health..."
 healthy=0
 for _ in $(seq 1 30); do
   if curl -fsS "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; then
@@ -203,30 +195,28 @@ for _ in $(seq 1 30); do
   fi
   sleep 1
 done
-[ "$healthy" -eq 1 ] || {
-  echo
+
+if [ "$healthy" -ne 1 ]; then
   pm2 status || true
   pm2 logs takhfid1 --lines 80 --nostream || true
   die "التطبيق لم ينجح في الاستجابة على 127.0.0.1:$PORT/health"
-}
+fi
 
 log "محاولة تفعيل SSL..."
 SSL_RESULT="SKIPPED"
-if command -v certbot >/dev/null 2>&1; then
-  if getent hosts "$DOMAIN" >/dev/null 2>&1; then
-    if certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email -d "$DOMAIN" --redirect; then
-      SSL_RESULT="OK"
-      nginx -t
-      systemctl reload nginx
-    else
-      SSL_RESULT="FAILED"
-      echo "[takhfid1] تحذير: certbot فشل. تأكد أن DNS للنطاق يشير إلى الخادم ثم أعد certbot."
-    fi
+if command -v certbot >/dev/null 2>&1 && getent hosts "$DOMAIN" >/dev/null 2>&1; then
+  if certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email -d "$DOMAIN" --redirect; then
+    SSL_RESULT="OK"
+    nginx -t
+    systemctl reload nginx
   else
-    echo "[takhfid1] تحذير: $DOMAIN لا يُحل DNS الآن؛ تم تجاوز SSL."
+    SSL_RESULT="FAILED"
+    echo "[takhfid1] تحذير: certbot فشل. تأكد أن DNS للنطاق يشير إلى الخادم ثم أعد certbot."
   fi
-else
+elif ! command -v certbot >/dev/null 2>&1; then
   echo "[takhfid1] تحذير: certbot غير مثبت؛ تم تجاوز SSL."
+else
+  echo "[takhfid1] تحذير: $DOMAIN لا يُحل DNS الآن؛ تم تجاوز SSL."
 fi
 
 log "الفحص النهائي..."
@@ -239,8 +229,8 @@ echo "============================================================"
 echo " TAKHFID1 DEPLOYMENT COMPLETE"
 echo "============================================================"
 echo "Project : $APP_ROOT"
-echo "Branch  : $(git branch --show-current 2>/dev/null || true)"
-echo "Commit  : $(git rev-parse --short HEAD)"
+echo "Branch  : $(git -C "$APP_ROOT" branch --show-current 2>/dev/null || true)"
+echo "Commit  : $(git -C "$APP_ROOT" rev-parse --short HEAD)"
 echo "PM2     : takhfid1"
 echo "Port    : $PORT"
 echo "Domain  : https://$DOMAIN"
@@ -249,13 +239,13 @@ echo "WhatsApp: $WHATSAPP_BASE_URL / session=$WHATSAPP_SESSION"
 echo "SSL     : $SSL_RESULT"
 echo
 echo "Admin   : https://$DOMAIN/admin/"
-echo "WA      : https://$DOMAIN/admin/whatsapp"
+echo "WhatsApp: https://$DOMAIN/admin/whatsapp"
 echo "Health  : https://$DOMAIN/health"
 echo
-echo "OTP phone configured: $ADMIN_PHONE"
-echo "API key was written to $APP_ROOT/.env (not printed)."
+echo "OTP phone: $ADMIN_PHONE"
+echo "WHATSAPP_API_KEY محفوظ داخل $APP_ROOT/.env ولا يتم طباعته."
 echo
-echo "Useful:"
+echo "Commands:"
 echo "  pm2 status"
 echo "  pm2 logs takhfid1 --lines 100"
 echo "  cd $APP_ROOT && bash deploy/takhfid1/verify.sh"
