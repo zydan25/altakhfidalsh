@@ -3,6 +3,7 @@ from flask import request
 from . import api_bp
 from .auth import CustomerAuthService
 from .services import CustomerService
+from .wishlist import CustomerEngagementService
 from ...extensions import db
 from ...models import Customer, CustomerAddress
 
@@ -78,3 +79,21 @@ def add_address(customer_id):
         return {"item": CustomerService.add_address(customer_id, payload)}, 201
     except (ValueError, LookupError) as exc:
         return {"error": "address_creation_failed", "detail": str(exc)}, 400
+
+
+@api_bp.get("/customers/<int:customer_id>/wishlist")
+def wishlist(customer_id):
+    return {"items": CustomerEngagementService.list_wishlist(customer_id)}
+
+
+@api_bp.post("/customers/<int:customer_id>/wishlist/<int:product_id>")
+def add_wishlist(customer_id, product_id):
+    try:
+        return {"item": CustomerEngagementService.add_wishlist(customer_id, product_id)}, 201
+    except LookupError as exc:
+        return {"error": "wishlist_failed", "detail": str(exc)}, 404
+
+
+@api_bp.post("/customers/<int:customer_id>/views/<int:product_id>")
+def track_view(customer_id, product_id):
+    return {"item": CustomerEngagementService.track_view(customer_id, product_id)}
