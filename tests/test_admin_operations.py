@@ -1,5 +1,5 @@
 from app.extensions import db
-from app.models import Badge, Color, Customer, CustomerAddress, Currency, MediaAsset, Product, ProductMedia, StorefrontPage, StorefrontSection, StorefrontSectionItem
+from app.models import Badge, Color, Customer, CustomerAddress, Currency, MediaAsset, Product, ProductCategory, ProductMedia, StorefrontPage, StorefrontSection, StorefrontSectionItem
 
 
 def test_customer_admin_profile_and_address(client, app):
