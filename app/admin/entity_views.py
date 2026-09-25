@@ -1041,13 +1041,82 @@ def register_entity_views(admin_bp):
         rows=FeatureFlag.query.filter_by(is_active=True).order_by(FeatureFlag.key).all()
         return render_template("admin/features.html",title="المزايا",flags=rows,success=success,error=error,**build_admin_context())
 
-    @admin_bp.get("/pricing/currencies")
+    @admin_bp.route("/pricing/currencies", methods=["GET", "POST"])
     def currencies():
         from ..models import Currency
-        rows = Currency.query.order_by(Currency.code).all()
-        return _render("العملات", ["ID", "الكود", "الاسم", "الرمز", "أساس"],
-                       [[x.id, x.code, x.name_ar, x.symbol or "—", "نعم" if x.is_base else "لا"] for x in rows],
-                       "التسعير")
+        error=None; success=None
+        if request.method=="POST":
+            try:
+                action=(request.form.get("action") or "create").strip()
+                row=db.session.get(Currency,request.form.get("id",type=int))
+                if action=="create":
+                    code=(request.form.get("code") or "").strip().upper()
+                    name=(request.form.get("name_ar") or "").strip()
+                    if not code or not name: raise ValueError("كود العملة واسمها مطلوبان.")
+                    if Currency.query.filter_by(code=code).first(): raise ValueError("كود العملة مستخدم مسبقًا.")
+                    is_base=request.form.get("is_base")=="on"
+                    if is_base and Currency.query.filter_by(is_base=True).first(): raise ValueError("توجد عملة أساسية بالفعل.")
+                    db.session.add(Currency(code=code,symbol=(request.form.get("symbol") or "").strip() or None,name_ar=name,decimals=max(0,min(6,request.form.get("decimals",2,type=int))),is_base=is_base))
+                    success="تم إنشاء العملة."
+                elif row is None:
+                    raise ValueError("العملة غير موجودة.")
+                elif action=="archive":
+                    if row.is_base: raise ValueError("لا يمكن أرشفة العملة الأساسية.")
+                    row.is_active=False
+                    success="تمت أرشفة العملة."
+                elif action=="update":
+                    code=(request.form.get("code") or "").strip().upper()
+                    name=(request.form.get("name_ar") or "").strip()
+                    if not code or not name: raise ValueError("كود العملة واسمها مطلوبان.")
+                    if Currency.query.filter(Currency.id!=row.id,Currency.code==code).first(): raise ValueError("كود العملة مستخدم مسبقًا.")
+                    is_base=request.form.get("is_base")=="on"
+                    if is_base and Currency.query.filter(Currency.id!=row.id,Currency.is_base.is_(True),Currency.is_active.is_(True)).first():
+                        raise ValueError("توجد عملة أساسية فعالة بالفعل.")
+                    row.code=code; row.name_ar=name; row.symbol=(request.form.get("symbol") or "").strip() or None
+                    row.decimals=max(0,min(6,request.form.get("decimals",2,type=int))); row.is_base=is_base; row.is_active=True
+                    success="تم تحديث العملة."
+                else:
+                    raise ValueError("إجراء العملة غير معروف.")
+                db.session.commit()
+            except (ValueError,TypeError) as exc:
+                db.session.rollback(); error=str(exc)
+        rows=Currency.query.order_by(Currency.code).all()
+        records=[]
+        for row in rows:
+            records.append({
+                "id":row.id,
+                "title":f"{row.code} · {row.name_ar}",
+                "badge":"أساسية" if row.is_base else "فعال" if row.is_active else "معطل",
+                "edit_action":"update",
+                "archive_action":None if row.is_base else "archive",
+                "edit_fields":[
+                    {"name":"code","label":"Code","required":True,"value":row.code,"dir":"ltr"},
+                    {"name":"name_ar","label":"الاسم","required":True,"value":row.name_ar},
+                    {"name":"symbol","label":"الرمز","value":row.symbol or "","dir":"ltr"},
+                    {"name":"decimals","label":"الكسور","type":"number","value":row.decimals,"min":0},
+                    {"name":"is_base","label":"العملة الأساسية","type":"select","options":[
+                        {"value":"","label":"لا","selected":not row.is_base},
+                        {"value":"on","label":"نعم","selected":row.is_base}
+                    ]}
+                ],
+                "fields":[
+                    {"label":"الكود","value":row.code,"dir":"ltr"},
+                    {"label":"الرمز","value":row.symbol or "—","dir":"ltr"},
+                    {"label":"الكسور","value":row.decimals},
+                    {"label":"الحالة","value":"نشطة" if row.is_active else "معطلة"}
+                ]
+            })
+        return render_template("admin/manage.html",title="العملات",section="التسعير",description="إضافة وتعديل وأرشفة العملات. العملة الأساسية لا تُؤرشف.",fields=[
+            {"name":"code","label":"Code","required":True,"dir":"ltr"},
+            {"name":"name_ar","label":"الاسم","required":True},
+            {"name":"symbol","label":"الرمز","dir":"ltr"},
+            {"name":"decimals","label":"الكسور","type":"number","value":2,"min":0},
+            {"name":"is_base","label":"العملة الأساسية","type":"select","options":[
+                {"value":"","label":"لا","selected":True},
+                {"value":"on","label":"نعم"}
+            ]}
+        ],records=records,modal_id="currencyAddModal",success=success,error=error,**_ctx())
+
 
     @admin_bp.get("/pricing/rates")
     def rates():
