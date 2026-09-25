@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from app.extensions import db
 from app.models import (
     Category, City, Country, Currency, Customer, CustomerAddress,
-    ExchangeRate, InventoryLocation, Product, ProductCategory,
+    ExchangeRate, InventoryLocation, OrderItemOption, Product, ProductCategory,
     ProductVariant, PricingGroup, PricingGroupRule, Region, StockInventory,
 )
 from app.modules.commerce.services import CommerceService
@@ -64,7 +64,11 @@ def test_order_uses_customer_city_pricing_and_snapshots(app):
             'customer_id': customer.id,
             'address_id': address.id,
             'currency_id': yer.id,
-            'items': [{'variant_id': variant.id, 'qty': 2}],
+            'items': [{
+                'variant_id': variant.id,
+                'qty': 2,
+                'selected_options': {'اللون': 'أسود', 'المقاس': 'XL'},
+            }],
         })
 
         assert order['currency_id'] == yer.id
