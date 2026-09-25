@@ -240,19 +240,116 @@ def register_entity_views(admin_bp):
                        [[x.id, x.customer_id, x.order_id or "—", x.type, x.status] for x in rows],
                        "العملاء والتواصل")
 
-    @admin_bp.get("/payments")
+    @admin_bp.route("/payments", methods=["GET", "POST"])
     def payments():
-        rows = PaymentTransaction.query.order_by(PaymentTransaction.id.desc()).limit(200).all()
-        return _render("الدفعات", ["ID", "الطلب", "المبلغ", "العملة", "الحالة"],
-                       [[x.id, x.order_id, x.amount, x.currency_id, x.status] for x in rows],
-                       "المبيعات والطلبات")
+        from ..models import Currency, Order, PaymentMethod
+        error = None
+        success = None
+        if request.method == "POST":
+            action = (request.form.get("action") or "").strip()
+            try:
+                from ..modules.commerce.payment_shipping import PaymentShippingService
+                if action == "method":
+                    PaymentShippingService.create_payment_method({
+                        "name": request.form.get("name"),
+                        "code": request.form.get("code"),
+                        "provider": request.form.get("provider"),
+                        "supports_proof": request.form.get("supports_proof") == "on",
+                    })
+                    success = "تم إنشاء طريقة الدفع."
+                elif action == "transaction":
+                    PaymentShippingService.record_payment({
+                        "order_id": request.form.get("order_id"),
+                        "method_id": request.form.get("method_id"),
+                        "currency_id": request.form.get("currency_id"),
+                        "amount": request.form.get("amount"),
+                        "provider_ref": request.form.get("provider_ref"),
+                        "status": request.form.get("status", "pending"),
+                    })
+                    success = "تم تسجيل عملية الدفع."
+                else:
+                    raise ValueError("إجراء الدفع غير معروف.")
+            except (KeyError, ValueError, LookupError) as exc:
+                db.session.rollback()
+                error = str(exc)
 
-    @admin_bp.get("/shipping")
+        transactions = PaymentTransaction.query.order_by(PaymentTransaction.id.desc()).limit(200).all()
+        methods = PaymentMethod.query.filter_by(is_active=True).order_by(PaymentMethod.name).all()
+        orders = Order.query.order_by(Order.id.desc()).limit(200).all()
+        currencies = Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
+        return render_template(
+            "admin/payments.html",
+            title="الدفعات",
+            transactions=transactions,
+            methods=methods,
+            orders=orders,
+            currencies=currencies,
+            success=success,
+            error=error,
+            **build_admin_context(),
+        )
+
+    @admin_bp.route("/shipping", methods=["GET", "POST"])
     def shipping():
-        rows = ShippingMethod.query.order_by(ShippingMethod.id.desc()).limit(100).all()
-        return _render("الشحن والتتبع", ["ID", "الطريقة", "الكود", "الأيام", "COD"],
-                       [[x.id, x.name, x.code, f"{x.delivery_days_min or '—'}–{x.delivery_days_max or '—'}", "نعم" if x.supports_cod else "لا"] for x in rows],
-                       "المبيعات والطلبات")
+        from ..models import Order, ShippingMethod, Shipment
+        error = None
+        success = None
+        if request.method == "POST":
+            action = (request.form.get("action") or "").strip()
+            try:
+                from ..modules.commerce.payment_shipping import PaymentShippingService
+                if action == "method":
+                    PaymentShippingService.create_shipping_method({
+                        "name": request.form.get("name"),
+                        "code": request.form.get("code"),
+                        "delivery_days_min": request.form.get("delivery_days_min", type=int),
+                        "delivery_days_max": request.form.get("delivery_days_max", type=int),
+                        "supports_cod": request.form.get("supports_cod") == "on",
+                    })
+                    success = "تم إنشاء طريقة الشحن."
+                elif action == "shipment":
+                    event_status = (request.form.get("event_status") or "").strip()
+                    PaymentShippingService.create_shipment({
+                        "order_id": request.form.get("order_id"),
+                        "shipping_method_id": request.form.get("shipping_method_id", type=int),
+                        "tracking_no": (request.form.get("tracking_no") or "").strip() or None,
+                        "status": request.form.get("status", "pending"),
+                        "event": {
+                            "status": event_status or request.form.get("status", "pending"),
+                            "location": (request.form.get("event_location") or "").strip() or None,
+                            "description": (request.form.get("event_description") or "").strip() or None,
+                        },
+                    })
+                    success = "تم إنشاء الشحنة وتسجيل الحدث الأول."
+                elif action == "event":
+                    PaymentShippingService.add_shipment_event(
+                        request.form.get("shipment_id", type=int),
+                        {
+                            "status": request.form.get("event_status"),
+                            "location": request.form.get("event_location"),
+                            "description": request.form.get("event_description"),
+                        },
+                    )
+                    success = "تمت إضافة حدث الشحن."
+                else:
+                    raise ValueError("إجراء الشحن غير معروف.")
+            except (KeyError, ValueError, LookupError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+        methods = ShippingMethod.query.filter_by(is_active=True).order_by(ShippingMethod.name).all()
+        shipments = Shipment.query.order_by(Shipment.id.desc()).limit(200).all()
+        orders = Order.query.order_by(Order.id.desc()).limit(200).all()
+        return render_template(
+            "admin/shipping.html",
+            title="الشحن والتتبع",
+            methods=methods,
+            shipments=shipments,
+            orders=orders,
+            success=success,
+            error=error,
+            **build_admin_context(),
+        )
 
     @admin_bp.get("/returns")
     def returns():
