@@ -272,3 +272,23 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .wizard-panel { padding: 22px; }
   .media-grid { grid-template-columns: repeat(5, minmax(0,1fr)); }
 }
+
+
+.entity-grid { display: grid; gap: 10px; }
+.entity-card { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.entity-field { min-width: 0; }
+.entity-label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 3px; }
+.entity-field strong { display: block; overflow-wrap: anywhere; }
+.inline-link { display: inline-flex; margin-top: 5px; color: inherit; font-size: 12px; font-weight: 800; }
+.price-result { display: grid; gap: 5px; }
+.price-result span { color: var(--muted); font-size: 12px; }
+.price-result strong { font-size: 20px; }
+.price-result .final-price { font-size: 32px; margin-top: 6px; }
+.login-page { min-height: 100vh; display: grid; place-items: center; padding: 18px; }
+.login-card { width: min(420px, 100%); display: grid; gap: 10px; }
+.login-card .brand-mark { margin-bottom: 8px; }
+.login-card h1 { margin: 0 0 8px; font-size: 28px; }
+
+@media (min-width: 700px) {
+  .entity-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
