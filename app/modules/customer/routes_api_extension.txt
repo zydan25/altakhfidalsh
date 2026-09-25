@@ -1,0 +1,1 @@
+Customer routes are intentionally colocated in api.py while the domain grows. The next extraction step is admin/customer.py for management screens.
