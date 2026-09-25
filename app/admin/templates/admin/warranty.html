@@ -1,0 +1,17 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المبيعات والطلبات</span><h2>الضمان</h2><p class="muted">مراجعة مطالبة الضمان وتحديث الحالة والحل المسجل.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="entity-grid">
+{% for row in claims %}
+<article class="panel"><div class="panel-heading"><div><span class="eyebrow">مطالبة #{{ row.id }}</span><h3>طلب #{{ row.order_id }}</h3></div><span class="status-pill">{{ row.status }}</span></div>
+<div class="stack-list"><div class="stack-row"><strong>الصنف</strong><span>#{{ row.order_item_id }}</span></div><div class="stack-row"><strong>المشكلة</strong><span>{{ row.issue }}</span></div></div>
+<form method="post" class="form-stack" style="margin-top:10px">
+<input type="hidden" name="claim_id" value="{{ row.id }}">
+<label>الحالة<select name="status">{% for s in ["submitted","reviewing","approved","rejected","resolved"] %}<option value="{{ s }}" {% if row.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+<label>الحل<textarea name="resolution" rows="3">{{ row.resolution or "" }}</textarea></label>
+<button class="primary-button">حفظ المطالبة</button>
+</form></article>
+{% else %}<section class="empty-state panel"><strong>لا توجد مطالبات ضمان.</strong></section>{% endfor %}
+</section>
+{% endblock %}

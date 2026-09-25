@@ -8,6 +8,7 @@ from flask import current_app
 from ...extensions import db
 from ...models import AuthSession, Customer, CustomerPreference, OTPRequest
 from ...services.phone import normalize_phone
+from ...services.whatsapp import WhatsAppService
 
 
 class CustomerAuthService:
@@ -49,6 +50,18 @@ class CustomerAuthService:
         )
         db.session.add(otp)
         db.session.commit()
+
+        if not current_app.testing:
+            message = current_app.config.get(
+                "CUSTOMER_OTP_MESSAGE",
+                "رمز التحقق للدخول إلى التخفيض: {code}",
+            ).format(code=code)
+            try:
+                WhatsAppService.send_text(phone, message)
+            except Exception as exc:
+                otp.status = "send_failed"
+                db.session.commit()
+                raise ValueError(f"تعذر إرسال رمز التحقق عبر WhatsApp: {exc}") from exc
 
         result = {
             "otp_request_id": otp.id,

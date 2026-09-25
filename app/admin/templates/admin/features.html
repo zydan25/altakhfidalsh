@@ -1,0 +1,19 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">النظام</span><h2>المزايا والتجارب</h2><p class="muted">تحكم في Feature Flags من مكان واحد، مع إمكانية حفظ قواعد JSON لكل ميزة.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="two-panel">
+<article class="panel"><div class="panel-heading"><div><span class="eyebrow">ميزة</span><h3>إضافة أو تحديث</h3></div></div>
+<form method="post" class="form-stack">
+<label>Key<input name="key" required dir="ltr"></label>
+<label>Conditions JSON<textarea name="conditions" rows="4">{}</textarea></label>
+<label class="check-row"><input type="checkbox" name="enabled"><span><strong>مفعلة</strong></span></label>
+<button class="primary-button">حفظ الميزة</button>
+</form></article>
+<article class="panel"><div class="panel-heading"><div><span class="eyebrow">السجل</span><h3>المزايا</h3></div></div>
+<div class="stack-list">{% for row in flags %}
+<div class="stack-row"><strong>{{ row.key }}</strong><span>{{ 'مفعلة' if row.enabled else 'متوقفة' }}</span></div>
+{% else %}<span class="muted">لا توجد مزايا.</span>{% endfor %}</div></article>
+</section>
+{% endblock %}

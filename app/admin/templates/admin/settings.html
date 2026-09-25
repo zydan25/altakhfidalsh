@@ -1,0 +1,31 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">النظام</span><h2>الإعدادات</h2><p class="muted">إعدادات عامة قابلة للتعديل من قاعدة البيانات بدل القيم الثابتة.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="two-panel">
+<article class="panel">
+<div class="panel-heading"><div><span class="eyebrow">إضافة</span><h3>إعداد جديد</h3></div></div>
+<form method="post" class="form-stack">
+<input type="hidden" name="action" value="save">
+<label>المجموعة<input name="group_code" required dir="ltr" placeholder="store"></label>
+<label>المفتاح<input name="key" required dir="ltr" placeholder="support_phone"></label>
+<label>القيمة<textarea name="value" rows="3"></textarea></label>
+<label>نوع القيمة<select name="value_type"><option>text</option><option>number</option><option>json</option><option>boolean</option></select></label>
+<button class="primary-button">حفظ</button>
+</form>
+</article>
+<article class="panel">
+<div class="panel-heading"><div><span class="eyebrow">القيم</span><h3>الإعدادات الحالية</h3></div></div>
+<div class="stack-list">
+{% for row in settings %}
+<div class="stack-row" style="align-items:flex-start;flex-direction:column">
+<strong>{{ row.group_code }} · {{ row.key }}</strong>
+<span>{{ row.value_type }}</span>
+<pre style="white-space:pre-wrap;max-width:100%;margin:0">{{ row.value or '' }}</pre>
+</div>
+{% else %}<span class="muted">لا توجد إعدادات.</span>{% endfor %}
+</div>
+</article>
+</section>
+{% endblock %}

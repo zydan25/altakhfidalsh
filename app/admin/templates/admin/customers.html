@@ -1,0 +1,21 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">العملاء والتواصل</span>
+  <h2>العملاء</h2>
+  <p class="muted">ملف العميل يجمع الحساب والعناوين ومجموعة التسعير والطلبات والمحادثات والمحفظة والإشعارات.</p>
+</section>
+<section class="entity-grid">
+{% for customer in customers %}
+<article class="entity-card panel">
+  <div class="entity-field"><span class="entity-label">العميل</span><strong>{{ customer.name or "بدون اسم" }}</strong></div>
+  <div class="entity-field"><span class="entity-label">الهاتف</span><strong dir="ltr">{{ customer.phone_normalized }}</strong></div>
+  <div class="entity-field"><span class="entity-label">المدينة</span><strong>#{{ customer.city_id or "—" }}</strong></div>
+  <div class="entity-field"><span class="entity-label">الحالة</span><strong>{{ customer.status }}</strong></div>
+  <a class="primary-button" href="/admin/customers/{{ customer.id }}">فتح الملف الكامل</a>
+</article>
+{% else %}
+<section class="empty-state panel"><div class="empty-icon">◎</div><h3>لا يوجد عملاء</h3></section>
+{% endfor %}
+</section>
+{% endblock %}

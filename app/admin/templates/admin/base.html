@@ -8,7 +8,7 @@
   <title>{{ title }} · التخفيض</title>
   <link rel="stylesheet" href="{{ url_for('admin.static', filename='admin.css') }}">
 </head>
-<body>
+<body{% if theme_css_vars %} style="{{ theme_css_vars }}"{% endif %}>
   <div class="app-shell">
     <div id="drawerOverlay" class="drawer-overlay" hidden></div>
 
@@ -62,15 +62,21 @@
       <section class="page-content">
         {% block content %}{% endblock %}
       </section>
+      <nav class="mobile-bottom-nav" aria-label="اختصارات الإدارة">
+        <a href="/admin/" class="{% if current_path == '/admin/' %}is-current{% endif %}"><span>⌂</span><small>الرئيسية</small></a>
+        <a href="/admin/products" class="{% if current_path.startswith('/admin/products') %}is-current{% endif %}"><span>□</span><small>المنتجات</small></a>
+        <a href="/admin/orders" class="{% if current_path.startswith('/admin/orders') %}is-current{% endif %}"><span>▣</span><small>الطلبات</small></a>
+        <a href="/admin/chat" class="{% if current_path.startswith('/admin/chat') %}is-current{% endif %}"><span>…</span><small>المحادثات</small></a>
+        <button id="mobileMoreButton" type="button"><span>☰</span><small>المزيد</small></button>
+      </nav>
     </main>
   </div>
 
   <script src="{{ url_for('admin.static', filename='admin.js') }}" defer></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("{{ url_for('admin.static', filename='sw.js') }}", {scope: "/admin/"});
+    }
+  </script>
 </body>
 </html>
-
-<script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("{{ url_for('admin.static', filename='sw.js') }}", {scope: "/admin/"});
-  }
-</script>

@@ -3,6 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <link rel="manifest" href="{{ url_for('admin.static', filename='manifest.json') }}">
   <title>دخول الإدارة · التخفيض</title>
   <link rel="stylesheet" href="{{ url_for('admin.static', filename='admin.css') }}">
 </head>
@@ -12,14 +14,48 @@
       <div class="brand-mark">ت</div>
       <span class="eyebrow">لوحة الإدارة</span>
       <h1>تسجيل دخول المدير</h1>
-      {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+      {% if error %}<div class="alert {{ 'success' if error.startswith('رمز الاختبار') else 'error' }}">{{ error }}</div>{% endif %}
+
+      {% if step == "otp" %}
       <form method="post" class="form-stack">
-        <label>اسم المستخدم<input name="username" autocomplete="username" required></label>
-        <label>كلمة المرور<input name="password" type="password" autocomplete="current-password" required></label>
+        <input type="hidden" name="action" value="verify_otp">
+        <input type="hidden" name="otp_request_id" value="{{ otp_request_id }}">
         <input type="hidden" name="next" value="{{ next_path }}">
-        <button class="primary-button" type="submit">دخول</button>
+        <label>رمز التحقق<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" required autofocus placeholder="000000"></label>
+        <p class="muted">تم إرسال الرمز إلى الرقم <strong dir="ltr">{{ phone }}</strong>. صلاحية الرمز خمس دقائق.</p>
+        <button class="primary-button" type="submit">تحقق ودخول</button>
       </form>
+      <form method="post" style="margin-top:8px">
+        <input type="hidden" name="action" value="request_otp">
+        <input type="hidden" name="phone" value="{{ phone }}">
+        <button class="ghost-button" type="submit" style="width:100%">إعادة إرسال الرمز</button>
+      </form>
+      {% else %}
+      <form method="post" class="form-stack">
+        <input type="hidden" name="action" value="request_otp">
+        <input type="hidden" name="next" value="{{ next_path }}">
+        <label>رقم الهاتف<input name="phone" inputmode="tel" autocomplete="tel" required dir="ltr" placeholder="774952665" value="{{ phone }}"></label>
+        <p class="muted">سيصل رمز التحقق عبر WhatsApp إلى الرقم المصرح له كمدير.</p>
+        <button class="primary-button" type="submit">إرسال رمز التحقق</button>
+      </form>
+
+      <details class="panel" style="margin-top:10px;padding:12px">
+        <summary><strong>دخول احتياطي بكلمة المرور</strong></summary>
+        <form method="post" class="form-stack" style="margin-top:12px">
+          <input type="hidden" name="action" value="password">
+          <input type="hidden" name="next" value="{{ next_path }}">
+          <label>اسم المستخدم<input name="username" autocomplete="username"></label>
+          <label>كلمة المرور<input name="password" type="password" autocomplete="current-password"></label>
+          <button class="ghost-button" type="submit">دخول احتياطي</button>
+        </form>
+      </details>
+      {% endif %}
     </section>
   </main>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("{{ url_for('admin.static', filename='sw.js') }}", {scope: "/admin/"});
+    }
+  </script>
 </body>
 </html>

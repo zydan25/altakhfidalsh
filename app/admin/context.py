@@ -40,8 +40,23 @@ def build_admin_context():
                 {"label": child.label, "route": child.route, "section": source.label}
             )
 
+    theme_values = {}
+    try:
+        from ..models import AppSetting
+        for row in AppSetting.query.filter_by(group_code="theme").all():
+            theme_values[row.key] = row.value
+    except Exception:
+        db.session.rollback()
+
+    css_vars = "; ".join(
+        f"--{key.replace('_', '-')}: {value}"
+        for key, value in theme_values.items()
+        if key.replace("_", "").isalnum() and value
+    )
+
     return {
         "navigation": sections,
+        "theme_css_vars": css_vars,
         "current_path": current_path,
         "page_item_map": page_item_map,
         "badge_counts": {

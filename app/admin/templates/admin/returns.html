@@ -1,0 +1,24 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المبيعات والطلبات</span><h2>الإرجاع والاسترداد</h2><p class="muted">اعتماد طلبات الإرجاع ورفضها وإنشاء استرداد من داخل الملف التشغيلي.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="entity-grid">
+{% for row in returns %}
+<article class="panel">
+<div class="panel-heading"><div><span class="eyebrow">طلب إرجاع #{{ row.id }}</span><h3>الطلب #{{ row.order_id }}</h3></div><span class="status-pill">{{ row.status }}</span></div>
+<div class="stack-list"><div class="stack-row"><strong>العميل</strong><span>#{{ row.customer_id }}</span></div><div class="stack-row"><strong>السبب</strong><span>{{ row.reason }}</span></div><div class="stack-row"><strong>الوصف</strong><span>{{ row.description or "—" }}</span></div></div>
+<div class="form-actions" style="margin-top:10px">
+<form method="post"><input type="hidden" name="action" value="approve"><input type="hidden" name="return_id" value="{{ row.id }}"><button class="primary-button">اعتماد</button></form>
+<form method="post"><input type="hidden" name="action" value="reject"><input type="hidden" name="return_id" value="{{ row.id }}"><button class="ghost-button">رفض</button></form>
+</div>
+<form method="post" class="form-stack" style="margin-top:10px">
+<input type="hidden" name="action" value="refund"><input type="hidden" name="return_id" value="{{ row.id }}">
+<label>مبلغ الاسترداد<input name="amount" type="number" min="0" step="0.0001" required></label>
+<label>العملة<select name="currency_id">{% for c in currencies %}<option value="{{ c.id }}">{{ c.code }}</option>{% endfor %}</select></label>
+<label>طريقة الاسترداد<input name="method" value="wallet"></label>
+<button class="ghost-button">إنشاء استرداد</button>
+</form>
+</article>
+{% else %}<section class="empty-state panel"><strong>لا توجد طلبات إرجاع.</strong></section>{% endfor %}
+</section>
+{% endblock %}

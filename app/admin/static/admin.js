@@ -48,6 +48,7 @@
   };
 
   menuButton?.addEventListener("click", () => setDrawer(!sidebar.classList.contains("is-open")));
+  document.getElementById("mobileMoreButton")?.addEventListener("click", () => setDrawer(true));
   overlay?.addEventListener("click", () => setDrawer(false));
   sidebar?.querySelectorAll("a").forEach((link) => link.addEventListener("click", () => setDrawer(false)));
 

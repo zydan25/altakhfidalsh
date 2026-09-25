@@ -77,6 +77,9 @@ NAVIGATION = [
         NavItem("حركات المحافظ", "/admin/finance/wallet-ledger", "≡"),
         NavItem("التقارير", "/admin/reports", "▥"),
     ]),
+    NavSection("التكاملات", "◉", [
+        NavItem("WhatsApp", "/admin/whatsapp", "◉"),
+    ]),
     NavSection("النظام", "⚙", [
         NavItem("المستخدمون", "/admin/system/admins", "◎"),
         NavItem("الأدوار والصلاحيات", "/admin/system/roles", "🔑"),

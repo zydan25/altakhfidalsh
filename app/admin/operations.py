@@ -9,7 +9,16 @@ from ..models import (
     Currency,
     PricingGroup,
     PricingGroupRule,
+    PricingGroupCity,
+    CustomerPricingAssignment,
+    Customer,
+    Region,
+    City,
     Hashtag,
+    Category,
+    Product,
+    BannerTarget,
+    MediaAsset,
 )
 from ..services.pricing import PricingRule, calculate_customer_price
 from .context import build_admin_context
