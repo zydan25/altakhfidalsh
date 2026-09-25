@@ -1,0 +1,93 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">ملف العميل</span>
+  <div class="split-heading"><div><h2>{{ customer.name or customer.phone_normalized }}</h2><p class="muted">كل ما يؤثر على تجربة العميل والسعر والطلب يظهر هنا.</p></div><a class="ghost-button" href="/admin/customers">العودة للعملاء</a></div>
+</section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="two-panel">
+<article class="panel">
+  <div class="panel-heading"><div><span class="eyebrow">الحساب</span><h3>بيانات العميل</h3></div></div>
+  <form method="post" class="form-stack">
+    <input type="hidden" name="action" value="profile">
+    <label>الاسم<input name="name" value="{{ customer.name or '' }}"></label>
+    <label>البريد<input name="email" type="email" value="{{ customer.email or '' }}"></label>
+    <label>الهاتف<input value="{{ customer.phone_normalized }}" dir="ltr" disabled></label>
+    <label>الحالة<select name="status">{% for s in ["active","inactive","blocked","pending"] %}<option value="{{ s }}" {% if customer.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+    <label>المدينة<select name="city_id"><option value="">بدون مدينة</option>{% for city in cities %}<option value="{{ city.id }}" {% if customer.city_id == city.id %}selected{% endif %}>{{ city.name }}</option>{% endfor %}</select></label>
+    <button class="primary-button">حفظ الحساب</button>
+  </form>
+</article>
+
+<article class="panel">
+  <div class="panel-heading"><div><span class="eyebrow">تعيين السعر</span><h3>مجموعات التسعير</h3></div></div>
+  <div class="stack-list">
+    {% for row in pricing_assignments %}
+    <div class="stack-row"><strong>مجموعة #{{ row.pricing_group_id }}</strong><span>{{ row.percent_override if row.percent_override is not none else "قاعدة المجموعة" }}{% if row.percent_override is not none %}%{% endif %} · {{ row.fixed_override or 0 }} · أولوية {{ row.priority }}</span></div>
+    {% else %}<span class="muted">لا يوجد تعيين مباشر.</span>{% endfor %}
+  </div>
+  <a class="ghost-button" href="/admin/pricing/groups" style="margin-top:10px">إدارة التسعير</a>
+</article>
+</section>
+
+<section class="two-panel" style="margin-top:12px">
+<article class="panel">
+  <div class="panel-heading"><div><span class="eyebrow">العناوين</span><h3>عناوين التوصيل</h3></div></div>
+  <div class="stack-list">
+  {% for address in addresses %}
+    <div class="stack-row" style="align-items:flex-start;flex-direction:column">
+      <strong>{{ address.recipient_name }}{% if address.is_default %} · افتراضي{% endif %}</strong>
+      <span>{{ address.phone }} · مدينة #{{ address.city_id or "—" }}</span>
+      <small class="muted">{{ address.district or "" }} {{ address.street or "" }} {{ address.landmark or "" }}</small>
+    </div>
+  {% else %}<span class="muted">لا توجد عناوين.</span>{% endfor %}
+  </div>
+  <form method="post" class="form-stack" style="margin-top:12px">
+    <input type="hidden" name="action" value="address">
+    <label>اسم المستلم<input name="recipient_name" required></label>
+    <label>الهاتف<input name="address_phone" required dir="ltr"></label>
+    <label>المدينة<select name="address_city_id">{% for city in cities %}<option value="{{ city.id }}">{{ city.name }}</option>{% endfor %}</select></label>
+    <label>الحي<input name="district"></label>
+    <label>الشارع<input name="street"></label>
+    <label>علامة مميزة<input name="landmark"></label>
+    <label class="check-row"><input name="is_default" type="checkbox"><span><strong>عنوان افتراضي</strong></span></label>
+    <button class="primary-button">إضافة عنوان</button>
+  </form>
+</article>
+
+<article class="panel">
+  <div class="panel-heading"><div><span class="eyebrow">المحفظة</span><h3>الأرصدة</h3></div></div>
+  <div class="stack-list">
+  {% for wallet in wallets %}
+    <div class="stack-row"><strong>عملة #{{ wallet.currency_id }}</strong><span>{{ wallet.balance }} · {{ wallet.status }}</span></div>
+  {% else %}<span class="muted">لا توجد محافظ.</span>{% endfor %}
+  </div>
+  <div class="panel-heading" style="margin-top:16px"><div><span class="eyebrow">الإشعارات</span><h3>آخر التنبيهات</h3></div></div>
+  <div class="stack-list">
+  {% for pair in notifications %}
+    <div class="stack-row"><strong>{{ pair[1].title }}</strong><span>{{ pair[1].status }}{% if pair[0].read_at %} · مقروء{% else %} · غير مقروء{% endif %}</span></div>
+  {% else %}<span class="muted">لا توجد إشعارات.</span>{% endfor %}
+  </div>
+</article>
+</section>
+
+<section class="panel" style="margin-top:12px">
+<div class="panel-heading"><div><span class="eyebrow">الطلبات</span><h3>سجل طلبات العميل</h3></div><span class="status-pill">{{ orders|length }}</span></div>
+<div class="stack-list">
+{% for order in orders %}
+<div class="stack-row"><strong>{{ order.order_no }}</strong><span>{{ order.total }} · {{ order.status }} · {{ order.payment_status }}</span><a class="inline-link" href="/admin/orders/{{ order.id }}">فتح</a></div>
+{% else %}<span class="muted">لا توجد طلبات.</span>{% endfor %}
+</div>
+</section>
+
+<section class="panel" style="margin-top:12px">
+<div class="panel-heading"><div><span class="eyebrow">التواصل</span><h3>محادثات العميل</h3></div></div>
+<div class="stack-list">
+{% for row in conversations %}
+<div class="stack-row"><strong>#{{ row.id }} · {{ row.subject or row.type }}</strong><span>{{ row.status }} · {{ row.last_message_at or "—" }}{% if row.order_id %} · طلب #{{ row.order_id }}{% endif %}</span></div>
+{% else %}<span class="muted">لا توجد محادثات.</span>{% endfor %}
+</div>
+</section>
+{% endblock %}
