@@ -1,7 +1,7 @@
 import os
 
-from app.admin.auth import AdminAuthService
 from app import create_app
+from scripts.seed import seed
 
 
 def main():
@@ -9,9 +9,9 @@ def main():
     password = os.getenv("ADMIN_PASSWORD")
     if not username or not password:
         raise SystemExit("Set ADMIN_USERNAME and ADMIN_PASSWORD first.")
-    app = create_app()
-    with app.app_context():
-        print(AdminAuthService.bootstrap(username, password))
+    # Seed also creates the baseline permissions/role and attaches this admin.
+    seed()
+    print(f"Admin bootstrap completed for: {username}")
 
 
 if __name__ == "__main__":
