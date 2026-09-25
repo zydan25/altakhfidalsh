@@ -1,6 +1,7 @@
 from flask import request
 
 from . import api_bp
+from ...security import admin_api_required
 from ...extensions import db
 from ...models import City, Country, Region
 
@@ -12,6 +13,7 @@ def countries():
 
 
 @api_bp.post("/countries")
+@admin_api_required("geo.manage")
 def create_country():
     payload = request.get_json(silent=True) or {}
     code = (payload.get("code") or "").strip().upper()
@@ -37,6 +39,7 @@ def regions():
 
 
 @api_bp.post("/regions")
+@admin_api_required("geo.manage")
 def create_region():
     payload = request.get_json(silent=True) or {}
     try:
@@ -64,6 +67,7 @@ def cities():
 
 
 @api_bp.post("/cities")
+@admin_api_required("geo.manage")
 def create_city():
     payload = request.get_json(silent=True) or {}
     try:
