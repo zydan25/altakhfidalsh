@@ -1,4 +1,6 @@
-from flask import Flask
+from pathlib import Path
+
+from flask import Flask, send_from_directory
 
 from config import Config
 from .extensions import db, migrate
@@ -18,16 +20,23 @@ def create_app(config_class=Config):
     from . import models  # noqa: F401
     from .api import api_bp
     from .admin import admin_bp
+    from .modules import register_module_blueprints
 
     app.register_blueprint(api_bp, url_prefix="/api/v1")
     app.register_blueprint(admin_bp, url_prefix="/admin")
+    register_module_blueprints(app)
 
     @app.get("/health")
     def health():
         return {
             "ok": True,
             "service": "altakhfidalsh",
-            "version": "0.2.0",
+            "version": "0.3.0",
         }
+
+    @app.get("/media/<path:asset_path>")
+    def media(asset_path):
+        root = Path(app.config["MEDIA_ROOT"]).resolve()
+        return send_from_directory(root, asset_path)
 
     return app
