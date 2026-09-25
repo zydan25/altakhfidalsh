@@ -200,7 +200,8 @@ def upload_product_media(product_id):
 
 @api_bp.get("/reference/options")
 def option_references():
-    return {"item": CatalogService.option_references()}
+    product_id = request.args.get("product_id", type=int)
+    return {"item": CatalogService.option_references(product_id=product_id)}
 
 
 @api_bp.get("/reference/marketing")
