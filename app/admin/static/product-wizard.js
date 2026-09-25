@@ -81,16 +81,49 @@
     )).join("");
 
     const mediaRows = snapshot.media || [];
-    document.getElementById("mediaPreview").innerHTML = mediaRows.map(item => (
+    const mediaCard = (item) => (
       '<div class="media-thumb">' +
-      (item.url ? '<img src="' + escapeHtml(item.url) + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px">' : '<span>صورة</span>') +
-      '<small>' + (item.color_name ? escapeHtml(item.color_name) : 'عام') + ' · #' + item.id + '</small>' +
+      (item.url ? '<img src="' + escapeHtml(item.url) + '" alt="' + escapeHtml(item.color_name || "صورة المنتج") + '">' : '<span>صورة</span>') +
+      '<div class="media-thumb-meta"><small>' + (item.color_name ? escapeHtml(item.color_name) : 'عام') + '</small><small>#' + item.id + '</small></div>' +
       '<button type="button" class="ghost-button" data-delete-media="' + item.id + '">حذف</button></div>'
-    )).join("");
-    document.getElementById("mediaColorGroups").innerHTML = (optionRefs?.colors || []).map(color => {
-      const rows = mediaRows.filter(x => String(x.color_id || "") === String(color.id));
-      return rows.length ? '<div class="stack-row"><strong>' + escapeHtml(color.name) + '</strong><span>' + rows.length + ' صورة</span></div>' : '';
-    }).join("");
+    );
+    document.getElementById("mediaPreview").innerHTML = mediaRows.map(mediaCard).join("");
+    document.getElementById("mediaTotalCount").textContent = mediaRows.length + " صورة";
+
+    const colors = optionRefs?.colors || [];
+    const usedColorIds = new Set((snapshot.variants || []).map(v => v.color_id).filter(Boolean).map(Number));
+    document.getElementById("productColorCount").textContent = usedColorIds.size;
+    document.getElementById("productColors").innerHTML = colors.length
+      ? colors.map(color => {
+          const used = usedColorIds.has(Number(color.id));
+          const bg = color.hex_code || "#111827";
+          return '<div class="swatch-card ' + (used ? "is-used" : "") + '">' +
+            '<span class="color-swatch large" style="background:' + escapeHtml(bg) + '"></span>' +
+            '<div class="swatch-copy"><strong>' + escapeHtml(color.name) + '</strong><small>' + (used ? "مستخدم في متغير" : "متاح") + '</small></div>' +
+            '<button class="ghost-button use-color-button" type="button" data-use-color="' + color.id + '">' + (used ? "استخدام" : "＋ إضافة للمتغير") + '</button>' +
+          '</div>';
+        }).join("")
+      : '<div class="empty-state compact"><strong>لا توجد ألوان.</strong><span class="muted">أضف أول لون من الزر أعلاه.</span></div>';
+
+    document.getElementById("availableSizeCount").textContent = (optionRefs?.sizes || []).length;
+    document.getElementById("sizeReferencePreview").innerHTML = (optionRefs?.sizes || []).slice(0, 18).map(size => (
+      '<span class="size-chip"><strong>' + escapeHtml(size.label) + '</strong><small>' + escapeHtml(size.group) + '</small></span>'
+    )).join("") || '<span class="muted">لا توجد مقاسات مرجعية.</span>';
+
+    document.getElementById("mediaColorGroups").innerHTML = colors.length
+      ? colors.map(color => {
+          const rows = mediaRows.filter(x => String(x.color_id || "") === String(color.id));
+          const bg = color.hex_code || "#111827";
+          return '<article class="color-media-card">' +
+            '<div class="color-media-head"><div class="manage-card-title"><span class="color-swatch" style="background:' + escapeHtml(bg) + '"></span><div><strong>' + escapeHtml(color.name) + '</strong><small>' + rows.length + ' صورة</small></div></div></div>' +
+            '<div class="media-card-grid">' + (rows.length ? rows.map(mediaCard).join("") : '<div class="media-empty">لم تُرفع صور لهذا اللون بعد.</div>') + '</div>' +
+            '<div class="color-media-upload">' +
+              '<input type="file" accept="image/*" multiple data-color-media-input="' + color.id + '">' +
+              '<button type="button" class="primary-button" data-upload-color-media="' + color.id + '">رفع صور ' + escapeHtml(color.name) + '</button>' +
+            '</div>' +
+          '</article>';
+        }).join("")
+      : '<div class="empty-state compact"><strong>أضف لونًا أولًا.</strong><span class="muted">بعد إضافة اللون ستظهر له بطاقة رفع الصور هنا.</span></div>';
 
     const variantSelect = document.getElementById("inventoryVariant");
     variantSelect.innerHTML = (snapshot.variants || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.sku) + '</option>').join("");
@@ -190,6 +223,120 @@
   };
 
   steps.forEach(step => step.addEventListener("click", () => activate(step.dataset.step)));
+
+  const closeModal = (name) => {
+    const modal = document.querySelector('[data-modal="' + name + '"]');
+    if (modal) modal.hidden = true;
+    document.body.classList.remove("modal-open");
+  };
+
+  document.getElementById("productColors").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-use-color]");
+    if (!button) return;
+    const select = document.getElementById("variantColor");
+    select.value = button.dataset.useColor;
+    activate("variants");
+    select.focus();
+  });
+
+  document.getElementById("mediaColorGroups").addEventListener("click", async (event) => {
+    const deleteButton = event.target.closest("[data-delete-media]");
+    if (deleteButton) {
+      try {
+        await requestJson("/api/v1/catalog/products/" + productId + "/media/" + deleteButton.dataset.deleteMedia, { method: "DELETE" });
+        await load();
+        notify("تم حذف الصورة.");
+      } catch (error) { notify(error.message, "error"); }
+      return;
+    }
+
+    const button = event.target.closest("[data-upload-color-media]");
+    if (!button) return;
+    const input = document.querySelector('[data-color-media-input="' + button.dataset.uploadColorMedia + '"]');
+    if (!input || !input.files.length) {
+      notify("اختر صورة واحدة على الأقل لهذا اللون.", "error");
+      return;
+    }
+    const body = new FormData();
+    [...input.files].forEach(file => body.append("files", file));
+    body.append("color_id", button.dataset.uploadColorMedia);
+    try {
+      await requestJson("/api/v1/catalog/products/" + productId + "/media", { method: "POST", body });
+      input.value = "";
+      await load();
+      notify("تم رفع صور اللون بنجاح.");
+    } catch (error) { notify(error.message, "error"); }
+  });
+
+  document.getElementById("quickColorForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      const created = await requestJson("/api/v1/catalog/reference/colors", {
+        method: "POST",
+        body: JSON.stringify({
+          name: form.get("name"),
+          hex_code: form.get("hex_code"),
+          sort_order: Number(form.get("sort_order") || 0),
+        }),
+      });
+      closeModal("quickColorModal");
+      event.currentTarget.reset();
+      await load();
+      const select = document.getElementById("variantColor");
+      if (created.item?.id) {
+        select.value = String(created.item.id);
+        activate("variants");
+      }
+      notify("تم إنشاء اللون وإضافته لقائمة المتغيرات.");
+    } catch (error) { notify(error.message, "error"); }
+  });
+
+  document.getElementById("quickSizeForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await requestJson("/api/v1/catalog/reference/sizes", {
+        method: "POST",
+        body: JSON.stringify({
+          group: form.get("group"),
+          code: form.get("code"),
+          label: form.get("label"),
+          sort_order: Number(form.get("sort_order") || 0),
+        }),
+      });
+      closeModal("quickSizeModal");
+      event.currentTarget.reset();
+      await load();
+      notify("تم إنشاء المقاس وتحديث القائمة.");
+    } catch (error) { notify(error.message, "error"); }
+  });
+
+  document.getElementById("quickBadgeForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      const created = await requestJson("/api/v1/catalog/badges", {
+        method: "POST",
+        body: JSON.stringify({
+          name: form.get("name"),
+          code: form.get("code"),
+          bg_color: form.get("bg_color"),
+          text_color: form.get("text_color"),
+          style: form.get("style"),
+          priority: Number(form.get("priority") || 0),
+        }),
+      });
+      closeModal("quickBadgeModal");
+      event.currentTarget.reset();
+      await load();
+      const checkbox = document.querySelector('[data-badge-checkbox][value="' + created.item?.id + '"]');
+      if (checkbox) {
+        checkbox.checked = true;
+      }
+      notify("تم إنشاء الشارة وتحديث القائمة.");
+    } catch (error) { notify(error.message, "error"); }
+  });
 
   document.getElementById("basicsForm").addEventListener("submit", async (event) => {
     event.preventDefault();
