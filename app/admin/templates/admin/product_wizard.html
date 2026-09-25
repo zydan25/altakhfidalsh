@@ -55,7 +55,10 @@
         <strong>اختيار من التصنيفات الموجودة</strong>
         <small class="muted">هذه نفس السجلات الموجودة في جدول التصنيفات في القائمة الجانبية.</small>
       </div>
-      <button class="ghost-button" type="button" data-open-modal="quickCategoryModal">＋ إضافة تصنيف جديد</button>
+      <div class="reference-actions">
+        <input id="categorySearch" type="search" class="inline-search" placeholder="بحث في التصنيفات…">
+        <button class="ghost-button" type="button" data-open-modal="quickCategoryModal">＋ إضافة تصنيف جديد</button>
+      </div>
     </div>
     <div id="categorySelection" class="category-picker-tree"></div>
     <button id="saveCategories" class="primary-button" type="button">حفظ التصنيفات</button>
@@ -102,7 +105,11 @@
             <span id="productColorCount" class="status-pill">0</span>
             <div><span class="eyebrow">البعد الأول</span><strong>ألوان المنتج</strong><small>حدد الألوان المتاحة لهذا المنتج من جدول الألوان.</small></div>
           </div>
-          <button class="primary-button quick-add-button" type="button" data-open-modal="quickColorModal">＋ لون جديد</button>
+          <div class="reference-actions">
+            <button class="ghost-button quick-add-button" type="button" data-dimension-action="colors-all">تحديد الكل</button>
+            <button class="ghost-button quick-add-button" type="button" data-dimension-action="colors-none">مسح</button>
+            <button class="primary-button quick-add-button" type="button" data-open-modal="quickColorModal">＋ لون جديد</button>
+          </div>
         </div>
         <div class="dimension-selection-tools">
           <input id="colorSearch" type="search" placeholder="ابحث باسم اللون…">
@@ -117,7 +124,11 @@
             <span id="availableSizeCount" class="status-pill">0</span>
             <div><span class="eyebrow">البعد الثاني</span><strong>مقاسات المنتج</strong><small>حدد المقاسات المتاحة لهذا المنتج من جدول المقاسات.</small></div>
           </div>
-          <button class="ghost-button quick-add-button" type="button" data-open-modal="quickSizeModal">＋ مقاس جديد</button>
+          <div class="reference-actions">
+            <button class="ghost-button quick-add-button" type="button" data-dimension-action="sizes-all">تحديد الكل</button>
+            <button class="ghost-button quick-add-button" type="button" data-dimension-action="sizes-none">مسح</button>
+            <button class="ghost-button quick-add-button" type="button" data-open-modal="quickSizeModal">＋ مقاس جديد</button>
+          </div>
         </div>
         <div class="dimension-selection-tools">
           <input id="sizeSearch" type="search" placeholder="ابحث بالاسم أو الكود…">
