@@ -56,15 +56,28 @@
     });
 
     document.getElementById("optionsList").innerHTML = (snapshot.options || []).map(option => (
-      '<div class="stack-row"><strong>' + escapeHtml(option.name) + '</strong><span>' +
-      (option.values || []).map(v => escapeHtml(v.label)).join(" · ") +
-      '</span></div>'
+      '<details class="panel" style="padding:12px">' +
+      '<summary><strong>' + escapeHtml(option.name) + '</strong><span class="muted"> · ' + escapeHtml(option.option_type) + ' · ' + ((option.values || []).length) + ' قيم</span></summary>' +
+      '<form class="form-stack option-edit-form" data-option-id="' + option.id + '" style="margin-top:10px">' +
+      '<label>اسم الخيار<input name="name" value="' + escapeHtml(option.name) + '" required></label>' +
+      '<label>النوع<select name="option_type"><option value="color" ' + (option.option_type==="color"?"selected":"") + '>لون</option><option value="size" ' + (option.option_type==="size"?"selected":"") + '>مقاس</option><option value="custom" ' + (option.option_type==="custom"?"selected":"") + '>مخصص</option></select></label>' +
+      '<label class="check-row"><input name="required" type="checkbox" ' + (option.required?"checked":"") + '><span><strong>إجباري</strong></span></label>' +
+      '<label>قيم الخيار<textarea name="values_text" rows="4">' + escapeHtml((option.values || []).map(v => v.label).join("\n")) + '</textarea></label>' +
+      '<div class="modal-actions"><button class="primary-button" type="submit">حفظ الخيار</button><button class="ghost-button" type="button" data-delete-option="' + option.id + '">حذف الخيار</button></div>' +
+      '</form></details>'
     )).join("");
 
     document.getElementById("variantsList").innerHTML = (snapshot.variants || []).map(variant => (
-      '<div class="stack-row"><strong>' + escapeHtml(variant.sku) + '</strong><span>' +
-      'Color: ' + (variant.color_id || "—") + ' · Size: ' + (variant.size_id || "—") +
-      '</span></div>'
+      '<details class="panel" style="padding:12px">' +
+      '<summary><strong>' + escapeHtml(variant.sku) + '</strong><span class="muted"> · Color ' + (variant.color_id || "—") + ' · Size ' + (variant.size_id || "—") + '</span></summary>' +
+      '<form class="form-stack variant-edit-form" data-variant-id="' + variant.id + '" style="margin-top:10px">' +
+      '<label>SKU<input name="sku" value="' + escapeHtml(variant.sku) + '" required dir="ltr"></label>' +
+      '<label>اللون<select name="color_id" data-current="' + (variant.color_id || "") + '"></select></label>' +
+      '<label>المقاس<select name="size_id" data-current="' + (variant.size_id || "") + '"></select></label>' +
+      '<label>Barcode<input name="barcode" value="' + escapeHtml(variant.barcode || "") + '" dir="ltr"></label>' +
+      '<label>الوزن<input name="weight" type="number" min="0" step="0.0001" value="' + escapeHtml(variant.weight || "") + '"></label>' +
+      '<div class="modal-actions"><button class="primary-button" type="submit">حفظ المتغير</button><button class="ghost-button" type="button" data-archive-variant="' + variant.id + '">أرشفة المتغير</button></div>' +
+      '</form></details>'
     )).join("");
 
     const mediaRows = snapshot.media || [];
@@ -127,6 +140,15 @@
     const color = document.getElementById("variantColor");
     color.innerHTML = '<option value="">بدون لون</option>' +
       (optionRefs?.colors || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+    document.querySelectorAll(".variant-edit-form").forEach(form => {
+      const colorSelect = form.querySelector('select[name="color_id"]');
+      const sizeSelect = form.querySelector('select[name="size_id"]');
+      colorSelect.innerHTML = '<option value="">بدون لون</option>' + (optionRefs?.colors || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+      sizeSelect.innerHTML = '<option value="">بدون مقاس</option>' + (optionRefs?.sizes || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.label) + ' · ' + escapeHtml(x.group) + '</option>').join("");
+      if (colorSelect.dataset.current) colorSelect.value = colorSelect.dataset.current;
+      if (sizeSelect.dataset.current) sizeSelect.value = sizeSelect.dataset.current;
+    });
+
     const mediaColor = document.getElementById("mediaColor");
     if (mediaColor) {
       mediaColor.innerHTML = '<option value="">صور عامة للمنتج</option>' +
