@@ -35,7 +35,7 @@
 
   const load = async () => {
     try {
-      const [result, refs, marketing, options] = await Promise.all([
+      const [result, refs, marketing, options, config] = await Promise.all([
         requestJson("/api/v1/catalog/products/" + productId + "/wizard"),
         requestJson("/api/v1/catalog/reference/policies"),
         requestJson("/api/v1/catalog/reference/marketing"),
@@ -55,6 +55,11 @@
 
   const hydrate = () => {
     const categories = configRefs?.categories || [];
+    const categoryParent = document.querySelector('#quickCategoryForm select[name="parent_id"]');
+    if (categoryParent) {
+      categoryParent.innerHTML = '<option value="">بدون أب</option>' +
+        categories.filter(x => x.is_active).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+    }
     const selectedCategories = new Set((snapshot.categories || []).map(x => String(x.id)));
     document.getElementById("categorySelection").innerHTML = categories.length
       ? categories.map(category =>
