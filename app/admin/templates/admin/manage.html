@@ -1,0 +1,103 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <div class="module-toolbar">
+    <div class="module-heading-copy">
+      <span class="eyebrow">{{ section }}</span>
+      <h2>{{ title }}</h2>
+      {% if description %}<p class="muted">{{ description }}</p>{% endif %}
+    </div>
+    <div class="module-toolbar-actions">
+      <span class="status-pill">{{ records|length }}</span>
+      <button class="primary-button" type="button" data-open-modal="{{ modal_id }}">+ إضافة</button>
+    </div>
+  </div>
+</section>
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="entity-grid manage-grid">
+  {% for record in records %}
+  <article class="entity-card panel manage-card">
+    <div class="manage-card-header">
+      <div class="manage-card-title">
+        {% if record.color %}
+          <span class="color-swatch" style="background: {{ record.color }}"></span>
+        {% endif %}
+        <strong>{{ record.title }}</strong>
+      </div>
+      {% if record.badge %}<span class="status-pill">{{ record.badge }}</span>{% endif %}
+    </div>
+    {% for item in record.fields %}
+      <div class="entity-field">
+        <span class="entity-label">{{ item.label }}</span>
+        <strong {% if item.dir %}dir="{{ item.dir }}"{% endif %}>{{ item.value or "—" }}</strong>
+      </div>
+    {% endfor %}
+  </article>
+  {% else %}
+  <section class="empty-state panel" style="grid-column:1/-1">
+    <div class="empty-icon">◈</div>
+    <h3>لا توجد بيانات بعد</h3>
+    <p class="muted">ابدأ من زر «إضافة» بالأعلى، وستظهر السجلات هنا بعد الحفظ.</p>
+    <button class="primary-button" type="button" data-open-modal="{{ modal_id }}">+ إضافة أول سجل</button>
+  </section>
+  {% endfor %}
+</section>
+
+<div class="admin-modal" data-modal="{{ modal_id }}" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="{{ modal_id }}Title">
+    <div class="admin-modal-header">
+      <div>
+        <span class="eyebrow">إضافة</span>
+        <h3 id="{{ modal_id }}Title">إضافة {{ title }}</h3>
+      </div>
+      <button class="icon-button" type="button" data-close-modal aria-label="إغلاق">×</button>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="form-stack manage-form" data-slug-form="{{ modal_id }}">
+      <input type="hidden" name="action" value="{{ action_name or 'create' }}">
+      {% for field in fields %}
+        <label class="form-field{% if field.wide %} form-field-wide{% endif %}">
+          <span>{{ field.label }}{% if field.required %} <b class="required-mark">*</b>{% endif %}</span>
+          {% if field.type == "textarea" %}
+            <textarea name="{{ field.name }}" {% if field.required %}required{% endif %} {% if field.dir %}dir="{{ field.dir }}"{% endif %} placeholder="{{ field.placeholder or '' }}">{{ field.value or '' }}</textarea>
+          {% elif field.type == "select" %}
+            <select name="{{ field.name }}" {% if field.required %}required{% endif %}>
+              {% for option in field.options %}
+              <option value="{{ option.value }}" {% if option.selected %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          {% elif field.type == "file" %}
+            <input name="{{ field.name }}" type="file" accept="{{ field.accept or 'image/*' }}" {% if field.required %}required{% endif %}>
+          {% elif field.type == "color" %}
+            <span class="color-input-row">
+              <input name="{{ field.name }}" type="color" value="{{ field.value or '#111827' }}" {% if field.required %}required{% endif %}>
+              <input class="color-text-input" data-color-text type="text" value="{{ field.value or '#111827' }}" dir="ltr" inputmode="text" maxlength="20" placeholder="#111827">
+            </span>
+          {% else %}
+            <input
+              name="{{ field.name }}"
+              type="{{ field.type or 'text' }}"
+              value="{{ field.value or '' }}"
+              {% if field.required %}required{% endif %}
+              {% if field.dir %}dir="{{ field.dir }}"{% endif %}
+              {% if field.min is not none %}min="{{ field.min }}"{% endif %}
+              {% if field.step %}step="{{ field.step }}"{% endif %}
+              placeholder="{{ field.placeholder or '' }}"
+              {% if field.autocomplete == false %}autocomplete="off"{% endif %}
+              {% if field.auto_slug_source %}data-slug-source="{{ field.auto_slug_source }}"{% endif %}
+            >
+          {% endif %}
+          {% if field.help %}<small class="field-help">{{ field.help }}</small>{% endif %}
+        </label>
+      {% endfor %}
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">حفظ</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}
