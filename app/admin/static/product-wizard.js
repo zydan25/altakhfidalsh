@@ -7,6 +7,7 @@
   const panels = [...document.querySelectorAll(".wizard-panel")];
   const steps = [...document.querySelectorAll(".wizard-step")];
   let snapshot = null;
+  let policyRefs = null;
 
   const notify = (text, type = "success") => {
     message.textContent = text;
@@ -30,8 +31,12 @@
 
   const load = async () => {
     try {
-      const result = await requestJson("/api/v1/admin/catalog/products/" + productId + "/wizard");
+      const [result, refs] = await Promise.all([
+        requestJson("/api/v1/admin/catalog/products/" + productId + "/wizard"),
+        requestJson("/api/v1/admin/catalog/reference/policies"),
+      ]);
       snapshot = result.item;
+      policyRefs = refs;
       hydrate();
     } catch (error) {
       notify(error.message, "error");
@@ -60,12 +65,35 @@
       '<div class="media-thumb"><span>صورة</span><small>#' + item.asset_id + '</small></div>'
     )).join("");
 
+    const variantSelect = document.getElementById("inventoryVariant");
+    variantSelect.innerHTML = (snapshot.variants || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.sku) + '</option>').join("");
+    const locationSelect = document.getElementById("inventoryLocation");
+    locationSelect.innerHTML = (snapshot.locations || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + ' · ' + escapeHtml(x.code) + '</option>').join("");
+    document.getElementById("inventoryList").innerHTML = (snapshot.inventory || []).map(x => (
+      '<div class="stack-row"><strong>Variant #' + x.variant_id + '</strong><span>المتاح ' + x.available + ' · الفعلي ' + x.on_hand + ' · محجوز ' + x.reserved + '</span></div>'
+    )).join("");
+
+    document.getElementById("showRating").checked = snapshot.display?.show_rating ?? true;
+    document.getElementById("showSoldBadge").checked = snapshot.display?.show_sold_badge ?? true;
+    document.getElementById("showShipping").checked = snapshot.display?.show_shipping_banner ?? true;
+    document.getElementById("showReturn").checked = snapshot.display?.show_return ?? true;
+
+    const fillPolicies = (id, rows, selected) => {
+      const select = document.getElementById(id);
+      select.innerHTML = '<option value="">بدون سياسة</option>' + rows.map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
+      if (selected) select.value = String(selected);
+    };
+    fillPolicies("shippingPolicyId", policyRefs?.shipping || [], snapshot.policies?.shipping_policy_id);
+    fillPolicies("returnPolicyId", policyRefs?.return || [], snapshot.policies?.return_policy_id);
+    fillPolicies("warrantyPolicyId", policyRefs?.warranty || [], snapshot.policies?.warranty_policy_id);
+
     const steps = {
       basics: snapshot.steps.basics,
       categories: snapshot.steps.categories,
       media: snapshot.steps.media,
       options: snapshot.steps.options,
       variants: snapshot.steps.variants,
+      inventory: snapshot.steps.inventory,
       publish: snapshot.steps.publish,
     };
     document.querySelector("[data-panel='publish'] .checklist").innerHTML = [
@@ -74,6 +102,7 @@
       ["الوسائط", steps.media],
       ["الخيارات", steps.options],
       ["المتغيرات", steps.variants],
+      ["المخزون", steps.inventory],
       ["جاهز للنشر", snapshot.publishable],
     ].map(([label, ok]) => '<div class="checklist-row"><span class="' + (ok ? "ok" : "pending") + '">' + (ok ? "✓" : "•") + '</span><strong>' + label + '</strong><small>' + (ok ? "مكتمل" : "يحتاج إعدادًا") + '</small></div>').join("");
     document.getElementById("publishProduct").disabled = !snapshot.publishable;
@@ -173,6 +202,72 @@
       event.currentTarget.reset();
       await load();
       notify("تمت إضافة الـVariant.");
+    } catch (error) { notify(error.message, "error"); }
+  });
+
+  document.getElementById("inventoryForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await requestJson("/api/v1/admin/catalog/products/" + productId + "/inventory", {
+        method: "POST",
+        body: JSON.stringify({
+          variant_id: Number(form.get("variant_id")),
+          location_id: Number(form.get("location_id")),
+          on_hand: Number(form.get("on_hand")),
+          reserved: Number(form.get("reserved")),
+          reorder_level: Number(form.get("reorder_level")),
+        }),
+      });
+      await load();
+      notify("تم حفظ المخزون.");
+    } catch (error) { notify(error.message, "error"); }
+  });
+
+  document.getElementById("locationForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    try {
+      await requestJson("/api/v1/admin/catalog/inventory-locations", {
+        method: "POST",
+        body: JSON.stringify({
+          name: form.get("name"),
+          code: form.get("code"),
+          city_id: form.get("city_id") ? Number(form.get("city_id")) : null,
+        }),
+      });
+      event.currentTarget.reset();
+      await load();
+      notify("تم إنشاء موقع التخزين.");
+    } catch (error) { notify(error.message, "error"); }
+  });
+
+  document.getElementById("saveDisplay").addEventListener("click", async () => {
+    try {
+      await requestJson("/api/v1/admin/catalog/products/" + productId + "/display-settings", {
+        method: "POST",
+        body: JSON.stringify({
+          show_rating: document.getElementById("showRating").checked,
+          show_sold_badge: document.getElementById("showSoldBadge").checked,
+          show_shipping_banner: document.getElementById("showShipping").checked,
+          show_return: document.getElementById("showReturn").checked,
+        }),
+      });
+      const policies = {};
+      for (const [key, id] of [
+        ["shipping_policy_id", "shippingPolicyId"],
+        ["return_policy_id", "returnPolicyId"],
+        ["warranty_policy_id", "warrantyPolicyId"],
+      ]) {
+        const value = document.getElementById(id).value;
+        if (value) policies[key] = Number(value);
+      }
+      await requestJson("/api/v1/admin/catalog/products/" + productId + "/policies", {
+        method: "POST",
+        body: JSON.stringify(policies),
+      });
+      await load();
+      notify("تم حفظ العرض والسياسات.");
     } catch (error) { notify(error.message, "error"); }
   });
 
