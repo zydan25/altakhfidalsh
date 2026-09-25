@@ -33,4 +33,9 @@ pm2 save
 sleep 2
 curl -fsS "http://127.0.0.1:4006/health"
 echo
+ADMIN_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:4006/admin/)"
+case "$ADMIN_STATUS" in
+  200|302|303) echo "[takhfid1] admin route OK (HTTP $ADMIN_STATUS)" ;;
+  *) echo "[takhfid1] ERROR: /admin/ returned HTTP $ADMIN_STATUS" >&2; exit 1 ;;
+esac
 echo "[takhfid1] تم التحديث بنجاح."
