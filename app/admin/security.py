@@ -19,6 +19,7 @@ ROUTE_PERMISSIONS = {
         "/admin/reviews": "content.manage",
         "/admin/chat": "customer.view",
         "/admin/customers": "customer.view",
+        "/admin/whatsapp": "system.manage",
         "/admin/storefront/pages": "content.manage",
         "/admin/storefront/sections": "content.manage",
     },
