@@ -1,6 +1,7 @@
 from flask import request
 
 from . import api_bp
+from ..customer.security import customer_required, current_customer
 from .services import SupportService
 from ...extensions import db
 from ...models import Conversation, Message
