@@ -6,11 +6,18 @@
   const message = document.getElementById("wizardMessage");
   const panels = [...document.querySelectorAll(".wizard-panel")];
   const steps = [...document.querySelectorAll(".wizard-step")];
+  const seedElement = document.getElementById("wizardReferenceSeed");
   let snapshot = null;
   let policyRefs = null;
   let marketingRefs = null;
   let optionRefs = null;
-  let configRefs = null;
+  let configRefs = (() => {
+    try {
+      return JSON.parse(seedElement?.textContent || "{}") || {};
+    } catch (error) {
+      return {};
+    }
+  })();
   let draftColorIds = new Set();
   let draftSizeIds = new Set();
   let draftCategoryIds = new Set();
@@ -37,23 +44,47 @@
     return data;
   };
 
+  const syncColorTextInputs = () => {
+    document.querySelectorAll('.color-input-row').forEach(row => {
+      const picker = row.querySelector('input[type="color"]');
+      const text = row.querySelector('.color-text-input');
+      if (!picker || !text) return;
+      picker.addEventListener("input", () => { text.value = picker.value; });
+      text.addEventListener("input", () => {
+        const value = text.value.trim();
+        if (/^#[0-9a-fA-F]{6}$/.test(value)) picker.value = value;
+      });
+    });
+  };
+
   const load = async () => {
-    try {
-      const [result, refs, marketing, options, config] = await Promise.all([
-        requestJson("/api/v1/catalog/products/" + productId + "/wizard"),
-        requestJson("/api/v1/catalog/reference/policies"),
-        requestJson("/api/v1/catalog/reference/marketing"),
-        requestJson("/api/v1/catalog/reference/options?product_id=" + encodeURIComponent(productId)),
-        requestJson("/api/v1/catalog/reference/product-config?product_id=" + encodeURIComponent(productId)),
-      ]);
-      snapshot = result.item;
-      policyRefs = refs;
-      marketingRefs = marketing;
-      optionRefs = options.item || options;
-      configRefs = config.item || config;
-      hydrate();
-    } catch (error) {
-      notify(error.message, "error");
+    const requests = await Promise.allSettled([
+      requestJson("/api/v1/catalog/products/" + productId + "/wizard"),
+      requestJson("/api/v1/catalog/reference/policies"),
+      requestJson("/api/v1/catalog/reference/marketing"),
+      requestJson("/api/v1/catalog/reference/options?product_id=" + encodeURIComponent(productId)),
+      requestJson("/api/v1/catalog/reference/product-config?product_id=" + encodeURIComponent(productId)),
+    ]);
+
+    const [result, refs, marketing, options, config] = requests;
+    if (result.status === "rejected") {
+      notify(result.reason?.message || "تعذر تحميل بيانات المنتج.", "error");
+      return;
+    }
+
+    snapshot = result.value.item;
+    if (refs.status === "fulfilled") policyRefs = refs.value;
+    if (marketing.status === "fulfilled") marketingRefs = marketing.value;
+    if (options.status === "fulfilled") optionRefs = options.value.item || options.value;
+    if (config.status === "fulfilled") {
+      configRefs = { ...(configRefs || {}), ...(config.value.item || config.value) };
+    }
+
+    hydrate();
+
+    const optionalFailures = requests.slice(1).filter(item => item.status === "rejected");
+    if (optionalFailures.length && !configRefs?.categories?.length && !configRefs?.colors?.length) {
+      notify("تم تحميل المنتج، لكن تعذر تحميل بعض مراجع الكتالوج. أعد تحميل الصفحة للمحاولة مرة أخرى.", "error");
     }
   };
 
@@ -488,19 +519,32 @@
         method: "POST",
         body: JSON.stringify({
           name: form.get("name"),
-          hex_code: form.get("hex_code"),
+          hex_code: (form.get("hex_code_text") || form.get("hex_code") || "").trim(),
           sort_order: Number(form.get("sort_order") || 0),
         }),
       });
       closeModal("quickColorModal");
       event.currentTarget.reset();
-      await load();
       if (created.item?.id) {
-        draftColorIds.add(Number(created.item.id));
+        const id = Number(created.item.id);
+        draftColorIds.add(id);
+        configRefs = configRefs || {};
+        const exists = (configRefs.colors || []).some(item => Number(item.id) === id);
+        if (!exists) {
+          configRefs.colors = [
+            ...(configRefs.colors || []),
+            { ...created.item, is_active: true, selected: true },
+          ];
+        }
         renderDimensionChoices();
         syncVariantSelectors();
+        await requestJson("/api/v1/catalog/products/" + productId + "/reference-dimensions", {
+          method: "POST",
+          body: JSON.stringify({ color_ids: [...draftColorIds], size_ids: [...draftSizeIds] }),
+        });
+        await load();
       }
-      notify("تم إنشاء اللون وإضافته إلى قائمة خصائص المنتج. اضغط حفظ الألوان والمقاسات لاعتماد الاختيار.");
+      notify("تم إنشاء اللون وربطه بالمنتج مباشرة.");
     } catch (error) { notify(error.message, "error"); }
   });
 
@@ -519,13 +563,26 @@
       });
       closeModal("quickSizeModal");
       event.currentTarget.reset();
-      await load();
       if (created.item?.id) {
-        draftSizeIds.add(Number(created.item.id));
+        const id = Number(created.item.id);
+        draftSizeIds.add(id);
+        configRefs = configRefs || {};
+        const exists = (configRefs.sizes || []).some(item => Number(item.id) === id);
+        if (!exists) {
+          configRefs.sizes = [
+            ...(configRefs.sizes || []),
+            { ...created.item, is_active: true, selected: true },
+          ];
+        }
         renderDimensionChoices();
         syncVariantSelectors();
+        await requestJson("/api/v1/catalog/products/" + productId + "/reference-dimensions", {
+          method: "POST",
+          body: JSON.stringify({ color_ids: [...draftColorIds], size_ids: [...draftSizeIds] }),
+        });
+        await load();
       }
-      notify("تم إنشاء المقاس وإضافته لاختيار هذا المنتج. اضغط حفظ الألوان والمقاسات لاعتماد الاختيار.");
+      notify("تم إنشاء المقاس وربطه بالمنتج مباشرة.");
     } catch (error) { notify(error.message, "error"); }
   });
 
@@ -592,10 +649,17 @@
     }),
     async item => {
       if (item.id) {
-        draftCategoryIds.add(String(item.id));
-        const input = document.querySelector('[data-category-checkbox][value="' + item.id + '"]');
-        if (input) input.checked = true;
-        document.getElementById("categorySelection").innerHTML = renderCategoryTree(configRefs?.categories || [], draftCategoryIds);
+        const id = Number(item.id);
+        draftCategoryIds.add(String(id));
+        configRefs = configRefs || {};
+        const exists = (configRefs.categories || []).some(row => Number(row.id) === id);
+        if (!exists) configRefs.categories = [...(configRefs.categories || []), { ...item, is_active: true }];
+        document.getElementById("categorySelection").innerHTML = renderCategoryTree(configRefs.categories || [], draftCategoryIds);
+        await requestJson("/api/v1/catalog/products/" + productId + "/categories", {
+          method: "POST",
+          body: JSON.stringify({ category_ids: [...draftCategoryIds].map(Number) }),
+        });
+        await load();
       }
     },
     "تم إنشاء التصنيف وإضافته إلى اختيار المنتج."
@@ -693,15 +757,20 @@
     });
   });
 
+  const persistDimensions = async () => requestJson(
+    "/api/v1/catalog/products/" + productId + "/reference-dimensions",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        color_ids: [...draftColorIds],
+        size_ids: [...draftSizeIds],
+      }),
+    }
+  );
+
   document.getElementById("saveDimensions").addEventListener("click", async () => {
     try {
-      await requestJson("/api/v1/catalog/products/" + productId + "/reference-dimensions", {
-        method: "POST",
-        body: JSON.stringify({
-          color_ids: [...draftColorIds],
-          size_ids: [...draftSizeIds],
-        }),
-      });
+      await persistDimensions();
       await load();
       notify("تم حفظ ألوان ومقاسات المنتج. يمكنك الآن إنشاء الـVariants منها.");
     } catch (error) { notify(error.message, "error"); }
@@ -906,5 +975,6 @@
     } catch (error) { notify(error.message, "error"); }
   });
 
+  syncColorTextInputs();
   load();
 })();

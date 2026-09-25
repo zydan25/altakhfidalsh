@@ -4,7 +4,7 @@ from flask import render_template, request
 from sqlalchemy import func
 
 from .context import build_admin_context
-from ..modules.catalog.services import MediaService
+from ..modules.catalog.services import CatalogService, MediaService
 from ..extensions import db
 from ..models import (
     Category,
@@ -306,6 +306,7 @@ def register_admin_routes(admin_bp):
         context = _navigation_context()
         currencies = Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
         categories = Category.query.filter_by(is_active=True).order_by(Category.name).all()
+        category_tree = _category_tree_rows()
         error = None
 
         if request.method == "POST":
@@ -314,7 +315,10 @@ def register_admin_routes(admin_bp):
             description = (request.form.get("description") or "").strip()
             base_price_raw = (request.form.get("base_price") or "").strip()
             base_currency_id = request.form.get("base_currency_id", type=int)
-            category_id = request.form.get("category_id", type=int)
+            category_ids = request.form.getlist("category_ids", type=int)
+            legacy_category_id = request.form.get("category_id", type=int)
+            if not category_ids and legacy_category_id:
+                category_ids = [legacy_category_id]
 
             if not sku or not name or not base_price_raw or not base_currency_id:
                 error = "SKU واسم المنتج والسعر والعملة الأساسية حقول مطلوبة."
@@ -344,12 +348,14 @@ def register_admin_routes(admin_bp):
                 )
                 db.session.add(product)
                 db.session.flush()
-                if category_id:
+                for index, category_id in enumerate(dict.fromkeys(category_ids)):
+                    if db.session.get(Category, category_id) is None:
+                        raise ValueError("التصنيف المحدد غير موجود.")
                     db.session.add(
                         ProductCategory(
                             product_id=product.id,
                             category_id=category_id,
-                            is_primary=True,
+                            is_primary=(index == 0),
                         )
                     )
                 db.session.commit()
@@ -359,6 +365,9 @@ def register_admin_routes(admin_bp):
                     product_id=product.id,
                     product=product,
                     categories=categories,
+                    category_tree=category_tree,
+                    selected_category_ids=list(dict.fromkeys(category_ids)),
+                    wizard_references=CatalogService.product_reference_data(product_id=product.id),
                     **context,
                 )
 
@@ -367,6 +376,7 @@ def register_admin_routes(admin_bp):
             title="إضافة منتج",
             currencies=currencies,
             categories=categories,
+            category_tree=category_tree,
             error=error,
             success=None,
             **context,
@@ -385,12 +395,22 @@ def register_admin_routes(admin_bp):
                 **context,
             ), 404
         categories = Category.query.filter_by(is_active=True).order_by(Category.name).all()
+        category_tree = _category_tree_rows()
+        selected_category_ids = [
+            row.category_id
+            for row in ProductCategory.query.filter_by(product_id=product.id)
+            .order_by(ProductCategory.is_primary.desc(), ProductCategory.id)
+            .all()
+        ]
         return render_template(
             "admin/product_wizard.html",
             title=f"إعداد المنتج · {product.name}",
             product_id=product.id,
             product=product,
             categories=categories,
+            category_tree=category_tree,
+            selected_category_ids=selected_category_ids,
+            wizard_references=CatalogService.product_reference_data(product_id=product.id),
             **context,
         )
 

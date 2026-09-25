@@ -4,7 +4,7 @@
 <section class="module-header">
   <span class="eyebrow">الكتالوج</span>
   <h2>إضافة منتج</h2>
-  <p class="muted">الخطوة الأولى تنشئ هوية المنتج فقط. بعد الحفظ ستتم إضافة الوسائط والخيارات والـVariants والمخزون والسياسات والحملات بشكل منفصل.</p>
+  <p class="muted">أنشئ المنتج كمسودة مع التصنيفات الأساسية، ثم يكمل المعالج الألوان والمقاسات والوسائط والـVariants والمخزون والسياسات والنشر.</p>
 </section>
 
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
@@ -33,14 +33,28 @@
           {% endfor %}
         </select>
       </label>
-      <label>التصنيف الأساسي
-        <select name="category_id">
-          <option value="">بدون تصنيف الآن</option>
-          {% for category in categories %}
-          <option value="{{ category.id }}">{{ category.name }}</option>
+      <div class="category-create-picker">
+        <div class="selection-toolbar">
+          <div>
+            <strong>التصنيفات</strong>
+            <small class="muted">اختر تصنيفًا أو أكثر. تظهر بنفس بنية الشجرة الموجودة في لوحة التصنيفات.</small>
+          </div>
+        </div>
+        <div class="category-picker-tree">
+          {% for category, depth in category_tree %}
+          <label class="category-picker-choice {% if depth == 0 %}category-picker-root{% endif %}" style="--depth:{{ depth }}">
+            <input type="checkbox" name="category_ids" value="{{ category.id }}">
+            <span class="category-picker-marker">{{ "▾" if depth == 0 else "•" }}</span>
+            <span class="category-picker-copy">
+              <strong>{{ category.name }}</strong>
+              <small>{{ category.slug }}</small>
+            </span>
+          </label>
+          {% else %}
+          <div class="empty-state compact"><strong>لا توجد تصنيفات.</strong><span class="muted">أضف التصنيفات من قسم الكتالوج أولًا.</span></div>
           {% endfor %}
-        </select>
-      </label>
+        </div>
+      </div>
     </div>
   </section>
 

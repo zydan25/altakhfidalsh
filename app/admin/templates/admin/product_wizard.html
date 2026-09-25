@@ -9,6 +9,7 @@
 
 <div id="wizardMessage" class="alert" hidden></div>
 
+<script id="wizardReferenceSeed" type="application/json">{{ wizard_references|tojson }}</script>
 <section class="wizard-shell panel" data-product-id="{{ product_id }}">
   <div class="wizard-steps" role="tablist">
     {% for key, label in [
@@ -60,7 +61,15 @@
         <button class="ghost-button" type="button" data-open-modal="quickCategoryModal">＋ إضافة تصنيف جديد</button>
       </div>
     </div>
-    <div id="categorySelection" class="category-picker-tree"></div>
+    <div id="categorySelection" class="category-picker-tree">
+      {% for category, depth in category_tree %}
+      <label class="category-picker-choice" style="--depth:{{ depth }}">
+        <input type="checkbox" value="{{ category.id }}" data-category-checkbox{% if category.id in selected_category_ids %} checked{% endif %}>
+        <span class="category-picker-marker">{{ "▾" if depth == 0 else "•" }}</span>
+        <span class="category-picker-copy"><strong>{{ category.name }}</strong><small>{{ category.slug }}</small></span>
+      </label>
+      {% endfor %}
+    </div>
     <button id="saveCategories" class="primary-button" type="button">حفظ التصنيفات</button>
   </div>
 
@@ -526,5 +535,5 @@
     </form>
   </section>
 </div>
-<script src="{{ url_for('admin.static', filename='product-wizard.js') }}" defer></script>
+<script src="{{ url_for('admin.static', filename='product-wizard.js') }}?v=20260925-2" defer></script>
 {% endblock %}

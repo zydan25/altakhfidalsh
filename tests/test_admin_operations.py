@@ -1,5 +1,5 @@
 from app.extensions import db
-from app.models import Badge, Color, Customer, CustomerAddress, Currency, MediaAsset, Product, ProductMedia, StorefrontPage, StorefrontSection, StorefrontSectionItem
+from app.models import Badge, Color, Customer, CustomerAddress, Currency, MediaAsset, Product, ProductCategory, ProductMedia, StorefrontPage, StorefrontSection, StorefrontSectionItem
 
 
 def test_customer_admin_profile_and_address(client, app):
@@ -471,3 +471,105 @@ def test_product_dimension_references_and_variant_integrity(client, app):
         json={"color_ids": [color_b_id], "size_ids": [size_a_id, size_b_id]},
     )
     assert response.status_code == 400
+
+
+def test_product_create_uses_category_tree_and_preserves_all_selected_categories(client, app):
+    with client.session_transaction() as session:
+        session["admin_id"] = 1
+
+    with app.app_context():
+        currency = Currency(code="SAR", name_ar="ريال سعودي", is_base=True)
+        parent = __import__("app.models", fromlist=["Category"]).Category(
+            name="ملابس", slug="clothes", sort_order=1
+        )
+        child = __import__("app.models", fromlist=["Category"]).Category(
+            name="قمصان", slug="shirts", sort_order=1
+        )
+        db.session.add_all([currency, parent])
+        db.session.flush()
+        child.parent_id = parent.id
+        db.session.add(child)
+        db.session.commit()
+        currency_id = currency.id
+        parent_id = parent.id
+        child_id = child.id
+
+    response = client.get("/admin/products/new")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "ملابس" in html
+    assert "قمصان" in html
+    assert 'name="category_ids"' in html
+
+    response = client.post(
+        "/admin/products/new",
+        data={
+            "sku": "CREATE-CATEGORY-TREE-001",
+            "name": "منتج شجرة",
+            "description": "",
+            "base_price": "100",
+            "base_currency_id": str(currency_id),
+            "category_ids": [str(parent_id), str(child_id)],
+        },
+    )
+    assert response.status_code == 200
+
+    with app.app_context():
+        product = Product.query.filter_by(sku="CREATE-CATEGORY-TREE-001").first()
+        assert product is not None
+        linked = {row.category_id for row in ProductCategory.query.filter_by(product_id=product.id).all()}
+        assert linked == {parent_id, child_id}
+
+
+def test_product_edit_renders_reference_seed_and_quick_color_can_be_linked(client, app):
+    with client.session_transaction() as session:
+        session["admin_id"] = 1
+
+    with app.app_context():
+        currency = Currency(code="SAR", name_ar="ريال سعودي", is_base=True)
+        category = __import__("app.models", fromlist=["Category"]).Category(
+            name="قسم تعديل", slug="edit-category"
+        )
+        existing = Color(name="لون قديم", hex_code="#111111")
+        product = Product(
+            sku="EDIT-REFERENCE-001",
+            name="منتج تعديل",
+            slug="edit-reference-001",
+            base_currency_id=1,
+            base_price=100,
+            status="draft",
+        )
+        db.session.add(currency)
+        db.session.flush()
+        product.base_currency_id = currency.id
+        db.session.add_all([category, existing, product])
+        db.session.flush()
+        db.session.add(ProductCategory(product_id=product.id, category_id=category.id, is_primary=True))
+        db.session.commit()
+        product_id = product.id
+        existing_id = existing.id
+
+    response = client.get(f"/admin/products/{product_id}/edit")
+    assert response.status_code == 200
+    html = response.get_data(as_text=True)
+    assert "قسم تعديل" in html
+    assert '"colors"' in html
+    assert '"categories"' in html
+
+    response = client.post(
+        "/api/v1/catalog/reference/colors",
+        json={"name": "لون سريع", "hex_code": "#123456", "sort_order": 1},
+    )
+    assert response.status_code == 201
+    created_id = response.get_json()["item"]["id"]
+
+    response = client.post(
+        f"/api/v1/catalog/products/{product_id}/reference-dimensions",
+        json={"color_ids": [existing_id, created_id], "size_ids": []},
+    )
+    assert response.status_code == 200
+
+    response = client.get(f"/api/v1/catalog/reference/product-config?product_id={product_id}")
+    assert response.status_code == 200
+    selected = {row["id"] for row in response.get_json()["item"]["colors"] if row["selected"]}
+    assert selected == {existing_id, created_id}
