@@ -306,3 +306,71 @@ def create_badge():
     db.session.add(row)
     db.session.commit()
     return {"item": {"id": row.id, "name": row.name, "code": row.code}}, 201
+
+
+@api_bp.post("/size-guides")
+def create_size_guide():
+    from ...extensions import db
+    from ...models import SizeGuide, SizeGuideRow
+    payload = request.get_json(silent=True) or {}
+    guide = SizeGuide(
+        name=str(payload["name"]).strip(),
+        guide_type=str(payload.get("guide_type", "product")),
+        fit_type=payload.get("fit_type"),
+        intro_text=payload.get("intro_text"),
+    )
+    db.session.add(guide)
+    db.session.flush()
+    for raw in payload.get("rows", []):
+        db.session.add(SizeGuideRow(
+            guide_id=guide.id,
+            size_id=int(raw["size_id"]),
+            product_measurements=raw.get("product_measurements") or {},
+            body_measurements=raw.get("body_measurements") or {},
+        ))
+    db.session.commit()
+    return {"item": {"id": guide.id, "name": guide.name, "guide_type": guide.guide_type}}, 201
+
+
+@api_bp.get("/size-guides")
+def size_guides():
+    from ...models import SizeGuide, SizeGuideRow
+    rows = SizeGuide.query.filter_by(is_active=True).order_by(SizeGuide.name).all()
+    return {"items": [
+        {
+            "id": x.id,
+            "name": x.name,
+            "guide_type": x.guide_type,
+            "fit_type": x.fit_type,
+            "intro_text": x.intro_text,
+            "rows": [
+                {
+                    "id": row.id,
+                    "size_id": row.size_id,
+                    "product_measurements": row.product_measurements,
+                    "body_measurements": row.body_measurements,
+                }
+                for row in SizeGuideRow.query.filter_by(guide_id=x.id).order_by(SizeGuideRow.id).all()
+            ],
+        }
+        for x in rows
+    ]}
+
+
+@api_bp.post("/products/<int:product_id>/garment-size-settings")
+def garment_size_settings(product_id):
+    from ...extensions import db
+    from ...models import GarmentSizeSetting
+    if db.session.get(Product, product_id) is None:
+        return {"error": "product_not_found"}, 404
+    payload = request.get_json(silent=True) or {}
+    row = db.session.get(GarmentSizeSetting, product_id)
+    if row is None:
+        row = GarmentSizeSetting(product_id=product_id)
+        db.session.add(row)
+    row.model_asset_id = payload.get("model_asset_id")
+    row.displayed_sizes = payload.get("displayed_sizes") or []
+    row.measurements_mode = str(payload.get("measurements_mode", "body"))
+    row.image_zoom = Decimal(str(payload.get("image_zoom", 1)))
+    db.session.commit()
+    return {"item": {"product_id": row.product_id, "model_asset_id": row.model_asset_id, "displayed_sizes": row.displayed_sizes, "measurements_mode": row.measurements_mode, "image_zoom": str(row.image_zoom)}}
