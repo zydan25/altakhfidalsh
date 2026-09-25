@@ -5,6 +5,7 @@ description = "Mobile-first Arabic e-commerce administration platform"
 requires-python = ">=3.11"
 dependencies = [
   "Flask>=3.1,<4",
+  "Flask-Cors>=6,<7",
   "Flask-SQLAlchemy>=3.1,<4",
   "Flask-Migrate>=4,<5",
   "psycopg[binary]>=3.2,<4",
