@@ -187,6 +187,7 @@ def test_product_wizard_media_snapshot_exposes_color_data(client, app):
         db.session.add(media)
         db.session.commit()
         product_id = product.id
+        color_id = color.id
 
     response = client.get(f"/api/v1/catalog/products/{product_id}/wizard")
     assert response.status_code == 200
