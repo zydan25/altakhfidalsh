@@ -1,8 +1,9 @@
-from ...extensions import db
 from flask import request
 
 from . import api_bp
-from ...models import Order, OrderItem
+from .services import CommerceService
+from ...extensions import db
+from ...models import Order
 
 
 @api_bp.get("/orders")
@@ -15,20 +16,13 @@ def orders():
         query = query.filter(Order.status == status)
     pagination = query.order_by(Order.id.desc()).paginate(page=page, per_page=per_page, error_out=False)
     return {
-        "items": [
-            {
-                "id": x.id,
-                "order_no": x.order_no,
-                "customer_id": x.customer_id,
-                "currency_id": x.currency_id,
-                "total": str(x.total),
-                "status": x.status,
-                "payment_status": x.payment_status,
-                "shipping_status": x.shipping_status,
-            }
-            for x in pagination.items
-        ],
-        "pagination": {"page": pagination.page, "per_page": pagination.per_page, "pages": pagination.pages, "total": pagination.total},
+        "items": [CommerceService.serialize_order(x) for x in pagination.items],
+        "pagination": {
+            "page": pagination.page,
+            "per_page": pagination.per_page,
+            "pages": pagination.pages,
+            "total": pagination.total,
+        },
     }
 
 
@@ -37,17 +31,43 @@ def order(order_id):
     item = db.session.get(Order, order_id)
     if item is None:
         return {"error": "not_found"}, 404
-    return {
-        "id": item.id,
-        "order_no": item.order_no,
-        "customer_id": item.customer_id,
-        "address_snapshot": item.address_snapshot,
-        "currency_id": item.currency_id,
-        "pricing_group_id": item.pricing_group_id,
-        "fx_rate": str(item.fx_rate),
-        "subtotal": str(item.subtotal),
-        "discount": str(item.discount),
-        "shipping": str(item.shipping),
-        "total": str(item.total),
-        "status": item.status,
-    }
+    return {"item": CommerceService.serialize_order(item)}
+
+
+@api_bp.post("/orders")
+def create_order():
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CommerceService.create_order(payload)}, 201
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "order_creation_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/orders/<int:order_id>/status")
+def transition_order(order_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        item = CommerceService.transition_order(
+            order_id,
+            str(payload["status"]),
+            actor_type=str(payload.get("actor_type", "admin")),
+            actor_id=payload.get("actor_id"),
+            note=payload.get("note"),
+        )
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "status_change_failed", "detail": str(exc)}, 400
+    return {"item": item}
+
+
+@api_bp.post("/cart/items")
+def cart_item():
+    payload = request.get_json(silent=True) or {}
+    try:
+        item = CommerceService.add_to_cart(
+            int(payload["customer_id"]),
+            int(payload["variant_id"]),
+            int(payload.get("qty", 1)),
+        )
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "cart_update_failed", "detail": str(exc)}, 400
+    return {"item": item}, 201
