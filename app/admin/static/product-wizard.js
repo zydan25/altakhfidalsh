@@ -32,8 +32,8 @@
   const load = async () => {
     try {
       const [result, refs] = await Promise.all([
-        requestJson("/api/v1/admin/catalog/products/" + productId + "/wizard"),
-        requestJson("/api/v1/admin/catalog/reference/policies"),
+        requestJson("/api/v1/catalog/products/" + productId + "/wizard"),
+        requestJson("/api/v1/catalog/reference/policies"),
       ]);
       snapshot = result.item;
       policyRefs = refs;
@@ -135,7 +135,7 @@
       care_instructions: document.getElementById("productCare").value,
     };
     try {
-      await requestJson("/api/v1/admin/catalog/products/" + productId, { method: "PATCH", body: JSON.stringify(body) });
+      await requestJson("/api/v1/catalog/products/" + productId, { method: "PATCH", body: JSON.stringify(body) });
       await load();
       notify("تم حفظ البيانات الأساسية.");
     } catch (error) { notify(error.message, "error"); }
@@ -144,7 +144,7 @@
   document.getElementById("saveCategories").addEventListener("click", async () => {
     const categoryIds = [...document.querySelectorAll("[data-category-checkbox]:checked")].map(input => Number(input.value));
     try {
-      await requestJson("/api/v1/admin/catalog/products/" + productId + "/categories", { method: "POST", body: JSON.stringify({ category_ids: categoryIds }) });
+      await requestJson("/api/v1/catalog/products/" + productId + "/categories", { method: "POST", body: JSON.stringify({ category_ids: categoryIds }) });
       await load();
       notify("تم حفظ التصنيفات.");
     } catch (error) { notify(error.message, "error"); }
@@ -156,7 +156,7 @@
     const body = new FormData();
     [...input.files].forEach(file => body.append("files", file));
     try {
-      const response = await fetch("/api/v1/admin/catalog/products/" + productId + "/media", { method: "POST", body });
+      const response = await fetch("/api/v1/catalog/products/" + productId + "/media", { method: "POST", body });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || data.error || "فشل رفع الصور");
       input.value = "";
@@ -170,7 +170,7 @@
     const form = new FormData(event.currentTarget);
     const values = String(form.get("values_text") || "").split("\n").map(x => x.trim()).filter(Boolean).map(label => ({ label }));
     try {
-      await requestJson("/api/v1/admin/catalog/products/" + productId + "/options", {
+      await requestJson("/api/v1/catalog/products/" + productId + "/options", {
         method: "POST",
         body: JSON.stringify({
           name: form.get("name"),
@@ -189,7 +189,7 @@
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     try {
-      await requestJson("/api/v1/admin/catalog/products/" + productId + "/variants", {
+      await requestJson("/api/v1/catalog/products/" + productId + "/variants", {
         method: "POST",
         body: JSON.stringify({
           sku: form.get("sku"),
@@ -209,7 +209,7 @@
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     try {
-      await requestJson("/api/v1/admin/catalog/products/" + productId + "/inventory", {
+      await requestJson("/api/v1/catalog/products/" + productId + "/inventory", {
         method: "POST",
         body: JSON.stringify({
           variant_id: Number(form.get("variant_id")),
@@ -228,7 +228,7 @@
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     try {
-      await requestJson("/api/v1/admin/catalog/inventory-locations", {
+      await requestJson("/api/v1/catalog/inventory-locations", {
         method: "POST",
         body: JSON.stringify({
           name: form.get("name"),
@@ -244,7 +244,7 @@
 
   document.getElementById("saveDisplay").addEventListener("click", async () => {
     try {
-      await requestJson("/api/v1/admin/catalog/products/" + productId + "/display-settings", {
+      await requestJson("/api/v1/catalog/products/" + productId + "/display-settings", {
         method: "POST",
         body: JSON.stringify({
           show_rating: document.getElementById("showRating").checked,
@@ -262,7 +262,7 @@
         const value = document.getElementById(id).value;
         if (value) policies[key] = Number(value);
       }
-      await requestJson("/api/v1/admin/catalog/products/" + productId + "/policies", {
+      await requestJson("/api/v1/catalog/products/" + productId + "/policies", {
         method: "POST",
         body: JSON.stringify(policies),
       });
@@ -274,7 +274,7 @@
   document.getElementById("publishProduct").addEventListener("click", async () => {
     if (!snapshot?.publishable) return;
     try {
-      await requestJson("/api/v1/admin/catalog/products/" + productId + "/publish", { method: "POST", body: "{}" });
+      await requestJson("/api/v1/catalog/products/" + productId + "/publish", { method: "POST", body: "{}" });
       await load();
       notify("تم نشر المنتج.");
     } catch (error) { notify(error.message, "error"); }
