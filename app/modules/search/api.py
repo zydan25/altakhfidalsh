@@ -3,7 +3,6 @@ from sqlalchemy import func, or_
 
 from . import api_bp
 from ...extensions import db
-from ...extensions import db
 from ...models import (
     Category,
     Product,
@@ -13,7 +12,7 @@ from ...models import (
 )
 
 
-@api_bp.get("/search/products")
+@api_bp.get("/products")
 def search_products():
     q = (request.args.get("q") or "").strip()
     category_id = request.args.get("category_id", type=int)
