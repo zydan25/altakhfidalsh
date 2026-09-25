@@ -237,9 +237,10 @@ def test_catalog_archive_restore_and_active_references(client, app):
         color_id = color.id
         size_id = size.id
         product_id = product.id
+        variant_id = variant.id
 
     with app.app_context():
-        db.session.get(ProductVariant, variant.id).is_active = False
+        db.session.get(ProductVariant, variant_id).is_active = False
         db.session.commit()
 
     response = client.post(
