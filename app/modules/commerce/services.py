@@ -163,15 +163,15 @@ class CommerceService:
             total = subtotal + shipping
 
             order = Order(
-                order_no=f"ALT-{datetime.now(timezone.utc):%Y%m%d%H%M%S}-{customer_id}",
+                order_no=f"ALT-{datetime.now(timezone.utc):%Y%m%d%H%M%S}-{customer_id}-{uuid4().hex[:6].upper()}",
                 customer_id=customer_id,
                 address_snapshot=CommerceService._address_snapshot(address),
                 city_id=address.city_id,
                 currency_id=context.currency_id,
                 pricing_group_id=context.pricing_group_id,
                 fx_rate=order_items[0]["price"].fx_rate,
-                markup_percent=order_items[0]["price"].percent_add / order_items[0]["price"].converted * Decimal("100") if order_items[0]["price"].converted else Decimal("0"),
-                markup_fixed=order_items[0]["price"].fixed_add,
+                markup_percent=Decimal("0"),
+                markup_fixed=Decimal("0"),
                 subtotal=subtotal,
                 discount=Decimal("0"),
                 shipping=shipping,
