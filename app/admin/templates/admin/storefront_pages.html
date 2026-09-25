@@ -1,0 +1,87 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">المحتوى والمتجر</span>
+  <h2>محرر صفحات المتجر</h2>
+  <p class="muted">الصفحة تتكون من أقسام ديناميكية، وكل قسم يمكن أن يحمل منتجات أو فئات أو بانرات أو حملات حسب نوع العنصر.</p>
+</section>
+
+<section class="two-panel">
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">صفحة</span><h3>إنشاء صفحة</h3></div></div>
+    <form method="post" action="/admin/storefront/pages" class="form-stack">
+      <label>Code<input name="code" required dir="ltr" placeholder="home"></label>
+      <label>الاسم<input name="name" required placeholder="الرئيسية"></label>
+      <label>Route<input name="route" required dir="ltr" placeholder="/"></label>
+      <button class="primary-button">إنشاء الصفحة</button>
+    </form>
+  </article>
+
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">الأقسام</span><h3>إضافة قسم</h3></div></div>
+    <form method="post" action="/admin/storefront/sections" class="form-stack">
+      <label>الصفحة<select name="page_id" required>{% for page in pages %}<option value="{{ page.id }}">{{ page.name }} · {{ page.code }}</option>{% endfor %}</select></label>
+      <label>نوع القسم
+        <select name="section_type">
+          <option value="hero">Hero</option>
+          <option value="banner_carousel">بانرات</option>
+          <option value="category_circle">دوائر فئات</option>
+          <option value="product_grid">شبكة منتجات</option>
+          <option value="product_slider">سلايدر منتجات</option>
+          <option value="campaign">حملة</option>
+          <option value="promotional_strip">شريط ترويجي</option>
+          <option value="hashtags">هاشتاجات</option>
+          <option value="recommended">مقترحات</option>
+        </select>
+      </label>
+      <label>العنوان<input name="title" placeholder="الأكثر مبيعًا"></label>
+      <label>الترتيب<input name="sort_order" type="number" value="0"></label>
+      <button class="primary-button">إضافة القسم</button>
+    </form>
+  </article>
+</section>
+
+<section class="panel" style="margin-top:12px">
+  <div class="panel-heading"><div><span class="eyebrow">الهيكل</span><h3>الصفحات والأقسام</h3></div><span class="status-pill">{{ pages|length }}</span></div>
+  <div class="stack-list">
+  {% for page in pages %}
+    <article class="panel" style="padding:12px">
+      <div class="panel-heading">
+        <div><strong>{{ page.name }}</strong><small class="muted">{{ page.code }} · {{ page.route }}</small></div>
+        <a class="ghost-button" href="/api/v1/storefront/pages/{{ page.code }}" target="_blank">JSON</a>
+      </div>
+      <div class="stack-list">
+      {% for section in sections if section.page_id == page.id %}
+        <div class="stack-row" style="align-items:flex-start;flex-direction:column">
+          <strong>{{ section.title or "قسم بدون عنوان" }}</strong>
+          <span>{{ section.section_type }} · ترتيب {{ section.sort_order }}</span>
+          <div class="rule-summary">
+          {% for item in section.items %}
+            <span class="status-pill">{{ item.item_type }} #{{ item.item_id }}{% if item.custom_label %} · {{ item.custom_label }}{% endif %}</span>
+          {% endfor %}
+          </div>
+          <form method="post" action="/admin/storefront/sections/{{ section.id }}/items" class="form-grid">
+            <select name="item_type">
+              <option value="product">منتج</option>
+              <option value="category">فئة</option>
+              <option value="banner">بانر</option>
+              <option value="campaign">حملة</option>
+              <option value="hashtag">هاشتاج</option>
+              <option value="promotional_strip">شريط</option>
+            </select>
+            <input name="item_id" type="number" min="1" required placeholder="ID">
+            <input name="custom_label" placeholder="عنوان اختياري">
+            <button class="ghost-button">إضافة عنصر</button>
+          </form>
+        </div>
+      {% else %}
+        <span class="muted">لا توجد أقسام في هذه الصفحة.</span>
+      {% endfor %}
+      </div>
+    </article>
+  {% else %}
+    <div class="empty-state compact"><div class="empty-icon">□</div><strong>لا توجد صفحات</strong></div>
+  {% endfor %}
+  </div>
+</section>
+{% endblock %}
