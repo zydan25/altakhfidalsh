@@ -2,6 +2,7 @@ from flask import request
 
 from . import api_bp
 from .auth import CustomerAuthService
+from .services import CustomerService
 from ...extensions import db
 from ...models import Customer, CustomerAddress
 
@@ -59,3 +60,21 @@ def customer(customer_id):
             for x in addresses
         ],
     }
+
+
+@api_bp.patch("/customers/<int:customer_id>")
+def update_customer(customer_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CustomerService.serialize(CustomerService.update_profile(customer_id, payload))}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+
+
+@api_bp.post("/customers/<int:customer_id>/addresses")
+def add_address(customer_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CustomerService.add_address(customer_id, payload)}, 201
+    except (ValueError, LookupError) as exc:
+        return {"error": "address_creation_failed", "detail": str(exc)}, 400
