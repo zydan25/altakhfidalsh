@@ -13,6 +13,7 @@ from ..models import (
 )
 from ..services.pricing import PricingRule, calculate_customer_price
 from .context import build_admin_context
+from ..modules.catalog.services import MediaService
 
 
 def register_operation_routes(admin_bp):
@@ -206,25 +207,115 @@ def register_operation_routes(admin_bp):
         context = _ctx()
         error = None
         success = None
+
         if request.method == "POST":
-            name = (request.form.get("name") or "").strip()
-            asset_id = request.form.get("image_asset_id", type=int)
-            if not name or not asset_id:
-                error = "اسم البانر وAsset للصورة مطلوبان."
-            else:
-                db.session.add(Banner(
-                    name=name,
-                    image_asset_id=asset_id,
-                    mobile_asset_id=request.form.get("mobile_asset_id", type=int),
-                    size_spec=(request.form.get("size_spec") or "").strip() or None,
-                    overlay_text=(request.form.get("overlay_text") or "").strip() or None,
-                    position_text=(request.form.get("position_text") or "").strip() or None,
-                    status="draft",
-                ))
-                db.session.commit()
-                success = "تم إنشاء البانر كمسودة."
-        rows = Banner.query.order_by(Banner.id.desc()).limit(100).all()
-        return render_template("admin/banners.html", title="البانرات", banners=rows, success=success, error=error, **context)
+            action = (request.form.get("action") or "create_banner").strip()
+            try:
+                if action == "create_banner":
+                    name = (request.form.get("name") or "").strip()
+                    image_file = request.files.get("image_file")
+                    mobile_file = request.files.get("mobile_image_file")
+
+                    if not name or not image_file or not image_file.filename:
+                        raise ValueError("اسم البانر والصورة الأساسية مطلوبان.")
+
+                    upload_files = [image_file]
+                    if mobile_file and mobile_file.filename:
+                        upload_files.append(mobile_file)
+
+                    assets = MediaService.save_generic_files(upload_files, "banners")
+                    if not assets:
+                        raise ValueError("تعذر رفع الصورة.")
+
+                    banner = Banner(
+                        name=name,
+                        image_asset_id=assets[0]["id"],
+                        mobile_asset_id=assets[1]["id"] if len(assets) > 1 else None,
+                        size_spec=(request.form.get("size_spec") or "").strip() or None,
+                        overlay_text=(request.form.get("overlay_text") or "").strip() or None,
+                        position_text=(request.form.get("position_text") or "").strip() or None,
+                        duration=request.form.get("duration", type=int),
+                        status="draft",
+                    )
+                    db.session.add(banner)
+                    db.session.commit()
+                    success = "تم رفع صور البانر وإنشاء المسودة."
+
+                elif action == "add_target":
+                    banner_id = request.form.get("banner_id", type=int)
+                    target_type = (request.form.get("target_type") or "").strip()
+                    target_id = request.form.get("target_id", type=int)
+                    url = (request.form.get("target_url") or "").strip() or None
+
+                    if db.session.get(Banner, banner_id) is None:
+                        raise ValueError("البانر غير موجود.")
+                    if target_type not in {"category", "product", "campaign", "url"}:
+                        raise ValueError("نوع الهدف غير مدعوم.")
+
+                    if target_type == "url":
+                        if not url:
+                            raise ValueError("الرابط مطلوب.")
+                        target_id = None
+                    else:
+                        if not target_id:
+                            raise ValueError("معرّف الهدف مطلوب.")
+                        model = {
+                            "category": Category,
+                            "product": Product,
+                            "campaign": Campaign,
+                        }[target_type]
+                        if db.session.get(model, target_id) is None:
+                            raise ValueError("الهدف المختار غير موجود.")
+                        url = None
+
+                    db.session.add(BannerTarget(
+                        banner_id=banner_id,
+                        target_type=target_type,
+                        target_id=target_id,
+                        url=url,
+                        priority=request.form.get("target_priority", 0, type=int),
+                    ))
+                    db.session.commit()
+                    success = "تم ربط هدف البانر."
+
+                else:
+                    raise ValueError("إجراء البانر غير معروف.")
+
+            except (ValueError, OSError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+        banners = Banner.query.order_by(Banner.id.desc()).limit(100).all()
+        banner_ids = [row.id for row in banners]
+        asset_ids = []
+        for row in banners:
+            asset_ids.extend([row.image_asset_id, row.mobile_asset_id] if row.mobile_asset_id else [row.image_asset_id])
+        assets = MediaAsset.query.filter(MediaAsset.id.in_(asset_ids)).all() if asset_ids else []
+        asset_map = {asset.id: asset for asset in assets}
+        targets = (
+            BannerTarget.query
+            .filter(BannerTarget.banner_id.in_(banner_ids))
+            .order_by(BannerTarget.priority.desc(), BannerTarget.id.desc())
+            .all()
+            if banner_ids else []
+        )
+        categories = Category.query.filter_by(is_active=True).order_by(Category.sort_order, Category.name).limit(300).all()
+        products = Product.query.filter(Product.is_active.is_(True), Product.status != "archived").order_by(Product.id.desc()).limit(300).all()
+        campaigns = Campaign.query.filter_by(is_active=True).order_by(Campaign.display_priority.desc(), Campaign.name).limit(200).all()
+
+        return render_template(
+            "admin/banners.html",
+            title="البانرات",
+            banners=banners,
+            asset_map=asset_map,
+            targets=targets,
+            categories=categories,
+            products=products,
+            campaigns=campaigns,
+            success=success,
+            error=error,
+            **context,
+        )
 
     @admin_bp.route("/campaigns", methods=["GET", "POST"])
     def campaigns():
