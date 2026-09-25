@@ -56,19 +56,43 @@ def register_admin_routes(admin_bp):
     def login():
         from .auth import AdminAuthService
         error = None
+        step = "phone"
+        otp_request_id = request.form.get("otp_request_id") or request.args.get("otp_request_id")
+        phone = request.form.get("phone") or request.args.get("phone") or ""
         if request.method == "POST":
+            action = (request.form.get("action") or "request_otp").strip()
             try:
-                AdminAuthService.login(
-                    (request.form.get("username") or "").strip(),
-                    request.form.get("password") or "",
-                )
-                return __import__("flask").redirect(request.form.get("next") or "/admin/")
-            except ValueError as exc:
+                if action == "request_otp":
+                    result = AdminAuthService.request_otp(phone)
+                    if result.get("debug_code"):
+                        error = f"رمز الاختبار: {result['debug_code']}"
+                    otp_request_id = result["otp_request_id"]
+                    phone = result["phone"]
+                    step = "otp"
+                elif action == "verify_otp":
+                    AdminAuthService.verify_otp(
+                        int(request.form["otp_request_id"]),
+                        request.form.get("code") or "",
+                    )
+                    return __import__("flask").redirect(request.form.get("next") or "/admin/")
+                elif action == "password":
+                    AdminAuthService.login(
+                        (request.form.get("username") or "").strip(),
+                        request.form.get("password") or "",
+                    )
+                    return __import__("flask").redirect(request.form.get("next") or "/admin/")
+                else:
+                    raise ValueError("إجراء الدخول غير معروف.")
+            except (KeyError, ValueError, LookupError) as exc:
                 error = str(exc)
+                step = "otp" if action == "verify_otp" else "phone"
         return render_template(
             "admin/login.html",
             error=error,
-            next_path=request.args.get("next", "/admin/"),
+            step=step,
+            phone=phone,
+            otp_request_id=otp_request_id,
+            next_path=request.form.get("next") or request.args.get("next", "/admin/"),
         )
 
     @admin_bp.get("/logout")
