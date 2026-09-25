@@ -93,7 +93,7 @@ def test_storefront_admin_builder(client, app):
 
     response = client.post(
         "/admin/storefront/pages",
-        data={"code": "offers-test", "name": "العروض", "route": "/offers-test"},
+        data={"action": "page_create", "code": "offers-test", "name": "العروض", "route": "/offers-test"},
     )
     assert response.status_code == 302
 
