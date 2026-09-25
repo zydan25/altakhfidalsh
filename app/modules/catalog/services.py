@@ -31,6 +31,9 @@ from ...models import (
     VariantOptionValue,
     ProductBadge,
     Badge,
+    Brand,
+    Hashtag,
+    ProductHashtag,
 )
 
 
@@ -148,6 +151,8 @@ class CatalogService:
             "status": product.status,
             "material": product.material,
             "care_instructions": product.care_instructions,
+            "brand_id": product.brand_id,
+            "product_type": product.product_type,
         }
 
     @staticmethod
@@ -229,7 +234,7 @@ class CatalogService:
         product = db.session.get(Product, product_id)
         if not product:
             raise LookupError("product not found")
-        for key in ("name", "description", "material", "care_instructions", "sku"):
+        for key in ("name", "description", "material", "care_instructions", "sku", "product_type"):
             if key in payload:
                 value = (payload[key] or "").strip()
                 if key == "sku":
@@ -238,6 +243,15 @@ class CatalogService:
                     if duplicate:
                         raise ValueError("sku already exists")
                 setattr(product, key, value or None)
+        if "brand_id" in payload:
+            brand_id = payload.get("brand_id")
+            if brand_id in (None, ""):
+                product.brand_id = None
+            else:
+                if db.session.get(Brand, int(brand_id)) is None:
+                    raise ValueError("brand not found")
+                product.brand_id = int(brand_id)
+
         if "base_price" in payload:
             price = Decimal(str(payload["base_price"]))
             if price < 0:
@@ -251,6 +265,40 @@ class CatalogService:
             )
         db.session.commit()
         return CatalogService._serialize_product(product)
+
+    @staticmethod
+    def set_product_badges(product_id, badge_ids):
+        if db.session.get(Product, product_id) is None:
+            raise LookupError("product not found")
+        normalized = []
+        for raw in badge_ids:
+            badge_id = int(raw)
+            if db.session.get(Badge, badge_id) is None:
+                raise ValueError(f"badge {badge_id} not found")
+            if badge_id not in normalized:
+                normalized.append(badge_id)
+        ProductBadge.query.filter_by(product_id=product_id).delete()
+        for position, badge_id in enumerate(normalized):
+            db.session.add(ProductBadge(product_id=product_id, badge_id=badge_id, position=str(position)))
+        db.session.commit()
+        return normalized
+
+    @staticmethod
+    def set_product_hashtags(product_id, hashtag_ids):
+        if db.session.get(Product, product_id) is None:
+            raise LookupError("product not found")
+        normalized = []
+        for raw in hashtag_ids:
+            hashtag_id = int(raw)
+            if db.session.get(Hashtag, hashtag_id) is None:
+                raise ValueError(f"hashtag {hashtag_id} not found")
+            if hashtag_id not in normalized:
+                normalized.append(hashtag_id)
+        ProductHashtag.query.filter_by(product_id=product_id).delete()
+        for hashtag_id in normalized:
+            db.session.add(ProductHashtag(product_id=product_id, hashtag_id=hashtag_id))
+        db.session.commit()
+        return normalized
 
     @staticmethod
     def set_product_categories(product_id, category_ids):
@@ -615,6 +663,14 @@ class CatalogService:
             }
             for variant in ProductVariant.query.filter_by(product_id=product_id).order_by(ProductVariant.id).all()
         ]
+        badges = [
+            {"id": row.badge_id}
+            for row in ProductBadge.query.filter_by(product_id=product_id).order_by(ProductBadge.position, ProductBadge.id).all()
+        ]
+        hashtags = [
+            {"id": row.hashtag_id}
+            for row in ProductHashtag.query.filter_by(product_id=product_id).order_by(ProductHashtag.id).all()
+        ]
         media = [
             {"id": media.id, "asset_id": media.asset_id, "role": media.role, "sort_order": media.sort_order}
             for media in ProductMedia.query.filter_by(product_id=product_id).order_by(ProductMedia.sort_order, ProductMedia.id).all()
@@ -643,6 +699,8 @@ class CatalogService:
             "options": options,
             "variants": variants,
             "media": media,
+            "badges": badges,
+            "hashtags": hashtags,
             "inventory": inventory,
             "locations": CatalogService.list_inventory_locations(),
             "display": {
