@@ -4,7 +4,7 @@ set -Eeuo pipefail
 export PM2_HOME="${PM2_HOME:-$HOME/.pm2}"
 APP_ROOT="/home/root/projects/takhfid1"
 DOMAIN="takhfidsh.alattab.site"
-PORT="4006"
+PORT="4008"
 
 ok(){ printf "\033[32m[OK]\033[0m %s\n" "$*"; }
 fail(){ printf "\033[31m[FAIL]\033[0m %s\n" "$*" >&2; exit 1; }
