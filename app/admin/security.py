@@ -6,6 +6,8 @@ ROUTE_PERMISSIONS = {
         "/admin/": "dashboard.view",
         "/admin/products": "product.view",
         "/admin/categories": "category.view",
+        "/admin/brands": "product.view",
+        "/admin/options": "product.view",
         "/admin/pricing/groups": "pricing.view",
         "/admin/pricing/preview": "pricing.view",
         "/admin/banners": "content.view",
@@ -28,6 +30,8 @@ ROUTE_PERMISSIONS = {
     },
     "POST": {
         "/admin/products": "product.create",
+        "/admin/brands": "product.edit",
+        "/admin/options": "product.edit",
         "/admin/products/new": "product.create",
         "/admin/categories": "category.manage",
         "/admin/pricing/groups": "pricing.manage",
