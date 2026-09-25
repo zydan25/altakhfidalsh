@@ -1,24 +1,195 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<section class="module-header"><span class="eyebrow">التسعير</span><h2>مجموعات التسعير</h2><p class="muted">المجموعة تحدد عملة العرض وقاعدة الزيادة والتقريب، ثم يرتبط بها العميل أو المدينة.</p></section>
-{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="module-header">
+  <span class="eyebrow">التسعير الديناميكي</span>
+  <div class="split-heading">
+    <div>
+      <h2>مجموعات التسعير</h2>
+      <p class="muted">السعر الأساسي يبقى موحدًا بالريال السعودي، بينما تحدد هذه القواعد عملة العرض والزيادة والتقريب، ثم يطبق الاختيار حسب العميل ثم المدينة ثم المنطقة ثم الافتراضي.</p>
+    </div>
+  </div>
+</section>
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
 <section class="two-panel">
-  <article class="panel"><div class="panel-heading"><div><span class="eyebrow">جديدة</span><h3>إنشاء مجموعة</h3></div></div>
+  <article class="panel">
+    <div class="panel-heading">
+      <div><span class="eyebrow">1 · المجموعة</span><h3>إنشاء مجموعة جديدة</h3></div>
+    </div>
     <form method="post" class="form-stack">
+      <input type="hidden" name="action" value="create_group">
       <label>اسم المجموعة<input name="name" required placeholder="عملاء التجزئة"></label>
-      <label>الوصف<textarea name="description" rows="3"></textarea></label>
-      <label>العملة الافتراضية<select name="default_currency_id" required>{% for c in currencies %}<option value="{{ c.id }}">{{ c.code }} — {{ c.name_ar }}</option>{% endfor %}</select></label>
+      <label>الوصف<textarea name="description" rows="3" placeholder="مثلاً: أسعار العملاء داخل المدن الرئيسية"></textarea></label>
+      <label>العملة الافتراضية
+        <select name="default_currency_id" required>
+          {% for c in currencies %}<option value="{{ c.id }}">{{ c.code }} — {{ c.name_ar }}{% if c.is_base %} · أساسية{% endif %}</option>{% endfor %}
+        </select>
+      </label>
       <label>الأولوية<input type="number" name="priority" value="0"></label>
-      <label>نسبة الزيادة %<input type="number" step="0.0001" name="percent_markup" value="0"></label>
-      <label>الزيادة الثابتة<input type="number" step="0.0001" name="fixed_markup" value="0"></label>
-      <label>الكسور<input type="number" name="decimals" value="2" min="0" max="6"></label>
-      <label>التقريب<select name="rounding_rule"><option value="nearest">أقرب</option><option value="up">لأعلى</option><option value="down">لأسفل</option></select></label>
-      <label class="check-row"><input type="checkbox" name="is_default"><span><strong>مجموعة افتراضية</strong><small>تستخدم عند عدم وجود تعيين أعلى أولوية</small></span></label>
-      <button class="primary-button" type="submit">حفظ المجموعة</button>
+
+      <div class="panel-heading"><div><span class="eyebrow">قواعد العملات</span><strong>قاعدة مستقلة لكل عملة</strong></div><button class="ghost-button" type="button" id="addPricingRule">+ عملة</button></div>
+      <div id="pricingRules" class="rule-list">
+        <div class="rule-row panel" data-rule-row>
+          <label>العملة
+            <select name="rule_currency_id" required>
+              {% for c in currencies %}<option value="{{ c.id }}">{{ c.code }} — {{ c.name_ar }}</option>{% endfor %}
+            </select>
+          </label>
+          <label>زيادة %<input name="rule_percent_markup" type="number" step="0.0001" value="0"></label>
+          <label>زيادة ثابتة<input name="rule_fixed_markup" type="number" step="0.0001" value="0"></label>
+          <label>الكسور<input name="rule_decimals" type="number" min="0" max="6" value="2"></label>
+          <label>التقريب
+            <select name="rule_rounding_rule">
+              <option value="nearest">أقرب</option><option value="up">لأعلى</option><option value="down">لأسفل</option>
+            </select>
+          </label>
+          <button class="ghost-button rule-remove" type="button">حذف القاعدة</button>
+        </div>
+      </div>
+
+      <label class="check-row"><input type="checkbox" name="is_default"><span><strong>مجموعة افتراضية</strong><small>تستخدم عند عدم وجود تعيين مباشر للعميل أو المدينة أو المنطقة.</small></span></label>
+      <button class="primary-button" type="submit">حفظ مجموعة التسعير</button>
     </form>
   </article>
-  <article class="panel"><div class="panel-heading"><div><span class="eyebrow">الحالية</span><h3>المجموعات</h3></div><span class="status-pill">{{ groups|length }}</span></div>
-    <div class="stack-list">{% for group in groups %}<div class="stack-row"><strong>{{ group.name }}</strong><span>الأولوية {{ group.priority }}{% if group.is_default %} · افتراضية{% endif %}</span></div>{% else %}<div class="empty-state compact"><div class="empty-icon">¤</div><strong>لا توجد مجموعات</strong></div>{% endfor %}</div>
+
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">الحالية</span><h3>المجموعات وقواعدها</h3></div><span class="status-pill">{{ groups|length }}</span></div>
+    <div class="stack-list">
+      {% for group in groups %}
+      <article class="stack-row" style="align-items:flex-start;flex-direction:column">
+        <strong>{{ group.name }}{% if group.is_default %} · افتراضية{% endif %}</strong>
+        <small class="muted">الأولوية {{ group.priority }} · العملة الافتراضية {{ currency_map.get(group.default_currency_id).code if currency_map.get(group.default_currency_id) else "—" }}</small>
+        <div class="rule-summary">
+          {% for rule in rules if rule.group_id == group.id %}
+          <span class="status-pill">{{ currency_map.get(rule.currency_id).code if currency_map.get(rule.currency_id) else rule.currency_id }} · {{ rule.percent_markup }}% + {{ rule.fixed_markup }} · {{ rule.decimals }} منازل</span>
+          {% else %}
+          <span class="muted">لا توجد قواعد عملة.</span>
+          {% endfor %}
+        </div>
+      </article>
+      {% else %}
+      <div class="empty-state compact"><div class="empty-icon">¤</div><strong>لا توجد مجموعات تسعير</strong></div>
+      {% endfor %}
+    </div>
   </article>
 </section>
+
+<section class="two-panel" style="margin-top:12px">
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">2 · الموقع</span><h3>ربط مدينة أو منطقة</h3></div></div>
+    <form method="post" class="form-stack">
+      <input type="hidden" name="action" value="assign_location">
+      <label>مجموعة التسعير<select name="location_group_id" required>{% for group in groups %}<option value="{{ group.id }}">{{ group.name }}</option>{% endfor %}</select></label>
+      <label>نطاق الربط
+        <select id="locationScope" name="location_scope">
+          <option value="city">مدينة</option><option value="region">منطقة</option>
+        </select>
+      </label>
+      <label id="cityLocationField">المدينة
+        <select id="cityLocation" name="location_id" required>{% for city in cities %}<option value="{{ city.id }}">{{ city.name }}</option>{% endfor %}</select>
+      </label>
+      <label id="regionLocationField" hidden>المنطقة
+        <select id="regionLocation"><option value="">اختر منطقة</option>{% for region in regions %}<option value="{{ region.id }}">{{ region.name }}</option>{% endfor %}</select>
+      </label>
+      <label>الأولوية<input name="location_priority" type="number" value="0"></label>
+      <button class="primary-button" type="submit">حفظ ربط الموقع</button>
+    </form>
+
+    <div class="stack-list" style="margin-top:14px">
+      {% for row in location_assignments %}
+      <div class="stack-row">
+        <strong>{{ group_map.get(row.pricing_group_id).name if group_map.get(row.pricing_group_id) else row.pricing_group_id }}</strong>
+        <span>
+          {% if row.city_id %}مدينة: {{ city_map.get(row.city_id).name if city_map.get(row.city_id) else row.city_id }}
+          {% elif row.region_id %}منطقة: {{ region_map.get(row.region_id).name if region_map.get(row.region_id) else row.region_id }}
+          {% endif %}
+          · أولوية {{ row.priority }}
+        </span>
+      </div>
+      {% else %}
+      <span class="muted">لا توجد تعيينات موقع.</span>
+      {% endfor %}
+    </div>
+  </article>
+
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">3 · العميل</span><h3>تعيين مجموعة مع Override</h3></div></div>
+    <form method="post" class="form-stack">
+      <input type="hidden" name="action" value="assign_customer">
+      <label>العميل
+        <select name="customer_id" required>
+          {% for customer in customers %}
+          <option value="{{ customer.id }}">#{{ customer.id }} · {{ customer.name or "بدون اسم" }} · {{ customer.phone_normalized }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>مجموعة التسعير<select name="customer_group_id" required>{% for group in groups %}<option value="{{ group.id }}">{{ group.name }}</option>{% endfor %}</select></label>
+      <label>زيادة نسبية بديلة %<input name="percent_override" type="number" step="0.0001" placeholder="اتركها فارغة لاستخدام قاعدة المجموعة"></label>
+      <label>زيادة ثابتة بديلة<input name="fixed_override" type="number" step="0.0001" placeholder="اتركها فارغة لاستخدام قاعدة المجموعة"></label>
+      <label>الأولوية<input name="customer_priority" type="number" value="0"></label>
+      <button class="primary-button" type="submit">حفظ تعيين العميل</button>
+    </form>
+
+    <div class="stack-list" style="margin-top:14px">
+      {% for row in customer_assignments %}
+      <div class="stack-row">
+        <strong>#{{ row.customer_id }} · {{ customer_map.get(row.customer_id).name if customer_map.get(row.customer_id) else "عميل" }}</strong>
+        <span>{{ group_map.get(row.pricing_group_id).name if group_map.get(row.pricing_group_id) else row.pricing_group_id }} · {{ row.percent_override if row.percent_override is not none else "قاعدة المجموعة" }}{% if row.percent_override is not none %}%{% endif %} · {{ row.fixed_override if row.fixed_override is not none else 0 }}</span>
+      </div>
+      {% else %}
+      <span class="muted">لا توجد تعيينات عملاء.</span>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+
+<script>
+(() => {
+  const rules = document.getElementById("pricingRules");
+  const add = document.getElementById("addPricingRule");
+  const template = rules?.querySelector("[data-rule-row]");
+
+  add?.addEventListener("click", () => {
+    if (!template) return;
+    const copy = template.cloneNode(true);
+    copy.querySelectorAll("input").forEach(input => {
+      input.value = input.name === "rule_decimals" ? "2" : "0";
+    });
+    copy.querySelectorAll("select").forEach((select, index) => {
+      if (index === 1) select.value = "nearest";
+    });
+    rules.appendChild(copy);
+  });
+
+  rules?.addEventListener("click", (event) => {
+    const button = event.target.closest(".rule-remove");
+    if (!button) return;
+    const rows = rules.querySelectorAll("[data-rule-row]");
+    if (rows.length > 1) button.closest("[data-rule-row]")?.remove();
+  });
+
+  const scope = document.getElementById("locationScope");
+  const cityField = document.getElementById("cityLocationField");
+  const regionField = document.getElementById("regionLocationField");
+  const citySelect = document.getElementById("cityLocation");
+  const regionSelect = document.getElementById("regionLocation");
+
+  const syncLocation = () => {
+    const region = scope.value === "region";
+    cityField.hidden = region;
+    regionField.hidden = !region;
+    citySelect.disabled = region;
+    citySelect.required = !region;
+    regionSelect.disabled = !region;
+    regionSelect.required = region;
+    if (!region) citySelect.name = "location_id";
+    else regionSelect.name = "location_id";
+  };
+
+  scope?.addEventListener("change", syncLocation);
+  syncLocation();
+})();
+</script>
 {% endblock %}
