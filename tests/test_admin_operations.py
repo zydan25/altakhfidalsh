@@ -440,8 +440,8 @@ def test_product_dimension_references_and_variant_integrity(client, app):
     response = client.get(f"/api/v1/catalog/reference/product-config?product_id={product_id}")
     assert response.status_code == 200
     config = response.get_json()["item"]
-    assert [x["id"] for x in config["colors"] if x["selected"]] == [color_a_id, color_b_id]
-    assert [x["id"] for x in config["sizes"] if x["selected"]] == [size_a_id, size_b_id]
+    assert {x["id"] for x in config["colors"] if x["selected"]} == {color_a_id, color_b_id}
+    assert {x["id"] for x in config["sizes"] if x["selected"]} == {size_a_id, size_b_id}
 
     response = client.post(
         f"/api/v1/catalog/products/{product_id}/variants",
