@@ -383,17 +383,79 @@ def register_entity_views(admin_bp):
 
     @admin_bp.get("/storefront/pages")
     def storefront_pages():
-        from ..models import StorefrontPage
-        rows = StorefrontPage.query.filter_by(is_active=True).order_by(StorefrontPage.id).all()
-        return _render("صفحات المتجر", ["ID", "الكود", "الاسم", "المسار"],
-                       [[x.id, x.code, x.name, x.route] for x in rows], "المحتوى والمتجر")
+        from ..models import StorefrontPage, StorefrontSection
+        pages = StorefrontPage.query.filter_by(is_active=True).order_by(StorefrontPage.id).all()
+        sections = StorefrontSection.query.order_by(StorefrontSection.page_id, StorefrontSection.sort_order).limit(1000).all()
+        return render_template(
+            "admin/storefront_pages.html",
+            title="صفحات المتجر",
+            pages=pages,
+            sections=sections,
+            **build_admin_context(),
+        )
 
-    @admin_bp.get("/storefront/sections")
-    def storefront_sections():
-        from ..models import StorefrontSection
-        rows = StorefrontSection.query.order_by(StorefrontSection.page_id, StorefrontSection.sort_order).limit(500).all()
-        return _render("أقسام الصفحة", ["ID", "Page", "النوع", "العنوان", "الترتيب"],
-                       [[x.id, x.page_id, x.section_type, x.title or "—", x.sort_order] for x in rows], "المحتوى والمتجر")
+    @admin_bp.post("/storefront/pages")
+    def storefront_create_page():
+        from ..models import StorefrontPage
+        code = (request.form.get("code") or "").strip().lower()
+        name = (request.form.get("name") or "").strip()
+        route = (request.form.get("route") or "").strip()
+        if not code or not name or not route:
+            return render_template(
+                "admin/module.html",
+                title="بيانات الصفحة ناقصة",
+                section="المحتوى والمتجر",
+                requested_path="/admin/storefront/pages",
+                **build_admin_context(),
+            ), 400
+        if StorefrontPage.query.filter(
+            (StorefrontPage.code == code) | (StorefrontPage.route == route)
+        ).first():
+            return render_template(
+                "admin/module.html",
+                title="الصفحة موجودة مسبقًا",
+                section="المحتوى والمتجر",
+                requested_path="/admin/storefront/pages",
+                **build_admin_context(),
+            ), 400
+        db.session.add(StorefrontPage(code=code, name=name, route=route))
+        db.session.commit()
+        return __import__("flask").redirect("/admin/storefront/pages")
+
+    @admin_bp.post("/storefront/sections")
+    def storefront_create_section():
+        from ..models import StorefrontPage, StorefrontSection
+        page_id = request.form.get("page_id", type=int)
+        section_type = (request.form.get("section_type") or "product_grid").strip()
+        title = (request.form.get("title") or "").strip() or None
+        if db.session.get(StorefrontPage, page_id) is None:
+            return {"error": "page_not_found"}, 404
+        db.session.add(StorefrontSection(
+            page_id=page_id,
+            section_type=section_type,
+            title=title,
+            sort_order=request.form.get("sort_order", 0, type=int),
+            settings={},
+            visible_rules={},
+        ))
+        db.session.commit()
+        return __import__("flask").redirect("/admin/storefront/pages")
+
+    @admin_bp.post("/storefront/sections/<int:section_id>/items")
+    def storefront_add_item(section_id):
+        from ..models import StorefrontSection, StorefrontSectionItem
+        section = db.session.get(StorefrontSection, section_id)
+        if section is None:
+            return {"error": "section_not_found"}, 404
+        db.session.add(StorefrontSectionItem(
+            section_id=section.id,
+            item_type=(request.form.get("item_type") or "product").strip(),
+            item_id=request.form.get("item_id", type=int),
+            sort_order=request.form.get("sort_order", 0, type=int),
+            custom_label=(request.form.get("custom_label") or "").strip() or None,
+        ))
+        db.session.commit()
+        return __import__("flask").redirect("/admin/storefront/pages")
 
     @admin_bp.get("/banner-targets")
     def banner_targets():
