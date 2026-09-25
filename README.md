@@ -1,31 +1,59 @@
-# التخفيض الصح - Al Takhfid AlSh
+# التخفيض - Al Takhfid AlSh
 
-نواة متجر تجارة إلكترونية متعددة الأسواق، مبنية من البداية على:
+منصة تجارة إلكترونية عربية Mobile-First مبنية بـFlask وPostgreSQL، مع لوحة إدارة ERP Tree Navigation ثم تطبيق عميل PWA/Flutter في المراحل اللاحقة.
+
+## الأساس المعماري
 - Flask + Flask-SQLAlchemy + Flask-Migrate
 - PostgreSQL
 - REST API عبر Blueprints
-- Mobile-First RTL Admin PWA
-- محرك تسعير مركزي يعتمد على السعر الأساسي بالريال السعودي
+- لوحة إدارة RTL Mobile-First
+- محرك تسعير مركزي يعتمد على SAR كسعر أساس
 - شجرة تصنيفات غير محدودة العمق
-- كتالوج Variants/Inventory/Media
+- Variants / Inventory / Media منفصلة عن هوية المنتج
 - طلبات ودفع وشحن وإرجاع وضمان ومحادثات
-- محتوى رئيسية ديناميكي: Pages / Sections / Banners / Campaigns / Hashtags
-- صلاحيات دقيقة وAudit Log
+- Pages / Sections / Banners / Campaigns / Hashtags
+- صلاحيات وأدوار وAudit Log وثيم وFeature Flags
 
-## مبدأ مهم
+## المبدأ الأهم
+السعر النهائي المعروض للعميل لا يخزن داخل المنتج كسعر ثابت بعملة العرض. يتم تحديد مجموعة التسعير حسب أولوية العميل ثم المدينة ثم المنطقة ثم الافتراضي، وبعدها يطبق سعر الصرف والزيادة والتقريب في خدمة واحدة باستخدام Decimal.
+الطلبات تحفظ snapshots تاريخية للسعر والعملات والعنوان وخيارات المنتج حتى لا تتغير البيانات القديمة عند تعديل الكتالوج أو سعر الصرف.
 
-المنتج لا يحمل كل تفاصيل المتغيرات في جدول واحد. يتم فصل الهوية عن الخيارات والمتغيرات والمخزون والوسائط والسياسات، كما يتم حفظ Snapshot كامل للسعر والعنوان والخيارات داخل الطلب.
+## واجهة الإدارة
+المسار: /admin/
+- RTL بالكامل
+- Sidebar ثابت على Desktop
+- Drawer على الهاتف
+- ERP Tree Navigation
+- فتح تلقائي للقسم الذي يحتوي route الحالي
+- حفظ حالة الأقسام في localStorage
+- Responsive يبدأ من 360px
 
-## المرحلة الحالية
+## API الحالية
+- /health
+- /api/v1/health
+- /api/v1/categories/tree
+- /api/v1/catalog/products
+- /api/v1/pricing/preview
 
-هذا المستودع يبدأ من خط أساس نظيف لأن المستودع كان فارغًا عند بدء البناء. التنفيذ الأول سيركز على الإدارة والنواة الخلفية، ثم يتم بناء تطبيق العميل فوق API مستقرة.
+## التشغيل
+استخدم Python 3.11.
 
-راجع:
-- docs/ARCHITECTURE_AR.md
+    pip install -r requirements.txt
+
+اضبط DATABASE_URL ثم:
+
+    flask --app wsgi.py db migrate -m "initial ecommerce schema"
+    flask --app wsgi.py db upgrade
+    flask --app wsgi.py run
+
+تشغيل الاختبارات:
+
+    pytest
+
+## التوثيق
 - docs/IMPLEMENTATION_PLAN_AR.md
-- docs/API_CONTRACT_AR.md
-- docs/ADMIN_NAVIGATION_AR.md
+- docs/ADMIN_UI_SPEC_AR.md
+- docs/DATABASE_DOMAINS_AR.md
 
-## التشغيل المحلي
-
-سيتم إضافة ملفات البيئة والتشغيل والمigrations الأساسية في الدفعة الأولى التالية.
+## حالة المرحلة
+هذا الفرع هو بداية البناء الإداري الحقيقي. الوحدات التي لم تكتمل بعد لها routes ومساحات أولية، لكنها لا تعتبر CRUD مكتملة حتى تمر بـmodel + migration + service + API/admin UI + permission + audit + tests.
