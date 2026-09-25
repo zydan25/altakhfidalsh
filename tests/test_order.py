@@ -71,6 +71,13 @@ def test_order_uses_customer_city_pricing_and_snapshots(app):
         assert order['pricing_group_id'] == group.id
         assert order['address_snapshot']['city_id'] == city.id
         assert Decimal(order['subtotal']) == Decimal('154010')
+        assert Decimal(order['total']) == Decimal('154010')
+        order_row = __import__("app.models", fromlist=["Order"]).Order.query.filter_by(id=order['id']).first()
+        assert Decimal(order_row.markup_percent) == Decimal('10')
+        assert Decimal(order_row.markup_fixed) == Decimal('5')
+        item_row = __import__("app.models", fromlist=["OrderItem"]).OrderItem.query.filter_by(order_id=order['id']).first()
+        assert Decimal(item_row.markup_percent) == Decimal('10')
+        assert Decimal(item_row.markup_fixed) == Decimal('5')
         stock = StockInventory.query.filter_by(variant_id=variant.id, location_id=location.id).first()
         assert stock.reserved == 2
         assert stock.available == 3
