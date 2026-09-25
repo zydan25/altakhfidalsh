@@ -1,0 +1,61 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">الكتالوج</span>
+  <h2>شجرة التصنيفات</h2>
+  <p class="muted">كل فئة يمكن أن تكون رئيسية أو فرعًا من فئة أخرى، بلا حد ثابت لعدد المستويات.</p>
+</section>
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="two-panel">
+  <article class="panel">
+    <div class="panel-heading">
+      <div><span class="eyebrow">إضافة</span><h3>فئة جديدة</h3></div>
+    </div>
+    <form method="post" class="form-stack">
+      <label>اسم الفئة<input name="name" required autocomplete="off" placeholder="مثال: ملابس نسائية"></label>
+      <label>Slug<input name="slug" required dir="ltr" autocomplete="off" placeholder="women-clothes"></label>
+      <label>الأب
+        <select name="parent_id">
+          <option value="">فئة رئيسية</option>
+          {% for parent in parents %}
+          <option value="{{ parent.id }}">{{ parent.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>نمط العرض
+        <select name="display_style">
+          <option value="circle">دائرة</option>
+          <option value="hero">Hero</option>
+          <option value="list">قائمة</option>
+          <option value="filter">فلتر</option>
+        </select>
+      </label>
+      <button class="primary-button" type="submit">حفظ الفئة</button>
+    </form>
+  </article>
+
+  <article class="panel">
+    <div class="panel-heading">
+      <div><span class="eyebrow">الشجرة</span><h3>الفئات الحالية</h3></div>
+      <span class="status-pill">{{ rows|length }}</span>
+    </div>
+    <div class="category-tree">
+      {% for category, depth in rows %}
+      <div class="category-row" style="--depth: {{ depth }}">
+        <span class="tree-marker">{% if depth == 0 %}●{% else %}└{% endif %}</span>
+        <div>
+          <strong>{{ category.name }}</strong>
+          <small>{{ category.slug }} · {{ category.display_style }}</small>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-state compact"><div class="empty-icon">◫</div><strong>لا توجد فئات بعد</strong><p class="muted">ابدأ بفئة رئيسية ثم أضف فروعها.</p></div>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+{% endblock %}
