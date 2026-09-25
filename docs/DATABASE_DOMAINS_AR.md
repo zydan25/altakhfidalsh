@@ -8,7 +8,7 @@
 | pricing | currencies, exchange_rates, pricing_groups, pricing_group_rules, pricing_group_cities, customer_pricing_assignments |
 | customer_auth | customers, customer_addresses, customer_devices, otp_requests, auth_sessions, customer_preferences |
 | media | media_assets |
-| catalog | categories, brands, colors, sizes, products, product_categories, product_media, product_videos, product_options, product_option_values, product_variants, variant_option_values, variant_media |
+| catalog | ... product_filter_values | categories, brands, colors, sizes, products, product_categories, product_media, product_videos, product_options, product_option_values, product_variants, variant_option_values, variant_media |
 | inventory | inventory_locations, stock_inventory |
 | product_policies | shipping_policies, return_policies, warranty_policies, product_policy_assignments |
 | merchandising | badges, product_badges, promotional_strips, hashtags, product_hashtags, campaigns, campaign_products, campaign_categories, campaign_hashtags |
