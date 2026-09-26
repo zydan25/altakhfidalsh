@@ -393,6 +393,14 @@ class CatalogService:
                 parent = db.session.get(Category, int(parent_id))
                 if parent is None:
                     raise ValueError("parent category was not found")
+                if category.parent_id is None:
+                    from ...models import SideCategory
+                    linked_side_category = SideCategory.query.filter_by(
+                        root_category_id=category.id,
+                        is_active=True,
+                    ).first()
+                    if linked_side_category:
+                        raise ValueError("لا يمكن تحويل قسم رئيسي مستخدم في الفئات الجانبية إلى فئة فرعية.")
             category.parent_id = parent_id
         if "name" in payload:
             category.name = (payload["name"] or "").strip()
