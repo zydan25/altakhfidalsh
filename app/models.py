@@ -1033,6 +1033,8 @@ class Order(TimestampMixin, db.Model):
     subtotal = db.Column(Numeric(24, 4), nullable=False)
     discount = db.Column(Numeric(24, 4), nullable=False, default=0)
     shipping = db.Column(Numeric(24, 4), nullable=False, default=0)
+    shipping_base_sar = db.Column(Numeric(24, 4), nullable=False, default=0)
+    shipping_rate_id = db.Column(ForeignKey("shipping_rates.id", ondelete="SET NULL"))
     total = db.Column(Numeric(24, 4), nullable=False)
     status = db.Column(String(40), nullable=False, default="created")
     payment_status = db.Column(String(40), nullable=False, default="unpaid")
