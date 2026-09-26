@@ -110,83 +110,266 @@ def register_operation_routes(admin_bp):
 
     @admin_bp.route("/banners", methods=["GET", "POST"])
     def banners():
-        context=_ctx(); error=None; success=None
-        if request.method=="POST":
+        context = _ctx()
+        error = None
+        success = None
+        positions = {
+            "top_left": "أعلى اليسار",
+            "top_center": "أعلى الوسط",
+            "top_right": "أعلى اليمين",
+            "center_left": "وسط اليسار",
+            "center": "الوسط",
+            "center_right": "وسط اليمين",
+            "bottom_left": "أسفل اليسار",
+            "bottom_center": "أسفل الوسط",
+            "bottom_right": "أسفل اليمين",
+        }
+        target_types = {
+            "campaign": Campaign,
+            "category": Category,
+            "hashtag": Hashtag,
+            "product": Product,
+        }
+        def color(value, default):
+            value = (value or default).strip()
+            import re
+            if not re.fullmatch(r"#[0-9a-fA-F]{6}", value):
+                raise ValueError("اللون يجب أن يكون بصيغة HEX مثل #111827.")
+            return value
+
+        if request.method == "POST":
             try:
-                action=(request.form.get("action") or "create_banner").strip(); row=db.session.get(Banner,request.form.get("id",type=int))
-                if action=="create_banner":
-                    name=(request.form.get("name") or "").strip(); image=request.files.get("image_file"); mobile=request.files.get("mobile_image_file")
-                    if not name or not image or not image.filename: raise ValueError("اسم البانر والصورة الأساسية مطلوبان.")
-                    files=[image]+([mobile] if mobile and mobile.filename else []); assets=MediaService.save_generic_files(files,"banners")
-                    db.session.add(Banner(name=name,image_asset_id=assets[0]["id"],mobile_asset_id=assets[1]["id"] if len(assets)>1 else None,size_spec=(request.form.get("size_spec") or "").strip() or None,overlay_text=(request.form.get("overlay_text") or "").strip() or None,position_text=(request.form.get("position_text") or "").strip() or None,duration=request.form.get("duration",type=int),status=(request.form.get("status") or "draft").strip())); success="تم إنشاء البانر."
-                elif action=="add_target":
-                    banner_id=request.form.get("banner_id",type=int); target_type=(request.form.get("target_type") or "").strip(); target_id=request.form.get("target_id",type=int); url=(request.form.get("target_url") or "").strip() or None
-                    if db.session.get(Banner,banner_id) is None: raise ValueError("البانر غير موجود.")
-                    models={"category":Category,"product":Product,"campaign":Campaign}
-                    if target_type=="url": target_id=None; url=url or (_ for _ in ()).throw(ValueError("الرابط مطلوب."))
-                    elif target_type not in models or db.session.get(models[target_type],target_id) is None: raise ValueError("هدف البانر غير صحيح.")
-                    db.session.add(BannerTarget(banner_id=banner_id,target_type=target_type,target_id=target_id,url=url,priority=request.form.get("target_priority",0,type=int))); success="تم ربط الهدف."
-                elif action=="update_banner":
-                    if row is None:
-                        raise ValueError("البانر غير موجود.")
-                    name=(request.form.get("name") or "").strip()
+                action = (request.form.get("action") or "create_banner").strip()
+                row = db.session.get(Banner, request.form.get("id", type=int))
+
+                if action in {"create_banner", "update_banner"}:
+                    name = (request.form.get("name") or "").strip()
                     if not name:
                         raise ValueError("اسم البانر مطلوب.")
-                    row.name=name
-                    row.size_spec=(request.form.get("size_spec") or "").strip() or None
-                    row.overlay_text=(request.form.get("overlay_text") or "").strip() or None
-                    row.position_text=(request.form.get("position_text") or "").strip() or None
-                    row.duration=request.form.get("duration",type=int)
-                    row.status=(request.form.get("status") or row.status).strip()
-                    image=request.files.get("image_file")
-                    mobile=request.files.get("mobile_image_file")
-                    if image and image.filename:
-                        assets=MediaService.save_generic_files([image],"banners")
-                        if assets: row.image_asset_id=assets[0]["id"]
-                    if mobile and mobile.filename:
-                        assets=MediaService.save_generic_files([mobile],"banners")
-                        if assets: row.mobile_asset_id=assets[0]["id"]
-                    success="تم تحديث البانر."
-                elif action=="archive_banner":
-                    if row is None: raise ValueError("البانر غير موجود.")
-                    row.is_active=False; success="تمت أرشفة البانر."
-                elif action=="delete_target":
-                    target=db.session.get(BannerTarget,request.form.get("id",type=int))
-                    if target is None: raise ValueError("هدف البانر غير موجود.")
-                    db.session.delete(target); success="تم حذف هدف البانر."
-                elif action=="update_target":
-                    target=db.session.get(BannerTarget,request.form.get("target_id",type=int))
-                    if target is None:
-                        raise ValueError("هدف البانر غير موجود.")
-                    target_type=(request.form.get("target_type") or target.target_type).strip()
-                    if target_type not in {"category","product","campaign","url"}:
-                        raise ValueError("نوع هدف البانر غير مدعوم.")
+                    image = request.files.get("image_file")
+                    mobile = request.files.get("mobile_image_file")
+                    if action == "create_banner" and (not image or not image.filename):
+                        raise ValueError("الصورة الأساسية مطلوبة.")
+                    if action == "update_banner" and row is None:
+                        raise ValueError("البانر غير موجود.")
+
+                    root_category_id = request.form.get("root_category_id", type=int) or None
+                    if root_category_id is not None:
+                        root = db.session.get(Category, root_category_id)
+                        if root is None or not root.is_active or root.parent_id is not None:
+                            raise ValueError("الفئة الأساسية يجب أن تكون فئة أب بلا أب.")
+                    duration = request.form.get("duration", type=int) or 6
+                    if duration < 1 or duration > 120:
+                        raise ValueError("مدة ظهور البانر يجب أن تكون بين 1 و120 ثانية.")
+                    status = (request.form.get("status") or "draft").strip()
+                    if status not in {"draft", "active"}:
+                        raise ValueError("حالة البانر غير صحيحة.")
+                    position_text = (request.form.get("position_text") or "center").strip()
+                    if position_text not in positions:
+                        raise ValueError("موضع النص غير مدعوم.")
+                    opacity = _decimal(request.form.get("overlay_opacity"), "0")
+                    if opacity < 0 or opacity > 1:
+                        raise ValueError("شفافية الخلفية يجب أن تكون بين 0 و1.")
+
+                    values = {
+                        "name": name,
+                        "root_category_id": root_category_id,
+                        "title": (request.form.get("title") or "").strip() or None,
+                        "description": (request.form.get("description") or "").strip() or None,
+                        "button_label": (request.form.get("button_label") or "").strip() or None,
+                        "title_color": color(request.form.get("title_color"), "#ffffff"),
+                        "description_color": color(request.form.get("description_color"), "#ffffff"),
+                        "button_text_color": color(request.form.get("button_text_color"), "#ffffff"),
+                        "button_background_color": color(request.form.get("button_background_color"), "#111827"),
+                        "overlay_background_color": color(request.form.get("overlay_background_color"), "#111827"),
+                        "overlay_opacity": opacity,
+                        "size_spec": (request.form.get("size_spec") or "").strip() or None,
+                        "overlay_text": (request.form.get("overlay_text") or "").strip() or None,
+                        "position_text": position_text,
+                        "duration": duration,
+                        "sort_order": request.form.get("sort_order", 0, type=int) or 0,
+                        "status": status,
+                    }
+                    starts_raw = (request.form.get("starts_at") or "").strip()
+                    ends_raw = (request.form.get("ends_at") or "").strip()
+                    from datetime import datetime, timezone
+                    def parse_dt(value):
+                        if not value:
+                            return None
+                        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+                    values["starts_at"] = parse_dt(starts_raw)
+                    values["ends_at"] = parse_dt(ends_raw)
+                    if values["starts_at"] and values["ends_at"] and values["ends_at"] < values["starts_at"]:
+                        raise ValueError("نهاية الجدولة يجب أن تكون بعد البداية.")
+
+                    if action == "create_banner":
+                        assets = MediaService.save_generic_files(
+                            [image] + ([mobile] if mobile and mobile.filename else []),
+                            "banners",
+                        )
+                        if not assets:
+                            raise ValueError("تعذر معالجة صورة البانر.")
+                        values["image_asset_id"] = assets[0]["id"]
+                        values["mobile_asset_id"] = assets[1]["id"] if len(assets) > 1 else None
+                        row = Banner(**values)
+                        db.session.add(row)
+                        success = "تم إنشاء البانر."
+                    else:
+                        for key, value in values.items():
+                            setattr(row, key, value)
+                        if image and image.filename:
+                            assets = MediaService.save_generic_files([image], "banners")
+                            if assets:
+                                row.image_asset_id = assets[0]["id"]
+                        if mobile and mobile.filename:
+                            assets = MediaService.save_generic_files([mobile], "banners")
+                            if assets:
+                                row.mobile_asset_id = assets[0]["id"]
+                        success = "تم تحديث البانر."
+
+                elif action == "add_targets":
+                    banner_id = request.form.get("banner_id", type=int)
+                    banner = db.session.get(Banner, banner_id)
+                    if banner is None:
+                        raise ValueError("البانر غير موجود.")
+                    target_type = (request.form.get("target_type") or "").strip()
+                    include_descendants = request.form.get("include_descendants") == "on"
+                    target_ids = [int(x) for x in request.form.getlist("target_id") if str(x).isdigit()]
                     if target_type == "url":
-                        url=(request.form.get("target_url") or "").strip()
+                        url = (request.form.get("target_url") or "").strip()
                         if not url:
                             raise ValueError("الرابط مطلوب.")
-                        target.target_id=None
-                        target.url=url
+                        target_ids = [None]
+                    elif target_type == "style_tab":
+                        url = (request.form.get("target_url") or "/looks").strip() or "/looks"
+                        target_ids = [None]
+                    elif target_type not in target_types:
+                        raise ValueError("نوع هدف البانر غير صحيح.")
+                    elif not target_ids:
+                        raise ValueError("اختر هدفًا واحدًا على الأقل.")
+                    created = 0
+                    for target_id in target_ids:
+                        if target_type in target_types and db.session.get(target_types[target_type], target_id) is None:
+                            continue
+                        config = {"include_descendants": include_descendants} if target_type == "category" else {}
+                        db.session.add(
+                            BannerTarget(
+                                banner_id=banner.id,
+                                target_type=target_type,
+                                target_id=target_id,
+                                url=url if target_type in {"url", "style_tab"} else None,
+                                config_json=config,
+                                priority=request.form.get("target_priority", 0, type=int) or 0,
+                            )
+                        )
+                        created += 1
+                    if not created:
+                        raise ValueError("لم يتم العثور على أهداف صحيحة.")
+                    success = f"تم ربط {created} هدف."
+
+                elif action == "add_target":
+                    # Backward-compatible single-target action.
+                    banner_id = request.form.get("banner_id", type=int)
+                    target_type = (request.form.get("target_type") or "").strip()
+                    target_id = request.form.get("target_id", type=int)
+                    if target_type == "url":
+                        target_id = None
+                        url = (request.form.get("target_url") or "").strip()
+                    elif target_type == "style_tab":
+                        target_id = None
+                        url = (request.form.get("target_url") or "/looks").strip()
+                    elif target_type in target_types and db.session.get(target_types[target_type], target_id):
+                        url = None
                     else:
-                        target_id=request.form.get("target_id_value",type=int)
-                        model={"category":Category,"product":Product,"campaign":Campaign}[target_type]
-                        if not target_id or db.session.get(model,target_id) is None:
-                            raise ValueError("الهدف المختار غير موجود.")
-                        target.target_id=target_id
-                        target.url=None
-                    target.target_type=target_type
-                    target.priority=request.form.get("target_priority",0,type=int)
-                    success="تم تحديث هدف البانر."
-                else: raise ValueError("إجراء البانر غير معروف.")
+                        raise ValueError("هدف البانر غير صحيح.")
+                    if target_type in {"url", "style_tab"} and not url:
+                        raise ValueError("الرابط مطلوب.")
+                    db.session.add(BannerTarget(
+                        banner_id=banner_id,
+                        target_type=target_type,
+                        target_id=target_id,
+                        url=url,
+                        config_json={"include_descendants": request.form.get("include_descendants") == "on"} if target_type == "category" else {},
+                        priority=request.form.get("target_priority", 0, type=int),
+                    ))
+                    success = "تم ربط الهدف."
+
+                elif action == "delete_target":
+                    target = db.session.get(BannerTarget, request.form.get("target_id", type=int))
+                    if target is None:
+                        raise ValueError("هدف البانر غير موجود.")
+                    db.session.delete(target)
+                    success = "تم حذف الهدف."
+
+                elif action == "archive_banner":
+                    if row is None:
+                        raise ValueError("البانر غير موجود.")
+                    row.is_active = False
+                    success = "تمت أرشفة البانر."
+
+                elif action == "banner_reorder":
+                    ids = [int(x) for x in (request.form.get("order_ids") or "").split(",") if x.strip().isdigit()]
+                    for index, banner_id in enumerate(ids):
+                        banner = db.session.get(Banner, banner_id)
+                        if banner and banner.is_active:
+                            banner.sort_order = index
+                    success = "تم حفظ ترتيب البانرات."
+
+                else:
+                    raise ValueError("إجراء البانر غير معروف.")
                 db.session.commit()
-            except (ValueError,OSError,TypeError) as exc: db.session.rollback(); error=str(exc)
-        banners=Banner.query.filter_by(is_active=True).order_by(Banner.id.desc()).limit(100).all()
-        ids=[x.id for x in banners]; asset_ids=[]
-        for x in banners: asset_ids += [x.image_asset_id] + ([x.mobile_asset_id] if x.mobile_asset_id else [])
-        assets=MediaAsset.query.filter(MediaAsset.id.in_(asset_ids)).all() if asset_ids else []; asset_map={x.id:x for x in assets}
-        targets=BannerTarget.query.filter(BannerTarget.banner_id.in_(ids)).order_by(BannerTarget.priority.desc(),BannerTarget.id.desc()).all() if ids else []
-        categories=Category.query.filter_by(is_active=True).order_by(Category.sort_order,Category.name).limit(300).all(); products=Product.query.filter(Product.is_active.is_(True),Product.status!="archived").order_by(Product.id.desc()).limit(300).all(); campaigns=Campaign.query.filter_by(is_active=True).order_by(Campaign.display_priority.desc(),Campaign.name).limit(200).all()
-        return render_template("admin/banners.html",title="البانرات",banners=banners,asset_map=asset_map,targets=targets,categories=categories,products=products,campaigns=campaigns,success=success,error=error,**context)
+            except (ValueError, OSError, TypeError, InvalidOperation) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+        banners = Banner.query.filter_by(is_active=True).order_by(
+            Banner.sort_order, Banner.id.desc()
+        ).limit(200).all()
+        ids = [x.id for x in banners]
+        asset_ids = []
+        for x in banners:
+            asset_ids.append(x.image_asset_id)
+            if x.mobile_asset_id:
+                asset_ids.append(x.mobile_asset_id)
+        assets = MediaAsset.query.filter(MediaAsset.id.in_(asset_ids)).all() if asset_ids else []
+        asset_map = {x.id: x for x in assets}
+        targets = BannerTarget.query.filter(
+            BannerTarget.banner_id.in_(ids)
+        ).order_by(BannerTarget.priority.desc(), BannerTarget.id.desc()).all() if ids else []
+        targets_by_banner = {}
+        for target in targets:
+            targets_by_banner.setdefault(target.banner_id, []).append(target)
+        categories = Category.query.filter_by(is_active=True).order_by(Category.sort_order, Category.name).limit(1000).all()
+        root_categories = [x for x in categories if x.parent_id is None]
+        category_children = {}
+        for item in categories:
+            category_children.setdefault(item.parent_id, []).append(item)
+        campaigns = Campaign.query.filter_by(is_active=True).order_by(Campaign.display_priority.desc(), Campaign.name).limit(300).all()
+        hashtags = Hashtag.query.filter_by(is_active=True).order_by(Hashtag.sort_order, Hashtag.name).limit(300).all()
+        products = Product.query.filter(Product.is_active.is_(True), Product.status != "archived").order_by(Product.id.desc()).limit(300).all()
+        category_target_keys = {
+            banner.id: [f"category:{x.target_id}" for x in targets_by_banner.get(banner.id, []) if x.target_type == "category"]
+            for banner in banners
+        }
+        return render_template(
+            "admin/banners.html",
+            title="البانرات",
+            banners=banners,
+            asset_map=asset_map,
+            targets_by_banner=targets_by_banner,
+            categories=categories,
+            root_categories=root_categories,
+            category_children=category_children,
+            campaigns=campaigns,
+            hashtags=hashtags,
+            products=products,
+            category_target_keys=category_target_keys,
+            positions=positions,
+            success=success,
+            error=error,
+            **context,
+        )
 
     @admin_bp.route("/campaigns", methods=["GET", "POST"])
     def campaigns():
