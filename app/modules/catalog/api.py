@@ -6,7 +6,17 @@ from . import api_bp
 from ...security import admin_api_required
 from .services import CatalogService, MediaService
 from ...extensions import db
-from ...models import MediaAsset, Product, ProductCategory, ProductSideCategoryCircle, ProductVariant, SideCategoryCircle
+from ...models import (
+    CategoryFilterDefinition,
+    CategoryFilterValue,
+    MediaAsset,
+    Product,
+    ProductCategory,
+    ProductFilterValue,
+    ProductSideCategoryCircle,
+    ProductVariant,
+    SideCategoryCircle,
+)
 
 
 @api_bp.get("/categories")
@@ -176,20 +186,36 @@ def products():
 
 @api_bp.get("/products/feed")
 def public_product_feed():
-    """Mobile customer feed: published products with image and first active variant."""
+    """Mobile storefront feed with dynamic filters, sorting, price range and currency."""
     from sqlalchemy import or_
-    query = Product.query.filter(Product.is_active.is_(True), Product.status == "published")
+    from ..customer.security import current_customer
+    from ...services.pricing import price_for_customer
+
+    query = Product.query.filter(
+        Product.is_active.is_(True),
+        Product.status == "published",
+    )
+
     category_id = request.args.get("category_id", type=int)
     circle_id = request.args.get("circle_id", type=int)
-    if category_id:
-        query = query.join(ProductCategory, ProductCategory.product_id == Product.id).filter(
-            ProductCategory.category_id == category_id
-        )
-    if circle_id:
-        query = query.join(ProductSideCategoryCircle, ProductSideCategoryCircle.product_id == Product.id).filter(
-            ProductSideCategoryCircle.circle_id == circle_id
-        )
     search = (request.args.get("q") or "").strip()
+    currency_id = request.args.get("currency_id", type=int)
+    sort = (request.args.get("sort") or "recommended").strip().lower()
+    min_price_raw = (request.args.get("min_price") or "").strip()
+    max_price_raw = (request.args.get("max_price") or "").strip()
+
+    if category_id:
+        query = query.join(
+            ProductCategory,
+            ProductCategory.product_id == Product.id,
+        ).filter(ProductCategory.category_id == category_id)
+
+    if circle_id:
+        query = query.join(
+            ProductSideCategoryCircle,
+            ProductSideCategoryCircle.product_id == Product.id,
+        ).filter(ProductSideCategoryCircle.circle_id == circle_id)
+
     if search:
         needle = "%" + search + "%"
         query = query.filter(or_(
@@ -197,9 +223,65 @@ def public_product_feed():
             Product.sku.ilike(needle),
             Product.slug.ilike(needle),
         ))
-    limit = min(max(request.args.get("limit", 80, type=int), 1), 100)
-    rows = query.order_by(Product.id.desc()).limit(limit).all()
+
+    # OR within one filter group, AND between different filter groups.
+    selected_filter_ids = []
+    raw_filter_ids = (request.args.get("filter_value_ids") or "").split(",")
+    for raw in raw_filter_ids:
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            value_id = int(raw)
+        except ValueError:
+            continue
+        if value_id not in selected_filter_ids:
+            selected_filter_ids.append(value_id)
+
+    if selected_filter_ids:
+        valid_values = (
+            CategoryFilterValue.query
+            .join(
+                CategoryFilterDefinition,
+                CategoryFilterDefinition.id == CategoryFilterValue.filter_id,
+            )
+            .filter(
+                CategoryFilterValue.id.in_(selected_filter_ids),
+                CategoryFilterValue.is_active.is_(True),
+            )
+        )
+        if category_id:
+            valid_values = valid_values.filter(
+                CategoryFilterDefinition.category_id == category_id,
+                CategoryFilterDefinition.is_active.is_(True),
+            )
+        rows = valid_values.all()
+
+        grouped = {}
+        for value in rows:
+            grouped.setdefault(int(value.filter_id), []).append(int(value.id))
+
+        for value_ids in grouped.values():
+            matching_products = (
+                db.session.query(ProductFilterValue.product_id)
+                .filter(ProductFilterValue.filter_value_id.in_(value_ids))
+                .distinct()
+                .subquery()
+            )
+            query = query.filter(Product.id.in_(db.session.query(matching_products.c.product_id)))
+
+    # Keep the database candidate set predictable; final pricing/sorting is done after
+    # customer/city/currency pricing has been resolved.
+    rows = query.order_by(Product.id.desc()).limit(100).all()
+
+    customer = current_customer()
     items = []
+    try:
+        min_price = Decimal(min_price_raw) if min_price_raw else None
+        max_price = Decimal(max_price_raw) if max_price_raw else None
+    except (InvalidOperation, ValueError):
+        min_price = max_price = None
+
     for row in rows:
         item = CatalogService._serialize_trend_product(row)
         variant = ProductVariant.query.filter_by(
@@ -209,15 +291,14 @@ def public_product_feed():
         item["variant_id"] = variant.id if variant else None
         item["base_price_sar"] = str(row.base_price)
         item["status"] = row.status
+
         try:
-            from ..customer.security import current_customer
-            from ...services.pricing import price_for_customer
-            customer = current_customer()
             context, priced = price_for_customer(
                 base_price_sar=row.base_price,
                 customer_id=customer.id if customer else None,
                 city_id=customer.city_id if customer else None,
                 area_id=customer.city_area_id if customer else None,
+                currency_id=currency_id,
             )
             item["price"] = str(priced.final)
             item["currency_id"] = context.currency_id
@@ -226,8 +307,26 @@ def public_product_feed():
         except Exception:
             item["price"] = str(row.base_price)
             item["currency_code"] = "SAR"
+
+        current_price = Decimal(str(item["price"]))
+        if min_price is not None and current_price < min_price:
+            continue
+        if max_price is not None and current_price > max_price:
+            continue
         items.append(item)
-    return {"items": items}
+
+    if sort == "price_asc":
+        items.sort(key=lambda x: Decimal(str(x.get("price", "0"))))
+    elif sort == "price_desc":
+        items.sort(key=lambda x: Decimal(str(x.get("price", "0"))), reverse=True)
+    elif sort in {"newest", "latest"}:
+        items.sort(key=lambda x: int(x.get("id", 0)), reverse=True)
+    else:
+        # Recommended defaults to the storefront's publication/newness ordering.
+        items.sort(key=lambda x: int(x.get("id", 0)), reverse=True)
+
+    limit = min(max(request.args.get("limit", 80, type=int), 1), 100)
+    return {"items": items[:limit]}
 
 
 @api_bp.post("/products/drafts")
