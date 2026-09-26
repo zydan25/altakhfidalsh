@@ -18,7 +18,11 @@ def _authorized_customer_id():
 def request_otp():
     payload = request.get_json(silent=True) or {}
     try:
-        return {"item": CustomerAuthService.request_otp(payload.get("phone"), payload.get("purpose", "login"))}, 201
+        result = CustomerAuthService.request_otp(
+            payload.get("phone"),
+            payload.get("purpose", "login"),
+        )
+        return {"item": result, **result}, 201
     except ValueError as exc:
         return {"error": "otp_request_failed", "detail": str(exc)}, 400
 
@@ -27,10 +31,12 @@ def request_otp():
 def verify_otp():
     payload = request.get_json(silent=True) or {}
     try:
+        request_id = payload.get("otp_request_id")
         result = CustomerAuthService.verify_otp(
-            int(payload["otp_request_id"]),
+            int(request_id) if request_id not in (None, "") else None,
             str(payload["code"]),
             payload.get("device_id"),
+            phone=payload.get("phone"),
         )
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "otp_verification_failed", "detail": str(exc)}, 400
