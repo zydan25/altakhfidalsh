@@ -465,6 +465,33 @@ def register_pricing_views(admin_bp):
                     success = "تم إنشاء قاعدة سعر التوصيل."
                 elif row is None:
                     raise ValueError("قاعدة التوصيل غير موجودة.")
+                elif action == "update":
+                    method_id = request.form.get("method_id", type=int)
+                    if db.session.get(ShippingMethod, method_id) is None:
+                        raise ValueError("طريقة التوصيل غير موجودة.")
+                    customer_id = request.form.get("customer_id", type=int) or None
+                    region_id = request.form.get("region_id", type=int) or None
+                    city_id = request.form.get("city_id", type=int) or None
+                    area_id = request.form.get("city_area_id", type=int) or None
+                    if sum(x is not None for x in (region_id, city_id, area_id)) > 1:
+                        raise ValueError("الموقع يكون منطقة أو مدينة أو جزءًا داخل المدينة، وليس أكثر من واحد.")
+                    min_sar = _decimal(request.form.get("min_order_sar"), "0") if request.form.get("min_order_sar") else None
+                    max_sar = _decimal(request.form.get("max_order_sar"), "0") if request.form.get("max_order_sar") else None
+                    price_sar = _decimal(request.form.get("price_sar"), "0")
+                    free_over = _decimal(request.form.get("free_over_sar"), "0") if request.form.get("free_over_sar") else None
+                    if price_sar < 0 or (min_sar is not None and max_sar is not None and max_sar < min_sar):
+                        raise ValueError("تحقق من السعر وحدود السلة.")
+                    row.method_id = method_id
+                    row.customer_id = customer_id
+                    row.region_id = region_id
+                    row.city_id = city_id
+                    row.city_area_id = area_id
+                    row.min_order_sar = row.min_order = min_sar
+                    row.max_order_sar = row.max_order = max_sar
+                    row.price_sar = row.price = price_sar
+                    row.free_over_sar = row.free_over = free_over
+                    row.priority = request.form.get("priority", 0, type=int) or 0
+                    success = "تم تحديث قاعدة سعر التوصيل."
                 elif action == "archive":
                     row.is_active = False
                     success = "تم أرشفة قاعدة التوصيل."
