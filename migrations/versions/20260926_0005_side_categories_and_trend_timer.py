@@ -26,6 +26,28 @@ def _has_index(table, name):
 
 
 def upgrade():
+    # Ensure existing super admins receive the permissions required by the new UI.
+    op.execute(
+        """
+        INSERT INTO permissions (code, name)
+        VALUES
+          ('side_category.view', 'عرض الفئات الجانبية'),
+          ('side_category.manage', 'إدارة الفئات الجانبية')
+        ON CONFLICT (code) DO NOTHING
+        """
+    )
+    op.execute(
+        """
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT r.id, p.id
+        FROM roles r
+        JOIN permissions p
+          ON p.code IN ('side_category.view', 'side_category.manage')
+        WHERE r.code = 'super_admin'
+        ON CONFLICT DO NOTHING
+        """
+    )
+
     if _has_table("trends"):
         additions = [
             ("timer_value", sa.Column("timer_value", sa.Integer())),
