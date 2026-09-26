@@ -18,8 +18,11 @@ from ..models import (
     Region,
     ShippingMethod,
     ShippingRate,
+    PricingLocationAdjustment,
+    GeoDirection,
 )
 from .context import build_admin_context
+from ..modules.geo.services import generate_area_code, generate_city_code
 
 
 DIRECTIONS = (
@@ -433,43 +436,49 @@ def register_pricing_views(admin_bp):
 
                 elif action == "city":
                     region_id = request.form.get("region_id", type=int)
-                    code = (request.form.get("code") or "").strip().upper()
                     name = (request.form.get("name") or "").strip()
                     region = db.session.get(Region, region_id)
                     if region is None or not region.is_active:
                         raise ValueError("اختر المحافظة/المنطقة أولًا.")
-                    if not code or not name:
-                        raise ValueError("كود المدينة واسمها مطلوبان.")
-                    if City.query.filter(City.region_id == region_id, City.code == code).first():
-                        raise ValueError("كود المدينة مستخدم داخل هذه المحافظة/المنطقة.")
+                    if not name:
+                        raise ValueError("اسم المدينة مطلوب.")
                     db.session.add(City(
-                        region_id=region_id, code=code, name=name,
+                        region_id=region_id,
+                        code=generate_city_code(name, region_id),
+                        name=name,
                         direction=(request.form.get("direction") or "").strip() or None,
-                        source=(request.form.get("source") or "").strip() or None,
+                        source=(request.form.get("source") or "").strip() or "manual",
                         sort_order=request.form.get("sort_order", 0, type=int) or 0,
                     ))
                     db.session.commit()
-                    success = "تمت إضافة المدينة."
+                    success = "تمت إضافة المدينة وتوليد كودها تلقائيًا."
 
                 elif action == "area":
                     city_id = request.form.get("city_id", type=int)
-                    code = (request.form.get("code") or "").strip().upper()
                     name = (request.form.get("name") or "").strip()
                     city = db.session.get(City, city_id)
                     if city is None or not city.is_active:
                         raise ValueError("اختر المدينة أولًا.")
-                    if not code or not name:
-                        raise ValueError("كود المنطقة داخل المدينة واسمها مطلوبان.")
-                    if CityArea.query.filter(CityArea.city_id == city_id, CityArea.code == code).first():
-                        raise ValueError("كود المنطقة داخل المدينة مستخدم.")
+                    if not name:
+                        raise ValueError("اسم المنطقة داخل المدينة مطلوب.")
+                    direction_code = (request.form.get("direction_code") or "").strip().lower() or None
+                    direction_id = None
+                    if direction_code:
+                        direction = db.session.get(GeoDirection, request.form.get("direction_id", type=int)) if request.form.get("direction_id") else GeoDirection.query.filter_by(code=direction_code, is_active=True).first()
+                        if direction is None:
+                            raise ValueError("نوع الاتجاه غير موجود.")
+                        direction_id = direction.id
                     db.session.add(CityArea(
-                        city_id=city_id, code=code, name=name,
-                        direction=(request.form.get("direction") or "").strip() or None,
-                        source=(request.form.get("source") or "").strip() or None,
+                        city_id=city_id,
+                        code=generate_area_code(name, city_id),
+                        name=name,
+                        direction=direction_code,
+                        direction_id=direction_id,
+                        source=(request.form.get("source") or "").strip() or "manual",
                         sort_order=request.form.get("sort_order", 0, type=int) or 0,
                     ))
                     db.session.commit()
-                    success = "تمت إضافة المنطقة داخل المدينة."
+                    success = "تمت إضافة المنطقة وتوليد كودها تلقائيًا."
                 else:
                     raise ValueError("إجراء المواقع غير معروف.")
             except (ValueError, TypeError, IntegrityError) as exc:
@@ -504,6 +513,7 @@ def register_pricing_views(admin_bp):
             region_map={x.id: x.name for x in regions},
             city_map={x.id: x.name for x in cities},
             directions=DIRECTIONS,
+        geo_directions=GeoDirection.query.filter_by(is_active=True).order_by(GeoDirection.sort_order, GeoDirection.name_ar).all(),
             direction_map=dict(DIRECTIONS),
             error=error,
             success=success,
