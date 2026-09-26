@@ -48,11 +48,17 @@ class PricingAdminService:
 
     @staticmethod
     def create_exchange_rate(payload):
-        base_id = int(payload["base_currency_id"])
+        sar = Currency.query.filter_by(code="SAR", is_active=True).first()
+        if sar is None:
+            raise ValueError("SAR base currency is not configured")
+        base_id = sar.id
         quote_id = int(payload["quote_currency_id"])
         rate = Decimal(str(payload["rate"]))
-        if db.session.get(Currency, base_id) is None or db.session.get(Currency, quote_id) is None:
+        quote = db.session.get(Currency, quote_id)
+        if quote is None or not quote.is_active:
             raise ValueError("currency not found")
+        if quote_id == base_id:
+            raise ValueError("quote currency must differ from SAR")
         if rate <= 0:
             raise ValueError("rate must be positive")
         row = ExchangeRate(
