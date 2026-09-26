@@ -810,3 +810,47 @@ def test_side_category_admin_and_api_flow(client, app):
     response = client.get(f"/api/v1/catalog/side-category-circles/{circle_id}/products")
     assert response.status_code == 200
     assert response.get_json()["items"][0]["id"] == product_id
+
+
+def test_side_category_reorder_and_circle_editor_preview_route(client, app):
+    with client.session_transaction() as session:
+        session["admin_id"] = 1
+
+    with app.app_context():
+        from app.models import Category, SideCategory, SideCategoryCircle
+
+        root = Category(name="Root", slug="reorder-root")
+        db.session.add(root)
+        db.session.flush()
+        first = SideCategory(root_category_id=root.id, name="أول", slug="first", sort_order=0)
+        second = SideCategory(root_category_id=root.id, name="ثان", slug="second", sort_order=1)
+        db.session.add_all([first, second])
+        db.session.flush()
+        circle1 = SideCategoryCircle(side_category_id=first.id, name="دائرة 1", slug="c1", sort_order=0)
+        circle2 = SideCategoryCircle(side_category_id=first.id, name="دائرة 2", slug="c2", sort_order=1)
+        db.session.add_all([circle1, circle2])
+        db.session.commit()
+        first_id, second_id = first.id, second.id
+
+    response = client.post(
+        "/admin/side-categories",
+        data={"action": "move_side_category", "id": second_id, "direction": "up"},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+    with app.app_context():
+        rows = SideCategory.query.order_by(SideCategory.sort_order, SideCategory.id).all()
+        assert [row.id for row in rows] == [second_id, first_id]
+
+    response = client.post(
+        "/admin/side-categories",
+        data={"action": "move_circle", "id": circle2.id, "direction": "up"},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+
+    response = client.get("/admin/side-categories?view=circles")
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "إدارة الفئات الجانبية" in body
+    assert "استبدال صورة الدائرة" in body
