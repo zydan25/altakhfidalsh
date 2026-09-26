@@ -49,6 +49,41 @@ jobs:
             --base-href "/${GITHUB_REPOSITORY#*/}/" \
             --dart-define=API_BASE_URL="$API_BASE_URL"
 
+      - name: Prevent stale Flutter Web cache
+        working-directory: client
+        env:
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          p = Path('build/web/index.html')
+          s = p.read_text(encoding='utf-8')
+          sha = os.environ['BUILD_SHA']
+          s = s.replace(
+              '<script src="flutter_bootstrap.js" async></script>',
+              '<script src="flutter_bootstrap.js?v=' + sha + '" async></script>'
+          )
+          guard = '''
+          <meta name="altakhfid-build" content="BUILD_SHA_PLACEHOLDER">
+          <script>
+          (async function(){
+            try {
+              if ("serviceWorker" in navigator) {
+                const regs = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(regs.map(r => r.unregister()));
+              }
+              if ("caches" in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k)));
+              }
+            } catch (_) {}
+          })();
+          </script>
+          '''.replace('BUILD_SHA_PLACEHOLDER', sha)
+          s = s.replace('</head>', guard + '\n</head>')
+          p.write_text(s, encoding='utf-8')
+          PY
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 
