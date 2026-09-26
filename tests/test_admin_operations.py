@@ -1,3 +1,4 @@
+from io import BytesIO
 from app.extensions import db
 from app.models import Badge, Color, Customer, CustomerAddress, Currency, MediaAsset, Product, ProductCategory, ProductMedia, StorefrontPage, StorefrontSection, StorefrontSectionItem
 
@@ -745,3 +746,67 @@ def test_rectangular_trend_rejects_products_not_linked_to_selected_hashtag(clien
     )
     assert response.status_code == 200
     assert "كل المنتجات المختارة يجب أن تكون مرتبطة بالهاشتاج الرئيسي" in response.get_data(as_text=True)
+
+
+def test_side_category_admin_and_api_flow(client, app):
+    with client.session_transaction() as session:
+        session["admin_id"] = 1
+
+    with app.app_context():
+        from app.models import Category, Currency, Product, SideCategory, SideCategoryCircle
+
+        root = Category(name="نساء", slug="admin-women", display_style="circle")
+        child = Category(name="ملابس", slug="admin-women-clothes", display_style="circle", parent_id=None)
+        db.session.add_all([root, child])
+        db.session.flush()
+        child.parent_id = root.id
+        currency = Currency(code="SAR", name_ar="ريال سعودي", is_base=True)
+        db.session.add(currency)
+        db.session.flush()
+        product = Product(
+            sku="SIDE-API-001", name="منتج الفئة", slug="side-api-001",
+            base_currency_id=currency.id, base_price=25, status="published",
+        )
+        db.session.add(product)
+        db.session.commit()
+        root_id, child_id, product_id = root.id, child.id, product.id
+
+    response = client.get("/admin/side-categories")
+    assert response.status_code == 200
+    assert "إدارة الفئات الجانبية" in response.get_data(as_text=True)
+
+    response = client.post(
+        "/api/v1/catalog/side-categories",
+        json={"root_category_id": root_id, "name": "فئة نسائية جانبية"},
+    )
+    assert response.status_code == 201
+    side_id = response.get_json()["item"]["id"]
+
+    response = client.post(
+        "/api/v1/catalog/side-categories",
+        json={"root_category_id": child_id, "name": "غير صالح"},
+    )
+    assert response.status_code == 400
+
+    response = client.post(
+        f"/api/v1/catalog/side-categories/{side_id}/circles",
+        data={"name": "فساتين", "slug": "dresses"},
+    )
+    assert response.status_code == 201
+    circle_id = response.get_json()["item"]["id"]
+
+    response = client.post(
+        f"/api/v1/catalog/products/{product_id}/side-category-circles",
+        json={"circle_ids": [circle_id]},
+    )
+    assert response.status_code == 200
+
+    response = client.get("/api/v1/catalog/side-categories")
+    payload = response.get_json()["items"]
+    assert payload[0]["root_category_id"] == root_id
+    assert payload[0]["circles"][0]["id"] == circle_id
+    assert payload[0]["circles"][0]["product_count"] == 1
+
+    response = client.get(f"/api/v1/catalog/side-category-circles/{circle_id}/products")
+    assert response.status_code == 200
+    assert response.get_json()["items"][0]["id"] == product_id
