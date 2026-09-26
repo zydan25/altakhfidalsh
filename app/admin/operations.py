@@ -23,6 +23,8 @@ from ..models import (
     ShippingPolicy,
     ReturnPolicy,
     WarrantyPolicy,
+    Look,
+    LookProduct,
 )
 from ..services.pricing import PricingRule, calculate_customer_price
 from .context import build_admin_context
@@ -374,6 +376,99 @@ def register_operation_routes(admin_bp):
             hashtag_map=hashtag_map,
             product_map=product_map,
             positions=positions,
+            success=success,
+            error=error,
+            **context,
+        )
+
+    @admin_bp.route("/looks", methods=["GET", "POST"])
+    def looks():
+        context = _ctx()
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                action = (request.form.get("action") or "look_create").strip()
+                look = db.session.get(Look, request.form.get("id", type=int))
+                if action in {"look_create", "look_update"}:
+                    from .entity_views import _unique_slug
+                    name = (request.form.get("name") or "").strip()
+                    if not name:
+                        raise ValueError("اسم الإطلالة مطلوب.")
+                    slug = (request.form.get("slug") or "").strip().lower()
+                    if action == "look_create":
+                        slug = slug or _unique_slug(Look, name, fallback="look")
+                        if Look.query.filter_by(slug=slug).first():
+                            raise ValueError("Slug الإطلالة مستخدم مسبقًا.")
+                        look = Look(name=name, slug=slug)
+                        db.session.add(look)
+                    else:
+                        if look is None:
+                            raise ValueError("الإطلالة غير موجودة.")
+                        slug = slug or _unique_slug(Look, name, exclude_id=look.id, fallback="look")
+                        duplicate = Look.query.filter(Look.id != look.id, Look.slug == slug).first()
+                        if duplicate:
+                            raise ValueError("Slug الإطلالة مستخدم مسبقًا.")
+                    look.name = name
+                    look.slug = slug
+                    look.description = (request.form.get("description") or "").strip() or None
+                    look.status = (request.form.get("status") or "draft").strip()
+                    look.sort_order = request.form.get("sort_order", 0, type=int) or 0
+                    cover = request.files.get("cover_image")
+                    if cover and cover.filename:
+                        assets = MediaService.save_generic_files([cover], "looks")
+                        if assets:
+                            look.cover_asset_id = assets[0]["id"]
+                    success = "تم تحديث الإطلالة." if action == "look_update" else "تم إنشاء الإطلالة."
+                elif action == "look_archive":
+                    if look is None:
+                        raise ValueError("الإطلالة غير موجودة.")
+                    look.is_active = False
+                    success = "تمت أرشفة الإطلالة."
+                elif action in {"look_add_product", "look_remove_product"}:
+                    look_id = request.form.get("look_id", type=int)
+                    product_id = request.form.get("product_id", type=int)
+                    if db.session.get(Look, look_id) is None or db.session.get(Product, product_id) is None:
+                        raise ValueError("الإطلالة أو المنتج غير موجود.")
+                    if action == "look_add_product":
+                        if not LookProduct.query.filter_by(look_id=look_id, product_id=product_id).first():
+                            db.session.add(LookProduct(
+                                look_id=look_id,
+                                product_id=product_id,
+                                sort_order=request.form.get("sort_order", 0, type=int) or 0,
+                            ))
+                        success = "تمت إضافة المنتج إلى الإطلالة."
+                    else:
+                        row = LookProduct.query.filter_by(look_id=look_id, product_id=product_id).first()
+                        if row:
+                            db.session.delete(row)
+                        success = "تمت إزالة المنتج من الإطلالة."
+                else:
+                    raise ValueError("إجراء الإطلالة غير معروف.")
+                db.session.commit()
+            except (ValueError, OSError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+        looks_rows = Look.query.filter_by(is_active=True).order_by(Look.sort_order, Look.id.desc()).all()
+        assets = MediaAsset.query.filter(MediaAsset.id.in_([x.cover_asset_id for x in looks_rows if x.cover_asset_id])).all()
+        asset_map = {x.id: x for x in assets}
+        products = Product.query.filter(Product.is_active.is_(True), Product.status != "archived").order_by(Product.id.desc()).limit(500).all()
+        product_map = {x.id: x for x in products}
+        look_product_rows = LookProduct.query.filter(LookProduct.look_id.in_([x.id for x in looks_rows])).order_by(LookProduct.sort_order, LookProduct.id).all() if looks_rows else []
+        products_by_look = {}
+        for item in look_product_rows:
+            if item.product_id in product_map:
+                products_by_look.setdefault(item.look_id, []).append(item)
+        return render_template(
+            "admin/looks.html",
+            title="الإطلالات",
+            section="المحتوى والمتجر",
+            looks=looks_rows,
+            asset_map=asset_map,
+            products=products,
+            product_map=product_map,
+            products_by_look=products_by_look,
             success=success,
             error=error,
             **context,
