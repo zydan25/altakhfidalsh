@@ -37,6 +37,20 @@ class ApiService {
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>CategoryModel.fromJson(Map<String,dynamic>.from(e))).toList();
   }
   Future<Map<String,dynamic>> home()async=>Map<String,dynamic>.from(await get('/storefront/home'));
+  Future<List<Map<String,dynamic>>> sideCategories({int? rootId})async{
+    final d=await get('/storefront/home');
+    final rows=((d['side_categories'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
+    if(rootId==null)return rows;
+    return rows.where((e)=>int.tryParse((e['root_category_id']??'').toString())==rootId).toList();
+  }
+  Future<List<Map<String,dynamic>>> categoryFilters(int categoryId)async{
+    final d=await get('/catalog/categories/'+categoryId.toString()+'/filters');
+    return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
+  }
+  Future<Map<String,dynamic>> productReference(int productId)async{
+    final d=await get('/catalog/reference/product-config',q:{'product_id':productId.toString()});
+    return d['item'] is Map?Map<String,dynamic>.from(d['item']):Map<String,dynamic>.from(d);
+  }
   Future<List<ProductModel>> feed({int? category,String q=''})async{
     final qp=<String,String>{'limit':'80'};
     if(category!=null)qp['category_id']=category.toString();
