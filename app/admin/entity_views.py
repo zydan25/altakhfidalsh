@@ -970,6 +970,10 @@ def register_entity_views(admin_bp):
 
         error = None
         success = None
+        view = (request.args.get("view") or "groups").strip().lower()
+        if view not in {"groups", "circles"}:
+            view = "groups"
+
         if request.method == "POST":
             action = (request.form.get("action") or "").strip()
             try:
@@ -1057,6 +1061,7 @@ def register_entity_views(admin_bp):
             "admin/side_categories.html",
             title="الفئات الجانبية",
             section="المحتوى والمتجر",
+            view=view,
             root_categories=root_categories,
             badges=badges,
             side_categories=side_categories,
@@ -1151,6 +1156,12 @@ def register_entity_views(admin_bp):
                             background_asset_id=background_asset_id,
                             status=status,
                             sort_order=sort_order,
+                            timer_value=timer_value,
+                            timer_unit=timer_unit,
+                            timer_started_at=(db.func.now() if timer_enabled and status == "active" else None),
+                            overlay_text=overlay_text,
+                            overlay_text_color=overlay_text_color,
+                            overlay_background_color=overlay_background_color,
                             is_active=True,
                         )
                         db.session.add(trend)
