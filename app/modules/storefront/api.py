@@ -116,8 +116,18 @@ def add_banner_target(banner_id):
     if target_type not in {"category", "campaign", "hashtag", "product", "style_tab", "url"}:
         return {"error": "invalid_target_type"}, 400
     target_id = payload.get("target_id")
-    mapping = {"category": Category, "campaign": Campaign, "hashtag": Hashtag, "product": Product, "style_tab": Look}
-    if target_type in mapping:
+    mapping = {"category": Category, "campaign": Campaign, "hashtag": Hashtag, "product": Product}
+    if target_type == "style_tab":
+        if target_id not in (None, "", 0, "0"):
+            try:
+                target_id = int(target_id)
+            except (TypeError, ValueError):
+                return {"error": "invalid_target"}, 400
+            if db.session.get(Look, target_id) is None:
+                return {"error": "look_not_found"}, 404
+        else:
+            target_id = None
+    elif target_type in mapping:
         try:
             target_id = int(target_id)
         except (TypeError, ValueError):
