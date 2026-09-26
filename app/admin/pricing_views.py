@@ -271,7 +271,7 @@ def register_pricing_views(admin_bp):
             **build_admin_context(),
         )
 
-    @admin_bp.route("/pricing/customer-assignments", methods=["GET", "POST"])
+    @admin_bp.route("/pricing/customer-overrides", methods=["GET", "POST"])
     def pricing_customer_assignments():
         error = None
         success = None
@@ -413,6 +413,7 @@ def register_pricing_views(admin_bp):
             region_map=region_map,
             city_map=city_map,
             directions=DIRECTIONS,
+            direction_map=dict(DIRECTIONS),
             error=error,
             success=success,
             **build_admin_context(),
