@@ -131,3 +131,79 @@ def test_city_area_has_higher_pricing_priority_than_city(app):
 
         ctx = resolve_pricing_context(city_id=city.id, area_id=area.id, currency_id=sar.id)
         assert ctx.pricing_group_name == "منطقة داخلية"
+
+
+
+def test_shipping_rule_uses_customer_location_and_cart_tiers(app):
+    from app.extensions import db
+    from app.models import City, Country, Customer, Region, ShippingMethod, ShippingRate
+    from app.services.shipping import ShippingService
+
+    with app.app_context():
+        country = Country(code="YE2", name_ar="اليمن")
+        db.session.add(country)
+        db.session.flush()
+        region = Region(country_id=country.id, code="IBB2", name="إب")
+        db.session.add(region)
+        db.session.flush()
+        city = City(region_id=region.id, code="IBB2-C", name="إب")
+        customer = Customer(phone_normalized="967700000001", name="عميل اختبار", city_id=None)
+        method = ShippingMethod(name="مندوب", code="courier-test")
+        db.session.add_all([city, customer, method])
+        db.session.flush()
+        customer.city_id = city.id
+        db.session.add_all([
+            ShippingRate(
+                method_id=method.id,
+                city_id=city.id,
+                min_order_sar=Decimal("0"),
+                max_order_sar=Decimal("299"),
+                price_sar=Decimal("25"),
+                price=Decimal("25"),
+                min_order=Decimal("0"),
+                max_order=Decimal("299"),
+                priority=1,
+            ),
+            ShippingRate(
+                method_id=method.id,
+                city_id=city.id,
+                min_order_sar=Decimal("300"),
+                price_sar=Decimal("15"),
+                price=Decimal("15"),
+                min_order=Decimal("300"),
+                free_over_sar=Decimal("500"),
+                free_over=Decimal("500"),
+                priority=2,
+            ),
+            ShippingRate(
+                method_id=method.id,
+                customer_id=customer.id,
+                price_sar=Decimal("5"),
+                price=Decimal("5"),
+                priority=50,
+            ),
+        ])
+        db.session.commit()
+
+        quote = ShippingService.quote(
+            customer_id=customer.id,
+            city_id=city.id,
+            subtotal_sar=Decimal("120"),
+        )
+        assert quote.price_sar == Decimal("5")
+        assert quote.source == "customer"
+
+        quote = ShippingService.quote(
+            customer_id=None,
+            city_id=city.id,
+            subtotal_sar=Decimal("250"),
+        )
+        assert quote.price_sar == Decimal("25")
+
+        quote = ShippingService.quote(
+            customer_id=None,
+            city_id=city.id,
+            subtotal_sar=Decimal("600"),
+        )
+        assert quote.free is True
+        assert quote.price_display == Decimal("0")
