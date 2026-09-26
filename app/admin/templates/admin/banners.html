@@ -80,19 +80,24 @@
         <label class="target-extra-field target-hashtag-field" data-target-form="{{ banner.id }}" hidden>الهاشتاج<select name="target_id">{% for x in hashtags %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
         <label class="target-extra-field target-product-field" data-target-form="{{ banner.id }}" hidden>المنتج<select name="target_id">{% for x in products %}<option value="{{ x.id }}">{{ x.name }} #{{ x.id }}</option>{% endfor %}</select></label>
         <div class="target-category-field" data-target-form="{{ banner.id }}">
-          <div class="field-caption"><strong>التصنيفات</strong><small class="muted">حدد واحدًا أو أكثر</small></div>
-          <label class="check-row"><input name="include_descendants" type="checkbox"><span>عند اختيار فئة، اجلب الفروع والمنتجات التابعة لها</span></label>
+          <div class="field-caption"><strong>التصنيفات</strong><small class="muted">اختر فئة واحدة أو عدة فئات</small></div>
+          <label class="check-row"><input name="include_descendants" type="checkbox"><span>ضم الفروع والمنتجات التابعة للفئة</span></label>
           <div class="banner-category-tree">
-          {% for root in root_categories %}
-            <details open>
-              <summary><label class="tree-check-row"><input type="checkbox" class="banner-category-parent" value="category:{{ root.id }}"><span>{{ root.name }}</span></label></summary>
+          {% macro category_branch(node, depth=0) %}
+            <details {% if depth==0 %}open{% endif %}>
+              <summary><label class="tree-check-row"><input type="checkbox" name="target_id" value="{{ node.id }}" class="banner-category-check"><span>{{ node.name }}</span></label></summary>
+              {% if category_children.get(node.id) %}
               <div>
-              {% for child in category_children.get(root.id, []) %}
-                <label class="tree-check-row nested"><input type="checkbox" name="target_id" value="{{ child.id }}" data-parent-category="{{ root.id }}" class="banner-category-child"><span>{{ child.name }}</span></label>
-              {% endfor %}
+                {% for child in category_children.get(node.id, []) %}
+                  {{ category_branch(child, depth+1) }}
+                {% endfor %}
               </div>
+              {% endif %}
             </details>
-          {% endfor %}
+          {% endmacro %}
+          {% for root in root_categories %}
+            {{ category_branch(root) }}
+          {% else %}<span class="muted">لا توجد فئات رئيسية نشطة.</span>{% endfor %}
           </div>
         </div>
         <div class="banner-style-note target-extra-field" data-target-form="{{ banner.id }}" hidden><strong>الإطلالة</strong><span class="muted">تم تجهيز الهدف؛ بعد إنشاء نظام الإطلالات سيصبح الاختيار مرتبطًا بإطلالة محددة.</span></div>
@@ -184,7 +189,7 @@
           el.classList.contains("target-category-field") ? value==="category" : false;
         el.hidden=!show;
         el.querySelectorAll("select,input").forEach(input=>{
-          if(input.name==="target_id") input.disabled=!show;
+          if(input.name==="target_id" || input.name==="include_descendants") input.disabled=!show;
         });
       });
     }
@@ -192,11 +197,12 @@
   });
 
   document.querySelectorAll(".banner-category-tree").forEach(function(tree){
-    const parents=Array.from(tree.querySelectorAll(".banner-category-parent"));
-    parents.forEach(parent=>{
+    tree.querySelectorAll(".banner-category-check").forEach(function(parent){
       parent.addEventListener("change",function(){
-        const id=this.value.split(":")[1];
-        tree.querySelectorAll('[data-parent-category="'+id+'"]').forEach(child=>child.checked=this.checked);
+        const details=this.closest("details");
+        details?.querySelectorAll(".banner-category-check").forEach(child=>{
+          if(child!==this) { child.checked=this.checked; child.indeterminate=false; }
+        });
       });
     });
   });
