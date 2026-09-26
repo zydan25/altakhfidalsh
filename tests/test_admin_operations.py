@@ -831,6 +831,7 @@ def test_side_category_reorder_and_circle_editor_preview_route(client, app):
         db.session.add_all([circle1, circle2])
         db.session.commit()
         first_id, second_id = first.id, second.id
+        circle2_id = circle2.id
 
     response = client.post(
         "/admin/side-categories",
@@ -844,7 +845,7 @@ def test_side_category_reorder_and_circle_editor_preview_route(client, app):
 
     response = client.post(
         "/admin/side-categories",
-        data={"action": "move_circle", "id": circle2.id, "direction": "up"},
+        data={"action": "move_circle", "id": circle2_id, "direction": "up"},
         follow_redirects=True,
     )
     assert response.status_code == 200
