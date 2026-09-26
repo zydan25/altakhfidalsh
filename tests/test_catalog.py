@@ -90,6 +90,11 @@ def test_side_category_tree_is_independent_and_root_only(app):
         assert any(x["id"] == side["id"] for x in config["side_categories"])
         assert config["selected_side_category_circle_ids"] == [circle["id"]]
 
+        CatalogService.delete_category(root.id)
+        assert db.session.get(Category, root.id).is_active is False
+        assert db.session.get(SideCategory, side["id"]).is_active is False
+        assert db.session.get(SideCategoryCircle, circle["id"]).is_active is False
+
 
 
 def test_public_trend_exposes_countdown_and_overlay_metadata(app):
