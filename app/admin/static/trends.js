@@ -14,6 +14,14 @@
     duration: document.getElementById("trendDurationDays"),
     sort: document.getElementById("trendSortOrder"),
     status: document.getElementById("trendStatus"),
+    timerEnabled: document.getElementById("trendTimerEnabled"),
+    timerValue: document.getElementById("trendTimerValue"),
+    timerUnit: document.getElementById("trendTimerUnit"),
+    overlayText: document.getElementById("trendOverlayText"),
+    overlayTextColor: document.getElementById("trendOverlayTextColor"),
+    overlayTextColorText: document.getElementById("trendOverlayTextColorText"),
+    overlayBackgroundColor: document.getElementById("trendOverlayBackgroundColor"),
+    overlayBackgroundColorText: document.getElementById("trendOverlayBackgroundColorText"),
     file: document.getElementById("trendBackgroundFile"),
     preview: document.getElementById("trendBackgroundPreview"),
     previewImage: document.getElementById("trendBackgroundImage"),
@@ -56,6 +64,18 @@
     const box = modal.querySelector(".trend-editor-message");
     if (box) box.hidden = true;
   };
+
+  const syncColorPair = (colorInput, textInput) => {
+    if (!colorInput || !textInput) return;
+    colorInput.addEventListener("input", () => { textInput.value = colorInput.value.toUpperCase(); });
+    textInput.addEventListener("input", () => {
+      const value = textInput.value.trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(value)) colorInput.value = value;
+    });
+  };
+
+  syncColorPair(els.overlayTextColor, els.overlayTextColorText);
+  syncColorPair(els.overlayBackgroundColor, els.overlayBackgroundColorText);
 
   const openModal = () => {
     modal.hidden = false;
@@ -278,6 +298,14 @@
     els.duration.value = "8";
     els.sort.value = "0";
     els.status.value = "active";
+    els.timerEnabled.checked = false;
+    els.timerValue.value = "60";
+    els.timerUnit.value = "seconds";
+    els.overlayText.value = "";
+    els.overlayTextColor.value = "#FFFFFF";
+    els.overlayTextColorText.value = "#FFFFFF";
+    els.overlayBackgroundColor.value = "#111827";
+    els.overlayBackgroundColorText.value = "#111827";
     resetBackgroundInput();
     setBackgroundPreview("");
     els.search.value = "";
@@ -302,6 +330,14 @@
     els.duration.value = String(trend.duration_days || 8);
     els.sort.value = String(trend.sort_order || 0);
     els.status.value = trend.status === "active" ? "active" : "draft";
+    els.timerEnabled.checked = Boolean(trend.timer_enabled);
+    els.timerValue.value = String(trend.timer_value || 60);
+    els.timerUnit.value = trend.timer_unit === "minutes" ? "minutes" : "seconds";
+    els.overlayText.value = trend.overlay_text || "";
+    els.overlayTextColor.value = trend.overlay_text_color || "#FFFFFF";
+    els.overlayTextColorText.value = (trend.overlay_text_color || "#FFFFFF").toUpperCase();
+    els.overlayBackgroundColor.value = trend.overlay_background_color || "#111827";
+    els.overlayBackgroundColorText.value = (trend.overlay_background_color || "#111827").toUpperCase();
     resetBackgroundInput();
     setBackgroundPreview(trend.background_url || "");
     els.search.value = "";
@@ -373,6 +409,14 @@
   els.search.addEventListener("input", renderCandidates);
   els.auto.addEventListener("click", autoLink);
 
+  const syncTimerDisabled = () => {
+    const disabled = !els.timerEnabled.checked;
+    els.timerValue.disabled = disabled;
+    els.timerUnit.disabled = disabled;
+  };
+  els.timerEnabled.addEventListener("change", syncTimerDisabled);
+  syncTimerDisabled();
+
   els.file.addEventListener("change", () => {
     const file = els.file.files?.[0];
     revokeBackgroundUrl();
@@ -428,6 +472,8 @@
       return;
     }
     clearNotify();
+    if (els.overlayTextColorText.value) els.overlayTextColor.value = els.overlayTextColorText.value;
+    if (els.overlayBackgroundColorText.value) els.overlayBackgroundColor.value = els.overlayBackgroundColorText.value;
     if (els.save) {
       els.save.disabled = true;
       els.save.textContent = "جاري الحفظ...";
