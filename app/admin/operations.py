@@ -131,6 +131,7 @@ def register_operation_routes(admin_bp):
             "category": Category,
             "hashtag": Hashtag,
             "product": Product,
+            "style_tab": Look,
         }
         def color(value, default):
             value = (value or default).strip()
@@ -377,6 +378,8 @@ def register_operation_routes(admin_bp):
             campaign_map=campaign_map,
             hashtag_map=hashtag_map,
             product_map=product_map,
+            looks=looks_rows,
+            look_map=look_map,
             positions=positions,
             success=success,
             error=error,
