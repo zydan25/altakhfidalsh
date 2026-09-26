@@ -1,3 +1,4 @@
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from uuid import uuid4
@@ -1618,6 +1619,12 @@ class CatalogService:
                 "unit": trend.timer_unit,
                 "seconds": (trend.timer_value * 60 if trend.timer_value and trend.timer_unit == "minutes" else trend.timer_value),
                 "started_at": trend.timer_started_at.isoformat() if trend.timer_started_at else None,
+                "ends_at": (
+                    (trend.timer_started_at + timedelta(
+                        seconds=(trend.timer_value * 60 if trend.timer_unit == "minutes" else trend.timer_value)
+                    )).isoformat()
+                    if trend.timer_started_at and trend.timer_value else None
+                ),
             },
             "overlay": {
                 "text": trend.overlay_text,
