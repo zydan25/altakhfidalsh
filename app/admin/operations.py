@@ -245,7 +245,7 @@ def register_operation_routes(admin_bp):
                         target_ids = [None]
                     elif target_type == "style_tab":
                         url = (request.form.get("target_url") or "/looks").strip() or "/looks"
-                        target_ids = [None]
+                        target_ids = [int(x) for x in request.form.getlist("target_id") if str(x).isdigit()] or [None]
                     elif target_type not in target_types:
                         raise ValueError("نوع هدف البانر غير صحيح.")
                     elif not target_ids:
@@ -279,7 +279,7 @@ def register_operation_routes(admin_bp):
                         target_id = None
                         url = (request.form.get("target_url") or "").strip()
                     elif target_type == "style_tab":
-                        target_id = None
+                        target_id = request.form.get("target_id", type=int)
                         url = (request.form.get("target_url") or "/looks").strip()
                     elif target_type in target_types and db.session.get(target_types[target_type], target_id):
                         url = None
@@ -354,6 +354,8 @@ def register_operation_routes(admin_bp):
         campaign_map = {x.id: x.name for x in campaigns}
         hashtag_map = {x.id: x.name for x in hashtags}
         product_map = {x.id: x.name for x in products}
+        looks_rows = Look.query.filter_by(is_active=True).order_by(Look.sort_order, Look.name).limit(200).all()
+        look_map = {x.id: x.name for x in looks_rows}
         category_target_keys = {
             banner.id: [f"category:{x.target_id}" for x in targets_by_banner.get(banner.id, []) if x.target_type == "category"]
             for banner in banners
