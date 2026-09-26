@@ -15,6 +15,7 @@
     {% for key, label in [
       ("basics","الأساس"),
       ("categories","التصنيفات"),
+      ("side-categories","الفئات الجانبية"),
       ("media","الصور"),
       ("options","الألوان والمقاسات"),
       ("marketing","الشارات والهاشتاج"),
@@ -71,6 +72,29 @@
       {% endfor %}
     </div>
     <button id="saveCategories" class="primary-button" type="button">حفظ التصنيفات</button>
+  </div>
+
+  <div class="wizard-panel" data-panel="side-categories" hidden>
+    <div class="panel-heading">
+      <div>
+        <span class="eyebrow">Merchandising</span>
+        <h3>الفئات الجانبية ودوائرها</h3>
+        <p class="muted">هذه روابط منفصلة عن التصنيفات الأساسية. اختر الدوائر التي يظهر المنتج تحتها في الواجهة الجانبية للمتجر.</p>
+      </div>
+      <span id="sideCategoryCircleCount" class="status-pill">0 دائرة</span>
+    </div>
+    <div class="selection-toolbar">
+      <div>
+        <strong>دوائر الفئات الجانبية</strong>
+        <small class="muted">تظهر حسب القسم الرئيسي الذي أنشأه المدير. لا تُنشأ من التصنيف الأساسي.</small>
+      </div>
+      <div class="reference-actions">
+        <input id="sideCategoryCircleSearch" type="search" class="inline-search" placeholder="بحث في الدوائر…">
+        <a class="ghost-button" href="/admin/side-categories" target="_blank" rel="noreferrer">إدارة الفئات الجانبية</a>
+      </div>
+    </div>
+    <div id="sideCategoryCircleSelection" class="side-circle-picker"></div>
+    <button id="saveSideCategoryCircles" class="primary-button" type="button">حفظ الفئات الجانبية</button>
   </div>
 
   <div class="wizard-panel" data-panel="media" hidden>
