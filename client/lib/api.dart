@@ -59,7 +59,12 @@ class ApiService {
     }
     return d;
   }
-  Future<Map<String,dynamic>> requestOtp(String phone)async=>Map<String,dynamic>.from(await post('/customer/auth/request-otp',{'phone':phone,'purpose':'login'}));
+  Future<Map<String,dynamic>> requestOtp(String phone)async{
+    final d=Map<String,dynamic>.from(await post('/customer/auth/request-otp',{'phone':phone,'purpose':'login'}));
+    final item=d['item'];
+    if(item is Map)return Map<String,dynamic>.from(item);
+    return d;
+  }
   Future<Map<String,dynamic>> verifyOtp(int id,String code)async{
     final d=Map<String,dynamic>.from(await post('/customer/auth/verify-otp',{'otp_request_id':id,'code':code,'device_id':'flutter-client'}));
     final item=d['item'] is Map?Map<String,dynamic>.from(d['item']):d;
