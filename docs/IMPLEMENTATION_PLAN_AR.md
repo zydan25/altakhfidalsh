@@ -96,7 +96,8 @@ final = converted + percent_add + fixed_markup
 - [ ] CI test workflow
 
 ### Sprint 02 — Admin Catalog (قيد التوسعة)
-- [ ] Product CRUD
+- [x] Product CRUD
+- [ ] Side-category circle assignment UX refinements
 - [ ] Product wizard متعدد الخطوات
 - [ ] Media upload + Pillow optimization
 - [ ] Colors / sizes / options / variants
@@ -110,7 +111,8 @@ final = converted + percent_add + fixed_markup
 - [ ] Sections and items
 - [ ] Banner CRUD + targets
 - [ ] Category circles
-- [ ] Hashtags and trends
+- [x] Hashtags and trends
+- [x] Independent side categories and circular merchandising
 - [ ] Campaign builder
 - [ ] New / offers / bestseller collections
 
@@ -214,3 +216,12 @@ final = converted + percent_add + fixed_markup
 - الطلب/السلة/الدفع/الشحن/ما بعد البيع/المحادثة لها خدمات وواجهات أساسية.
 - البحث والفلاتر والهاشتاجات والحملات والواجهات الديناميكية لها Domains مستقلة.
 - المهاجرات والبنية موجودة، بينما ملف migration الأول الفعلي سيُولد ويُراجع على PostgreSQL في بيئة CI/التشغيل قبل اعتماده للإنتاج.
+
+
+## موجة 0005 — الفئات الجانبية ومؤقت الترند
+
+- تمت إضافة مؤقت ترند بالثواني أو الدقائق مع `started_at/ends_at` في عقد API العام.
+- تمت إضافة نص Overlay اختياري بألوان قابلة للإدارة.
+- تمت إضافة `SideCategory → SideCategoryCircle → ProductSideCategoryCircle` كمنظومة مستقلة عن التصنيفات الأساسية.
+- القسم الجانبي يقبل root category فقط، أي Category ذات `parent_id = NULL`.
+- معالج المنتج أصبح يعرض دوائر الفئات الجانبية ويخزن روابط المنتج بها.
