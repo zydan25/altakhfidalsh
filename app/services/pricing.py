@@ -227,28 +227,14 @@ def resolve_pricing_context(
     if currency is None or not currency.is_active:
         raise LookupError("Requested currency was not found")
 
-    override_rule = (
-        PricingGroupRule.query
-        .filter_by(group_id=group.id, currency_id=target_currency_id)
-        .first()
+    # Group-level values are now the single source of truth and are
+    # intentionally independent from the display currency.
+    rule = PricingRule(
+        percent_markup=Decimal(group.percent_markup or 0),
+        fixed_markup=Decimal(group.fixed_markup_sar or 0),
+        decimals=int(group.decimals or currency.decimals or 2),
+        rounding_rule=group.rounding_rule or "nearest",
     )
-    if override_rule is not None:
-        rule = PricingRule(
-            percent_markup=Decimal(override_rule.percent_markup),
-            fixed_markup=Decimal(override_rule.fixed_markup),
-            decimals=override_rule.decimals,
-            rounding_rule=override_rule.rounding_rule,
-        )
-    else:
-        rule = PricingRule(
-            percent_markup=Decimal(group.percent_markup or 0),
-            fixed_markup=Decimal(group.fixed_markup_sar or 0),
-            decimals=int(group.decimals or currency.decimals or 2),
-            rounding_rule=group.rounding_rule or "nearest",
-        )
-    if currency is None:
-        raise LookupError("Requested currency was not found")
-
     return PricingContext(
         pricing_group_id=group.id,
         pricing_group_name=group.name,
