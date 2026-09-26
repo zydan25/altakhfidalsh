@@ -1,0 +1,24 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <div class="module-toolbar"><div class="module-heading-copy"><span class="eyebrow">المحتوى والمتجر · Style</span><h2>الإطلالات</h2><p class="muted">إطلالة تجمع صورة غلاف ومنتجات محددة، ويمكن للبانر توجيه العميل إليها.</p></div><div class="module-toolbar-actions"><span class="status-pill">{{ looks|length }} إطلالة</span><details><summary class="primary-button">＋ إطلالة جديدة</summary>
+    <form method="post" enctype="multipart/form-data" class="form-stack" style="margin-top:10px"><input type="hidden" name="action" value="look_create"><label>اسم الإطلالة<input name="name" required placeholder="إطلالة الخريف"></label><label>Slug<input name="slug" dir="ltr"></label><label>الوصف<textarea name="description" rows="3"></textarea></label><label>الحالة<select name="status"><option value="draft">مسودة</option><option value="active">نشطة</option></select></label><label>الترتيب<input name="sort_order" type="number" value="0"></label><label>صورة الغلاف<input name="cover_image" type="file" accept="image/*"></label><button class="primary-button">حفظ الإطلالة</button></form>
+  </details></div></div>
+</section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="look-grid">
+{% for look in looks %}
+  {% set asset=asset_map.get(look.cover_asset_id) %}
+  <article class="panel look-card">
+    <div class="look-cover" style="background-image:url('{{ asset.url if asset else "" }}')"><span class="status-pill">{{ "نشطة" if look.status=="active" else "مسودة" }}</span></div>
+    <div class="look-card-head"><div><h3>{{ look.name }}</h3><small class="muted">{{ look.slug }}</small></div><span class="status-pill">{{ products_by_look.get(look.id,[])|length }} منتجات</span></div>
+    {% if look.description %}<p class="muted">{{ look.description }}</p>{% endif %}
+    <div class="chip-row">{% for lp in products_by_look.get(look.id,[]) %}<span class="banner-target-chip">{{ product_map.get(lp.product_id).name if product_map.get(lp.product_id) else lp.product_id }}<form method="post"><input type="hidden" name="action" value="look_remove_product"><input type="hidden" name="look_id" value="{{ look.id }}"><input type="hidden" name="product_id" value="{{ lp.product_id }}"><button class="chip-delete">×</button></form></span>{% else %}<span class="muted">أضف المنتجات من القائمة.</span>{% endfor %}</div>
+    <details><summary class="ghost-button">إضافة منتج</summary><form method="post" class="form-grid" style="margin-top:8px"><input type="hidden" name="action" value="look_add_product"><input type="hidden" name="look_id" value="{{ look.id }}"><select name="product_id" required>{% for x in products %}<option value="{{ x.id }}">{{ x.name }} #{{ x.id }}</option>{% endfor %}</select><input name="sort_order" type="number" value="0"><button class="primary-button">إضافة</button></form></details>
+    <details><summary class="ghost-button">تعديل</summary><form method="post" enctype="multipart/form-data" class="form-stack compact-form-grid" style="margin-top:8px"><input type="hidden" name="action" value="look_update"><input type="hidden" name="id" value="{{ look.id }}"><label>الاسم<input name="name" value="{{ look.name }}" required></label><label>Slug<input name="slug" value="{{ look.slug }}" dir="ltr"></label><label class="form-field-wide">الوصف<textarea name="description" rows="2">{{ look.description or "" }}</textarea></label><label>الحالة<select name="status"><option value="draft" {% if look.status!="active" %}selected{% endif %}>مسودة</option><option value="active" {% if look.status=="active" %}selected{% endif %}>نشطة</option></select></label><label>الترتيب<input name="sort_order" type="number" value="{{ look.sort_order }}"></label><label class="form-field-wide">الغلاف<input name="cover_image" type="file" accept="image/*"></label><button class="primary-button form-field-wide">حفظ</button></form></details>
+    <form method="post"><input type="hidden" name="action" value="look_archive"><input type="hidden" name="id" value="{{ look.id }}"><button class="ghost-button danger-button">أرشفة</button></form>
+  </article>
+{% else %}<div class="empty-state panel"><h3>لا توجد إطلالات</h3><p class="muted">هذه الوحدة أصبحت جاهزة، ويمكن ربطها الآن بأهداف البانرات.</p></div>{% endfor %}
+</section>
+{% endblock %}
