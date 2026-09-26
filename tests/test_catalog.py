@@ -90,6 +90,7 @@ def test_side_category_tree_is_independent_and_root_only(app):
         assert any(x["id"] == side["id"] for x in config["side_categories"])
         assert config["selected_side_category_circle_ids"] == [circle["id"]]
 
+        CatalogService.delete_category(child.id)
         CatalogService.delete_category(root.id)
         assert db.session.get(Category, root.id).is_active is False
         assert db.session.get(SideCategory, side["id"]).is_active is False
