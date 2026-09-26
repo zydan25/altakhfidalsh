@@ -56,12 +56,26 @@
       {% endif %}
 
       <div class="side-category-actions">
+        <div class="reorder-actions" aria-label="ترتيب الفئة الجانبية">
+          <form method="post" class="inline-form">
+            <input type="hidden" name="action" value="move_side_category">
+            <input type="hidden" name="id" value="{{ row.id }}">
+            <input type="hidden" name="direction" value="up">
+            <button class="icon-button reorder-button" type="submit" title="رفع لأعلى" aria-label="رفع لأعلى">↑</button>
+          </form>
+          <form method="post" class="inline-form">
+            <input type="hidden" name="action" value="move_side_category">
+            <input type="hidden" name="id" value="{{ row.id }}">
+            <input type="hidden" name="direction" value="down">
+            <button class="icon-button reorder-button" type="submit" title="خفض لأسفل" aria-label="خفض لأسفل">↓</button>
+          </form>
+        </div>
         <button class="ghost-button" type="button" data-side-edit="{{ row.id }}">تعديل</button>
         <a class="ghost-button" href="{{ request.path }}?view=circles&side_category_id={{ row.id }}">إدارة الدوائر</a>
         <form method="post" class="inline-form" onsubmit="return confirm('سيتم أرشفة القسم ودوائره. هل أنت متأكد؟')">
           <input type="hidden" name="action" value="archive_side_category">
           <input type="hidden" name="id" value="{{ row.id }}">
-          <button class="ghost-button" type="submit">أرشفة</button>
+          <button class="ghost-button danger-button" type="submit">أرشفة</button>
         </form>
       </div>
     </article>
@@ -126,11 +140,25 @@
         <small>{{ circle.slug }} · ترتيب {{ circle.sort_order }}</small>
       </div>
       <div class="side-circle-actions">
+        <div class="reorder-actions" aria-label="ترتيب الدائرة">
+          <form method="post" class="inline-form">
+            <input type="hidden" name="action" value="move_circle">
+            <input type="hidden" name="id" value="{{ circle.id }}">
+            <input type="hidden" name="direction" value="up">
+            <button class="icon-button reorder-button" type="submit" title="رفع لأعلى" aria-label="رفع لأعلى">↑</button>
+          </form>
+          <form method="post" class="inline-form">
+            <input type="hidden" name="action" value="move_circle">
+            <input type="hidden" name="id" value="{{ circle.id }}">
+            <input type="hidden" name="direction" value="down">
+            <button class="icon-button reorder-button" type="submit" title="خفض لأسفل" aria-label="خفض لأسفل">↓</button>
+          </form>
+        </div>
         <button class="ghost-button" type="button" data-circle-edit="{{ circle.id }}">تعديل</button>
         <form method="post" class="inline-form" onsubmit="return confirm('أرشفة هذه الدائرة؟')">
           <input type="hidden" name="action" value="archive_circle">
           <input type="hidden" name="id" value="{{ circle.id }}">
-          <button class="ghost-button" type="submit">أرشفة</button>
+          <button class="ghost-button danger-button" type="submit">أرشفة</button>
         </form>
       </div>
     </article>
@@ -201,9 +229,13 @@
       <label class="upload-zone side-circle-upload">
         <input name="files" id="sideCircleFiles" type="file" accept="image/*">
         <span class="upload-icon">◎</span>
-        <strong>صورة الدائرة</strong>
-        <small>صورة مربعة أو عمودية قصيرة مناسبة للعرض الدائري.</small>
+        <strong id="sideCircleFileLabel">صورة الدائرة</strong>
+        <small>عند التعديل يمكنك اختيار صورة جديدة لاستبدال الصورة الحالية.</small>
       </label>
+      <div id="sideCircleCurrentPreview" class="side-circle-current-preview" hidden>
+        <img id="sideCircleCurrentImage" src="" alt="الصورة الحالية للدائرة">
+        <div><span class="eyebrow">الصورة الحالية</span><strong>ستبقى كما هي حتى تختار صورة جديدة.</strong></div>
+      </div>
       <label>الشارة <small class="muted">(اختياري)</small>
         <select name="badge_id" id="sideCircleBadge"><option value="">بدون شارة</option>{% for badge in badges %}<option value="{{ badge.id }}">{{ badge.name }}</option>{% endfor %}</select>
       </label>
@@ -215,5 +247,5 @@
 
 <script id="sideCategorySeed" type="application/json">{{ side_categories|map(attribute='id')|list|tojson }}</script>
 <script id="sideCategoryData" type="application/json">{{ side_categories|tojson }}</script>
-<script src="{{ url_for('admin.static', filename='side-categories.js') }}?v=20260926-1" defer></script>
+<script src="{{ url_for('admin.static', filename='side-categories.js') }}?v=20260926-2" defer></script>
 {% endblock %}
