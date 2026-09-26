@@ -3,6 +3,8 @@ import unicodedata
 
 from flask import redirect, render_template, request, session, url_for
 
+from sqlalchemy import func
+
 from ..extensions import db
 from ..models import (
     AuditLog,
