@@ -45,6 +45,7 @@ jobs:
           API_BASE_URL: https://takhfidsh.alattab.site/api/v1
         run: |
           flutter build web --release \
+            --pwa-strategy=none \
             --base-href "/${GITHUB_REPOSITORY#*/}/" \
             --dart-define=API_BASE_URL="$API_BASE_URL"
 
