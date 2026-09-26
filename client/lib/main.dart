@@ -701,6 +701,196 @@ class LooksRow extends StatelessWidget {
   }
 }
 
+class BannerLandingScreen extends StatefulWidget{
+  final Map<String,dynamic> banner;
+  const BannerLandingScreen({super.key,required this.banner});
+  @override State<BannerLandingScreen> createState()=>_BannerLandingScreenState();
+}
+class _BannerLandingScreenState extends State<BannerLandingScreen>{
+  Map<String,dynamic>? home;
+  List<ProductModel> products=[];
+  bool busy=true;
+  int? rootId;
+  Map<String,dynamic>? target;
+  @override void initState(){super.initState();load();}
+  Future<void> load()async{
+    try{
+      home=await api.home();
+      final targets=((widget.banner['targets'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
+      target=targets.isEmpty?null:targets.first;
+      rootId=int.tryParse((widget.banner['root_category_id']??'').toString());
+      if(target?['type']=='category')rootId=int.tryParse((target?['id']??'').toString());
+      if(target?['type']=='product') {
+        products=[];
+      } else {
+        products=await api.feed(category:rootId);
+      }
+    }catch(_){}
+    if(mounted)setState(()=>busy=false);
+  }
+  @override Widget build(BuildContext context){
+    final image=api.url((widget.banner['mobile_image_url']??widget.banner['image_url']??'').toString());
+    final side=((home?['side_categories'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).where((e){
+      if(rootId==null)return true;
+      return int.tryParse((e['root_category_id']??'').toString())==rootId;
+    }).toList();
+    final targetType=target?['type']?.toString();
+    final targetId=int.tryParse((target?['id']??'').toString());
+    return Directionality(
+      textDirection:TextDirection.rtl,
+      child:Scaffold(
+        appBar:AppBar(title:Text((widget.banner['title']??'').toString())),
+        body:busy?const Center(child:CircularProgressIndicator()):ListView(
+          padding:const EdgeInsets.only(bottom:24),
+          children:[
+            if(image.isNotEmpty)Image.network(image,width:double.infinity,fit:BoxFit.cover),
+            Padding(
+              padding:const EdgeInsets.fromLTRB(12,14,12,4),
+              child:Text((widget.banner['title']??'').toString(),style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
+            ),
+            if((widget.banner['description']??'').toString().isNotEmpty)
+              Padding(
+                padding:const EdgeInsets.symmetric(horizontal:12),
+                child:Text(widget.banner['description'].toString(),style:const TextStyle(fontSize:12,color:ClientTheme.muted)),
+              ),
+            if(side.isNotEmpty)
+              SideCategoryRail(
+                categories:side,
+                onCircleTap:(circle)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>SideCategoryScreen(circle:circle))),
+              ),
+            if(targetType=='product'&&targetId!=null)
+              Padding(
+                padding:const EdgeInsets.all(12),
+                child:FilledButton(
+                  onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ProductScreen(targetId))),
+                  style:FilledButton.styleFrom(backgroundColor:ClientTheme.ink),
+                  child:const Text('عرض المنتج'),
+                ),
+              ),
+            if(targetType=='style_tab')
+              Padding(
+                padding:const EdgeInsets.all(12),
+                child:OutlinedButton(
+                  onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const LooksScreen())),
+                  child:const Text('استعرض الإطلالات'),
+                ),
+              ),
+            if(products.isNotEmpty)const SectionTitle(title:'منتجات العرض'),
+            if(products.isNotEmpty)
+              ProductGrid(products:products,onTap:(p)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ProductScreen(p.id)))),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SideCategoryScreen extends StatefulWidget{
+  final Map<String,dynamic> circle;
+  const SideCategoryScreen({super.key,required this.circle});
+  @override State<SideCategoryScreen> createState()=>_SideCategoryScreenState();
+}
+class _SideCategoryScreenState extends State<SideCategoryScreen>{
+  late Future<List<ProductModel>> future;
+  @override void initState(){
+    super.initState();
+    future=api.feed(circleId:int.tryParse((widget.circle['id']??'').toString()));
+  }
+  @override Widget build(BuildContext context)=>Directionality(
+    textDirection:TextDirection.rtl,
+    child:Scaffold(
+      appBar:AppBar(title:Text((widget.circle['name']??'').toString())),
+      body:FutureBuilder<List<ProductModel>>(
+        future:future,
+        builder:(context,s){
+          if(s.connectionState!=ConnectionState.done)return const Center(child:CircularProgressIndicator());
+          if(s.hasError)return Center(child:Text(s.error.toString()));
+          final products=s.data??const<ProductModel>[];
+          return ListView(
+            padding:const EdgeInsets.only(top:8,bottom:24),
+            children:[
+              if((widget.circle['image_url']??'').toString().isNotEmpty)
+                Padding(
+                  padding:const EdgeInsets.symmetric(horizontal:10),
+                  child:ClipRRect(
+                    borderRadius:BorderRadius.circular(2),
+                    child:Image.network(api.url(widget.circle['image_url'].toString()),height:170,fit:BoxFit.cover),
+                  ),
+                ),
+              ProductGrid(products:products,onTap:(p)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ProductScreen(p.id)))),
+            ],
+          );
+        },
+      ),
+    ),
+  );
+}
+
+class TrendDetailScreen extends StatelessWidget{
+  final Map<String,dynamic> trend;
+  const TrendDetailScreen({super.key,required this.trend});
+  @override Widget build(BuildContext context){
+    final bg=trend['background'] is Map?Map<String,dynamic>.from(trend['background']):{};
+    final ids=((trend['products'] as List?)??const[]).whereType<Map>().map((x){
+      final p=x['product'];
+      return p is Map?int.tryParse((p['id']??'').toString()):null;
+    }).whereType<int>().toSet();
+    return Directionality(
+      textDirection:TextDirection.rtl,
+      child:Scaffold(
+        appBar:AppBar(title:Text((trend['hashtag'] is Map?trend['hashtag']['display_name']:'الترند')?.toString()??'الترند')),
+        body:FutureBuilder<List<ProductModel>>(
+          future:api.feed(),
+          builder:(context,s){
+            if(!s.hasData)return const Center(child:CircularProgressIndicator());
+            final products=s.data!.where((p)=>ids.contains(p.id)).toList();
+            return ListView(
+              children:[
+                if((bg['url']??'').toString().isNotEmpty)
+                  Image.network(api.url(bg['url'].toString()),height:250,fit:BoxFit.cover),
+                if((trend['promo_text']??'').toString().isNotEmpty)
+                  Padding(padding:const EdgeInsets.all(12),child:Text(trend['promo_text'].toString(),style:const TextStyle(fontSize:16,fontWeight:FontWeight.w800))),
+                ProductGrid(products:products,onTap:(p)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ProductScreen(p.id)))),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class LookDetailScreen extends StatelessWidget{
+  final Map<String,dynamic> look;
+  const LookDetailScreen({super.key,required this.look});
+  @override Widget build(BuildContext context){
+    final ids=((look['products'] as List?)??const[]).map((x)=>int.tryParse(x.toString())).whereType<int>().toSet();
+    return Directionality(
+      textDirection:TextDirection.rtl,
+      child:Scaffold(
+        appBar:AppBar(title:Text((look['name']??'').toString())),
+        body:FutureBuilder<List<ProductModel>>(
+          future:api.feed(),
+          builder:(context,s){
+            if(!s.hasData)return const Center(child:CircularProgressIndicator());
+            final products=s.data!.where((p)=>ids.contains(p.id)).toList();
+            return ListView(
+              children:[
+                if((look['cover_url']??'').toString().isNotEmpty)
+                  Image.network(api.url(look['cover_url'].toString()),height:300,width:double.infinity,fit:BoxFit.cover),
+                Padding(padding:const EdgeInsets.fromLTRB(12,12,12,4),child:Text((look['name']??'').toString(),style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900))),
+                if((look['description']??'').toString().isNotEmpty)
+                  Padding(padding:const EdgeInsets.symmetric(horizontal:12),child:Text(look['description'].toString(),style:const TextStyle(color:ClientTheme.muted,fontSize:11))),
+                ProductGrid(products:products,onTap:(p)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ProductScreen(p.id)))),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class SearchScreen extends StatefulWidget{const SearchScreen({super.key});@override State<SearchScreen> createState()=>_SearchScreenState();}
 class _SearchScreenState extends State<SearchScreen>{
   final q=TextEditingController();List<ProductModel>rows=[];bool busy=false;
