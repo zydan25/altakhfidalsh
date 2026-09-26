@@ -1,0 +1,35 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <div class="module-toolbar"><div class="module-heading-copy"><span class="eyebrow">التسعير · العملات</span><h2>أسعار الصرف</h2><p class="muted">القاعدة الوحيدة للإدخال: <strong>1 SAR = قيمة بالعملة المستهدفة</strong>. عند طلب العكس يحسب النظام 1 ÷ السعر تلقائيًا ولا نكرر السجل.</p></div><div class="module-toolbar-actions"><span class="status-pill">{{ rows|length }} سجل</span><button class="primary-button" type="button" data-open-modal="exchangeRateAdd">＋ سعر صرف</button></div></div>
+</section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="panel fx-formula"><strong>مثال</strong><span>إذا كان 1 SAR = 72 YER، فالبيع بالريال اليمني يستخدم 72، وإذا طلب العميل SAR من YER يستخدم النظام 1 ÷ 72.</span></section>
+<section class="entity-grid manage-grid">
+{% for row in rows %}
+<article class="entity-card panel manage-card">
+  <div class="manage-card-header"><div class="manage-card-title"><strong>{{ row.base_currency_id == sar.id and "SAR" or row.base_currency_id }} → {{ currencies|selectattr('id','equalto',row.quote_currency_id)|map(attribute='code')|first or row.quote_currency_id }}</strong></div><span class="status-pill">1 SAR = {{ row.rate }}</span></div>
+  <div class="entity-field"><span class="entity-label">المصدر</span><strong>{{ row.source or "إدخال يدوي" }}</strong></div>
+  <div class="entity-field"><span class="entity-label">يبدأ</span><strong>{{ row.valid_from.strftime('%Y-%m-%d %H:%M') if row.valid_from else 'الآن' }}</strong></div>
+  <details style="grid-column:1/-1"><summary class="ghost-button">تعديل</summary>
+  <form method="post" class="form-stack compact-form-grid">
+    <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ row.id }}">
+    <label>العملة المستهدفة<select name="quote_currency_id" required>{% for c in currencies if c.code != 'SAR' %}<option value="{{ c.id }}" {% if c.id == row.quote_currency_id %}selected{% endif %}>{{ c.code }} · {{ c.name_ar }}</option>{% endfor %}</select></label>
+    <label>1 SAR =<input name="rate" type="number" step="0.000000000001" min="0" value="{{ row.rate }}" required></label>
+    <label class="form-field-wide">المصدر<input name="source" value="{{ row.source or '' }}" placeholder="يدوي / مصدر خارجي"></label>
+    <button class="primary-button form-field-wide" type="submit">حفظ</button>
+  </form></details>
+  <form method="post" style="grid-column:1/-1" onsubmit="return confirm('حذف سعر الصرف؟')"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button danger-button" type="submit">حذف</button></form>
+</article>
+{% else %}<section class="empty-state panel" style="grid-column:1/-1"><h3>لا توجد أسعار صرف</h3><p class="muted">أضف مثلًا: 1 SAR = 72 YER.</p></section>{% endfor %}
+</section>
+<div class="admin-modal" data-modal="exchangeRateAdd" hidden><div class="admin-modal-backdrop" data-close-modal></div><section class="admin-modal-dialog"><div class="admin-modal-header"><div><span class="eyebrow">إضافة</span><h3>سعر صرف جديد</h3></div><button class="icon-button" data-close-modal>×</button></div>
+<form method="post" class="form-stack">
+<input type="hidden" name="action" value="create">
+<label>من <div class="base-currency-lock">SAR · الريال السعودي</div></label>
+<label>إلى<select name="quote_currency_id" required><option value="">اختر العملة</option>{% for c in currencies if c.code != 'SAR' %}<option value="{{ c.id }}">{{ c.code }} · {{ c.name_ar }}</option>{% endfor %}</select></label>
+<label>1 SAR =<input name="rate" type="number" step="0.000000000001" min="0" required placeholder="72"></label>
+<label>المصدر<input name="source" placeholder="يدوي / API / بنك"></label>
+<div class="modal-actions"><button class="ghost-button" type="button" data-close-modal>إلغاء</button><button class="primary-button" type="submit">حفظ سعر الصرف</button></div>
+</form></section></div>
+{% endblock %}
