@@ -67,12 +67,22 @@ class CityArea(TimestampMixin, ActiveMixin, db.Model):
     code = db.Column(String(60), nullable=False)
     name = db.Column(String(160), nullable=False)
     direction = db.Column(String(20))
+    direction_id = db.Column(ForeignKey("geo_directions.id", ondelete="SET NULL"))
     source = db.Column(String(120))
     sort_order = db.Column(Integer, nullable=False, default=0)
     __table_args__ = (
         UniqueConstraint("city_id", "code", name="uq_city_area_city_code"),
         Index("ix_city_area_city_active", "city_id", "is_active"),
     )
+
+
+class GeoDirection(TimestampMixin, ActiveMixin, db.Model):
+    __tablename__ = "geo_directions"
+
+    id = db.Column(Integer, primary_key=True)
+    code = db.Column(String(20), nullable=False, unique=True)
+    name_ar = db.Column(String(80), nullable=False)
+    sort_order = db.Column(Integer, nullable=False, default=0)
 
 
 class Currency(TimestampMixin, ActiveMixin, db.Model):
@@ -158,6 +168,30 @@ class PricingGroupCity(TimestampMixin, ActiveMixin, db.Model):
         ),
         Index("ix_pricing_group_city_lookup", "city_id", "priority"),
         Index("ix_pricing_group_region_lookup", "region_id", "priority"),
+    )
+
+
+class PricingLocationAdjustment(TimestampMixin, ActiveMixin, db.Model):
+    __tablename__ = "pricing_location_adjustments"
+
+    id = db.Column(Integer, primary_key=True)
+    city_id = db.Column(ForeignKey("cities.id", ondelete="CASCADE"))
+    region_id = db.Column(ForeignKey("regions.id", ondelete="CASCADE"))
+    area_id = db.Column(ForeignKey("city_areas.id", ondelete="CASCADE"))
+    percent_adjustment = db.Column(Numeric(12, 4), nullable=False, default=0)
+    fixed_adjustment_sar = db.Column(Numeric(24, 4), nullable=False, default=0)
+    priority = db.Column(Integer, nullable=False, default=0)
+    starts_at = db.Column(db.DateTime(timezone=True))
+    ends_at = db.Column(db.DateTime(timezone=True))
+    __table_args__ = (
+        CheckConstraint(
+            "(CASE WHEN city_id IS NOT NULL THEN 1 ELSE 0 END + "
+            "CASE WHEN region_id IS NOT NULL THEN 1 ELSE 0 END + "
+            "CASE WHEN area_id IS NOT NULL THEN 1 ELSE 0 END) = 1",
+            name="ck_pricing_location_adjustment_one_target",
+        ),
+        CheckConstraint("percent_adjustment > -100", name="ck_pricing_location_adjustment_percent_gt_minus_100"),
+        Index("ix_pricing_location_adjustment_lookup", "area_id", "city_id", "region_id", "priority", "is_active"),
     )
 
 
@@ -899,11 +933,28 @@ class Banner(TimestampMixin, ActiveMixin, db.Model):
     name = db.Column(String(200), nullable=False)
     image_asset_id = db.Column(ForeignKey("media_assets.id"), nullable=False)
     mobile_asset_id = db.Column(ForeignKey("media_assets.id"))
+    root_category_id = db.Column(ForeignKey("categories.id", ondelete="SET NULL"))
+    title = db.Column(String(220))
+    description = db.Column(Text)
+    button_label = db.Column(String(120))
+    title_color = db.Column(String(20), nullable=False, default="#ffffff")
+    description_color = db.Column(String(20), nullable=False, default="#ffffff")
+    button_text_color = db.Column(String(20), nullable=False, default="#ffffff")
+    button_background_color = db.Column(String(20), nullable=False, default="#111827")
+    overlay_background_color = db.Column(String(20), nullable=False, default="#111827")
+    overlay_opacity = db.Column(Numeric(4, 3), nullable=False, default=0)
     size_spec = db.Column(String(60))
     overlay_text = db.Column(Text)
-    position_text = db.Column(String(40))
-    duration = db.Column(Integer)
+    position_text = db.Column(String(40), nullable=False, default="center")
+    duration = db.Column(Integer, nullable=False, default=6)
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    starts_at = db.Column(db.DateTime(timezone=True))
+    ends_at = db.Column(db.DateTime(timezone=True))
     status = db.Column(String(40), nullable=False, default="draft")
+    __table_args__ = (
+        CheckConstraint("overlay_opacity >= 0 AND overlay_opacity <= 1", name="ck_banner_overlay_opacity"),
+        Index("ix_banner_active_schedule", "is_active", "status", "sort_order", "starts_at", "ends_at"),
+    )
 
 
 class BannerTarget(TimestampMixin, db.Model):
@@ -914,6 +965,7 @@ class BannerTarget(TimestampMixin, db.Model):
     target_type = db.Column(String(40), nullable=False)
     target_id = db.Column(Integer)
     url = db.Column(String(1000))
+    config_json = db.Column(db.JSON, nullable=False, default=dict)
     priority = db.Column(Integer, nullable=False, default=0)
 
 
@@ -965,6 +1017,46 @@ class ShippingRate(TimestampMixin, ActiveMixin, db.Model):
     __table_args__ = (
         Index("ix_shipping_rate_location", "city_area_id", "city_id", "region_id", "customer_id", "is_active"),
         Index("ix_shipping_rate_customer", "customer_id", "priority"),
+    )
+
+
+class ShippingRule(TimestampMixin, ActiveMixin, db.Model):
+    __tablename__ = "shipping_rules"
+
+    id = db.Column(Integer, primary_key=True)
+    method_id = db.Column(ForeignKey("shipping_methods.id", ondelete="CASCADE"), nullable=False)
+    rule_type = db.Column(String(40), nullable=False)
+    min_order_sar = db.Column(Numeric(24, 4))
+    max_order_sar = db.Column(Numeric(24, 4))
+    value = db.Column(Numeric(24, 4), nullable=False, default=0)
+    priority = db.Column(Integer, nullable=False, default=0)
+    stackable = db.Column(Boolean, nullable=False, default=False)
+    stop_processing = db.Column(Boolean, nullable=False, default=True)
+    applies_to_all = db.Column(Boolean, nullable=False, default=False)
+    __table_args__ = (
+        CheckConstraint(
+            "rule_type IN ('free_shipping','percent_discount','fixed_discount','surcharge','set_price')",
+            name="ck_shipping_rule_type",
+        ),
+        CheckConstraint("value >= 0", name="ck_shipping_rule_value_nonnegative"),
+        CheckConstraint(
+            "max_order_sar IS NULL OR min_order_sar IS NULL OR max_order_sar >= min_order_sar",
+            name="ck_shipping_rule_order_range",
+        ),
+        Index("ix_shipping_rule_lookup", "method_id", "is_active", "priority"),
+    )
+
+
+class ShippingRuleTarget(TimestampMixin, db.Model):
+    __tablename__ = "shipping_rule_targets"
+
+    id = db.Column(Integer, primary_key=True)
+    rule_id = db.Column(ForeignKey("shipping_rules.id", ondelete="CASCADE"), nullable=False)
+    target_type = db.Column(String(20), nullable=False)
+    target_id = db.Column(Integer, nullable=False)
+    __table_args__ = (
+        UniqueConstraint("rule_id", "target_type", "target_id", name="uq_shipping_rule_target"),
+        Index("ix_shipping_rule_target_lookup", "target_type", "target_id", "rule_id"),
     )
 
 
