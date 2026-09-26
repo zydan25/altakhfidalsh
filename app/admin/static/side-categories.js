@@ -43,6 +43,9 @@
     file: document.getElementById("sideCircleFiles"),
     badge: document.getElementById("sideCircleBadge"),
     sort: document.getElementById("sideCircleSort"),
+    currentPreview: document.getElementById("sideCircleCurrentPreview"),
+    currentImage: document.getElementById("sideCircleCurrentImage"),
+    fileLabel: document.getElementById("sideCircleFileLabel"),
   };
 
   document.querySelectorAll("[data-side-create]").forEach(button => {
@@ -86,6 +89,9 @@
       circleForm.file.value = "";
       circleForm.badge.value = "";
       circleForm.sort.value = "0";
+      if (circleForm.currentPreview) circleForm.currentPreview.hidden = true;
+      if (circleForm.currentImage) circleForm.currentImage.removeAttribute("src");
+      if (circleForm.fileLabel) circleForm.fileLabel.textContent = "صورة الدائرة";
       const sideId = new URLSearchParams(window.location.search).get("side_category_id");
       if (sideId) circleForm.side.value = sideId;
       open(circleModal);
@@ -106,6 +112,13 @@
       circleForm.file.value = "";
       circleForm.badge.value = String(row.badge_id || "");
       circleForm.sort.value = String(row.sort_order || 0);
+      if (circleForm.currentImage) {
+        circleForm.currentImage.src = row.image_url || "";
+      }
+      if (circleForm.currentPreview) {
+        circleForm.currentPreview.hidden = !row.image_url;
+      }
+      if (circleForm.fileLabel) circleForm.fileLabel.textContent = row.image_url ? "استبدال صورة الدائرة" : "صورة الدائرة";
       open(circleModal);
     });
   });
@@ -134,3 +147,14 @@
     });
   }
 })();
+
+  circleForm.file?.addEventListener("change", () => {
+    if (!circleForm.file.files?.length) return;
+    if (circleForm.fileLabel) circleForm.fileLabel.textContent = "الصورة الجديدة: " + circleForm.file.files[0].name;
+    if (circleForm.currentImage) {
+      const url = URL.createObjectURL(circleForm.file.files[0]);
+      circleForm.currentImage.src = url;
+      if (circleForm.currentPreview) circleForm.currentPreview.hidden = false;
+      circleForm.currentImage.onload = () => URL.revokeObjectURL(url);
+    }
+  });
