@@ -1014,12 +1014,16 @@ def register_entity_views(admin_bp):
             .all()
         )
         badges = Badge.query.filter(Badge.is_active.is_(True)).order_by(Badge.priority.desc(), Badge.name).all()
-        active_side_categories = (
+        active_side_category_objects = (
             SideCategory.query
             .filter(SideCategory.is_active.is_(True))
             .order_by(SideCategory.sort_order, SideCategory.name, SideCategory.id)
             .all()
         )
+        side_categories = [
+            CatalogService._serialize_side_category(row)
+            for row in active_side_category_objects
+        ]
         archived_side_categories = (
             SideCategory.query
             .filter(SideCategory.is_active.is_(False))
@@ -1044,7 +1048,7 @@ def register_entity_views(admin_bp):
             .limit(100)
             .all()
         )
-        side_map = {row.id: row for row in active_side_categories}
+        side_map = {row["id"]: row for row in side_categories}
         circle_assets = {
             row.id: db.session.get(MediaAsset, row.image_asset_id) if row.image_asset_id else None
             for row in circles
@@ -1055,7 +1059,7 @@ def register_entity_views(admin_bp):
             section="المحتوى والمتجر",
             root_categories=root_categories,
             badges=badges,
-            side_categories=active_side_categories,
+            side_categories=side_categories,
             archived_side_categories=archived_side_categories,
             circles=circles,
             archived_circles=archived_circles,
