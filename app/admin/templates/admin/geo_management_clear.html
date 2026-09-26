@@ -42,7 +42,7 @@
     <div class="panel-heading"><div><span class="eyebrow">المستوى 3</span><h3>المدينة</h3></div></div>
     <form method="post" class="form-stack">
       <input type="hidden" name="action" value="city">
-      <label>المحافظة / المنطقة *<select name="region_id" class="parent-filter" data-child="city-region" required><option value="">اختر المحافظة</option>{% for x in regions %}<option value="{{ x.id }}">{{ x.name }} · {{ country_map.get(x.country_id,'') }}</option>{% endfor %}</select></label>
+      <label>المحافظة / المنطقة *<select name="region_id" class="parent-filter" data-child="city-region" required><option value="">اختر المحافظة</option>{% for x in regions %}<option value="{{ x.id }}" data-country="{{ x.country_id }}">{{ x.name }} · {{ country_map.get(x.country_id,'') }}</option>{% endfor %}</select></label>
       <label>الكود *<input name="code" required placeholder="IBB-C"></label>
       <label>اسم المدينة *<input name="name" required placeholder="مدينة إب"></label>
       <label>الاتجاه
@@ -107,21 +107,35 @@
 
 <script>
 (function(){
-  function filterSelect(select, parentAttr){
+  function filterChild(childSelector, dataAttr, emptyText){
+    var parent=document.querySelector(childSelector);
+    if(!parent) return;
     function apply(){
-      var value=select.value;
-      Array.from(select.options).forEach(function(opt){
-        if(!opt.value) return;
-        var parent=opt.getAttribute(parentAttr);
-        opt.hidden=!!value && parent!==value;
-      });
+      var value=parent.value;
+      Array.from(parent.form.querySelectorAll("select")).forEach(function(){});
     }
-    select.addEventListener("change",apply); apply();
+    parent.addEventListener("change",apply);
   }
-  var cityRegion=document.querySelector('.parent-filter[data-child="city-region"]');
-  if(cityRegion) filterSelect(cityRegion,"data-country");
-  var areaCity=document.querySelector('.parent-filter[data-child="area-city"]');
-  if(areaCity) filterSelect(areaCity,"data-region");
+
+  var cityRegion=document.querySelector('select[name="region_id"]');
+  if(cityRegion){
+    var cityCodeInputs=cityRegion.closest("form").querySelectorAll("input[name='code'], input[name='name']");
+    function cityParentReady(){
+      cityRegion.closest("form").querySelector("button[type='submit']").disabled=!cityRegion.value;
+    }
+    cityRegion.addEventListener("change",cityParentReady);
+    cityParentReady();
+  }
+
+  var areaCity=document.querySelector('select[name="city_id"]');
+  if(areaCity){
+    var form=areaCity.closest("form");
+    function areaParentReady(){
+      form.querySelector("button[type='submit']").disabled=!areaCity.value;
+    }
+    areaCity.addEventListener("change",areaParentReady);
+    areaParentReady();
+  }
 })();
 </script>
 {% endblock %}
