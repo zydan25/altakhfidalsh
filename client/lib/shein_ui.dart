@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'api.dart';
 import 'app_state.dart';
 import 'models.dart';
 import 'theme.dart';
@@ -1011,7 +1010,7 @@ class _SizeGuide extends StatelessWidget {
     const _Handle(), const Text('دليل المقاسات', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)), const SizedBox(height: 8),
     const Text('اختر المقاس اعتمادًا على القياسات المتاحة لهذا المنتج.', textAlign: TextAlign.center, style: TextStyle(fontSize: 10, height: 1.5)),
     const SizedBox(height: 12), Container(color: ClientTheme.soft, padding: const EdgeInsets.all(10), child: const Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [Text('المقاس'), Text('الصدر'), Text('الخصر')])),
-  ]));
+  ])));
 }
 
 class SxTrendsScreen extends StatefulWidget {
@@ -1327,7 +1326,7 @@ class SxOrderSuccess extends StatelessWidget {
     const SizedBox(height: 15), const Text('تم تأكيد طلبك', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900)),
     const SizedBox(height: 5), Text(no.isEmpty ? 'تم إنشاء الطلب بنجاح' : 'رقم الطلب: ' + no, style: const TextStyle(fontSize: 10, color: ClientTheme.muted)),
     const SizedBox(height: 16), SizedBox(width: double.infinity, height: 48, child: FilledButton(onPressed: () => Navigator.pop(context), style: FilledButton.styleFrom(backgroundColor: Colors.black), child: const Text('العودة للتسوق'))),
-  ]))));
+  ])))));
 }
 
 class SxAccountScreen extends StatefulWidget {
