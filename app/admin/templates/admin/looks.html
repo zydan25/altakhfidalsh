@@ -83,7 +83,7 @@
               {% set checked = selected_circles|selectattr("circle_id","equalto",circle.id)|list|length > 0 %}
               <label class="look-circle-option {% if checked %}is-selected{% endif %}">
                 <input type="checkbox" name="circle_id" value="{{ circle.id }}" {% if checked %}checked{% endif %}>
-                <span class="look-circle-dot" style="background-image:url('{{ (circle.image_asset_id and asset_map.get(circle.image_asset_id).url) if circle.image_asset_id and asset_map.get(circle.image_asset_id) else "" }}')"></span>
+                <span class="look-circle-dot" style="background-image:url('{{ (circle.image_asset_id and circle_asset_map.get(circle.image_asset_id).url) if circle.image_asset_id and asset_map.get(circle.image_asset_id) else "" }}')"></span>
                 <span><strong>{{ circle.name }}</strong><small>{{ side.name if side else "فئة دائرية" }}</small></span>
               </label>
             {% else %}<p class="muted compact-empty">أنشئ الفئات الدائرية أولًا من وحدة دوائر الفئات.</p>{% endfor %}
