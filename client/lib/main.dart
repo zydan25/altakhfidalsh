@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
 import 'api.dart';
+import 'app_state.dart';
+import 'shein_ui.dart';
 import 'models.dart';
 import 'theme.dart';
 import 'widgets.dart';
 
-final api=ApiService();
-final state=ClientState();
 
 Future<void> main()async{
   WidgetsFlutterBinding.ensureInitialized();
   await api.restore();
+  await state.restorePreferences();
   runApp(const AltakhfidApp());
-}
-
-class ClientState{
-  bool get loggedIn=>api.token.isNotEmpty;
-  Set<int> wishlist={};
 }
 
 class AltakhfidApp extends StatelessWidget{
@@ -25,7 +21,7 @@ class AltakhfidApp extends StatelessWidget{
     title:'التخفيض الصح',
     theme:ClientTheme.theme(),
     locale:const Locale('ar'),
-    home:state.loggedIn?const AppShell():const AuthScreen(),
+    home:state.loggedIn?const SxAppShell():const SxAuthScreen(),
   );
 }
 
