@@ -1628,6 +1628,16 @@ class CatalogService:
                 "slot": assignment.slot,
                 "product": CatalogService._serialize_trend_product(product),
             })
+
+        started_at = trend.timer_started_at
+        if started_at is not None and started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=timezone.utc)
+        timer_seconds = CatalogService._trend_timer_seconds(trend)
+        ends_at = (
+            (started_at + timedelta(seconds=timer_seconds)).isoformat()
+            if started_at is not None and timer_seconds
+            else None
+        )
         return {
             "id": trend.id,
             "expired": CatalogService.is_trend_timer_expired(trend),
@@ -1644,13 +1654,8 @@ class CatalogService:
                 "value": trend.timer_value,
                 "unit": trend.timer_unit,
                 "seconds": (trend.timer_value * 60 if trend.timer_value and trend.timer_unit == "minutes" else trend.timer_value),
-                "started_at": trend.timer_started_at.isoformat() if trend.timer_started_at else None,
-                "ends_at": (
-                    (trend.timer_started_at + timedelta(
-                        seconds=(trend.timer_value * 60 if trend.timer_unit == "minutes" else trend.timer_value)
-                    )).isoformat()
-                    if trend.timer_started_at and trend.timer_value else None
-                ),
+                "started_at": started_at.isoformat() if started_at else None,
+                "ends_at": ends_at,
             },
             "overlay": {
                 "text": trend.overlay_text,
