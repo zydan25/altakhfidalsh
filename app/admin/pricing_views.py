@@ -20,6 +20,8 @@ from ..models import (
     ShippingRate,
     PricingLocationAdjustment,
     GeoDirection,
+    ShippingRule,
+    ShippingRuleTarget,
 )
 from .context import build_admin_context
 from ..modules.geo.services import generate_area_code, generate_city_code
@@ -529,7 +531,89 @@ def register_pricing_views(admin_bp):
                 action = (request.form.get("action") or "").strip()
                 row = db.session.get(ShippingRate, request.form.get("id", type=int))
 
-                if action == "method":
+                if action == "rule_create" or action == "rule_update":
+                    method_id = request.form.get("rule_method_id", type=int)
+                    method = db.session.get(ShippingMethod, method_id)
+                    if method is None or not method.is_active:
+                        raise ValueError("اختر طريقة توصيل فعالة.")
+                    rule_type = (request.form.get("rule_type") or "percent_discount").strip()
+                    allowed = {"free_shipping", "percent_discount", "fixed_discount", "surcharge", "set_price"}
+                    if rule_type not in allowed:
+                        raise ValueError("نوع قاعدة التوصيل غير صحيح.")
+                    value = _decimal(request.form.get("rule_value"), "0")
+                    min_order = _decimal(request.form.get("rule_min_order_sar"), "0") if request.form.get("rule_min_order_sar") else None
+                    max_order = _decimal(request.form.get("rule_max_order_sar"), "0") if request.form.get("rule_max_order_sar") else None
+                    if value < 0:
+                        raise ValueError("قيمة القاعدة لا يمكن أن تكون سالبة.")
+                    if rule_type == "percent_discount" and value > 100:
+                        raise ValueError("خصم النسبة لا يمكن أن يتجاوز 100%.")
+                    if min_order is not None and max_order is not None and max_order < min_order:
+                        raise ValueError("الحد الأعلى للسلة يجب ألا يقل عن الحد الأدنى.")
+                    rule = db.session.get(ShippingRule, request.form.get("rule_id", type=int))
+                    if action == "rule_update":
+                        if rule is None:
+                            raise ValueError("قاعدة التوصيل غير موجودة.")
+                        ShippingRuleTarget.query.filter_by(rule_id=rule.id).delete()
+                    else:
+                        rule = ShippingRule(method_id=method.id)
+                        db.session.add(rule)
+                        db.session.flush()
+                    rule.method_id = method.id
+                    rule.rule_type = rule_type
+                    rule.min_order_sar = min_order
+                    rule.max_order_sar = max_order
+                    rule.value = Decimal("0") if rule_type == "free_shipping" else value
+                    rule.priority = request.form.get("rule_priority", 0, type=int) or 0
+                    rule.stackable = request.form.get("rule_stackable") == "on"
+                    rule.stop_processing = request.form.get("rule_stop_processing") == "on"
+                    selected = [x.strip().lower() for x in request.form.getlist("rule_target") if ":" in x]
+                    applies_to_all = request.form.get("rule_applies_to_all") == "on" or not selected
+                    rule.applies_to_all = applies_to_all
+                    if not applies_to_all:
+                        parsed = []
+                        for raw in selected:
+                            target_type, raw_id = raw.split(":", 1)
+                            if target_type not in {"region", "city", "area"}:
+                                continue
+                            target_id = int(raw_id)
+                            target_obj = db.session.get(
+                                Region if target_type == "region" else City if target_type == "city" else CityArea,
+                                target_id,
+                            )
+                            if target_obj is None or not target_obj.is_active:
+                                continue
+                            parsed.append((target_type, target_id))
+                        # Compress a checked parent: it already covers all descendants.
+                        region_ids = {x[1] for x in parsed if x[0] == "region"}
+                        city_ids = {x[1] for x in parsed if x[0] == "city"}
+                        normalized = []
+                        for target_type, target_id in parsed:
+                            if target_type == "city":
+                                city = db.session.get(City, target_id)
+                                if city and city.region_id in region_ids:
+                                    continue
+                            if target_type == "area":
+                                area = db.session.get(CityArea, target_id)
+                                if area and (area.city_id in city_ids or (db.session.get(City, area.city_id) and db.session.get(City, area.city_id).region_id in region_ids)):
+                                    continue
+                            if (target_type, target_id) not in normalized:
+                                normalized.append((target_type, target_id))
+                        if not normalized:
+                            raise ValueError("اختر مدينة أو محافظة أو منطقة، أو فعّل «الكل».")
+                        for target_type, target_id in normalized:
+                            db.session.add(ShippingRuleTarget(rule_id=rule.id, target_type=target_type, target_id=target_id))
+                    success = "تم تحديث قاعدة التوصيل." if action == "rule_update" else "تمت إضافة قاعدة التوصيل."
+                    db.session.commit()
+
+                elif action == "rule_archive":
+                    rule = db.session.get(ShippingRule, request.form.get("rule_id", type=int))
+                    if rule is None:
+                        raise ValueError("قاعدة التوصيل غير موجودة.")
+                    rule.is_active = False
+                    db.session.commit()
+                    success = "تمت أرشفة قاعدة التوصيل."
+
+                elif action == "method":
                     name = (request.form.get("name") or "").strip()
                     code = (request.form.get("code") or "").strip().lower()
                     lo = request.form.get("delivery_days_min", type=int)
@@ -655,27 +739,42 @@ def register_pricing_views(admin_bp):
 
         methods = ShippingMethod.query.filter_by(is_active=True).order_by(ShippingMethod.name).all()
         customers = Customer.query.filter_by(is_active=True).order_by(Customer.id.desc()).limit(500).all()
+        countries = Country.query.filter_by(is_active=True).order_by(Country.name_ar).all()
         regions = Region.query.filter_by(is_active=True).order_by(Region.name).all()
         cities = City.query.filter_by(is_active=True).order_by(City.name).all()
         areas = CityArea.query.filter_by(is_active=True).order_by(CityArea.name).all()
         rows = ShippingRate.query.filter_by(is_active=True).order_by(
             ShippingRate.priority.desc(), ShippingRate.id.desc()
         ).limit(500).all()
+        rules = ShippingRule.query.filter_by(is_active=True).order_by(
+            ShippingRule.priority.desc(), ShippingRule.id.desc()
+        ).limit(300).all()
+        target_rows = ShippingRuleTarget.query.filter(
+            ShippingRuleTarget.rule_id.in_([x.id for x in rules])
+        ).all() if rules else []
+        targets_by_rule = {}
+        for target in target_rows:
+            targets_by_rule.setdefault(target.rule_id, []).append(target)
         return render_template(
             "admin/shipping_rates_clear.html",
             title="طرق التوصيل وقواعدها",
             section="المبيعات والطلبات",
             methods=methods,
             customers=customers,
+            countries=countries,
             regions=regions,
             cities=cities,
             areas=areas,
             rows=rows,
+            rules=rules,
+            targets_by_rule=targets_by_rule,
             region_map={x.id: x.name for x in regions},
             city_map={x.id: x.name for x in cities},
             area_map={x.id: x.name for x in areas},
             method_map={x.id: x.name for x in methods},
             customer_map={x.id: (x.name or x.phone_normalized) for x in customers},
+            cities_by_region={rid: [x for x in cities if x.region_id == rid] for rid in {x.region_id for x in cities}},
+            areas_by_city={cid: [x for x in areas if x.city_id == cid] for cid in {x.city_id for x in areas}},
             error=error,
             success=success,
             **build_admin_context(),
