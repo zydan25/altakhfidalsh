@@ -37,6 +37,19 @@ Base URL:
 - POST /catalog/policies/warranty
 - POST /catalog/badges
 
+## Trend Timer
+
+الـGET `/catalog/trends` و`/catalog/trends/{id}` يعيدان بيانات المؤقت عند وجوده داخل `timer`:
+
+- `enabled`
+- `value`
+- `unit`: `seconds` أو `minutes`
+- `seconds`
+- `started_at`
+- `ends_at`
+
+وتحتوي `overlay` على النص المخصص وألوانه: `text`, `text_color`, `background_color`.
+
 ## Side Categories
 
 - GET /catalog/side-categories
