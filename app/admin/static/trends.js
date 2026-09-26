@@ -472,8 +472,6 @@
       return;
     }
     clearNotify();
-    if (els.overlayTextColorText.value) els.overlayTextColor.value = els.overlayTextColorText.value;
-    if (els.overlayBackgroundColorText.value) els.overlayBackgroundColor.value = els.overlayBackgroundColorText.value;
     if (els.save) {
       els.save.disabled = true;
       els.save.textContent = "جاري الحفظ...";
