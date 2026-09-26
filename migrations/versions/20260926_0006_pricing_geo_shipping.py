@@ -132,6 +132,18 @@ def upgrade():
             sa.Column("city_area_id", sa.Integer(), sa.ForeignKey("city_areas.id", ondelete="SET NULL")),
         )
 
+    if _has_table("orders"):
+        if not _has_column("orders", "shipping_base_sar"):
+            op.add_column(
+                "orders",
+                sa.Column("shipping_base_sar", sa.Numeric(24, 4), nullable=False, server_default="0"),
+            )
+        if not _has_column("orders", "shipping_rate_id"):
+            op.add_column(
+                "orders",
+                sa.Column("shipping_rate_id", sa.Integer(), sa.ForeignKey("shipping_rates.id", ondelete="SET NULL")),
+            )
+
     if _has_table("shipping_rates"):
         additions = [
             ("customer_id", sa.Column("customer_id", sa.Integer(), sa.ForeignKey("customers.id", ondelete="CASCADE"))),
@@ -169,6 +181,12 @@ def upgrade():
 
 
 def downgrade():
+    if _has_table("orders"):
+        if _has_column("orders", "shipping_rate_id"):
+            op.drop_column("orders", "shipping_rate_id")
+        if _has_column("orders", "shipping_base_sar"):
+            op.drop_column("orders", "shipping_base_sar")
+
     if _has_table("shipping_rates"):
         for name in ("ix_shipping_rate_customer", "ix_shipping_rate_location"):
             if _has_index("shipping_rates", name):
