@@ -1,142 +1,225 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<section class="module-header">
+<section class="module-header banner-page-header">
   <div class="module-toolbar">
     <div class="module-heading-copy">
-      <span class="eyebrow">المحتوى والمتجر</span>
-      <h2>البانرات والشاشات</h2>
-      <p class="muted">المحتوى يظهر أولًا، والإضافة من نافذة منفصلة مناسبة للهاتف مع رفع الصور مباشرة.</p>
+      <span class="eyebrow">المحتوى والمتجر · بانرات</span>
+      <h2>استديو البانرات</h2>
+      <p class="muted">بانر خفيف للهاتف، صورة مضغوطة تلقائيًا، مدة ظهور، محتوى فوق الصورة، ونقطة انتقال واضحة إلى القسم/العرض/الهاشتاج/الإطلالة.</p>
     </div>
-    <div class="module-toolbar-actions">
-      <span class="status-pill">{{ banners|length }}</span>
-      <button class="primary-button" type="button" data-open-modal="bannerAddModal">+ إضافة بانر</button>
-      {% if banners %}<button class="ghost-button" type="button" data-open-modal="bannerTargetModal">+ إضافة هدف</button>{% endif %}
-    </div>
+    <div class="module-toolbar-actions"><span class="status-pill">{{ banners|length }} بانر</span><button class="primary-button" type="button" data-open-modal="bannerCreate">＋ بانر جديد</button></div>
   </div>
 </section>
-
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
-<section class="media-grid manage-grid">
-  {% for b in banners %}
-  {% set asset = asset_map.get(b.image_asset_id) %}
-  <article class="panel manage-card" style="padding:10px">
-    {% if asset %}<img src="{{ asset.url }}" alt="{{ b.name }}" class="banner-preview">{% else %}<div class="media-thumb">▧</div>{% endif %}
-    <div class="manage-card-header">
-      <div class="manage-card-title"><strong>{{ b.name }}</strong></div>
-      <span class="status-pill">{{ b.status }}</span>
-    </div>
-    <div class="entity-field"><span class="entity-label">المقاس</span><strong>{{ b.size_spec or "—" }}</strong></div>
-    <div class="entity-field"><span class="entity-label">المدة</span><strong>{{ b.duration or "—" }} ثانية</strong></div>
-    <div class="stack-list">
-      {% for target in targets if target.banner_id == b.id %}
-      <div class="stack-row" style="align-items:flex-start;flex-wrap:wrap">
-        <span><strong>{{ target.target_type }}</strong> · {% if target.url %}{{ target.url }}{% else %}#{{ target.target_id }}{% endif %}</span>
-        <details><summary class="ghost-button">تعديل الهدف</summary>
-          <form method="post" class="form-stack" style="margin-top:8px">
-            <input type="hidden" name="action" value="update_target"><input type="hidden" name="target_id" value="{{ target.id }}">
-            <label>النوع<select name="target_type"><option value="category" {% if target.target_type=="category" %}selected{% endif %}>فئة</option><option value="product" {% if target.target_type=="product" %}selected{% endif %}>منتج</option><option value="campaign" {% if target.target_type=="campaign" %}selected{% endif %}>حملة</option><option value="url" {% if target.target_type=="url" %}selected{% endif %}>رابط</option></select></label>
-            <label>معرّف الهدف<input name="target_id_value" type="number" value="{{ target.target_id or '' }}"></label>
-            <label>الرابط<input name="target_url" type="url" value="{{ target.url or '' }}" dir="ltr"></label>
-            <label>الأولوية<input name="target_priority" type="number" value="{{ target.priority }}"></label>
-            <button class="primary-button">حفظ الهدف</button>
-          </form>
-        </details>
-        <form method="post"><input type="hidden" name="action" value="delete_target"><input type="hidden" name="id" value="{{ target.id }}"><button class="ghost-button">حذف الهدف</button></form>
-      </div>
-      {% else %}
-      <span class="muted">لا يوجد هدف حتى الآن.</span>
-      {% endfor %}
-    </div>
-    <details style="margin-top:10px">
-      <summary class="ghost-button">تعديل البانر</summary>
-      <form method="post" enctype="multipart/form-data" class="form-stack" style="margin-top:10px">
-        <input type="hidden" name="action" value="update_banner"><input type="hidden" name="id" value="{{ b.id }}">
-        <label>الاسم<input name="name" value="{{ b.name }}" required></label>
-        <div class="form-layout">
-          <label>المقاس<input name="size_spec" value="{{ b.size_spec or '' }}"></label>
-          <label>موضع النص<input name="position_text" value="{{ b.position_text or '' }}"></label>
-          <label>المدة<input name="duration" type="number" min="1" value="{{ b.duration or 8 }}"></label>
-          <label>الحالة<select name="status"><option value="draft" {% if b.status=="draft" %}selected{% endif %}>مسودة</option><option value="active" {% if b.status=="active" %}selected{% endif %}>نشط</option></select></label>
-        </div>
-        <label>النص فوق الصورة<textarea name="overlay_text" rows="3">{{ b.overlay_text or '' }}</textarea></label>
-        <label>استبدال الصورة الأساسية<input name="image_file" type="file" accept="image/*"></label>
-        <label>استبدال صورة الهاتف<input name="mobile_image_file" type="file" accept="image/*"></label>
-        <button class="primary-button">حفظ التعديلات</button>
-      </form>
-    </details>
-    <form method="post" style="margin-top:8px"><input type="hidden" name="action" value="archive_banner"><input type="hidden" name="id" value="{{ b.id }}"><button class="ghost-button">أرشفة البانر</button></form>
-  </article>
-  {% else %}
-  <section class="empty-state panel" style="grid-column:1/-1">
-    <div class="empty-icon">▧</div>
-    <h3>لا توجد بانرات</h3>
-    <p class="muted">أضف أول بانر من الزر أعلى الصفحة.</p>
-    <button class="primary-button" type="button" data-open-modal="bannerAddModal">+ إضافة بانر</button>
-  </section>
-  {% endfor %}
+<section class="banner-sort-panel panel">
+  <div class="panel-heading"><div><span class="eyebrow">السحب والترتيب</span><h3>ما الذي يظهر أولًا؟</h3><p class="muted">اسحب البطاقات، ثم احفظ. الأعلى يظهر أولًا في واجهة العميل.</p></div>
+    <form method="post" id="bannerOrderForm"><input type="hidden" name="action" value="banner_reorder"><input type="hidden" name="order_ids" id="bannerOrderIds"><button class="ghost-button" type="submit">حفظ الترتيب</button></form>
+  </div>
+  <div class="banner-sort-list" id="bannerSortList">
+  {% for banner in banners %}
+    {% set asset = asset_map.get(banner.mobile_asset_id or banner.image_asset_id) %}
+    <article class="banner-sort-card" draggable="true" data-banner-id="{{ banner.id }}">
+      <span class="drag-handle">⋮⋮</span><img src="{{ asset.url if asset else '' }}" alt="{{ banner.name }}"><div><strong>{{ banner.name }}</strong><small class="muted">{{ "نشط" if banner.status=="active" else "مسودة" }} · {{ banner.duration }} ث</small></div><span class="status-pill">#{{ loop.index }}</span>
+    </article>
+  {% else %}<div class="empty-state">لا توجد بانرات بعد.</div>{% endfor %}
+  </div>
 </section>
 
-<div class="admin-modal" data-modal="bannerAddModal" hidden>
-  <div class="admin-modal-backdrop" data-close-modal></div>
-  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
-    <div class="admin-modal-header"><div><span class="eyebrow">إضافة</span><h3>بانر جديد</h3></div><button class="icon-button" type="button" data-close-modal>×</button></div>
-    <form method="post" enctype="multipart/form-data" class="form-stack">
-      <input type="hidden" name="action" value="create_banner">
-      <label>الاسم الداخلي<input name="name" required placeholder="عرض العودة للمدارس"></label>
-      <label class="upload-zone"><input name="image_file" type="file" accept="image/*" required><span class="upload-icon">▧</span><strong>الصورة الأساسية</strong><small>ترفع من الهاتف وتُحفظ كـAsset.</small></label>
-      <label class="upload-zone"><input name="mobile_image_file" type="file" accept="image/*"><span class="upload-icon">▧</span><strong>صورة الهاتف الاختيارية</strong><small>اختيارية.</small></label>
-      <div class="form-layout">
-        <label>المقاس المستهدف<input name="size_spec" placeholder="1080×706"></label>
-        <label>موضع النص<input name="position_text" placeholder="center"></label>
-        <label>مدة الظهور<input name="duration" type="number" min="1" placeholder="8"></label>
-        <label>الحالة<select name="status"><option value="draft" selected>مسودة</option><option value="active">نشط</option></select></label>
+<section class="banner-admin-grid">
+{% for banner in banners %}
+  {% set asset = asset_map.get(banner.mobile_asset_id or banner.image_asset_id) %}
+  {% set primary_asset = asset_map.get(banner.image_asset_id) %}
+  <article class="panel banner-admin-card">
+    <div class="banner-preview-shell">
+      <div class="banner-preview-image" style="background-image:url('{{ asset.url if asset else "" }}')">
+        <div class="banner-preview-overlay" style="background:{{ banner.overlay_background_color }};opacity:{{ banner.overlay_opacity }};"></div>
+        <div class="banner-preview-content banner-pos-{{ banner.position_text }}">
+          {% if banner.overlay_text %}<span class="banner-floating-text">{{ banner.overlay_text }}</span>{% endif %}
+          {% if banner.title %}<strong style="color:{{ banner.title_color }}">{{ banner.title }}</strong>{% endif %}
+          {% if banner.description %}<p style="color:{{ banner.description_color }}">{{ banner.description }}</p>{% endif %}
+          {% if banner.button_label %}<span class="banner-preview-button" style="color:{{ banner.button_text_color }};background:{{ banner.button_background_color }}">{{ banner.button_label }}</span>{% endif %}
+        </div>
+        <span class="banner-duration-badge">⏱ {{ banner.duration }}s</span>
       </div>
-      <label>النص فوق الصورة<textarea name="overlay_text" rows="3" placeholder="نص اختياري"></textarea></label>
-      <div class="modal-actions"><button class="ghost-button" type="button" data-close-modal>إلغاء</button><button class="primary-button" type="submit">حفظ البانر</button></div>
+    </div>
+    <div class="banner-admin-head">
+      <div><span class="eyebrow">{{ "نشط" if banner.status=="active" else "مسودة" }}</span><h3>{{ banner.name }}</h3><p class="muted">{{ banner.title or "بدون عنوان" }}</p></div>
+      <div class="banner-admin-actions"><button class="ghost-button" type="button" data-open-modal="bannerEdit{{ banner.id }}">تعديل</button><form method="post"><input type="hidden" name="action" value="archive_banner"><input type="hidden" name="id" value="{{ banner.id }}"><button class="ghost-button danger-button">أرشفة</button></form></div>
+    </div>
+    <div class="banner-meta-grid">
+      <div><span>الجمهور</span><strong>{{ category_map.get(banner.root_category_id, "كل الفئات") if banner.root_category_id else "كل الفئات" }}</strong></div>
+      <div><span>الحجم</span><strong>{{ banner.size_spec or "متجاوب" }}</strong></div>
+      <div><span>المدة</span><strong>{{ banner.duration }} ثانية</strong></div>
+      <div><span>الحالة الزمنية</span><strong>{% if banner.starts_at or banner.ends_at %}مجدول{% else %}دائم{% endif %}</strong></div>
+    </div>
+    <div class="banner-targets">
+      <div class="banner-target-header"><strong>التوجيه</strong><span class="muted">{{ targets_by_banner.get(banner.id, [])|length }} أهداف</span></div>
+      <div class="chip-row">
+      {% for target in targets_by_banner.get(banner.id, []) %}
+        <span class="banner-target-chip">
+          {% if target.target_type=="category" %}فئة · {{ category_map.get(target.target_id,target.target_id) }}{% if target.config_json.get("include_descendants") %} + الفروع{% endif %}
+          {% elif target.target_type=="campaign" %}عرض · {{ campaign_map.get(target.target_id,target.target_id) }}
+          {% elif target.target_type=="hashtag" %}# · {{ hashtag_map.get(target.target_id,target.target_id) }}
+          {% elif target.target_type=="product" %}منتج · {{ product_map.get(target.target_id,target.target_id) }}
+          {% elif target.target_type=="style_tab" %}إطلالة
+          {% else %}رابط · {{ target.url }}{% endif %}
+          <form method="post"><input type="hidden" name="action" value="delete_target"><input type="hidden" name="target_id" value="{{ target.id }}"><button class="chip-delete">×</button></form>
+        </span>
+      {% else %}<span class="muted">لم تحدد وجهة بعد.</span>{% endfor %}
+      </div>
+    </div>
+    <details class="banner-target-editor">
+      <summary class="ghost-button">＋ إضافة توجيه</summary>
+      <form method="post" class="form-stack compact-form-grid" style="margin-top:12px">
+        <input type="hidden" name="action" value="add_targets"><input type="hidden" name="banner_id" value="{{ banner.id }}">
+        <label>نوع الوجهة<select name="target_type" class="banner-target-type" data-target-form="{{ banner.id }}"><option value="category">تصنيف</option><option value="campaign">عروض / حملة</option><option value="hashtag">هاشتاج</option><option value="style_tab">تبويب إطلالة</option><option value="product">منتج</option><option value="url">رابط</option></select></label>
+        <label class="target-extra-field target-url-field" data-target-form="{{ banner.id }}" hidden>الرابط<input name="target_url" placeholder="/looks"></label>
+        <label class="target-extra-field target-offer-field" data-target-form="{{ banner.id }}" hidden>الحملة<select name="target_id">{% for x in campaigns %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+        <label class="target-extra-field target-hashtag-field" data-target-form="{{ banner.id }}" hidden>الهاشتاج<select name="target_id">{% for x in hashtags %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+        <label class="target-extra-field target-product-field" data-target-form="{{ banner.id }}" hidden>المنتج<select name="target_id">{% for x in products %}<option value="{{ x.id }}">{{ x.name }} #{{ x.id }}</option>{% endfor %}</select></label>
+        <div class="target-category-field" data-target-form="{{ banner.id }}">
+          <div class="field-caption"><strong>التصنيفات</strong><small class="muted">حدد واحدًا أو أكثر</small></div>
+          <label class="check-row"><input name="include_descendants" type="checkbox"><span>عند اختيار فئة، اجلب الفروع والمنتجات التابعة لها</span></label>
+          <div class="banner-category-tree">
+          {% for root in root_categories %}
+            <details open>
+              <summary><label class="tree-check-row"><input type="checkbox" class="banner-category-parent" value="category:{{ root.id }}"><span>{{ root.name }}</span></label></summary>
+              <div>
+              {% for child in category_children.get(root.id, []) %}
+                <label class="tree-check-row nested"><input type="checkbox" name="target_id" value="{{ child.id }}" data-parent-category="{{ root.id }}" class="banner-category-child"><span>{{ child.name }}</span></label>
+              {% endfor %}
+              </div>
+            </details>
+          {% endfor %}
+          </div>
+        </div>
+        <div class="banner-style-note target-extra-field" data-target-form="{{ banner.id }}" hidden><strong>الإطلالة</strong><span class="muted">تم تجهيز الهدف؛ بعد إنشاء نظام الإطلالات سيصبح الاختيار مرتبطًا بإطلالة محددة.</span></div>
+        <label>الأولوية<input name="target_priority" type="number" value="0"></label>
+        <button class="primary-button form-field-wide">حفظ التوجيه</button>
+      </form>
+    </details>
+  </article>
+
+  <div class="admin-modal" data-modal="bannerEdit{{ banner.id }}" hidden>
+    <div class="admin-modal-backdrop" data-close-modal></div>
+    <section class="admin-modal-dialog banner-modal-dialog">
+      <div class="admin-modal-header"><div><span class="eyebrow">تحرير بانر</span><h3>{{ banner.name }}</h3></div><button class="icon-button" type="button" data-close-modal>×</button></div>
+      <form method="post" enctype="multipart/form-data" class="form-stack compact-form-grid">
+        <input type="hidden" name="action" value="update_banner"><input type="hidden" name="id" value="{{ banner.id }}">
+        <label>اسم البانر *<input name="name" value="{{ banner.name }}" required></label>
+        <label>الفئة الأب *<select name="root_category_id"><option value="">كل الفئات</option>{% for x in root_categories %}<option value="{{ x.id }}" {% if x.id==banner.root_category_id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
+        <label>عنوان فوق الصورة<input name="title" value="{{ banner.title or '' }}" placeholder="العنوان الرئيسي"></label>
+        <label>وصف مختصر<textarea name="description" rows="3">{{ banner.description or '' }}</textarea></label>
+        <label>نص عائم<input name="overlay_text" value="{{ banner.overlay_text or '' }}" placeholder="خصم اليوم فقط"></label>
+        <label>موضع النص<select name="position_text">{% for value,label in positions.items() %}<option value="{{ value }}" {% if banner.position_text==value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label>نص الزر<input name="button_label" value="{{ banner.button_label or '' }}" placeholder="تسوق الآن"></label>
+        <label>مدة الظهور بالثواني<input name="duration" type="number" min="1" max="120" value="{{ banner.duration }}"></label>
+        <label>الترتيب<input name="sort_order" type="number" value="{{ banner.sort_order }}"></label>
+        <label>الحالة<select name="status"><option value="draft" {% if banner.status!="active" %}selected{% endif %}>مسودة</option><option value="active" {% if banner.status=="active" %}selected{% endif %}>نشط</option></select></label>
+        <label>الحجم / النسبة<input name="size_spec" value="{{ banner.size_spec or '' }}" placeholder="mobile 16:7"></label>
+        <label>بداية الظهور<input name="starts_at" type="datetime-local" value="{{ banner.starts_at.strftime('%Y-%m-%dT%H:%M') if banner.starts_at else '' }}"></label>
+        <label>نهاية الظهور<input name="ends_at" type="datetime-local" value="{{ banner.ends_at.strftime('%Y-%m-%dT%H:%M') if banner.ends_at else '' }}"></label>
+        <label>لون العنوان<input name="title_color" type="color" value="{{ banner.title_color }}"></label>
+        <label>لون الوصف<input name="description_color" type="color" value="{{ banner.description_color }}"></label>
+        <label>لون نص الزر<input name="button_text_color" type="color" value="{{ banner.button_text_color }}"></label>
+        <label>خلفية الزر<input name="button_background_color" type="color" value="{{ banner.button_background_color }}"></label>
+        <label>خلفية النص<input name="overlay_background_color" type="color" value="{{ banner.overlay_background_color }}"></label>
+        <label>شفافية خلفية النص<input name="overlay_opacity" type="number" min="0" max="1" step="0.05" value="{{ banner.overlay_opacity }}"></label>
+        <label>الصورة الأساسية<input name="image_file" type="file" accept="image/*"><small class="field-help">تُحوّل تلقائيًا إلى WebP مضغوط.</small></label>
+        <label>صورة الهاتف الاختيارية<input name="mobile_image_file" type="file" accept="image/*"><small class="field-help">الأفضل نسخة هاتف أخف إن كانت مختلفة.</small></label>
+        <button class="primary-button form-field-wide">حفظ التعديلات</button>
+      </form>
+    </section>
+  </div>
+{% endfor %}
+</section>
+
+<div class="admin-modal" data-modal="bannerCreate" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog banner-modal-dialog">
+    <div class="admin-modal-header"><div><span class="eyebrow">بانر جديد</span><h3>أنشئ تجربة صغيرة وواضحة للهاتف</h3></div><button class="icon-button" type="button" data-close-modal>×</button></div>
+    <form method="post" enctype="multipart/form-data" class="form-stack compact-form-grid">
+      <input type="hidden" name="action" value="create_banner">
+      <label>اسم البانر *<input name="name" required placeholder="عرض نهاية الأسبوع"></label>
+      <label>الفئة الأب *<select name="root_category_id"><option value="">كل الفئات</option>{% for x in root_categories %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select><small class="field-help">هذه الفئة تحدد سياق ظهور البانر، وليس وجهته.</small></label>
+      <label>عنوان فوق الصورة<input name="title" placeholder="خصم حتى 70%"></label>
+      <label>الوصف<textarea name="description" rows="3" placeholder="اختيارات مختارة لفترة محدودة"></textarea></label>
+      <label>نص عائم<input name="overlay_text" placeholder="لفترة محدودة"></label>
+      <label>موضع النص<select name="position_text">{% for value,label in positions.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+      <label>نص الزر<input name="button_label" placeholder="تسوق الآن"></label>
+      <label>مدة الظهور بالثواني<input name="duration" type="number" min="1" max="120" value="6"></label>
+      <label>الترتيب<input name="sort_order" type="number" value="0"></label>
+      <label>الحالة<select name="status"><option value="draft">مسودة</option><option value="active">نشط</option></select></label>
+      <label>الحجم / النسبة<input name="size_spec" placeholder="mobile 16:7"></label>
+      <label>بداية الظهور<input name="starts_at" type="datetime-local"></label>
+      <label>نهاية الظهور<input name="ends_at" type="datetime-local"></label>
+      <label>لون العنوان<input name="title_color" type="color" value="#ffffff"></label>
+      <label>لون الوصف<input name="description_color" type="color" value="#ffffff"></label>
+      <label>لون نص الزر<input name="button_text_color" type="color" value="#ffffff"></label>
+      <label>خلفية الزر<input name="button_background_color" type="color" value="#111827"></label>
+      <label>خلفية النص<input name="overlay_background_color" type="color" value="#111827"></label>
+      <label>شفافية خلفية النص<input name="overlay_opacity" type="number" min="0" max="1" step="0.05" value="0.25"></label>
+      <label>الصورة الأساسية *<input name="image_file" type="file" accept="image/*" required><small class="field-help">يتم الضغط والتحويل إلى WebP أثناء الحفظ.</small></label>
+      <label>صورة الهاتف الاختيارية<input name="mobile_image_file" type="file" accept="image/*"></label>
+      <button class="primary-button form-field-wide">إنشاء البانر</button>
     </form>
   </section>
 </div>
 
-{% if banners %}
-<div class="admin-modal" data-modal="bannerTargetModal" hidden>
-  <div class="admin-modal-backdrop" data-close-modal></div>
-  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
-    <div class="admin-modal-header"><div><span class="eyebrow">إضافة</span><h3>هدف بانر</h3></div><button class="icon-button" type="button" data-close-modal>×</button></div>
-    <form method="post" class="form-stack">
-      <input type="hidden" name="action" value="add_target">
-      <label>البانر<select name="banner_id" required>{% for b in banners %}<option value="{{ b.id }}">{{ b.name }} · #{{ b.id }}</option>{% endfor %}</select></label>
-      <label>نوع الهدف<select id="bannerTargetType" name="target_type"><option value="category">فئة</option><option value="product">منتج</option><option value="campaign">حملة</option><option value="url">رابط</option></select></label>
-      <label id="bannerTargetSelectField">الهدف<select id="bannerTargetSelect" name="target_id"></select></label>
-      <label id="bannerTargetUrlField" hidden>الرابط<input id="bannerTargetUrl" name="target_url" type="url" dir="ltr" placeholder="https://example.com"></label>
-      <label>الأولوية<input name="target_priority" type="number" value="0"></label>
-      <div class="modal-actions"><button class="ghost-button" type="button" data-close-modal>إلغاء</button><button class="primary-button" type="submit">حفظ الهدف</button></div>
-    </form>
-  </section>
-</div>
 <script>
-(() => {
-  const type = document.getElementById("bannerTargetType");
-  const select = document.getElementById("bannerTargetSelect");
-  const field = document.getElementById("bannerTargetSelectField");
-  const urlField = document.getElementById("bannerTargetUrlField");
-  const url = document.getElementById("bannerTargetUrl");
-  const sets = {
-    category: [{% for x in categories %}{id:"{{ x.id }}",label:"فئة: {{ x.name|e }}"}{% if not loop.last %},{% endif %}{% endfor %}],
-    product: [{% for x in products %}{id:"{{ x.id }}",label:"منتج: #{{ x.id }} · {{ x.name|e }}"}{% if not loop.last %},{% endif %}{% endfor %}],
-    campaign: [{% for x in campaigns %}{id:"{{ x.id }}",label:"حملة: {{ x.name|e }}"}{% if not loop.last %},{% endif %}{% endfor %}]
-  };
-  const sync = () => {
-    const kind = type.value;
-    const needsUrl = kind === "url";
-    field.hidden = needsUrl; urlField.hidden = !needsUrl;
-    select.disabled = needsUrl; select.required = !needsUrl;
-    url.disabled = !needsUrl; url.required = needsUrl;
-    if (!needsUrl) select.innerHTML = (sets[kind] || []).map(item => "<option value=\"" + item.id + "\">" + item.label + "</option>").join("");
-  };
-  type?.addEventListener("change", sync); sync();
+(function(){
+  document.querySelectorAll(".banner-target-type").forEach(function(select){
+    function apply(){
+      const form=select.closest("form");
+      const value=select.value;
+      form.querySelectorAll(".target-extra-field,.target-category-field").forEach(el=>{
+        const show =
+          el.classList.contains("target-url-field") ? value==="url" :
+          el.classList.contains("target-offer-field") ? value==="campaign" :
+          el.classList.contains("target-hashtag-field") ? value==="hashtag" :
+          el.classList.contains("target-product-field") ? value==="product" :
+          el.classList.contains("banner-style-note") ? value==="style_tab" :
+          el.classList.contains("target-category-field") ? value==="category" : false;
+        el.hidden=!show;
+        el.querySelectorAll("select,input").forEach(input=>{
+          if(input.name==="target_id") input.disabled=!show;
+        });
+      });
+    }
+    select.addEventListener("change",apply); apply();
+  });
+
+  document.querySelectorAll(".banner-category-tree").forEach(function(tree){
+    const parents=Array.from(tree.querySelectorAll(".banner-category-parent"));
+    parents.forEach(parent=>{
+      parent.addEventListener("change",function(){
+        const id=this.value.split(":")[1];
+        tree.querySelectorAll('[data-parent-category="'+id+'"]').forEach(child=>child.checked=this.checked);
+      });
+    });
+  });
+
+  const list=document.getElementById("bannerSortList");
+  const hidden=document.getElementById("bannerOrderIds");
+  if(list && hidden){
+    let dragged=null;
+    list.querySelectorAll(".banner-sort-card").forEach(card=>{
+      card.addEventListener("dragstart",()=>{dragged=card;card.classList.add("is-dragging");});
+      card.addEventListener("dragend",()=>{card.classList.remove("is-dragging");dragged=null;});
+      card.addEventListener("dragover",e=>{
+        e.preventDefault();
+        if(!dragged || dragged===card) return;
+        const rect=card.getBoundingClientRect();
+        const before=e.clientY < rect.top + rect.height/2;
+        list.insertBefore(dragged,before?card:card.nextSibling);
+      });
+    });
+    document.getElementById("bannerOrderForm").addEventListener("submit",()=>{
+      hidden.value=Array.from(list.querySelectorAll(".banner-sort-card")).map(x=>x.dataset.bannerId).join(",");
+    });
+  }
 })();
 </script>
-{% endif %}
 {% endblock %}
