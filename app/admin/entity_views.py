@@ -1097,6 +1097,11 @@ def register_entity_views(admin_bp):
             .limit(500)
             .all()
         )
+        hashtag_map = {
+            int(hashtag.id): (hashtag.display_name or f"#{hashtag.name}")
+            for hashtag in hashtags
+        }
+
         hashtag_products_count = {
             int(hashtag.id): ProductHashtag.query
             .join(Product, Product.id == ProductHashtag.product_id)
@@ -1158,6 +1163,7 @@ def register_entity_views(admin_bp):
             title="الترندات والهاشتاجات",
             section="المحتوى والمتجر",
             hashtags=hashtags,
+            hashtag_map=hashtag_map,
             hashtag_products_count=hashtag_products_count,
             active_trends=active_trends,
             archived_trends=archived_trends,
