@@ -6,7 +6,7 @@ from . import api_bp
 from ...security import admin_api_required
 from .services import CatalogService, MediaService
 from ...extensions import db
-from ...models import Product, ProductSideCategoryCircle, SideCategoryCircle
+from ...models import Product, ProductCategory, ProductSideCategoryCircle, ProductVariant, SideCategoryCircle
 
 
 @api_bp.get("/categories")
@@ -172,6 +172,40 @@ def side_category_circle_references():
 @api_bp.get("/products")
 def products():
     return {"items": CatalogService.list_products()}
+
+
+@api_bp.get("/products/feed")
+def public_product_feed():
+    """Mobile customer feed: published products with image and first active variant."""
+    from sqlalchemy import or_
+    query = Product.query.filter(Product.is_active.is_(True), Product.status == "published")
+    category_id = request.args.get("category_id", type=int)
+    if category_id:
+        query = query.join(ProductCategory, ProductCategory.product_id == Product.id).filter(
+            ProductCategory.category_id == category_id
+        )
+    search = (request.args.get("q") or "").strip()
+    if search:
+        needle = "%" + search + "%"
+        query = query.filter(or_(
+            Product.name.ilike(needle),
+            Product.sku.ilike(needle),
+            Product.slug.ilike(needle),
+        ))
+    limit = min(max(request.args.get("limit", 80, type=int), 1), 100)
+    rows = query.order_by(Product.id.desc()).limit(limit).all()
+    items = []
+    for row in rows:
+        item = CatalogService._serialize_trend_product(row)
+        variant = ProductVariant.query.filter_by(
+            product_id=row.id,
+            is_active=True,
+        ).order_by(ProductVariant.id).first()
+        item["variant_id"] = variant.id if variant else None
+        item["base_price_sar"] = str(row.base_price)
+        item["status"] = row.status
+        items.append(item)
+    return {"items": items}
 
 
 @api_bp.post("/products/drafts")
