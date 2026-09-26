@@ -35,7 +35,7 @@ class AppShell extends StatefulWidget{
 }
 class _AppShellState extends State<AppShell>{
   int index=0;
-  final screens=const[HomeScreen(),CategoryHubScreen(),DealsScreen(),CartScreen(),AccountScreen()];
+  final screens=const[HomeScreen(),CategoryHubScreen(),LooksScreen(),CartScreen(),AccountScreen()];
   @override Widget build(BuildContext context)=>Directionality(
     textDirection:TextDirection.rtl,
     child:Scaffold(
@@ -45,9 +45,9 @@ class _AppShellState extends State<AppShell>{
         selectedIndex:index,
         onDestinationSelected:(v)=>setState(()=>index=v),
         destinations:const[
-          NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'الرئيسية'),
+          NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'تسوق'),
           NavigationDestination(icon:Icon(Icons.grid_view_outlined),selectedIcon:Icon(Icons.grid_view),label:'الفئات'),
-          NavigationDestination(icon:Icon(Icons.local_fire_department_outlined),selectedIcon:Icon(Icons.local_fire_department),label:'العروض'),
+          NavigationDestination(icon:Icon(Icons.auto_awesome_outlined),selectedIcon:Icon(Icons.auto_awesome),label:'الترند'),
           NavigationDestination(icon:Icon(Icons.shopping_bag_outlined),selectedIcon:Icon(Icons.shopping_bag),label:'السلة'),
           NavigationDestination(icon:Icon(Icons.person_outline),selectedIcon:Icon(Icons.person),label:'حسابي'),
         ],
@@ -182,10 +182,40 @@ class _HomeScreenState extends State<HomeScreen>{
       child:CustomScrollView(slivers:[
         SliverAppBar(
           pinned:true,
-          title:const Text('التخفيض الصح',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
+          backgroundColor:Colors.white,
+          leading:IconButton(
+            onPressed:()=>Navigator.push(
+              context,
+              MaterialPageRoute(builder:(_)=>const NotificationsScreen()),
+            ),
+            icon:const Icon(Icons.mail_outline,size:21),
+          ),
+          title:const Text(
+            'التخفيض الصح',
+            style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,letterSpacing:-.4),
+          ),
           actions:[
-            IconButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SearchScreen())),icon:const Icon(Icons.search)),
-            IconButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const WishlistScreen())),icon:const Icon(Icons.favorite_border)),
+            IconButton(
+              onPressed:()=>Navigator.push(
+                context,
+                MaterialPageRoute(builder:(_)=>const SearchScreen()),
+              ),
+              icon:const Icon(Icons.search,size:22),
+            ),
+            IconButton(
+              onPressed:()=>Navigator.push(
+                context,
+                MaterialPageRoute(builder:(_)=>const WishlistScreen()),
+              ),
+              icon:const Icon(Icons.favorite_border,size:22),
+            ),
+            IconButton(
+              onPressed:()=>Navigator.push(
+                context,
+                MaterialPageRoute(builder:(_)=>const CartScreen()),
+              ),
+              icon:const Icon(Icons.shopping_bag_outlined,size:22),
+            ),
           ],
         ),
         SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.fromLTRB(10,4,10,4),child:SearchBox(onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SearchScreen()))))),
@@ -193,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen>{
         if(loading)const SliverFillRemaining(hasScrollBody:false,child:Center(child:CircularProgressIndicator()))
         else ...[
           if(banners.isNotEmpty)SliverToBoxAdapter(child:BannerCarousel(banners:banners,onTap:bannerTap)),
-          SliverToBoxAdapter(child:Container(margin:const EdgeInsets.fromLTRB(10,10,10,3),padding:const EdgeInsets.all(11),color:const Color(0xFFFFEEE8),child:const Row(children:[Icon(Icons.local_shipping_outlined,size:18),SizedBox(width:8),Expanded(child:Text('عروض يومية • شحن • خصومات • هدايا',style:TextStyle(fontSize:11,fontWeight:FontWeight.w700))),Icon(Icons.chevron_left)]))),
+          const SliverToBoxAdapter(child:BenefitsRow()),
           if(cats.isNotEmpty)SliverToBoxAdapter(child:CategoryCircles(categories:cats.take(8).toList())),
           if(trends.isNotEmpty)SliverToBoxAdapter(child:TrendRow(rows:trends)),
           if(looks.isNotEmpty)SliverToBoxAdapter(child:LooksRow(rows:looks)),
@@ -205,6 +235,66 @@ class _HomeScreenState extends State<HomeScreen>{
           )),
         ],
       ]),
+    ),
+  );
+}
+
+class BenefitsRow extends StatelessWidget{
+  const BenefitsRow({super.key});
+  @override
+  Widget build(BuildContext context)=>Container(
+    margin:const EdgeInsets.fromLTRB(8,8,8,2),
+    child:Row(
+      children:[
+        Expanded(
+          child:Container(
+            height:64,
+            margin:const EdgeInsets.only(left:2),
+            padding:const EdgeInsets.symmetric(horizontal:10,vertical:8),
+            color:const Color(0xFFFFFBF1),
+            child:const Row(
+              children:[
+                Icon(Icons.local_shipping_outlined,size:20),
+                SizedBox(width:8),
+                Expanded(
+                  child:Column(
+                    mainAxisAlignment:MainAxisAlignment.center,
+                    crossAxisAlignment:CrossAxisAlignment.start,
+                    children:[
+                      Text('شحن سريع',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900)),
+                      Text('حسب العنوان',style:TextStyle(fontSize:9,color:ClientTheme.muted)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Expanded(
+          child:Container(
+            height:64,
+            margin:const EdgeInsets.only(right:2),
+            padding:const EdgeInsets.symmetric(horizontal:10,vertical:8),
+            color:const Color(0xFFFFFBF1),
+            child:const Row(
+              children:[
+                Icon(Icons.assignment_return_outlined,size:20),
+                SizedBox(width:8),
+                Expanded(
+                  child:Column(
+                    mainAxisAlignment:MainAxisAlignment.center,
+                    crossAxisAlignment:CrossAxisAlignment.start,
+                    children:[
+                      Text('إرجاع سهل',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900)),
+                      Text('وفق سياسة المتجر',style:TextStyle(fontSize:9,color:ClientTheme.muted)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     ),
   );
 }
