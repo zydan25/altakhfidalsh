@@ -8,6 +8,7 @@ from sqlalchemy import and_, or_
 from ..extensions import db
 from ..models import (
     City,
+    CityArea,
     Currency,
     Customer,
     CustomerPricingAssignment,
@@ -68,18 +69,20 @@ def calculate_customer_price(
     override_percent: Optional[Decimal] = None,
     override_fixed: Optional[Decimal] = None,
 ) -> PriceResult:
+    """Calculate a customer price from SAR-only catalog inputs."""
     base = Decimal(base_price_sar)
     rate = Decimal(fx_rate)
     percent = rule.percent_markup if override_percent is None else Decimal(override_percent)
-    fixed = rule.fixed_markup if override_fixed is None else Decimal(override_fixed)
+    fixed_sar = rule.fixed_markup if override_fixed is None else Decimal(override_fixed)
     converted = base * rate
     percent_add = converted * percent / Decimal("100")
+    fixed_add = fixed_sar * rate
     final = round_money(
-        converted + percent_add + fixed,
+        converted + percent_add + fixed_add,
         rule.decimals,
         rule.rounding_rule,
     )
-    return PriceResult(base, rate, converted, percent_add, fixed, final)
+    return PriceResult(base, rate, converted, percent_add, fixed_add, final)
 
 
 def _active_window_clause(model, now):
@@ -93,12 +96,21 @@ def resolve_pricing_context(
     *,
     customer_id: Optional[int] = None,
     city_id: Optional[int] = None,
+    area_id: Optional[int] = None,
     currency_id: Optional[int] = None,
     now: Optional[datetime] = None,
 ) -> PricingContext:
     now = now or datetime.now(timezone.utc)
     customer = db.session.get(Customer, customer_id) if customer_id else None
     effective_city_id = city_id or (customer.city_id if customer else None)
+    effective_area_id = area_id or (customer.city_area_id if customer else None)
+    area = db.session.get(CityArea, effective_area_id) if effective_area_id else None
+    if effective_area_id and (area is None or not area.is_active):
+        raise LookupError("Requested city area was not found")
+    if area and effective_city_id and area.city_id != effective_city_id:
+        raise LookupError("City area does not belong to the requested city")
+    if area and effective_city_id is None:
+        effective_city_id = area.city_id
 
     assignment = None
     if customer:
@@ -128,6 +140,26 @@ def resolve_pricing_context(
             source = "customer"
             override_percent = assignment.percent_override
             override_fixed = assignment.fixed_override
+
+    if group is None and effective_area_id:
+        area_assignment = (
+            PricingGroupCity.query
+            .filter(
+                PricingGroupCity.area_id == effective_area_id,
+                PricingGroupCity.is_active.is_(True),
+                _active_window_clause(PricingGroupCity, now),
+            )
+            .order_by(PricingGroupCity.priority.desc(), PricingGroupCity.id.desc())
+            .first()
+        )
+        if area_assignment:
+            candidate = db.session.get(PricingGroup, area_assignment.pricing_group_id)
+            if candidate and candidate.is_active and (
+                (candidate.starts_at is None or candidate.starts_at <= now)
+                and (candidate.ends_at is None or candidate.ends_at >= now)
+            ):
+                group = candidate
+                source = "area"
 
     if group is None and effective_city_id:
         city = db.session.get(City, effective_city_id)
@@ -187,17 +219,33 @@ def resolve_pricing_context(
 
     target_currency_id = currency_id or group.default_currency_id
     if target_currency_id is None:
-        raise LookupError("Pricing group has no default currency")
+        target_currency_id = Currency.query.filter_by(code="SAR", is_active=True).with_entities(Currency.id).scalar()
+    if target_currency_id is None:
+        raise LookupError("No display currency is configured")
 
-    rule = (
+    currency = db.session.get(Currency, target_currency_id)
+    if currency is None or not currency.is_active:
+        raise LookupError("Requested currency was not found")
+
+    override_rule = (
         PricingGroupRule.query
         .filter_by(group_id=group.id, currency_id=target_currency_id)
         .first()
     )
-    if rule is None:
-        raise LookupError("No pricing rule exists for the requested currency")
-
-    currency = db.session.get(Currency, target_currency_id)
+    if override_rule is not None:
+        rule = PricingRule(
+            percent_markup=Decimal(override_rule.percent_markup),
+            fixed_markup=Decimal(override_rule.fixed_markup),
+            decimals=override_rule.decimals,
+            rounding_rule=override_rule.rounding_rule,
+        )
+    else:
+        rule = PricingRule(
+            percent_markup=Decimal(group.percent_markup or 0),
+            fixed_markup=Decimal(group.fixed_markup_sar or 0),
+            decimals=int(group.decimals or currency.decimals or 2),
+            rounding_rule=group.rounding_rule or "nearest",
+        )
     if currency is None:
         raise LookupError("Requested currency was not found")
 
@@ -206,12 +254,7 @@ def resolve_pricing_context(
         pricing_group_name=group.name,
         currency_id=currency.id,
         currency_code=currency.code,
-        rule=PricingRule(
-            percent_markup=Decimal(rule.percent_markup),
-            fixed_markup=Decimal(rule.fixed_markup),
-            decimals=rule.decimals,
-            rounding_rule=rule.rounding_rule,
-        ),
+        rule=rule,
         override_percent=Decimal(override_percent) if override_percent is not None else None,
         override_fixed=Decimal(override_fixed) if override_fixed is not None else None,
         source=source,
@@ -239,9 +282,24 @@ def resolve_exchange_rate(
         .order_by(ExchangeRate.valid_from.desc(), ExchangeRate.id.desc())
         .first()
     )
-    if row is None:
-        raise LookupError("No active exchange rate exists for the requested currency")
-    return Decimal(row.rate)
+    if row is not None:
+        return Decimal(row.rate)
+
+    inverse = (
+        ExchangeRate.query
+        .filter(
+            ExchangeRate.base_currency_id == quote_currency_id,
+            ExchangeRate.quote_currency_id == base_currency_id,
+            ExchangeRate.valid_from <= now,
+            or_(ExchangeRate.valid_to.is_(None), ExchangeRate.valid_to >= now),
+        )
+        .order_by(ExchangeRate.valid_from.desc(), ExchangeRate.id.desc())
+        .first()
+    )
+    if inverse is not None and Decimal(inverse.rate) != 0:
+        return Decimal("1") / Decimal(inverse.rate)
+
+    raise LookupError("No active exchange rate exists for the requested currency")
 
 
 def price_for_customer(
@@ -249,12 +307,14 @@ def price_for_customer(
     base_price_sar: Decimal,
     customer_id: Optional[int] = None,
     city_id: Optional[int] = None,
+    area_id: Optional[int] = None,
     currency_id: Optional[int] = None,
     now: Optional[datetime] = None,
 ):
     context = resolve_pricing_context(
         customer_id=customer_id,
         city_id=city_id,
+        area_id=area_id,
         currency_id=currency_id,
         now=now,
     )
