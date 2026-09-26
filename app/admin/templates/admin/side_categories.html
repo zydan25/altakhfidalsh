@@ -35,6 +35,7 @@
 
   <div class="side-category-cards">
     {% for row in side_categories %}
+    {% set side_index = loop.index0 %}
     <article class="side-category-card panel">
       <div class="side-category-card-head">
         <div class="side-category-title">
@@ -61,13 +62,13 @@
             <input type="hidden" name="action" value="move_side_category">
             <input type="hidden" name="id" value="{{ row.id }}">
             <input type="hidden" name="direction" value="up">
-            <button class="icon-button reorder-button" type="submit" title="رفع لأعلى" aria-label="رفع لأعلى">↑</button>
+            <button class="icon-button reorder-button" type="submit" title="رفع لأعلى" aria-label="رفع لأعلى" {% if loop.first %}disabled{% endif %}>↑</button>
           </form>
           <form method="post" class="inline-form">
             <input type="hidden" name="action" value="move_side_category">
             <input type="hidden" name="id" value="{{ row.id }}">
             <input type="hidden" name="direction" value="down">
-            <button class="icon-button reorder-button" type="submit" title="خفض لأسفل" aria-label="خفض لأسفل">↓</button>
+            <button class="icon-button reorder-button" type="submit" title="خفض لأسفل" aria-label="خفض لأسفل" {% if loop.last %}disabled{% endif %}>↓</button>
           </form>
         </div>
         <button class="ghost-button" type="button" data-side-edit="{{ row.id }}">تعديل</button>
@@ -128,6 +129,9 @@
   <div class="side-circle-grid">
     {% for circle in circles %}
     {% if not request.args.get('side_category_id', type=int) or request.args.get('side_category_id', type=int) == circle.side_category_id %}
+    {% set side_circle_rows = circles|selectattr('side_category_id', 'equalto', circle.side_category_id)|list %}
+    {% set side_circle_ids = side_circle_rows|map(attribute='id')|list %}
+    {% set side_circle_index = side_circle_ids.index(circle.id) %}
     <article class="side-circle-card panel">
       <div class="side-circle-media">
         {% set asset = circle_assets.get(circle.id) %}
@@ -145,13 +149,13 @@
             <input type="hidden" name="action" value="move_circle">
             <input type="hidden" name="id" value="{{ circle.id }}">
             <input type="hidden" name="direction" value="up">
-            <button class="icon-button reorder-button" type="submit" title="رفع لأعلى" aria-label="رفع لأعلى">↑</button>
+            <button class="icon-button reorder-button" type="submit" title="رفع لأعلى" aria-label="رفع لأعلى" {% if side_circle_index == 0 %}disabled{% endif %}>↑</button>
           </form>
           <form method="post" class="inline-form">
             <input type="hidden" name="action" value="move_circle">
             <input type="hidden" name="id" value="{{ circle.id }}">
             <input type="hidden" name="direction" value="down">
-            <button class="icon-button reorder-button" type="submit" title="خفض لأسفل" aria-label="خفض لأسفل">↓</button>
+            <button class="icon-button reorder-button" type="submit" title="خفض لأسفل" aria-label="خفض لأسفل" {% if side_circle_index == (side_circle_ids|length - 1) %}disabled{% endif %}>↓</button>
           </form>
         </div>
         <button class="ghost-button" type="button" data-circle-edit="{{ circle.id }}">تعديل</button>
