@@ -100,7 +100,14 @@ def create_group():
 @admin_api_required("pricing.manage")
 def exchange_rate():
     try:
-        return {"item": PricingAdminService.create_exchange_rate(request.get_json(silent=True) or {})}, 201
+        payload = request.get_json(silent=True) or {}
+        sar = Currency.query.filter_by(code="SAR", is_active=True).first()
+        if sar is None:
+            return {"error": "exchange_rate_creation_failed", "detail": "العملة الأساسية SAR غير موجودة."}, 400
+        payload["base_currency_id"] = sar.id
+        if int(payload["quote_currency_id"]) == sar.id:
+            return {"error": "exchange_rate_creation_failed", "detail": "العملة المستهدفة يجب أن تكون مختلفة عن SAR."}, 400
+        return {"item": PricingAdminService.create_exchange_rate(payload)}, 201
     except (KeyError, ValueError) as exc:
         return {"error": "exchange_rate_creation_failed", "detail": str(exc)}, 400
 
