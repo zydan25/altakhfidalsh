@@ -15,6 +15,8 @@ class CustomerService:
             customer.email = (payload["email"] or "").strip() or None
         if "city_id" in payload:
             customer.city_id = payload["city_id"]
+        if "city_area_id" in payload:
+            customer.city_area_id = payload["city_area_id"]
         db.session.commit()
         return CustomerService.serialize(customer)
 
@@ -36,6 +38,7 @@ class CustomerService:
             phone=phone,
             country_id=payload.get("country_id"),
             city_id=int(payload["city_id"]),
+            city_area_id=int(payload["city_area_id"]) if payload.get("city_area_id") else None,
             district=(payload.get("district") or "").strip() or None,
             street=(payload.get("street") or "").strip() or None,
             landmark=(payload.get("landmark") or "").strip() or None,
@@ -50,6 +53,7 @@ class CustomerService:
             "recipient_name": address.recipient_name,
             "phone": address.phone,
             "city_id": address.city_id,
+            "city_area_id": address.city_area_id,
             "district": address.district,
             "street": address.street,
             "landmark": address.landmark,
@@ -64,5 +68,6 @@ class CustomerService:
             "name": customer.name,
             "email": customer.email,
             "city_id": customer.city_id,
+            "city_area_id": customer.city_area_id,
             "status": customer.status,
         }
