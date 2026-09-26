@@ -469,24 +469,32 @@ def register_operation_routes(admin_bp):
                         success = "تمت إزالة المنتج من الإطلالة."
                 elif action == "look_add_circles":
                     look_id = request.form.get("look_id", type=int)
-                    circle_ids = [int(x) for x in request.form.getlist("circle_id") if str(x).isdigit()]
+                    circle_ids = {int(x) for x in request.form.getlist("circle_id") if str(x).isdigit()}
                     if db.session.get(Look, look_id) is None:
                         raise ValueError("الإطلالة غير موجودة.")
-                    created = 0
-                    for circle_id in circle_ids:
-                        circle = db.session.get(SideCategoryCircle, circle_id)
-                        if circle is None or not circle.is_active:
-                            continue
-                        if not LookCircle.query.filter_by(look_id=look_id, circle_id=circle_id).first():
+                    valid_ids = {
+                        circle.id for circle in SideCategoryCircle.query.filter(
+                            SideCategoryCircle.id.in_(circle_ids),
+                            SideCategoryCircle.is_active.is_(True),
+                        ).all()
+                    } if circle_ids else set()
+                    existing = LookCircle.query.filter_by(look_id=look_id).all()
+                    for row in existing:
+                        if row.circle_id not in valid_ids:
+                            db.session.delete(row)
+                    for index, circle_id in enumerate(sorted(valid_ids)):
+                        row = LookCircle.query.filter_by(look_id=look_id, circle_id=circle_id).first()
+                        if row is None:
                             db.session.add(LookCircle(
                                 look_id=look_id,
                                 circle_id=circle_id,
-                                sort_order=request.form.get("sort_order", 0, type=int) or 0,
+                                sort_order=index,
                             ))
-                            created += 1
-                    if not created:
+                        else:
+                            row.sort_order = index
+                    if not valid_ids:
                         raise ValueError("اختر فئة دائرية واحدة على الأقل.")
-                    success = f"تم ربط {created} فئة دائرية بالإطلالة."
+                    success = f"تم حفظ {len(valid_ids)} فئات دائرية للإطلالة."
                 elif action in {"look_add_circle", "look_remove_circle"}:
                     look_id = request.form.get("look_id", type=int)
                     circle_id = request.form.get("circle_id", type=int)
