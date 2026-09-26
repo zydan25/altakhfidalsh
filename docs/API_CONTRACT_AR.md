@@ -37,6 +37,21 @@ Base URL:
 - POST /catalog/policies/warranty
 - POST /catalog/badges
 
+## Side Categories
+
+- GET /catalog/side-categories
+- POST /catalog/side-categories
+- PATCH /catalog/side-categories/{id}
+- DELETE /catalog/side-categories/{id}
+- POST /catalog/side-categories/{id}/circles multipart
+- PATCH /catalog/side-category-circles/{id}
+- DELETE /catalog/side-category-circles/{id}
+- GET /catalog/side-category-circles/{id}/products
+- GET /catalog/reference/side-category-circles
+- POST /catalog/products/{id}/side-category-circles
+
+الفئة الجانبية مرتبطة بقسم رئيسي فقط، والقسم الرئيسي هو category الذي لا يملك parent_id. دوائر الفئة الجانبية كائنات مستقلة عن categories، والمنتج يمكن ربطه بأكثر من دائرة.
+
 ## Pricing
 
 - GET /pricing/context
