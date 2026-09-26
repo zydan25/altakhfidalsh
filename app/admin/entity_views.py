@@ -1,5 +1,6 @@
 import re
 import unicodedata
+from decimal import Decimal, InvalidOperation
 
 from flask import redirect, render_template, request, session, url_for
 
