@@ -377,15 +377,44 @@ class CatalogService:
         db.session.commit()
 
     @staticmethod
+    def _product_category_belongs_to_root(product_category_id, root_category_id):
+        current_id = product_category_id
+        visited = set()
+        while current_id is not None and current_id not in visited:
+            visited.add(current_id)
+            category = db.session.get(Category, int(current_id))
+            if category is None:
+                return False
+            if category.id == int(root_category_id):
+                return True
+            current_id = category.parent_id
+        return False
+
+    @staticmethod
     def set_product_side_category_circles(product_id, circle_ids):
         if db.session.get(Product, product_id) is None:
             raise LookupError("product not found")
         normalized = []
+        product_category_ids = [
+            int(row.category_id)
+            for row in ProductCategory.query.filter_by(product_id=product_id).all()
+        ]
         for raw in circle_ids or []:
             circle_id = int(raw)
             circle = db.session.get(SideCategoryCircle, circle_id)
             if circle is None or not circle.is_active:
                 raise ValueError("إحدى دوائر الفئات الجانبية غير موجودة أو مؤرشفة.")
+            side_category = db.session.get(SideCategory, circle.side_category_id)
+            if side_category is None or not side_category.is_active:
+                raise ValueError("الفئة الجانبية المرتبطة بهذه الدائرة غير متاحة.")
+            if not any(
+                CatalogService._product_category_belongs_to_root(category_id, side_category.root_category_id)
+                for category_id in product_category_ids
+            ):
+                raise ValueError(
+                    "المنتج يجب أن يكون مرتبطًا بالقسم الرئيسي الخاص بالفئة الجانبية "
+                    "أو بأحد فروعه قبل ربطه بهذه الدائرة."
+                )
             if circle_id not in normalized:
                 normalized.append(circle_id)
         ProductSideCategoryCircle.query.filter_by(product_id=product_id).delete()
