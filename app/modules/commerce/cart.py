@@ -1,5 +1,5 @@
 from ...extensions import db
-from ...models import Cart, CartItem, Product, ProductVariant
+from ...models import Cart, CartItem, Product, ProductMedia, ProductVariant, MediaAsset, Color, Size
 from ...services.pricing import price_for_customer
 
 
@@ -23,6 +23,15 @@ class CartService:
                 currency_id=currency_id or cart.currency_id,
             )
             item.unit_price_snapshot = price.final
+            media = (
+                db.session.query(MediaAsset)
+                .join(ProductMedia, ProductMedia.asset_id == MediaAsset.id)
+                .filter(ProductMedia.product_id == product.id)
+                .order_by(ProductMedia.sort_order, ProductMedia.id)
+                .first()
+            )
+            color = db.session.get(Color, variant.color_id) if variant.color_id else None
+            size = db.session.get(Size, variant.size_id) if variant.size_id else None
             response.append({
                 "id": item.id,
                 "variant_id": item.variant_id,
@@ -31,6 +40,18 @@ class CartService:
                 "currency_id": context.currency_id,
                 "currency_code": context.currency_code,
                 "line_total": str(price.final * item.qty),
+                "product_id": product.id,
+                "product_name": product.name,
+                "sku": variant.sku,
+                "image_url": media.url if media else None,
+                "color_name": color.name if color else None,
+                "size_label": size.label if size else None,
+                "variant_display": " / ".join(
+                    x for x in (
+                        color.name if color else None,
+                        size.label if size else None,
+                    ) if x
+                ),
             })
             subtotal += price.final * item.qty
         db.session.commit()

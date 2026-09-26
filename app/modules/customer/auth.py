@@ -73,9 +73,24 @@ class CustomerAuthService:
         return result
 
     @staticmethod
-    def verify_otp(otp_request_id, raw_code, device_id=None):
+    def verify_otp(otp_request_id, raw_code, device_id=None, phone=None):
         now = datetime.now(timezone.utc)
-        otp = db.session.get(OTPRequest, int(otp_request_id))
+        otp = None
+        if otp_request_id is not None:
+            otp = db.session.get(OTPRequest, int(otp_request_id))
+        if otp is None and phone:
+            normalized_phone = normalize_phone(phone)
+            if normalized_phone:
+                otp = (
+                    OTPRequest.query
+                    .filter(
+                        OTPRequest.phone == normalized_phone,
+                        OTPRequest.status == "pending",
+                        OTPRequest.expires_at >= now,
+                    )
+                    .order_by(OTPRequest.created_at.desc(), OTPRequest.id.desc())
+                    .first()
+                )
         if otp is None:
             raise LookupError("OTP request not found")
         if otp.status != "pending":

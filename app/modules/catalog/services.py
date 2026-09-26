@@ -68,6 +68,7 @@ def _slugify(value, fallback="item"):
 class CatalogService:
     @staticmethod
     def _serialize_category(category):
+        icon = db.session.get(MediaAsset, category.icon_asset_id) if category.icon_asset_id else None
         return {
             "id": category.id,
             "parent_id": category.parent_id,
@@ -75,6 +76,7 @@ class CatalogService:
             "slug": category.slug,
             "display_style": category.display_style,
             "icon_asset_id": category.icon_asset_id,
+            "icon_url": icon.url if icon else None,
             "badge_id": category.badge_id,
             "sort_order": category.sort_order,
             "is_active": category.is_active,
