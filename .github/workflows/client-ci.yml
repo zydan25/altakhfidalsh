@@ -43,3 +43,11 @@ jobs:
       - name: Build release APK
         working-directory: client
         run: flutter build apk --release --dart-define=API_BASE_URL=https://takhfidsh.alattab.site/api/v1
+
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: altakhfid-android-release-${{ github.sha }}
+          path: client/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30

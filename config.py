@@ -23,7 +23,19 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "0") == "1"
-    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*")
+
+    _configured_cors = [
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+    _required_web_origins = [
+        "https://zydan25.github.io",
+    ]
+    CORS_ORIGINS = list(
+        dict.fromkeys(_configured_cors + _required_web_origins)
+    ) if _configured_cors else "*"
+
     WHATSAPP_BASE_URL = os.getenv("WHATSAPP_BASE_URL", "https://whatsapp.alattab.site")
     WHATSAPP_SESSION = os.getenv("WHATSAPP_SESSION", "basheer")
     WHATSAPP_API_KEY = os.getenv("WHATSAPP_API_KEY")
