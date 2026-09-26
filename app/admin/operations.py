@@ -255,7 +255,10 @@ def register_operation_routes(admin_bp):
                     for target_id in target_ids:
                         if target_type in target_types and db.session.get(target_types[target_type], target_id) is None:
                             continue
-                        config = {"include_descendants": include_descendants} if target_type == "category" else {}
+                        config = {
+                            "include_descendants": include_descendants,
+                            "display_mode": (request.form.get("category_display_mode") or "category").strip(),
+                        } if target_type == "category" else {}
                         db.session.add(
                             BannerTarget(
                                 banner_id=banner.id,
