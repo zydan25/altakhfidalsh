@@ -4,7 +4,7 @@ from flask import request
 from . import api_bp
 from ...security import admin_api_required
 from ...extensions import db
-from ...models import Banner, BannerTarget, Campaign, Category, Hashtag, MediaAsset, Product, StorefrontPage, StorefrontSection, StorefrontSectionItem
+from ...models import Banner, BannerTarget, Campaign, Category, Hashtag, Look, LookProduct, MediaAsset, Product, StorefrontPage, StorefrontSection, StorefrontSectionItem
 from sqlalchemy import or_
 
 
@@ -116,7 +116,7 @@ def add_banner_target(banner_id):
     if target_type not in {"category", "campaign", "hashtag", "product", "style_tab", "url"}:
         return {"error": "invalid_target_type"}, 400
     target_id = payload.get("target_id")
-    mapping = {"category": Category, "campaign": Campaign, "hashtag": Hashtag, "product": Product}
+    mapping = {"category": Category, "campaign": Campaign, "hashtag": Hashtag, "product": Product, "style_tab": Look}
     if target_type in mapping:
         try:
             target_id = int(target_id)
@@ -227,6 +227,36 @@ def banners():
             ],
         })
     return {"items": items}
+
+
+@api_bp.get("/looks")
+def looks():
+    now = datetime.now(timezone.utc)
+    rows = Look.query.filter(
+        Look.is_active.is_(True),
+        Look.status == "active",
+        or_(Look.starts_at.is_(None), Look.starts_at <= now),
+        or_(Look.ends_at.is_(None), Look.ends_at >= now),
+    ).order_by(Look.sort_order, Look.id.desc()).all()
+    asset_ids = [x.cover_asset_id for x in rows if x.cover_asset_id]
+    assets = MediaAsset.query.filter(MediaAsset.id.in_(asset_ids)).all() if asset_ids else []
+    asset_urls = {x.id: x.url for x in assets}
+    return {
+        "items": [
+            {
+                "id": look.id,
+                "name": look.name,
+                "slug": look.slug,
+                "description": look.description,
+                "cover_url": asset_urls.get(look.cover_asset_id),
+                "products": [
+                    item.product_id
+                    for item in LookProduct.query.filter_by(look_id=look.id).order_by(LookProduct.sort_order, LookProduct.id).all()
+                ],
+            }
+            for look in rows
+        ]
+    }
 
 
 @api_bp.post("/navigation-actions")
