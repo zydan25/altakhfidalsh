@@ -146,8 +146,6 @@
       window.location.search = params.toString();
     });
   }
-})();
-
   circleForm.file?.addEventListener("change", () => {
     if (!circleForm.file.files?.length) return;
     if (circleForm.fileLabel) circleForm.fileLabel.textContent = "الصورة الجديدة: " + circleForm.file.files[0].name;
@@ -158,3 +156,4 @@
       circleForm.currentImage.onload = () => URL.revokeObjectURL(url);
     }
   });
+})();
