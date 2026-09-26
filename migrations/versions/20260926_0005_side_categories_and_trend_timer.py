@@ -39,6 +39,12 @@ def upgrade():
             if not _has_column("trends", name):
                 op.add_column("trends", column)
 
+        # Normalize the initial default to the same HEX format accepted by the admin UI.
+        op.execute(
+            "UPDATE trends SET overlay_background_color = '#111827' "
+            "WHERE overlay_background_color IS NULL OR overlay_background_color LIKE 'rgba(%'"
+        )
+
         inspector = _inspector()
         checks = {c["name"] for c in inspector.get_check_constraints("trends")}
         if "ck_trend_timer_positive" not in checks:
