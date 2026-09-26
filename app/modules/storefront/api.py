@@ -180,6 +180,59 @@ def page(code):
     }
 
 
+
+
+@api_bp.get("/home")
+def home():
+    """Single discovery payload for the customer storefront."""
+    from ..catalog.services import CatalogService
+
+    page = StorefrontPage.query.filter_by(code="home", is_active=True).first()
+    page_payload = None
+    if page:
+        sections = StorefrontSection.query.filter_by(page_id=page.id).order_by(
+            StorefrontSection.sort_order, StorefrontSection.id
+        ).all()
+        page_payload = {
+            "id": page.id,
+            "code": page.code,
+            "name": page.name,
+            "route": page.route,
+            "sections": [
+                {
+                    "id": section.id,
+                    "type": section.section_type,
+                    "title": section.title,
+                    "settings": section.settings or {},
+                    "sort_order": section.sort_order,
+                    "items": [
+                        {
+                            "id": item.id,
+                            "type": item.item_type,
+                            "item_id": item.item_id,
+                            "sort_order": item.sort_order,
+                            "custom_label": item.custom_label,
+                        }
+                        for item in StorefrontSectionItem.query.filter_by(
+                            section_id=section.id
+                        ).order_by(StorefrontSectionItem.sort_order, StorefrontSectionItem.id).all()
+                    ],
+                }
+                for section in sections
+            ],
+        }
+
+    banner_payload = banners().get("items", [])
+    look_payload = looks().get("items", [])
+    return {
+        "page": page_payload,
+        "categories": CatalogService.list_categories(),
+        "side_categories": CatalogService.list_side_categories(include_archived=False),
+        "trends": CatalogService.list_public_trends(limit=20),
+        "looks": look_payload,
+        "banners": banner_payload,
+    }
+
 @api_bp.get("/banners")
 def banners():
     now = datetime.now(timezone.utc)
