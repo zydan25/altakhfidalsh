@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><div class="module-toolbar"><div class="module-heading-copy"><span class="eyebrow">المبيعات والطلبات · التوصيل</span><h2>أسعار التوصيل</h2><p class="muted">كل تكلفة التوصيل بالـSAR. القاعدة تختار حسب العميل أو المنطقة الداخلية أو المدينة أو المحافظة، ثم تطبق شرط السلة: من/إلى، أو مجاني فوق مبلغ.</p></div><div class="module-toolbar-actions"><span class="status-pill">{{ rows|length }} قاعدة</span></div></div></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="panel shipping-priority-note"><strong>أولوية التطبيق</strong><span>عميل محدد → منطقة داخل المدينة → مدينة → محافظة/منطقة → قاعدة عامة. داخل المستوى نفسه تستخدم أولوية القاعدة، ثم شروط السلة.</span></section>
+<section class="panel">
+<form method="post" class="form-stack compact-form-grid">
+<input type="hidden" name="action" value="create">
+<label>طريقة التوصيل<select name="method_id" required><option value="">اختر الطريقة</option>{% for x in methods %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+<label>عميل محدد <small class="muted">(اختياري)</small><select name="customer_id"><option value="">كل العملاء</option>{% for x in customers %}<option value="{{ x.id }}">{{ x.name or x.phone_normalized }}</option>{% endfor %}</select></label>
+<label>محافظة / منطقة<select name="region_id"><option value="">أي</option>{% for x in regions %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+<label>مدينة<select name="city_id"><option value="">أي</option>{% for x in cities %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+<label>منطقة داخل المدينة<select name="city_area_id"><option value="">أي</option>{% for x in areas %}<option value="{{ x.id }}">{{ x.name }} · {{ city_map.get(x.city_id,'') }}</option>{% endfor %}</select></label>
+<label>سعر التوصيل SAR<input name="price_sar" type="number" step="0.0001" min="0" value="0" required></label>
+<label>من السلة SAR<input name="min_order_sar" type="number" step="0.0001" min="0" placeholder="اختياري"></label>
+<label>إلى السلة SAR<input name="max_order_sar" type="number" step="0.0001" min="0" placeholder="اختياري"></label>
+<label>مجاني فوق SAR<input name="free_over_sar" type="number" step="0.0001" min="0" placeholder="اختياري"></label>
+<label>الأولوية<input name="priority" type="number" value="0"><small class="field-help">الأكبر داخل نفس نطاق الموقع.</small></label>
+<button class="primary-button form-field-wide" type="submit">إضافة قاعدة التوصيل</button>
+</form></section>
+
+<section class="entity-grid manage-grid">
+{% for row in rows %}
+<article class="entity-card panel manage-card">
+<div class="manage-card-header"><div class="manage-card-title"><strong>{{ method_map.get(row.method_id,row.method_id) }}</strong></div><span class="status-pill">{{ row.price_sar or row.price }} SAR</span></div>
+<div class="entity-field"><span class="entity-label">النطاق</span><strong>{% if row.customer_id %}عميل · {{ customer_map.get(row.customer_id,row.customer_id) }}{% elif row.city_area_id %}منطقة داخل المدينة · {{ area_map.get(row.city_area_id,row.city_area_id) }}{% elif row.city_id %}مدينة · {{ city_map.get(row.city_id,row.city_id) }}{% elif row.region_id %}محافظة/منطقة · {{ region_map.get(row.region_id,row.region_id) }}{% else %}عام{% endif %}</strong></div>
+<div class="entity-field"><span class="entity-label">شروط السلة</span><strong>{% if row.min_order_sar %}من {{ row.min_order_sar }}{% endif %}{% if row.max_order_sar %} إلى {{ row.max_order_sar }}{% endif %}{% if row.free_over_sar %} · مجاني فوق {{ row.free_over_sar }}{% endif %}</strong></div>
+<div class="entity-field"><span class="entity-label">الأولوية</span><strong>{{ row.priority }}</strong></div>
+<form method="post" style="grid-column:1/-1"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button danger-button" type="submit">أرشفة القاعدة</button></form>
+</article>
+{% else %}<section class="empty-state panel" style="grid-column:1/-1"><h3>لا توجد قواعد توصيل</h3><p class="muted">أضف أول قاعدة حسب مدينتك، ثم أضف قواعد خاصة بالسلة أو العميل.</p></section>{% endfor %}
+</section>
+{% endblock %}
