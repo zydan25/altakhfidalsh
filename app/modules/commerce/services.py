@@ -485,6 +485,8 @@ class CommerceService:
             "subtotal": str(order.subtotal),
             "discount": str(order.discount),
             "shipping": str(order.shipping),
+            "shipping_base_sar": str(order.shipping_base_sar),
+            "shipping_rate_id": order.shipping_rate_id,
             "total": str(order.total),
             "status": order.status,
             "payment_status": order.payment_status,
