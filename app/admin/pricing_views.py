@@ -755,6 +755,10 @@ def register_pricing_views(admin_bp):
         targets_by_rule = {}
         for target in target_rows:
             targets_by_rule.setdefault(target.rule_id, []).append(target)
+        target_keys_by_rule = {
+            rule_id: [f"{target.target_type}:{target.target_id}" for target in items]
+            for rule_id, items in targets_by_rule.items()
+        }
         return render_template(
             "admin/shipping_rates_clear.html",
             title="طرق التوصيل وقواعدها",
@@ -768,6 +772,7 @@ def register_pricing_views(admin_bp):
             rows=rows,
             rules=rules,
             targets_by_rule=targets_by_rule,
+            target_keys_by_rule=target_keys_by_rule,
             region_map={x.id: x.name for x in regions},
             city_map={x.id: x.name for x in cities},
             area_map={x.id: x.name for x in areas},
