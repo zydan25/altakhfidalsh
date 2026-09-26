@@ -33,7 +33,7 @@
 
 <section class="entity-grid manage-grid">
 {% for city in cities %}
-<article class="entity-card panel manage-card"><div class="manage-card-header"><strong>{{ city.name }}</strong><span class="status-pill">{{ city.direction and dict(directions).get(city.direction, city.direction) or 'بدون اتجاه' }}</span></div>
+<article class="entity-card panel manage-card"><div class="manage-card-header"><strong>{{ city.name }}</strong><span class="status-pill">{{ city.direction and direction_map.get(city.direction, city.direction) or 'بدون اتجاه' }}</span></div>
 <div class="entity-field"><span class="entity-label">المنطقة</span><strong>{{ region_map.get(city.region_id, city.region_id) }}</strong></div>
 <div class="entity-field"><span class="entity-label">المصدر</span><strong>{{ city.source or '—' }}</strong></div>
 <div class="entity-field"><span class="entity-label">المناطق الداخلية</span><strong>{{ areas|selectattr('city_id','equalto',city.id)|list|length }}</strong></div>
