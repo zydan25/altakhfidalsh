@@ -234,16 +234,12 @@ def resolve_pricing_context(
     if currency is None or not currency.is_active:
         raise LookupError("Requested currency was not found")
 
-    # Currency-specific group rules override the group's defaults when present.
-    currency_rule = PricingGroupRule.query.filter_by(
-        group_id=group.id,
-        currency_id=currency.id,
-    ).first()
+    # Group-level pricing is the source of truth. Location adjustments are applied separately.
     rule = PricingRule(
-        percent_markup=Decimal(currency_rule.percent_markup if currency_rule is not None else (group.percent_markup or 0)),
-        fixed_markup=Decimal(currency_rule.fixed_markup if currency_rule is not None else (group.fixed_markup_sar or 0)),
-        decimals=int(currency_rule.decimals if currency_rule is not None else (group.decimals or currency.decimals or 2)),
-        rounding_rule=(currency_rule.rounding_rule if currency_rule is not None else (group.rounding_rule or "nearest")),
+        percent_markup=Decimal(group.percent_markup or 0),
+        fixed_markup=Decimal(group.fixed_markup_sar or 0),
+        decimals=int(group.decimals or currency.decimals or 2),
+        rounding_rule=group.rounding_rule or "nearest",
     )
     location_percent, location_fixed_sar, location_source = resolve_location_adjustment(
         city_id=effective_city_id,
