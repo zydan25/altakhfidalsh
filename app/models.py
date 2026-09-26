@@ -278,6 +278,57 @@ class CategoryNavigationItem(TimestampMixin, ActiveMixin, db.Model):
     label_override = db.Column(String(160))
 
 
+class SideCategory(TimestampMixin, ActiveMixin, db.Model):
+    """Independent side-category container anchored to a top-level catalog category."""
+
+    __tablename__ = "side_categories"
+
+    id = db.Column(Integer, primary_key=True)
+    root_category_id = db.Column(ForeignKey("categories.id", ondelete="RESTRICT"), nullable=False)
+    name = db.Column(String(160), nullable=False)
+    slug = db.Column(String(180), nullable=False)
+    badge_id = db.Column(ForeignKey("badges.id", ondelete="SET NULL"))
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("root_category_id", "slug", name="uq_side_category_root_slug"),
+        Index("ix_side_category_root_sort", "root_category_id", "sort_order", "is_active"),
+    )
+
+
+class SideCategoryCircle(TimestampMixin, ActiveMixin, db.Model):
+    """Circular child item displayed under a side category."""
+
+    __tablename__ = "side_category_circles"
+
+    id = db.Column(Integer, primary_key=True)
+    side_category_id = db.Column(ForeignKey("side_categories.id", ondelete="CASCADE"), nullable=False)
+    name = db.Column(String(160), nullable=False)
+    slug = db.Column(String(180), nullable=False)
+    image_asset_id = db.Column(ForeignKey("media_assets.id", ondelete="SET NULL"))
+    badge_id = db.Column(ForeignKey("badges.id", ondelete="SET NULL"))
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("side_category_id", "slug", name="uq_side_category_circle_slug"),
+        Index("ix_side_category_circle_side_sort", "side_category_id", "sort_order", "is_active"),
+    )
+
+
+class ProductSideCategoryCircle(TimestampMixin, db.Model):
+    """Many-to-many assignment of products to independent side-category circles."""
+
+    __tablename__ = "product_side_category_circles"
+
+    id = db.Column(Integer, primary_key=True)
+    product_id = db.Column(ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    circle_id = db.Column(ForeignKey("side_category_circles.id", ondelete="CASCADE"), nullable=False)
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("product_id", "circle_id", name="uq_product_side_category_circle"),
+        Index("ix_product_side_category_circle_product", "product_id", "sort_order"),
+        Index("ix_product_side_category_circle_circle", "circle_id", "product_id"),
+    )
+
+
 class CategoryFilterDefinition(TimestampMixin, ActiveMixin, db.Model):
     __tablename__ = "category_filter_definitions"
 
@@ -705,9 +756,17 @@ class Trend(TimestampMixin, ActiveMixin, db.Model):
     background_asset_id = db.Column(ForeignKey("media_assets.id", ondelete="RESTRICT"), nullable=False)
     status = db.Column(String(40), nullable=False, default="draft")
     sort_order = db.Column(Integer, nullable=False, default=0)
+    timer_value = db.Column(Integer)
+    timer_unit = db.Column(String(16), nullable=False, default="seconds")
+    timer_started_at = db.Column(db.DateTime(timezone=True))
+    overlay_text = db.Column(String(220))
+    overlay_text_color = db.Column(String(20), nullable=False, default="#ffffff")
+    overlay_background_color = db.Column(String(40), nullable=False, default="rgba(17,24,39,.76)")
     __table_args__ = (
         Index("ix_trend_active_sort", "is_active", "status", "sort_order"),
         Index("ix_trend_hashtag", "hashtag_id", "is_active"),
+        CheckConstraint("timer_value IS NULL OR timer_value > 0", name="ck_trend_timer_positive"),
+        CheckConstraint("timer_unit IN ('seconds','minutes')", name="ck_trend_timer_unit"),
     )
 
 
