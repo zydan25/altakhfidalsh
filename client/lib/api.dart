@@ -65,8 +65,13 @@ class ApiService {
     if(item is Map)return Map<String,dynamic>.from(item);
     return d;
   }
-  Future<Map<String,dynamic>> verifyOtp(int id,String code)async{
-    final d=Map<String,dynamic>.from(await post('/customer/auth/verify-otp',{'otp_request_id':id,'code':code,'device_id':'flutter-client'}));
+  Future<Map<String,dynamic>> verifyOtp(int id,String code,{String? phone})async{
+    final d=Map<String,dynamic>.from(await post('/customer/auth/verify-otp',{
+      'otp_request_id':id,
+      'code':code,
+      if(phone!=null&&phone.trim().isNotEmpty)'phone':phone.trim(),
+      'device_id':'flutter-client',
+    }));
     final item=d['item'] is Map?Map<String,dynamic>.from(d['item']):d;
     token=item['access_token']?.toString()??'';
     final p=await SharedPreferences.getInstance();
