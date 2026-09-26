@@ -392,6 +392,86 @@ class _DealsScreenState extends State<DealsScreen>{
 }
 
 
+class PriceLine extends StatelessWidget {
+  final String current;
+  final String? old;
+
+  const PriceLine({
+    super.key,
+    required this.current,
+    this.old,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          current,
+          style: const TextStyle(
+            fontSize: 23,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        if (old != null) ...[
+          const SizedBox(width: 8),
+          Text(
+            '$old SAR',
+            style: const TextStyle(
+              fontSize: 12,
+              color: ClientTheme.muted,
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class TrustRow extends StatelessWidget {
+  const TrustRow({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF7F7F7),
+      padding: const EdgeInsets.all(12),
+      child: const Row(
+        children: [
+          Expanded(
+            child: Text(
+              'شحن حسب العنوان',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'إرجاع وفق السياسة',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'دفع آمن',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class ProductScreen extends StatefulWidget {
   final int id;
 
