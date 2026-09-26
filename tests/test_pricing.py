@@ -226,8 +226,10 @@ def test_city_location_adjustment_is_applied_after_group_markup(app):
         db.session.add_all([country, sar, group])
         db.session.flush()
         region = Region(country_id=country.id, code="LOC-R", name="إب")
+        db.session.add(region)
+        db.session.flush()
         city = City(region_id=region.id, code="LOC-C", name="إب")
-        db.session.add_all([region, city])
+        db.session.add(city)
         db.session.flush()
         db.session.add(
             PricingLocationAdjustment(
@@ -260,9 +262,11 @@ def test_shipping_percent_rule_applies_to_selected_city(app):
         db.session.add(country)
         db.session.flush()
         region = Region(country_id=country.id, code="SHIP-R", name="إب")
+        db.session.add(region)
+        db.session.flush()
         city = City(region_id=region.id, code="SHIP-C", name="إب")
         method = ShippingMethod(name="مندوب", code="ship-rule-test")
-        db.session.add_all([region, city, method])
+        db.session.add_all([city, method])
         db.session.flush()
         db.session.add(
             ShippingRate(
