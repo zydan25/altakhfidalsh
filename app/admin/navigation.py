@@ -51,7 +51,7 @@ NAVIGATION = [
         NavItem("العملات", "/admin/pricing/currencies", "$"),
         NavItem("أسعار الصرف (SAR)", "/admin/pricing/exchange-rates", "↻"),
         NavItem("المدن والمناطق", "/admin/geo", "⌖"),
-        NavItem("ربط التسعير حسب المدينة", "/admin/pricing/groups", "↔"),
+        NavItem("الزيادة والنقص حسب الموقع", "/admin/pricing/location-adjustments", "±"),
         NavItem("استثناءات العملاء", "/admin/pricing/customer-overrides", "♙"),
         NavItem("معاينة السعر", "/admin/pricing/preview", "≈"),
     ]),
