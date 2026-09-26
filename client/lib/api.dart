@@ -51,9 +51,10 @@ class ApiService {
     final d=await get('/catalog/reference/product-config',q:{'product_id':productId.toString()});
     return d['item'] is Map?Map<String,dynamic>.from(d['item']):Map<String,dynamic>.from(d);
   }
-  Future<List<ProductModel>> feed({int? category,String q=''})async{
+  Future<List<ProductModel>> feed({int? category,int? circleId,String q=''})async{
     final qp=<String,String>{'limit':'80'};
     if(category!=null)qp['category_id']=category.toString();
+    if(circleId!=null)qp['circle_id']=circleId.toString();
     if(q.trim().isNotEmpty)qp['q']=q.trim();
     final d=await get('/catalog/products/feed',q:qp);
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e){
