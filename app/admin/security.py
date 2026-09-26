@@ -19,6 +19,7 @@ ROUTE_PERMISSIONS = {
         "/admin/banners": "content.view",
         "/admin/banner-targets": "content.manage",
         "/admin/category-circles": "content.view",
+        "/admin/side-categories": "side_category.view",
         "/admin/trends": "hashtag.view",
         "/admin/hashtags": "hashtag.view",
         "/admin/campaigns": "campaign.view",
