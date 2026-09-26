@@ -1,4 +1,4 @@
-const CACHE = "altakhfidalsh-admin-v3";
+const CACHE = "altakhfidalsh-admin-v4";
 const STATIC_SHELL = [
   "/admin/static/admin.css",
   "/admin/static/admin.js",
