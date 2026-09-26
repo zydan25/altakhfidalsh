@@ -155,6 +155,8 @@ class _HomeScreenState extends State<HomeScreen>{
                   onTap:openBanner,
                 ),
               ),
+            if(looks.isNotEmpty)
+              SliverToBoxAdapter(child:HomeLooksRail(rows:looks)),
             if(selectedRoot!=null)
               SliverToBoxAdapter(
                 child:SideCategoryRail(
@@ -169,12 +171,8 @@ class _HomeScreenState extends State<HomeScreen>{
                   onCircleTap:(circle)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>SideCategoryScreen(circle:circle))),
                 ),
               ),
-            if(trends.isNotEmpty)
-              SliverToBoxAdapter(child:HomeTrendRail(rows:trends)),
-            if(looks.isNotEmpty)
-              SliverToBoxAdapter(child:HomeLooksRail(rows:looks)),
             const SliverToBoxAdapter(
-              child:SectionTitle(title:'مختارات لك'),
+              child:SectionTitle(title:'من أجلك'),
             ),
             SliverToBoxAdapter(
               child:ProductGrid(
@@ -206,63 +204,43 @@ class RootCategoryRail extends StatelessWidget{
   final int?selected;
   final ValueChanged<int?>onTap;
   const RootCategoryRail({super.key,required this.categories,required this.selected,required this.onTap});
-  @override Widget build(BuildContext context)=>SizedBox(
-    height:106,
-    child:ListView.separated(
+
+  @override
+  Widget build(BuildContext context)=>SizedBox(
+    height:42,
+    child:ListView(
       scrollDirection:Axis.horizontal,
-      padding:const EdgeInsets.fromLTRB(10,6,10,8),
-      itemCount:categories.length+1,
-      separatorBuilder:(_,__)=>const SizedBox(width:10),
-      itemBuilder:(_,i){
-        if(i==0){
-          return _RootCategoryItem(
-            name:'الكل',
-            image:null,
-            active:selected==null,
-            onTap:()=>onTap(null),
-          );
-        }
-        final c=categories[i-1];
-        return _RootCategoryItem(
-          name:c.name,
-          image:api.url(c.iconUrl),
-          active:c.id==selected,
-          onTap:()=>onTap(c.id),
-        );
-      },
+      padding:const EdgeInsets.symmetric(horizontal:8),
+      children:[
+        _tab('الكل',selected==null,()=>onTap(null)),
+        ...categories.map((c)=>_tab(c.name,c.id==selected,()=>onTap(c.id))),
+      ],
     ),
   );
-}
 
-class _RootCategoryItem extends StatelessWidget{
-  final String name;
-  final String?image;
-  final bool active;
-  final VoidCallback onTap;
-  const _RootCategoryItem({required this.name,required this.image,required this.active,required this.onTap});
-  @override Widget build(BuildContext context)=>InkWell(
-    onTap:onTap,
-    borderRadius:BorderRadius.circular(30),
-    child:SizedBox(
-      width:68,
-      child:Column(
-        children:[
-          Container(
-            width:62,
-            height:62,
-            decoration:BoxDecoration(
-              color:const Color(0xFFF5F5F5),
-              shape:BoxShape.circle,
-              border:Border.all(color:active?Colors.black:Colors.transparent,width:1.4),
-            ),
-            clipBehavior:Clip.antiAlias,
-            child:image==null||image!.isEmpty
-                ?const Icon(Icons.grid_view_rounded,size:24)
-                :Image.network(image!,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.category_outlined)),
+  Widget _tab(String text,bool active,VoidCallback tap)=>Padding(
+    padding:const EdgeInsets.symmetric(horizontal:10),
+    child:InkWell(
+      onTap:tap,
+      child:Center(
+        child:Container(
+          padding:const EdgeInsets.only(bottom:6),
+          decoration:BoxDecoration(
+            border:Border(bottom:BorderSide(
+              color:active?Colors.black:Colors.transparent,
+              width:1.6,
+            )),
           ),
-          const SizedBox(height:5),
-          Text(name,maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:TextStyle(fontSize:9.5,fontWeight:active?FontWeight.w800:FontWeight.w500)),
-        ],
+          child:Text(
+            text,
+            maxLines:1,
+            overflow:TextOverflow.ellipsis,
+            style:TextStyle(
+              fontSize:12,
+              fontWeight:active?FontWeight.w800:FontWeight.w500,
+            ),
+          ),
+        ),
       ),
     ),
   );
@@ -330,9 +308,9 @@ class SideCategoryRail extends StatelessWidget{
     if(circles.isEmpty)return const SizedBox.shrink();
     return Column(
       children:[
-        const SectionTitle(title:'تسوق حسب الفئة'),
+        const SectionTitle(title:'الفئات'),
         SizedBox(
-          height:114,
+          height:108,
           child:ListView.separated(
             scrollDirection:Axis.horizontal,
             padding:const EdgeInsets.symmetric(horizontal:10),
@@ -348,8 +326,8 @@ class SideCategoryRail extends StatelessWidget{
                   child:Column(
                     children:[
                       Container(
-                        width:64,
-                        height:64,
+                        width:62,
+                        height:62,
                         decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFF4F4F4)),
                         clipBehavior:Clip.antiAlias,
                         child:image.isEmpty?const Icon(Icons.category_outlined):Image.network(image,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.category_outlined)),
