@@ -348,6 +348,10 @@ def register_operation_routes(admin_bp):
         campaigns = Campaign.query.filter_by(is_active=True).order_by(Campaign.display_priority.desc(), Campaign.name).limit(300).all()
         hashtags = Hashtag.query.filter_by(is_active=True).order_by(Hashtag.sort_order, Hashtag.name).limit(300).all()
         products = Product.query.filter(Product.is_active.is_(True), Product.status != "archived").order_by(Product.id.desc()).limit(300).all()
+        category_map = {x.id: x.name for x in categories}
+        campaign_map = {x.id: x.name for x in campaigns}
+        hashtag_map = {x.id: x.name for x in hashtags}
+        product_map = {x.id: x.name for x in products}
         category_target_keys = {
             banner.id: [f"category:{x.target_id}" for x in targets_by_banner.get(banner.id, []) if x.target_type == "category"]
             for banner in banners
@@ -365,6 +369,10 @@ def register_operation_routes(admin_bp):
             hashtags=hashtags,
             products=products,
             category_target_keys=category_target_keys,
+            category_map=category_map,
+            campaign_map=campaign_map,
+            hashtag_map=hashtag_map,
+            product_map=product_map,
             positions=positions,
             success=success,
             error=error,
