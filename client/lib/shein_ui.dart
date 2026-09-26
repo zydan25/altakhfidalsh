@@ -31,8 +31,6 @@ class _SxAppShellState extends State<SxAppShell> {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
       statusBarBrightness: Brightness.light,
-      navigationBarColor: Colors.white,
-      navigationBarIconBrightness: Brightness.dark,
     ));
   }
   @override Widget build(BuildContext context) => Directionality(
