@@ -761,7 +761,7 @@ class Trend(TimestampMixin, ActiveMixin, db.Model):
     timer_started_at = db.Column(db.DateTime(timezone=True))
     overlay_text = db.Column(String(220))
     overlay_text_color = db.Column(String(20), nullable=False, default="#ffffff")
-    overlay_background_color = db.Column(String(40), nullable=False, default="rgba(17,24,39,.76)")
+    overlay_background_color = db.Column(String(40), nullable=False, default="#111827")
     __table_args__ = (
         Index("ix_trend_active_sort", "is_active", "status", "sort_order"),
         Index("ix_trend_hashtag", "hashtag_id", "is_active"),
