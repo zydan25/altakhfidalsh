@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from uuid import uuid4
@@ -40,6 +41,9 @@ from ...models import (
     CampaignProduct,
     Trend,
     TrendProduct,
+    SideCategory,
+    SideCategoryCircle,
+    ProductSideCategoryCircle,
     SizeGuide,
     ProductColorReference,
     ProductSizeReference,
@@ -87,6 +91,353 @@ class CatalogService:
         return [CatalogService._serialize_category(row) for row in rows]
 
     @staticmethod
+    def _require_top_level_category(category_id):
+        category = db.session.get(Category, int(category_id))
+        if category is None or not category.is_active:
+            raise ValueError("القسم الرئيسي غير موجود أو مؤرشف.")
+        if category.parent_id is not None:
+            raise ValueError("الفئة الجانبية ترتبط بقسم رئيسي فقط، ولا يمكن اختيار فئة فرعية.")
+        return category
+
+    @staticmethod
+    def _serialize_side_category_circle(circle, include_products=False):
+        asset = db.session.get(MediaAsset, circle.image_asset_id) if circle.image_asset_id else None
+        badge = db.session.get(Badge, circle.badge_id) if circle.badge_id else None
+        payload = {
+            "id": circle.id,
+            "side_category_id": circle.side_category_id,
+            "name": circle.name,
+            "slug": circle.slug,
+            "image_asset_id": circle.image_asset_id,
+            "image_url": asset.url if asset else None,
+            "badge_id": circle.badge_id,
+            "badge": {
+                "id": badge.id,
+                "name": badge.name,
+                "bg_color": badge.bg_color,
+                "text_color": badge.text_color,
+            } if badge else None,
+            "sort_order": circle.sort_order,
+            "is_active": bool(circle.is_active),
+        }
+        if include_products:
+            payload["product_count"] = (
+                db.session.query(ProductSideCategoryCircle.id)
+                .join(Product, Product.id == ProductSideCategoryCircle.product_id)
+                .filter(
+                    ProductSideCategoryCircle.circle_id == circle.id,
+                    Product.is_active.is_(True),
+                    Product.status == "published",
+                )
+                .count()
+            )
+        return payload
+
+    @staticmethod
+    def _serialize_side_category(side_category, include_circles=True):
+        root = db.session.get(Category, side_category.root_category_id)
+        badge = db.session.get(Badge, side_category.badge_id) if side_category.badge_id else None
+        circles = []
+        if include_circles:
+            circles = [
+                CatalogService._serialize_side_category_circle(row, include_products=True)
+                for row in SideCategoryCircle.query
+                .filter(
+                    SideCategoryCircle.side_category_id == side_category.id,
+                    SideCategoryCircle.is_active.is_(True),
+                )
+                .order_by(SideCategoryCircle.sort_order, SideCategoryCircle.name)
+                .all()
+            ]
+        return {
+            "id": side_category.id,
+            "root_category_id": side_category.root_category_id,
+            "root_category_name": root.name if root else "—",
+            "name": side_category.name,
+            "slug": side_category.slug,
+            "badge_id": side_category.badge_id,
+            "badge": {
+                "id": badge.id,
+                "name": badge.name,
+                "bg_color": badge.bg_color,
+                "text_color": badge.text_color,
+            } if badge else None,
+            "sort_order": side_category.sort_order,
+            "is_active": bool(side_category.is_active),
+            "circles": circles,
+        }
+
+    @staticmethod
+    def list_side_categories(root_category_id=None, include_archived=False):
+        query = SideCategory.query
+        if not include_archived:
+            query = query.filter(SideCategory.is_active.is_(True))
+        if root_category_id:
+            query = query.filter(SideCategory.root_category_id == int(root_category_id))
+        return [
+            CatalogService._serialize_side_category(row)
+            for row in query.order_by(SideCategory.sort_order, SideCategory.name, SideCategory.id).all()
+        ]
+
+    @staticmethod
+    def create_side_category(payload):
+        root_id = payload.get("root_category_id")
+        name = (payload.get("name") or "").strip()
+        if not root_id or not name:
+            raise ValueError("القسم الرئيسي واسم الفئة الجانبية مطلوبان.")
+        CatalogService._require_top_level_category(root_id)
+        slug = (payload.get("slug") or "").strip().lower() or _slugify(name, fallback="side-category")
+        base_slug = slug
+        idx = 2
+        while SideCategory.query.filter_by(root_category_id=int(root_id), slug=slug).first():
+            slug = f"{base_slug}-{idx}"[:180]
+            idx += 1
+        row = SideCategory(
+            root_category_id=int(root_id),
+            name=name,
+            slug=slug,
+            badge_id=int(payload["badge_id"]) if payload.get("badge_id") else None,
+            sort_order=int(payload.get("sort_order", 0)),
+        )
+        db.session.add(row)
+        db.session.commit()
+        return CatalogService._serialize_side_category(row)
+
+    @staticmethod
+    def update_side_category(side_category_id, payload):
+        row = db.session.get(SideCategory, side_category_id)
+        if row is None:
+            raise LookupError("side category not found")
+        if "root_category_id" in payload:
+            CatalogService._require_top_level_category(payload["root_category_id"])
+            row.root_category_id = int(payload["root_category_id"])
+        if "name" in payload:
+            name = (payload.get("name") or "").strip()
+            if not name:
+                raise ValueError("اسم الفئة الجانبية مطلوب.")
+            row.name = name
+        if "slug" in payload and (payload.get("slug") or "").strip():
+            row.slug = _slugify(payload["slug"], fallback=f"side-category-{row.id}")
+        if "badge_id" in payload:
+            row.badge_id = int(payload["badge_id"]) if payload.get("badge_id") else None
+        if "sort_order" in payload:
+            row.sort_order = int(payload["sort_order"])
+        duplicate = (
+            SideCategory.query
+            .filter(
+                SideCategory.id != row.id,
+                SideCategory.root_category_id == row.root_category_id,
+                SideCategory.slug == row.slug,
+            )
+            .first()
+        )
+        if duplicate:
+            db.session.rollback()
+            raise ValueError("Slug الفئة الجانبية مستخدم داخل القسم الرئيسي.")
+        db.session.commit()
+        return CatalogService._serialize_side_category(row)
+
+    @staticmethod
+    def archive_side_category(side_category_id):
+        row = db.session.get(SideCategory, side_category_id)
+        if row is None:
+            raise LookupError("side category not found")
+        row.is_active = False
+        SideCategoryCircle.query.filter_by(side_category_id=row.id).update({"is_active": False})
+        db.session.commit()
+
+    @staticmethod
+    def _swap_sort_order(model, current_id, direction, scope_filters):
+        current = db.session.get(model, int(current_id))
+        if current is None or not current.is_active:
+            raise LookupError("item not found")
+        if direction not in {"up", "down"}:
+            raise ValueError("invalid reorder direction")
+
+        query = model.query.filter(*scope_filters, model.is_active.is_(True))
+        rows = query.order_by(model.sort_order, model.id).all()
+        index = next((i for i, row in enumerate(rows) if row.id == current.id), None)
+        if index is None:
+            raise LookupError("item not found")
+        neighbor_index = index - 1 if direction == "up" else index + 1
+        if neighbor_index < 0 or neighbor_index >= len(rows):
+            return CatalogService._serialize_side_category(current) if model is SideCategory else CatalogService._serialize_side_category_circle(current, include_products=True)
+
+        neighbor = rows[neighbor_index]
+        current_order, neighbor_order = current.sort_order, neighbor.sort_order
+        if current_order == neighbor_order:
+            current.sort_order = neighbor_index
+            neighbor.sort_order = index
+        else:
+            current.sort_order = neighbor_order
+            neighbor.sort_order = current_order
+        db.session.commit()
+
+        return (
+            CatalogService._serialize_side_category(current)
+            if model is SideCategory
+            else CatalogService._serialize_side_category_circle(current, include_products=True)
+        )
+
+    @staticmethod
+    def reorder_side_category(side_category_id, direction):
+        current = db.session.get(SideCategory, int(side_category_id))
+        if current is None:
+            raise LookupError("side category not found")
+        return CatalogService._swap_sort_order(
+            SideCategory,
+            side_category_id,
+            direction,
+            [SideCategory.root_category_id == current.root_category_id],
+        )
+
+    @staticmethod
+    def reorder_side_category_circle(circle_id, direction):
+        current = db.session.get(SideCategoryCircle, int(circle_id))
+        if current is None:
+            raise LookupError("side category circle not found")
+        return CatalogService._swap_sort_order(
+            SideCategoryCircle,
+            circle_id,
+            direction,
+            [SideCategoryCircle.side_category_id == current.side_category_id],
+        )
+
+    @staticmethod
+    def create_side_category_circle(side_category_id, payload, files=None):
+        side = db.session.get(SideCategory, int(side_category_id))
+        if side is None or not side.is_active:
+            raise LookupError("side category not found")
+        name = (payload.get("name") or "").strip()
+        if not name:
+            raise ValueError("اسم الدائرة مطلوب.")
+        slug = (payload.get("slug") or "").strip().lower() or _slugify(name, fallback="circle")
+        base_slug = slug
+        idx = 2
+        while SideCategoryCircle.query.filter_by(side_category_id=side.id, slug=slug).first():
+            slug = f"{base_slug}-{idx}"[:180]
+            idx += 1
+        asset_id = None
+        if files:
+            assets = MediaService.save_generic_files(files, f"side-categories/{side.id}/circles")
+            asset_id = assets[0]["id"] if assets else None
+        row = SideCategoryCircle(
+            side_category_id=side.id,
+            name=name,
+            slug=slug,
+            image_asset_id=asset_id,
+            badge_id=int(payload["badge_id"]) if payload.get("badge_id") else None,
+            sort_order=int(payload.get("sort_order", 0)),
+        )
+        db.session.add(row)
+        db.session.commit()
+        return CatalogService._serialize_side_category_circle(row, include_products=True)
+
+    @staticmethod
+    def update_side_category_circle(circle_id, payload, files=None):
+        row = db.session.get(SideCategoryCircle, circle_id)
+        if row is None:
+            raise LookupError("side category circle not found")
+        if "name" in payload:
+            name = (payload.get("name") or "").strip()
+            if not name:
+                raise ValueError("اسم الدائرة مطلوب.")
+            row.name = name
+        if "slug" in payload and (payload.get("slug") or "").strip():
+            row.slug = _slugify(payload["slug"], fallback=f"circle-{row.id}")
+        if "badge_id" in payload:
+            row.badge_id = int(payload["badge_id"]) if payload.get("badge_id") else None
+        if "sort_order" in payload:
+            row.sort_order = int(payload["sort_order"])
+        if files:
+            assets = MediaService.save_generic_files(files, f"side-categories/{row.side_category_id}/circles")
+            if assets:
+                row.image_asset_id = assets[0]["id"]
+        duplicate = (
+            SideCategoryCircle.query
+            .filter(
+                SideCategoryCircle.id != row.id,
+                SideCategoryCircle.side_category_id == row.side_category_id,
+                SideCategoryCircle.slug == row.slug,
+            )
+            .first()
+        )
+        if duplicate:
+            db.session.rollback()
+            raise ValueError("Slug دائرة التصنيف مستخدم داخل الفئة الجانبية.")
+        db.session.commit()
+        return CatalogService._serialize_side_category_circle(row, include_products=True)
+
+    @staticmethod
+    def archive_side_category_circle(circle_id):
+        row = db.session.get(SideCategoryCircle, circle_id)
+        if row is None:
+            raise LookupError("side category circle not found")
+        row.is_active = False
+        db.session.commit()
+
+    @staticmethod
+    def _product_category_belongs_to_root(product_category_id, root_category_id):
+        current_id = product_category_id
+        visited = set()
+        while current_id is not None and current_id not in visited:
+            visited.add(current_id)
+            category = db.session.get(Category, int(current_id))
+            if category is None:
+                return False
+            if category.id == int(root_category_id):
+                return True
+            current_id = category.parent_id
+        return False
+
+    @staticmethod
+    def set_product_side_category_circles(product_id, circle_ids):
+        if db.session.get(Product, product_id) is None:
+            raise LookupError("product not found")
+        normalized = []
+        product_category_ids = [
+            int(row.category_id)
+            for row in ProductCategory.query.filter_by(product_id=product_id).all()
+        ]
+        for raw in circle_ids or []:
+            circle_id = int(raw)
+            circle = db.session.get(SideCategoryCircle, circle_id)
+            if circle is None or not circle.is_active:
+                raise ValueError("إحدى دوائر الفئات الجانبية غير موجودة أو مؤرشفة.")
+            side_category = db.session.get(SideCategory, circle.side_category_id)
+            if side_category is None or not side_category.is_active:
+                raise ValueError("الفئة الجانبية المرتبطة بهذه الدائرة غير متاحة.")
+            if not any(
+                CatalogService._product_category_belongs_to_root(category_id, side_category.root_category_id)
+                for category_id in product_category_ids
+            ):
+                raise ValueError(
+                    "المنتج يجب أن يكون مرتبطًا بالقسم الرئيسي الخاص بالفئة الجانبية "
+                    "أو بأحد فروعه قبل ربطه بهذه الدائرة."
+                )
+            if circle_id not in normalized:
+                normalized.append(circle_id)
+        ProductSideCategoryCircle.query.filter_by(product_id=product_id).delete()
+        for position, circle_id in enumerate(normalized):
+            db.session.add(ProductSideCategoryCircle(
+                product_id=product_id,
+                circle_id=circle_id,
+                sort_order=position,
+            ))
+        db.session.commit()
+        return normalized
+
+    @staticmethod
+    def list_product_side_category_circles(product_id):
+        return [
+            int(row.circle_id)
+            for row in ProductSideCategoryCircle.query
+            .filter_by(product_id=product_id)
+            .order_by(ProductSideCategoryCircle.sort_order, ProductSideCategoryCircle.id)
+            .all()
+        ]
+
+    @staticmethod
     def create_category(payload):
         name = (payload.get("name") or "").strip()
         slug = (payload.get("slug") or "").strip().lower()
@@ -128,6 +479,14 @@ class CatalogService:
                 parent = db.session.get(Category, int(parent_id))
                 if parent is None:
                     raise ValueError("parent category was not found")
+                if category.parent_id is None:
+                    from ...models import SideCategory
+                    linked_side_category = SideCategory.query.filter_by(
+                        root_category_id=category.id,
+                        is_active=True,
+                    ).first()
+                    if linked_side_category:
+                        raise ValueError("لا يمكن تحويل قسم رئيسي مستخدم في الفئات الجانبية إلى فئة فرعية.")
             category.parent_id = parent_id
         if "name" in payload:
             category.name = (payload["name"] or "").strip()
@@ -165,6 +524,17 @@ class CatalogService:
         if child:
             raise ValueError("move or delete child categories first")
         category.is_active = False
+        if category.parent_id is None:
+            side_categories = SideCategory.query.filter_by(
+                root_category_id=category_id,
+                is_active=True,
+            ).all()
+            for side_category in side_categories:
+                side_category.is_active = False
+                SideCategoryCircle.query.filter_by(
+                    side_category_id=side_category.id,
+                    is_active=True,
+                ).update({"is_active": False})
         db.session.commit()
 
     @staticmethod
@@ -889,6 +1259,7 @@ class CatalogService:
         current_hashtag_ids = {int(x.hashtag_id) for x in ProductHashtag.query.filter_by(product_id=product_id).all()} if product_id else set()
         current_strip_ids = {int(x.strip_id) for x in ProductPromotionalStrip.query.filter_by(product_id=product_id).all()} if product_id else set()
         current_campaign_ids = {int(x.campaign_id) for x in CampaignProduct.query.filter_by(product_id=product_id).all()} if product_id else set()
+        current_side_circle_ids = set(CatalogService.list_product_side_category_circles(product_id)) if product_id else set()
         current_color_ids = {int(x.color_id) for x in ProductColorReference.query.filter_by(product_id=product_id).all()} if product_id else set()
         current_size_ids = {int(x.size_id) for x in ProductSizeReference.query.filter_by(product_id=product_id).all()} if product_id else set()
 
@@ -919,6 +1290,15 @@ class CatalogService:
         hashtags = active_or_current(Hashtag, current_hashtag_ids, (Hashtag.sort_order, Hashtag.name))
         strips = active_or_current(PromotionalStrip, current_strip_ids, (PromotionalStrip.id.desc(),))
         campaigns = active_or_current(Campaign, current_campaign_ids, (Campaign.display_priority.desc(), Campaign.name))
+        side_circles = (
+            SideCategoryCircle.query
+            .filter(or_(
+                SideCategoryCircle.is_active.is_(True),
+                SideCategoryCircle.id.in_(current_side_circle_ids) if current_side_circle_ids else False,
+            ))
+            .order_by(SideCategoryCircle.side_category_id, SideCategoryCircle.sort_order, SideCategoryCircle.name)
+            .all()
+        )
         colors = active_or_current(Color, current_color_ids, (Color.sort_order, Color.name))
 
         from ...models import Size
@@ -1010,6 +1390,8 @@ class CatalogService:
                 }
                 for row in campaigns
             ],
+            "side_categories": CatalogService.list_side_categories(include_archived=False),
+            "selected_side_category_circle_ids": sorted(current_side_circle_ids),
             "policies": policies,
             "size_guides": [
                 {"id": row.id, "name": row.name, "guide_type": row.guide_type, "fit_type": row.fit_type}
@@ -1123,6 +1505,10 @@ class CatalogService:
             {"id": row.size_id}
             for row in ProductSizeReference.query.filter_by(product_id=product_id).order_by(ProductSizeReference.sort_order, ProductSizeReference.id).all()
         ]
+        side_category_circle_ids = [
+            {"id": circle_id}
+            for circle_id in CatalogService.list_product_side_category_circles(product_id)
+        ]
 
         inventory = [
             {
@@ -1154,6 +1540,7 @@ class CatalogService:
             "campaigns": campaigns,
             "reference_colors": reference_colors,
             "reference_sizes": reference_sizes,
+            "side_category_circles": side_category_circle_ids,
             "inventory": inventory,
             "locations": CatalogService.list_inventory_locations(),
             "display": {
@@ -1303,6 +1690,23 @@ class CatalogService:
         }
 
     @staticmethod
+    def _trend_timer_seconds(trend):
+        if not trend.timer_value:
+            return None
+        return int(trend.timer_value * 60) if trend.timer_unit == "minutes" else int(trend.timer_value)
+
+    @staticmethod
+    def is_trend_timer_expired(trend, now=None):
+        seconds = CatalogService._trend_timer_seconds(trend)
+        if not seconds or not trend.timer_started_at:
+            return False
+        now = now or datetime.now(timezone.utc)
+        started = trend.timer_started_at
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        return now >= started + timedelta(seconds=seconds)
+
+    @staticmethod
     def serialize_public_trend(trend):
         hashtag = db.session.get(Hashtag, trend.hashtag_id)
         background = db.session.get(MediaAsset, trend.background_asset_id)
@@ -1321,8 +1725,19 @@ class CatalogService:
                 "slot": assignment.slot,
                 "product": CatalogService._serialize_trend_product(product),
             })
+
+        started_at = trend.timer_started_at
+        if started_at is not None and started_at.tzinfo is None:
+            started_at = started_at.replace(tzinfo=timezone.utc)
+        timer_seconds = CatalogService._trend_timer_seconds(trend)
+        ends_at = (
+            (started_at + timedelta(seconds=timer_seconds)).isoformat()
+            if started_at is not None and timer_seconds
+            else None
+        )
         return {
             "id": trend.id,
+            "expired": CatalogService.is_trend_timer_expired(trend),
             "hashtag": {
                 "id": hashtag.id,
                 "name": hashtag.name,
@@ -1331,6 +1746,19 @@ class CatalogService:
             } if hashtag else None,
             "promo_text": trend.promo_text,
             "duration_days": trend.duration_days,
+            "timer": {
+                "enabled": bool(trend.timer_value),
+                "value": trend.timer_value,
+                "unit": trend.timer_unit,
+                "seconds": (trend.timer_value * 60 if trend.timer_value and trend.timer_unit == "minutes" else trend.timer_value),
+                "started_at": started_at.isoformat() if started_at else None,
+                "ends_at": ends_at,
+            },
+            "overlay": {
+                "text": trend.overlay_text,
+                "text_color": trend.overlay_text_color,
+                "background_color": trend.overlay_background_color,
+            },
             "status": trend.status,
             "background": {
                 "id": background.id,
@@ -1355,6 +1783,8 @@ class CatalogService:
         )
         items = []
         for trend in rows:
+            if CatalogService.is_trend_timer_expired(trend):
+                continue
             payload = CatalogService.serialize_public_trend(trend)
             if payload["hashtag"] and payload["background"] and len(payload["products"]) == 3:
                 items.append(payload)

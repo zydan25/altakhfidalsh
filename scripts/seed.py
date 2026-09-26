@@ -114,6 +114,8 @@ def seed():
             ("geo.manage", "إدارة الجغرافيا"),
             ("report.view", "عرض التقارير"),
             ("product.publish", "نشر المنتجات"),
+            ("side_category.view", "عرض الفئات الجانبية"),
+            ("side_category.manage", "إدارة الفئات الجانبية"),
         ]
         permission_rows = []
         for code, name in permissions:

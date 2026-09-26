@@ -5,6 +5,8 @@ from flask import request
 from . import api_bp
 from ...security import admin_api_required
 from .services import CatalogService, MediaService
+from ...extensions import db
+from ...models import Product, ProductSideCategoryCircle, SideCategoryCircle
 
 
 @api_bp.get("/categories")
@@ -46,6 +48,125 @@ def delete_category(category_id):
     except ValueError as exc:
         return {"error": "invalid_category", "detail": str(exc)}, 400
     return {"ok": True}
+
+
+@api_bp.get("/side-categories")
+def side_categories():
+    root_id = request.args.get("root_category_id", type=int)
+    return {"items": CatalogService.list_side_categories(root_category_id=root_id)}
+
+
+@api_bp.post("/side-categories")
+@admin_api_required("side_category.manage")
+def create_side_category():
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CatalogService.create_side_category(payload)}, 201
+    except ValueError as exc:
+        return {"error": "invalid_side_category", "detail": str(exc)}, 400
+
+
+@api_bp.patch("/side-categories/<int:side_category_id>")
+@admin_api_required("side_category.manage")
+def update_side_category(side_category_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CatalogService.update_side_category(side_category_id, payload)}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_side_category", "detail": str(exc)}, 400
+
+
+@api_bp.delete("/side-categories/<int:side_category_id>")
+@admin_api_required("side_category.manage")
+def delete_side_category(side_category_id):
+    try:
+        CatalogService.archive_side_category(side_category_id)
+        return {"ok": True}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+
+
+@api_bp.post("/side-categories/<int:side_category_id>/circles")
+@admin_api_required("side_category.manage")
+def create_side_category_circle(side_category_id):
+    try:
+        item = CatalogService.create_side_category_circle(
+            side_category_id,
+            request.form,
+            request.files.getlist("files"),
+        )
+        return {"item": item}, 201
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_side_category_circle", "detail": str(exc)}, 400
+
+
+@api_bp.patch("/side-category-circles/<int:circle_id>")
+@admin_api_required("side_category.manage")
+def update_side_category_circle(circle_id):
+    payload = request.form if request.form else (request.get_json(silent=True) or {})
+    try:
+        item = CatalogService.update_side_category_circle(
+            circle_id,
+            payload,
+            request.files.getlist("files"),
+        )
+        return {"item": item}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_side_category_circle", "detail": str(exc)}, 400
+
+
+@api_bp.delete("/side-category-circles/<int:circle_id>")
+@admin_api_required("side_category.manage")
+def delete_side_category_circle(circle_id):
+    try:
+        CatalogService.archive_side_category_circle(circle_id)
+        return {"ok": True}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+
+
+@api_bp.get("/side-category-circles/<int:circle_id>/products")
+def side_category_circle_products(circle_id):
+    exists = db.session.get(SideCategoryCircle, circle_id)
+    if exists is None or not exists.is_active:
+        return {"error": "not_found", "detail": "side category circle not found"}, 404
+    rows = (
+        db.session.query(Product)
+        .join(ProductSideCategoryCircle, ProductSideCategoryCircle.product_id == Product.id)
+        .filter(
+            ProductSideCategoryCircle.circle_id == circle_id,
+            Product.is_active.is_(True),
+            Product.status == "published",
+        )
+        .order_by(Product.id.desc())
+        .limit(min(max(request.args.get("limit", 50, type=int), 1), 100))
+        .all()
+    )
+    return {"items": [CatalogService._serialize_trend_product(row) for row in rows]}
+
+
+@api_bp.get("/reference/side-category-circles")
+@admin_api_required("side_category.view")
+def side_category_circle_references():
+    side_id = request.args.get("side_category_id", type=int)
+    query = SideCategoryCircle.query
+    if side_id:
+        query = query.filter_by(side_category_id=side_id)
+    rows = query.filter(SideCategoryCircle.is_active.is_(True)).order_by(
+        SideCategoryCircle.sort_order, SideCategoryCircle.name
+    ).all()
+    return {
+        "items": [
+            CatalogService._serialize_side_category_circle(row, include_products=True)
+            for row in rows
+        ]
+    }
 
 
 @api_bp.get("/products")
@@ -105,6 +226,23 @@ def set_product_categories(product_id):
         return {"error": "not_found", "detail": str(exc)}, 404
     except ValueError as exc:
         return {"error": "invalid_categories", "detail": str(exc)}, 400
+
+
+@api_bp.post("/products/<int:product_id>/side-category-circles")
+@admin_api_required("product.edit")
+def set_product_side_category_circles(product_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {
+            "items": CatalogService.set_product_side_category_circles(
+                product_id,
+                payload.get("circle_ids", []),
+            )
+        }
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_side_category_circles", "detail": str(exc)}, 400
 
 
 @api_bp.post("/products/<int:product_id>/options")
@@ -533,7 +671,12 @@ def public_trends():
 def public_trend_detail(trend_id):
     from ...models import Trend
     trend = db.session.get(Trend, trend_id)
-    if trend is None or not trend.is_active or trend.status != "active":
+    if (
+        trend is None
+        or not trend.is_active
+        or trend.status != "active"
+        or CatalogService.is_trend_timer_expired(trend)
+    ):
         return {"error": "not_found", "detail": "trend not found"}, 404
     payload = CatalogService.serialize_public_trend(trend)
     if not payload["hashtag"] or not payload["background"] or len(payload["products"]) != 3:

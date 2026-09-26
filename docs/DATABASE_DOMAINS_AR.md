@@ -11,7 +11,7 @@
 | catalog | ... product_filter_values | categories, brands, colors, sizes, products, product_categories, product_media, product_videos, product_options, product_option_values, product_variants, variant_option_values, variant_media |
 | inventory | inventory_locations, stock_inventory |
 | product_policies | shipping_policies, return_policies, warranty_policies, product_policy_assignments |
-| merchandising | badges, product_badges, promotional_strips, hashtags, product_hashtags, campaigns, campaign_products, campaign_categories, campaign_hashtags |
+| merchandising | badges, product_badges, promotional_strips, hashtags, product_hashtags, campaigns, campaign_products, campaign_categories, campaign_hashtags, trends, trend_products, side_categories, side_category_circles, product_side_category_circles |
 | storefront | storefront_pages, storefront_sections, storefront_section_items, banners, banner_targets, navigation_actions |
 | commerce | shipping_methods, shipping_rates, carts, cart_items, wishlists, wishlist_items, recently_viewed |
 | orders | orders, order_items, order_item_options, order_status_history, shipments, shipment_events |
@@ -43,3 +43,10 @@
 - audit_logs يحتفظ before/after للعمليات الحساسة
 
 العلاقات المرنة مثل storefront_section_items وbanner_targets مقصودة، ويجب أن تمنع طبقة service أي target غير صالح قبل الحفظ أو النشر.
+
+## الفئات الجانبية
+
+- `side_categories.root_category_id` يشير إلى Category من المستوى الأعلى فقط.
+- `side_category_circles` منفصلة عن `categories` لتوفير Merchandising مستقل للواجهة.
+- `product_side_category_circles` تربط المنتجات بالدوائر الجانبية وتسمح بتعدد الروابط.
+- حذف/أرشفة القسم الجانبي يؤرشف دوائره، بينما أرشفة الدائرة لا تحذف المنتج.

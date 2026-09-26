@@ -964,6 +964,129 @@ def register_entity_views(admin_bp):
         return _render("دوائر الفئات", ["ID", "الفئة", "الأب", "الترتيب"],
                        [[x.id, x.name, x.parent_id or "—", x.sort_order] for x in rows], "المحتوى والمتجر")
 
+    @admin_bp.route("/side-categories", methods=["GET", "POST"])
+    def side_categories():
+        from ..models import Badge, Category, MediaAsset, SideCategory, SideCategoryCircle
+
+        error = None
+        success = None
+        view = (request.args.get("view") or "groups").strip().lower()
+        if view not in {"groups", "circles"}:
+            view = "groups"
+
+        if request.method == "POST":
+            action = (request.form.get("action") or "").strip()
+            try:
+                if action == "create_side_category":
+                    CatalogService.create_side_category(request.form)
+                    success = "تمت إضافة الفئة الجانبية."
+                elif action == "update_side_category":
+                    CatalogService.update_side_category(request.form.get("id", type=int), request.form)
+                    success = "تم تحديث الفئة الجانبية."
+                elif action == "archive_side_category":
+                    CatalogService.archive_side_category(request.form.get("id", type=int))
+                    success = "تمت أرشفة الفئة الجانبية مع دوائرها."
+                elif action == "move_side_category":
+                    CatalogService.reorder_side_category(
+                        request.form.get("id", type=int),
+                        request.form.get("direction"),
+                    )
+                    success = "تم تحديث ترتيب الفئات الجانبية."
+                elif action == "create_circle":
+                    side_id = request.form.get("side_category_id", type=int)
+                    CatalogService.create_side_category_circle(
+                        side_id,
+                        request.form,
+                        request.files.getlist("files"),
+                    )
+                    success = "تمت إضافة الدائرة."
+                elif action == "update_circle":
+                    circle_id = request.form.get("id", type=int)
+                    CatalogService.update_side_category_circle(
+                        circle_id,
+                        request.form,
+                        request.files.getlist("files"),
+                    )
+                    success = "تم تحديث الدائرة."
+                elif action == "archive_circle":
+                    CatalogService.archive_side_category_circle(request.form.get("id", type=int))
+                    success = "تمت أرشفة الدائرة."
+                elif action == "move_circle":
+                    CatalogService.reorder_side_category_circle(
+                        request.form.get("id", type=int),
+                        request.form.get("direction"),
+                    )
+                    success = "تم تحديث ترتيب الدوائر."
+                else:
+                    raise ValueError("إجراء الفئات الجانبية غير معروف.")
+            except (ValueError, TypeError, OSError, LookupError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+        root_categories = (
+            Category.query
+            .filter(Category.is_active.is_(True), Category.parent_id.is_(None))
+            .order_by(Category.sort_order, Category.name)
+            .all()
+        )
+        badges = Badge.query.filter(Badge.is_active.is_(True)).order_by(Badge.priority.desc(), Badge.name).all()
+        active_side_category_objects = (
+            SideCategory.query
+            .filter(SideCategory.is_active.is_(True))
+            .order_by(SideCategory.sort_order, SideCategory.name, SideCategory.id)
+            .all()
+        )
+        side_categories = [
+            CatalogService._serialize_side_category(row)
+            for row in active_side_category_objects
+        ]
+        archived_side_categories = (
+            SideCategory.query
+            .filter(SideCategory.is_active.is_(False))
+            .order_by(SideCategory.id.desc())
+            .limit(100)
+            .all()
+        )
+        circles = (
+            SideCategoryCircle.query
+            .filter(SideCategoryCircle.is_active.is_(True))
+            .order_by(
+                SideCategoryCircle.side_category_id,
+                SideCategoryCircle.sort_order,
+                SideCategoryCircle.name,
+            )
+            .all()
+        )
+        archived_circles = (
+            SideCategoryCircle.query
+            .filter(SideCategoryCircle.is_active.is_(False))
+            .order_by(SideCategoryCircle.id.desc())
+            .limit(100)
+            .all()
+        )
+        side_map = {row["id"]: row for row in side_categories}
+        circle_assets = {
+            row.id: db.session.get(MediaAsset, row.image_asset_id) if row.image_asset_id else None
+            for row in circles
+        }
+        return render_template(
+            "admin/side_categories.html",
+            title="الفئات الجانبية",
+            section="المحتوى والمتجر",
+            view=view,
+            root_categories=root_categories,
+            badges=badges,
+            side_categories=side_categories,
+            archived_side_categories=archived_side_categories,
+            circles=circles,
+            archived_circles=archived_circles,
+            side_map=side_map,
+            circle_assets=circle_assets,
+            error=error,
+            success=success,
+            **_ctx(),
+        )
+
     @admin_bp.route("/trends", methods=["GET", "POST"])
     def trends():
         from ..models import (
@@ -987,6 +1110,25 @@ def register_entity_views(admin_bp):
                 sort_order = request.form.get("sort_order", type=int) or 0
                 status = (request.form.get("status") or "draft").strip().lower()
                 product_ids = request.form.getlist("product_ids", type=int)
+                timer_enabled = request.form.get("timer_enabled") == "on"
+                timer_value = request.form.get("timer_value", type=int)
+                timer_unit = (request.form.get("timer_unit") or "seconds").strip().lower()
+                overlay_text = (request.form.get("overlay_text") or "").strip() or None
+                overlay_text_color = (request.form.get("overlay_text_color") or "#ffffff").strip()
+                overlay_background_color = (request.form.get("overlay_background_color") or "#111827").strip()
+
+                import re
+                color_re = re.compile(r"^#[0-9a-fA-F]{6}$")
+                if not color_re.fullmatch(overlay_text_color) or not color_re.fullmatch(overlay_background_color):
+                    raise ValueError("ألوان النص والخلفية يجب أن تكون بصيغة HEX مثل #7c3aed.")
+                if timer_enabled:
+                    if timer_value is None or timer_value < 1:
+                        raise ValueError("قيمة المؤقت يجب أن تكون رقمًا أكبر من صفر.")
+                    if timer_unit not in {"seconds", "minutes"}:
+                        raise ValueError("وحدة المؤقت يجب أن تكون ثوانٍ أو دقائق.")
+                else:
+                    timer_value = None
+                    timer_unit = "seconds"
 
                 if action in {"create", "update"}:
                     if not hashtag_id:
@@ -1026,6 +1168,12 @@ def register_entity_views(admin_bp):
                             background_asset_id=background_asset_id,
                             status=status,
                             sort_order=sort_order,
+                            timer_value=timer_value,
+                            timer_unit=timer_unit,
+                            timer_started_at=(db.func.now() if timer_enabled and status == "active" else None),
+                            overlay_text=overlay_text,
+                            overlay_text_color=overlay_text_color,
+                            overlay_background_color=overlay_background_color,
                             is_active=True,
                         )
                         db.session.add(trend)
@@ -1038,6 +1186,12 @@ def register_entity_views(admin_bp):
                         trend.background_asset_id = background_asset_id
                         trend.status = status
                         trend.sort_order = sort_order
+                        trend.timer_value = timer_value
+                        trend.timer_unit = timer_unit
+                        trend.timer_started_at = db.func.now() if timer_enabled and status == "active" else None
+                        trend.overlay_text = overlay_text
+                        trend.overlay_text_color = overlay_text_color
+                        trend.overlay_background_color = overlay_background_color
                         trend.is_active = True
                         message = "تم تحديث الترند المستطيل."
 
@@ -1156,6 +1310,13 @@ def register_entity_views(admin_bp):
                 "sort_order": trend.sort_order,
                 "status": trend.status,
                 "is_active": bool(trend.is_active),
+                "timer_enabled": bool(trend.timer_value),
+                "timer_value": trend.timer_value,
+                "timer_unit": trend.timer_unit,
+                "timer_started_at": trend.timer_started_at.isoformat() if trend.timer_started_at else None,
+                "overlay_text": trend.overlay_text or "",
+                "overlay_text_color": trend.overlay_text_color or "#ffffff",
+                "overlay_background_color": trend.overlay_background_color or "#111827",
                 "background_url": background.url if background else "",
                 "products": selected_products,
             })

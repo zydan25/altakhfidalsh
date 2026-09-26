@@ -21,6 +21,7 @@
   let draftColorIds = new Set();
   let draftSizeIds = new Set();
   let draftCategoryIds = new Set();
+  let draftSideCircleIds = new Set();
   let draftsInitialized = false;
 
   const notify = (text, type = "success") => {
@@ -140,6 +141,87 @@
     return tree || '<div class="empty-state compact"><strong>لا توجد نتائج.</strong><span class="muted">عدّل كلمة البحث أو أضف تصنيفًا جديدًا.</span></div>';
   };
 
+  const renderSideCategoryCircles = () => {
+    const root = document.getElementById("sideCategoryCircleSelection");
+    const count = document.getElementById("sideCategoryCircleCount");
+    if (!root) return;
+
+    const query = (document.getElementById("sideCategoryCircleSearch")?.value || "").trim().toLocaleLowerCase();
+    const categories = configRefs?.categories || [];
+    const categoryMap = new Map(categories.map(row => [Number(row.id), row]));
+    const allowedRootIds = new Set();
+
+    const resolveRoot = id => {
+      let current = Number(id);
+      const visited = new Set();
+      while (current && !visited.has(current)) {
+        visited.add(current);
+        const row = categoryMap.get(current);
+        if (!row) return null;
+        if (row.parent_id == null) return current;
+        current = Number(row.parent_id);
+      }
+      return null;
+    };
+
+    draftCategoryIds.forEach(id => {
+      const rootId = resolveRoot(id);
+      if (rootId) allowedRootIds.add(rootId);
+    });
+
+    const hasCategoryContext = allowedRootIds.size > 0;
+    const groups = (configRefs?.side_categories || []).filter(group =>
+      group.is_active &&
+      (!hasCategoryContext || allowedRootIds.has(Number(group.root_category_id))) &&
+      (group.circles || []).some(circle =>
+        circle.is_active &&
+        (!query ||
+          String(circle.name).toLocaleLowerCase().includes(query) ||
+          String(group.name).toLocaleLowerCase().includes(query) ||
+          String(group.root_category_name || "").toLocaleLowerCase().includes(query))
+      )
+    );
+
+    if (count) count.textContent = draftSideCircleIds.size + " دائرة";
+
+    if (!hasCategoryContext) {
+      root.innerHTML = '<div class="empty-state compact"><strong>اختر تصنيف المنتج أولًا.</strong><span class="muted">بعد تحديد القسم الأساسي/أحد فروعه ستظهر لك فقط الفئات الجانبية المناسبة له.</span></div>';
+      return;
+    }
+
+    if (!groups.length) {
+      root.innerHTML = '<div class="empty-state compact"><strong>لا توجد دوائر مناسبة لهذا المنتج.</strong><span class="muted">أنشئ دائرة للفئة الجانبية التابعة للقسم الذي ينتمي إليه المنتج.</span></div>';
+      return;
+    }
+
+    root.innerHTML = groups.map(group => {
+      const circles = (group.circles || []).filter(circle =>
+        circle.is_active &&
+        (!query ||
+          String(circle.name).toLocaleLowerCase().includes(query) ||
+          String(group.name).toLocaleLowerCase().includes(query) ||
+          String(group.root_category_name || "").toLocaleLowerCase().includes(query))
+      );
+      if (!circles.length) return "";
+      return '<section class="side-circle-picker-group">' +
+        '<div class="side-circle-picker-heading"><div><span class="eyebrow">القسم الجانبي · ' +
+        escapeHtml(group.root_category_name || "—") +
+        '</span><strong>' + escapeHtml(group.name) +
+        '</strong></div><span class="status-pill">' + circles.length + ' دائرة</span></div>' +
+        '<div class="side-circle-picker-grid">' +
+        circles.map(circle => {
+          const checked = draftSideCircleIds.has(Number(circle.id));
+          return '<label class="side-circle-picker-card ' + (checked ? "is-selected" : "") + '">' +
+            '<input type="checkbox" value="' + circle.id + '" data-side-circle-checkbox ' + (checked ? 'checked' : '') + '>' +
+            '<span class="side-circle-picker-media">' + (circle.image_url ? '<img src="' + escapeHtml(circle.image_url) + '" alt="' + escapeHtml(circle.name) + '">' : '<span>○</span>') + '</span>' +
+            '<span class="side-circle-picker-copy"><strong>' + escapeHtml(circle.name) + '</strong><small>' + (circle.product_count || 0) + ' منتج</small></span>' +
+            '<span class="side-circle-picker-check">' + (checked ? "✓" : "○") + '</span>' +
+          '</label>';
+        }).join("") +
+        '</div></section>';
+    }).join("");
+  };
+
   const renderDimensionChoices = () => {
     const colors = (configRefs?.colors || []).slice();
     const sizes = (configRefs?.sizes || []).slice();
@@ -226,6 +308,7 @@
       draftCategoryIds = new Set((snapshot.categories || []).map(x => String(x.id)));
     }
     document.getElementById("categorySelection").innerHTML = renderCategoryTree(categories, draftCategoryIds);
+    renderSideCategoryCircles();
 
     document.getElementById("optionsList").innerHTML = (snapshot.options || []).map(option => (
       '<details class="panel" style="padding:12px">' +
@@ -269,6 +352,10 @@
     configRefs = configRefs || optionRefs || {};
     if (!draftsInitialized) {
       draftCategoryIds = new Set((snapshot.categories || []).map(x => String(x.id)));
+      draftSideCircleIds = new Set((snapshot.side_category_circles || []).map(x => Number(x.id)));
+      if (!draftSideCircleIds.size) {
+        draftSideCircleIds = new Set((configRefs?.selected_side_category_circle_ids || []).map(Number));
+      }
       draftColorIds = new Set((snapshot.reference_colors || []).map(x => Number(x.id)));
       draftSizeIds = new Set((snapshot.reference_sizes || []).map(x => Number(x.id)));
       if (!draftColorIds.size) {
@@ -280,6 +367,7 @@
       draftsInitialized = true;
     }
     renderDimensionChoices();
+    renderSideCategoryCircles();
 
     const mediaColors = (configRefs?.colors || optionRefs?.colors || []).filter(color =>
       color.is_active && (draftColorIds.has(Number(color.id)) || mediaRows.some(x => Number(x.color_id) === Number(color.id)))
@@ -331,6 +419,7 @@
     const steps = {
       basics: snapshot.steps.basics,
       categories: snapshot.steps.categories,
+      "side-categories": (configRefs?.side_categories || []).length > 0,
       media: snapshot.steps.media,
       options: snapshot.steps.options,
       variants: snapshot.steps.variants,
@@ -450,6 +539,21 @@
     else draftCategoryIds.delete(input.value);
     input.closest(".category-picker-choice")?.classList.toggle("is-selected", input.checked);
   });
+
+  document.getElementById("sideCategoryCircleSelection").addEventListener("change", (event) => {
+    const input = event.target.closest("[data-side-circle-checkbox]");
+    if (!input) return;
+    const id = Number(input.value);
+    if (input.checked) draftSideCircleIds.add(id);
+    else draftSideCircleIds.delete(id);
+    input.closest(".side-circle-picker-card")?.classList.toggle("is-selected", input.checked);
+    const check = input.closest(".side-circle-picker-card")?.querySelector(".side-circle-picker-check");
+    if (check) check.textContent = input.checked ? "✓" : "○";
+    const count = document.getElementById("sideCategoryCircleCount");
+    if (count) count.textContent = draftSideCircleIds.size + " دائرة";
+  });
+
+  document.getElementById("sideCategoryCircleSearch")?.addEventListener("input", renderSideCategoryCircles);
 
   document.getElementById("productColors").addEventListener("change", (event) => {
     const input = event.target.closest("[data-color-ref-checkbox]");
@@ -803,6 +907,17 @@
       await requestJson("/api/v1/catalog/products/" + productId + "/categories", { method: "POST", body: JSON.stringify({ category_ids: categoryIds }) });
       await load();
       notify("تم حفظ التصنيفات.");
+    } catch (error) { notify(error.message, "error"); }
+  });
+
+  document.getElementById("saveSideCategoryCircles").addEventListener("click", async () => {
+    try {
+      await requestJson("/api/v1/catalog/products/" + productId + "/side-category-circles", {
+        method: "POST",
+        body: JSON.stringify({ circle_ids: [...draftSideCircleIds] }),
+      });
+      await load();
+      notify("تم حفظ الفئات الجانبية للمنتج.");
     } catch (error) { notify(error.message, "error"); }
   });
 
