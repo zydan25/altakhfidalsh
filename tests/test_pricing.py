@@ -94,35 +94,33 @@ def test_pricing_group_markup_is_independent_from_display_currency(app):
 
 
 def test_city_area_has_higher_pricing_priority_than_city(app):
-    from datetime import datetime, timezone
     from app.extensions import db
-    from app.models import City, CityArea, Currency, PricingGroup, PricingGroupCity, Region
+    from app.models import City, CityArea, Country, Currency, PricingGroup, PricingGroupCity, Region
     from app.services.pricing import resolve_pricing_context
 
     with app.app_context():
+        country = Country(code="YE-AREA", name_ar="اليمن")
         sar = Currency(code="SAR", name_ar="ريال سعودي", is_base=True)
-        country = __import__("app.models", fromlist=["Country"]).Country(code="YE", name_ar="اليمن")
-        region = Region(country_id=1, code="IBB", name="إب")
-        city = City(region_id=1, code="IBB-C", name="إب", direction="south")
-        area = CityArea(city_id=1, code="IBB-A", name="وسط المدينة", direction="center")
-        group_city = PricingGroup(name="مدينة", is_active=True)
-        group_area = PricingGroup(name="منطقة داخلية", is_active=True)
-        db.session.add_all([sar, country])
+        db.session.add_all([country, sar])
         db.session.flush()
-        region.country_id = country.id
-        city.region_id = region.id
+
+        region = Region(country_id=country.id, code="IBB-AREA", name="إب")
         db.session.add(region)
         db.session.flush()
-        area.city_id = city.id
+
+        city = City(region_id=region.id, code="IBB-C-AREA", name="إب", direction="south")
         db.session.add(city)
         db.session.flush()
-        area.city_id = city.id
+
+        area = CityArea(city_id=city.id, code="IBB-A-AREA", name="وسط المدينة", direction="center")
         db.session.add(area)
         db.session.flush()
-        group_city.default_currency_id = sar.id
-        group_area.default_currency_id = sar.id
+
+        group_city = PricingGroup(name="مدينة", default_currency_id=sar.id, is_active=True)
+        group_area = PricingGroup(name="منطقة داخلية", default_currency_id=sar.id, is_active=True)
         db.session.add_all([group_city, group_area])
         db.session.flush()
+
         db.session.add_all([
             PricingGroupCity(pricing_group_id=group_city.id, city_id=city.id, priority=1),
             PricingGroupCity(pricing_group_id=group_area.id, area_id=area.id, priority=1),
