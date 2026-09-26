@@ -118,7 +118,7 @@ class _OtpScreenState extends State<OtpScreen>{
   Future<void> verify()async{
     setState(()=>busy=true);
     try{
-      await api.verifyOtp(widget.requestId,code.text.trim());
+      await api.verifyOtp(widget.requestId,code.text.trim(),phone:widget.phone);
       if(!mounted)return;
       Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const AppShell()),(_)=>false);
     }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}
