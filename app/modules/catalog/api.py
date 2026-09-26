@@ -6,7 +6,7 @@ from . import api_bp
 from ...security import admin_api_required
 from .services import CatalogService, MediaService
 from ...extensions import db
-from ...models import Product, ProductCategory, ProductSideCategoryCircle, ProductVariant, SideCategoryCircle
+from ...models import MediaAsset, Product, ProductCategory, ProductSideCategoryCircle, ProductVariant, SideCategoryCircle
 
 
 @api_bp.get("/categories")
@@ -204,6 +204,23 @@ def public_product_feed():
         item["variant_id"] = variant.id if variant else None
         item["base_price_sar"] = str(row.base_price)
         item["status"] = row.status
+        try:
+            from ..customer.security import current_customer
+            from ...services.pricing import price_for_customer
+            customer = current_customer()
+            context, priced = price_for_customer(
+                base_price_sar=row.base_price,
+                customer_id=customer.id if customer else None,
+                city_id=customer.city_id if customer else None,
+                area_id=customer.city_area_id if customer else None,
+            )
+            item["price"] = str(priced.final)
+            item["currency_id"] = context.currency_id
+            item["currency_code"] = context.currency_code
+            item["fx_rate"] = str(priced.fx_rate)
+        except Exception:
+            item["price"] = str(row.base_price)
+            item["currency_code"] = "SAR"
         items.append(item)
     return {"items": items}
 
