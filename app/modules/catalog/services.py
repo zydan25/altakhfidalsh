@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from uuid import uuid4
@@ -1585,6 +1585,23 @@ class CatalogService:
         }
 
     @staticmethod
+    def _trend_timer_seconds(trend):
+        if not trend.timer_value:
+            return None
+        return int(trend.timer_value * 60) if trend.timer_unit == "minutes" else int(trend.timer_value)
+
+    @staticmethod
+    def is_trend_timer_expired(trend, now=None):
+        seconds = CatalogService._trend_timer_seconds(trend)
+        if not seconds or not trend.timer_started_at:
+            return False
+        now = now or datetime.now(timezone.utc)
+        started = trend.timer_started_at
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+        return now >= started + timedelta(seconds=seconds)
+
+    @staticmethod
     def serialize_public_trend(trend):
         hashtag = db.session.get(Hashtag, trend.hashtag_id)
         background = db.session.get(MediaAsset, trend.background_asset_id)
@@ -1605,6 +1622,7 @@ class CatalogService:
             })
         return {
             "id": trend.id,
+            "expired": CatalogService.is_trend_timer_expired(trend),
             "hashtag": {
                 "id": hashtag.id,
                 "name": hashtag.name,
@@ -1655,6 +1673,8 @@ class CatalogService:
         )
         items = []
         for trend in rows:
+            if CatalogService.is_trend_timer_expired(trend):
+                continue
             payload = CatalogService.serialize_public_trend(trend)
             if payload["hashtag"] and payload["background"] and len(payload["products"]) == 3:
                 items.append(payload)
