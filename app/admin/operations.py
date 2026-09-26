@@ -25,6 +25,9 @@ from ..models import (
     WarrantyPolicy,
     Look,
     LookProduct,
+    LookCircle,
+    SideCategory,
+    SideCategoryCircle,
 )
 from ..services.pricing import PricingRule, calculate_customer_price
 from .context import build_admin_context
@@ -451,6 +454,27 @@ def register_operation_routes(admin_bp):
                         if row:
                             db.session.delete(row)
                         success = "تمت إزالة المنتج من الإطلالة."
+                elif action in {"look_add_circle", "look_remove_circle"}:
+                    look_id = request.form.get("look_id", type=int)
+                    circle_id = request.form.get("circle_id", type=int)
+                    if db.session.get(Look, look_id) is None:
+                        raise ValueError("الإطلالة غير موجودة.")
+                    circle = db.session.get(SideCategoryCircle, circle_id)
+                    if circle is None or not circle.is_active:
+                        raise ValueError("الفئة الدائرية غير موجودة أو مؤرشفة.")
+                    if action == "look_add_circle":
+                        if not LookCircle.query.filter_by(look_id=look_id, circle_id=circle_id).first():
+                            db.session.add(LookCircle(
+                                look_id=look_id,
+                                circle_id=circle_id,
+                                sort_order=request.form.get("sort_order", 0, type=int) or 0,
+                            ))
+                        success = "تمت إضافة الفئة الدائرية إلى الإطلالة."
+                    else:
+                        row = LookCircle.query.filter_by(look_id=look_id, circle_id=circle_id).first()
+                        if row:
+                            db.session.delete(row)
+                        success = "تمت إزالة الفئة الدائرية من الإطلالة."
                 else:
                     raise ValueError("إجراء الإطلالة غير معروف.")
                 db.session.commit()
@@ -468,6 +492,24 @@ def register_operation_routes(admin_bp):
         for item in look_product_rows:
             if item.product_id in product_map:
                 products_by_look.setdefault(item.look_id, []).append(item)
+        circle_rows = (
+            SideCategoryCircle.query
+            .filter(SideCategoryCircle.is_active.is_(True))
+            .order_by(SideCategoryCircle.sort_order, SideCategoryCircle.name)
+            .all()
+        )
+        circle_side_ids = {x.id: x.side_category_id for x in circle_rows}
+        circle_side_map = {
+            x.id: x for x in SideCategory.query.filter(SideCategory.id.in_({x.side_category_id for x in circle_rows})).all()
+        } if circle_rows else {}
+        look_circle_rows = LookCircle.query.filter(
+            LookCircle.look_id.in_([x.id for x in looks_rows])
+        ).order_by(LookCircle.sort_order, LookCircle.id).all() if looks_rows else []
+        circles_by_look = {}
+        for item in look_circle_rows:
+            if item.circle_id in circle_side_ids:
+                circles_by_look.setdefault(item.look_id, []).append(item)
+        circle_map = {x.id: x for x in circle_rows}
         return render_template(
             "admin/looks.html",
             title="الإطلالات",
@@ -477,6 +519,10 @@ def register_operation_routes(admin_bp):
             products=products,
             product_map=product_map,
             products_by_look=products_by_look,
+            circle_rows=circle_rows,
+            circle_map=circle_map,
+            circle_side_map=circle_side_map,
+            circles_by_look=circles_by_look,
             success=success,
             error=error,
             **context,
