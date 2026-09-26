@@ -877,7 +877,7 @@ class LookProduct(TimestampMixin, db.Model):
     )
 
 
-class LookCircle(TimestampMixin, ActiveMixin, db.Model):
+class LookCircle(TimestampMixin, db.Model):
     """Circular category highlighted inside a Style look."""
     __tablename__ = "look_circles"
 
