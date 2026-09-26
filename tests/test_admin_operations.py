@@ -768,6 +768,8 @@ def test_side_category_admin_and_api_flow(client, app):
             base_currency_id=currency.id, base_price=25, status="published",
         )
         db.session.add(product)
+        db.session.flush()
+        db.session.add(ProductCategory(product_id=product.id, category_id=root.id, is_primary=True))
         db.session.commit()
         root_id, child_id, product_id = root.id, child.id, product.id
 
