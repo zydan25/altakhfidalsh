@@ -104,8 +104,8 @@ class PricingAdminService:
             db.session.add(PricingGroupRule(
                 group_id=group.id,
                 currency_id=currency_id,
-                percent_markup=Decimal(str(raw.get("percent_markup", 0))),
-                fixed_markup=Decimal(str(raw.get("fixed_markup", 0))),
+                percent_markup=Decimal(str(raw.get("percent_markup", group.percent_markup))),
+                fixed_markup=Decimal(str(raw.get("fixed_markup_sar", raw.get("fixed_markup", group.fixed_markup_sar)))),
                 rounding_rule=str(raw.get("rounding_rule", "nearest")),
                 decimals=int(raw.get("decimals", 2)),
             ))
