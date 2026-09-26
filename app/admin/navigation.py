@@ -49,10 +49,10 @@ NAVIGATION = [
     NavSection("التسعير", "¤", [
         NavItem("مجموعات التسعير", "/admin/pricing/groups", "¤"),
         NavItem("العملات", "/admin/pricing/currencies", "$"),
-        NavItem("أسعار الصرف", "/admin/pricing/rates", "↻"),
-        NavItem("المناطق والمدن", "/admin/geo", "⌖"),
-        NavItem("ربط المدن بالمجموعات", "/admin/pricing/city-assignments", "↔"),
-        NavItem("تعيينات العملاء", "/admin/pricing/customer-assignments", "♙"),
+        NavItem("أسعار الصرف (SAR)", "/admin/pricing/exchange-rates", "↻"),
+        NavItem("المدن والمناطق", "/admin/geo", "⌖"),
+        NavItem("ربط التسعير حسب المدينة", "/admin/pricing/groups", "↔"),
+        NavItem("استثناءات العملاء", "/admin/pricing/customer-overrides", "♙"),
         NavItem("معاينة السعر", "/admin/pricing/preview", "≈"),
     ]),
     NavSection("المبيعات والطلبات", "▣", [
@@ -60,6 +60,7 @@ NAVIGATION = [
         NavItem("الدفع", "/admin/payments", "¤"),
         NavItem("إثباتات الدفع", "/admin/payments/proofs", "▧"),
         NavItem("الشحن والتتبع", "/admin/shipping", "→"),
+        NavItem("طرق التوصيل وقواعدها", "/admin/shipping/rates", "⌁"),
         NavItem("الإرجاع والاسترداد", "/admin/returns", "↶"),
         NavItem("الضمان", "/admin/warranty", "✓"),
         NavItem("التقييمات", "/admin/reviews", "★"),

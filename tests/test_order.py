@@ -26,13 +26,17 @@ def test_order_uses_customer_city_pricing_and_snapshots(app):
         db.session.add_all([sar, yer])
         db.session.flush()
 
-        group = PricingGroup(name="YER group", default_currency_id=yer.id, priority=1, is_default=True)
+        group = PricingGroup(
+            name="YER group",
+            default_currency_id=yer.id,
+            priority=1,
+            percent_markup=Decimal("10"),
+            fixed_markup_sar=Decimal("5"),
+            decimals=0,
+            is_default=True,
+        )
         db.session.add(group)
         db.session.flush()
-        db.session.add(PricingGroupRule(
-            group_id=group.id, currency_id=yer.id, percent_markup=Decimal('10'),
-            fixed_markup=Decimal('5'), decimals=0,
-        ))
         db.session.add(ExchangeRate(
             base_currency_id=sar.id, quote_currency_id=yer.id, rate=Decimal('700'),
             valid_from=datetime.now(timezone.utc),
@@ -74,8 +78,8 @@ def test_order_uses_customer_city_pricing_and_snapshots(app):
         assert order['currency_id'] == yer.id
         assert order['pricing_group_id'] == group.id
         assert order['address_snapshot']['city_id'] == city.id
-        assert Decimal(order['subtotal']) == Decimal('154010')
-        assert Decimal(order['total']) == Decimal('154010')
+        assert Decimal(order['subtotal']) == Decimal('161000')
+        assert Decimal(order['total']) == Decimal('161000')
         order_row = __import__("app.models", fromlist=["Order"]).Order.query.filter_by(id=order['id']).first()
         assert Decimal(order_row.markup_percent) == Decimal('10')
         assert Decimal(order_row.markup_fixed) == Decimal('5')

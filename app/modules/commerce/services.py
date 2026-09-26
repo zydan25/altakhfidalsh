@@ -40,6 +40,7 @@ from ...models import (
     WarrantyClaim,
 )
 from ...services.pricing import price_for_customer
+from ...services.shipping import ShippingService
 
 
 ORDER_STATUSES = (
@@ -63,6 +64,7 @@ class CommerceService:
             "phone": address.phone,
             "country_id": address.country_id,
             "city_id": address.city_id,
+            "city_area_id": address.city_area_id,
             "district": address.district,
             "street": address.street,
             "landmark": address.landmark,
@@ -71,33 +73,15 @@ class CommerceService:
         }
 
     @staticmethod
-    def _resolve_shipping(city_id, subtotal):
-        city = db.session.get(City, city_id) if city_id else None
-        rows = (
-            ShippingRate.query
-            .join(ShippingMethod, ShippingMethod.id == ShippingRate.method_id)
-            .filter(
-                ShippingRate.is_active.is_(True),
-                ShippingMethod.is_active.is_(True),
-                or_(ShippingRate.city_id == city_id, ShippingRate.city_id.is_(None)),
-                or_(ShippingRate.region_id == (city.region_id if city else None), ShippingRate.region_id.is_(None)),
-            )
-            .order_by(
-                ShippingRate.city_id.is_(None),
-                ShippingRate.region_id.is_(None),
-                ShippingRate.price.asc(),
-            )
-            .all()
+    def _resolve_shipping(customer_id, city_id, area_id, subtotal_sar, fx_rate):
+        quote = ShippingService.quote(
+            customer_id=customer_id,
+            city_id=city_id,
+            area_id=area_id,
+            subtotal_sar=Decimal(subtotal_sar),
+            fx_rate=Decimal(fx_rate),
         )
-        for row in rows:
-            if row.min_order is not None and subtotal < row.min_order:
-                continue
-            if row.max_order is not None and subtotal > row.max_order:
-                continue
-            if row.free_over is not None and subtotal >= row.free_over:
-                return Decimal("0")
-            return Decimal(row.price)
-        return Decimal("0")
+        return quote
 
     @staticmethod
     def create_order(payload):
@@ -126,6 +110,7 @@ class CommerceService:
             )
             order_items = []
             subtotal = Decimal("0")
+            subtotal_sar = Decimal("0")
 
             for raw in items:
                 variant_id = int(raw["variant_id"])
@@ -148,6 +133,7 @@ class CommerceService:
                 )
                 line_total = price.final * qty
                 subtotal += line_total
+                subtotal_sar += price.base_sar * qty
 
                 stock_rows = (
                     StockInventory.query
@@ -179,7 +165,14 @@ class CommerceService:
                     }
                 )
 
-            shipping = CommerceService._resolve_shipping(address.city_id, subtotal)
+            shipping_quote = CommerceService._resolve_shipping(
+                customer_id,
+                address.city_id,
+                address.city_area_id,
+                subtotal_sar,
+                order_items[0]["price"].fx_rate,
+            )
+            shipping = shipping_quote.price_display
             total = subtotal + shipping
 
             order = Order(
@@ -203,6 +196,8 @@ class CommerceService:
                 subtotal=subtotal,
                 discount=Decimal("0"),
                 shipping=shipping,
+                shipping_base_sar=shipping_quote.price_sar,
+                shipping_rate_id=shipping_quote.rate_id,
                 total=total,
                 status="created",
                 payment_status="unpaid",
@@ -490,6 +485,8 @@ class CommerceService:
             "subtotal": str(order.subtotal),
             "discount": str(order.discount),
             "shipping": str(order.shipping),
+            "shipping_base_sar": str(order.shipping_base_sar),
+            "shipping_rate_id": order.shipping_rate_id,
             "total": str(order.total),
             "status": order.status,
             "payment_status": order.payment_status,

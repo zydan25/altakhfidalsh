@@ -1,0 +1,24 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><div class="module-toolbar"><div class="module-heading-copy"><span class="eyebrow">التسعير</span><h2>تطبيق مجموعات التسعير</h2><p class="muted">الاختيار هنا لا يغير سعر المنتج؛ فقط يحدد أي مجموعة ستستخدم عند العميل. الأولوية: جزء داخل المدينة → مدينة → منطقة/محافظة → الافتراضي.</p></div><div class="module-toolbar-actions"><span class="status-pill">{{ rows|length }} رابط</span></div></div></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="panel">
+<form method="post" class="form-stack compact-form-grid">
+<input type="hidden" name="action" value="create">
+<label>مجموعة التسعير<select name="pricing_group_id" required><option value="">اختر المجموعة</option>{% for g in groups %}<option value="{{ g.id }}">{{ g.name }}{% if g.is_default %} · افتراضية{% endif %}</option>{% endfor %}</select></label>
+<label>الأولوية<input name="priority" type="number" value="0"><small class="field-help">الأكبر يُطبّق أولًا داخل نفس المستوى.</small></label>
+<label>المنطقة / المحافظة<select name="region_id"><option value="">بدون</option>{% for x in regions %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+<label>المدينة<select name="city_id"><option value="">بدون</option>{% for x in cities %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+<label>الجزء داخل المدينة<select name="area_id"><option value="">بدون</option>{% for x in areas %}<option value="{{ x.id }}">{{ x.name }} · {{ city_map.get(x.city_id,'') }}</option>{% endfor %}</select></label>
+<button class="primary-button form-field-wide" type="submit">إضافة الربط</button>
+</form></section>
+<section class="entity-grid manage-grid">
+{% for row in rows %}
+<article class="entity-card panel manage-card"><div class="manage-card-header"><strong>{{ group_map.get(row.pricing_group_id,row.pricing_group_id) }}</strong><span class="status-pill">أولوية {{ row.priority }}</span></div>
+<div class="entity-field"><span class="entity-label">الموقع</span><strong>{% if row.area_id %}{{ area_map.get(row.area_id,row.area_id) }} · {{ city_map.get(areas|selectattr('id','equalto',row.area_id)|map(attribute='city_id')|first,'') }}{% elif row.city_id %}مدينة · {{ city_map.get(row.city_id,row.city_id) }}{% elif row.region_id %}منطقة · {{ region_map.get(row.region_id,row.region_id) }}{% else %}افتراضي{% endif %}</strong></div>
+<div class="entity-field"><span class="entity-label">الحالة</span><strong>فعالة</strong></div>
+<form method="post" style="grid-column:1/-1"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button danger-button" type="submit">إلغاء الربط</button></form>
+</article>
+{% else %}<section class="empty-state panel" style="grid-column:1/-1"><h3>لا توجد روابط مواقع</h3><p class="muted">ستستخدم المجموعة الافتراضية حتى تضيف روابط.</p></section>{% endfor %}
+</section>
+{% endblock %}

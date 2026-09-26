@@ -3,7 +3,7 @@ from flask import request
 from . import api_bp
 from ...security import admin_api_required
 from ...extensions import db
-from ...models import City, Country, Region
+from ...models import City, CityArea, Country, Region
 
 
 @api_bp.get("/countries")
@@ -63,7 +63,7 @@ def cities():
     if region_id:
         query = query.filter_by(region_id=region_id)
     rows = query.order_by(City.sort_order, City.name).all()
-    return {"items": [{"id": x.id, "region_id": x.region_id, "code": x.code, "name": x.name, "sort_order": x.sort_order} for x in rows]}
+    return {"items": [{"id": x.id, "region_id": x.region_id, "code": x.code, "name": x.name, "direction": x.direction, "source": x.source, "sort_order": x.sort_order} for x in rows]}
 
 
 @api_bp.post("/cities")
@@ -78,7 +78,73 @@ def create_city():
         return {"error": "invalid_city", "detail": "region_id, code and name are required"}, 400
     if db.session.get(Region, region_id) is None:
         return {"error": "invalid_city", "detail": "region not found"}, 400
-    row = City(region_id=region_id, code=code, name=name, sort_order=int(payload.get("sort_order", 0)))
+    row = City(
+        region_id=region_id,
+        code=code,
+        name=name,
+        direction=(payload.get("direction") or "").strip() or None,
+        source=(payload.get("source") or "").strip() or None,
+        sort_order=int(payload.get("sort_order", 0)),
+    )
     db.session.add(row)
     db.session.commit()
     return {"item": {"id": row.id, "region_id": row.region_id, "code": row.code, "name": row.name}}, 201
+
+
+
+@api_bp.get("/city-areas")
+def city_areas():
+    city_id = request.args.get("city_id", type=int)
+    query = CityArea.query.filter_by(is_active=True)
+    if city_id:
+        query = query.filter_by(city_id=city_id)
+    rows = query.order_by(CityArea.sort_order, CityArea.name).all()
+    return {
+        "items": [
+            {
+                "id": x.id,
+                "city_id": x.city_id,
+                "code": x.code,
+                "name": x.name,
+                "direction": x.direction,
+                "source": x.source,
+                "sort_order": x.sort_order,
+            }
+            for x in rows
+        ]
+    }
+
+
+@api_bp.post("/city-areas")
+@admin_api_required("geo.manage")
+def create_city_area():
+    payload = request.get_json(silent=True) or {}
+    try:
+        city_id = int(payload["city_id"])
+        code = str(payload["code"]).strip().upper()
+        name = str(payload["name"]).strip()
+    except (KeyError, ValueError):
+        return {"error": "invalid_city_area", "detail": "city_id, code and name are required"}, 400
+    city = db.session.get(City, city_id)
+    if city is None:
+        return {"error": "invalid_city_area", "detail": "city not found"}, 400
+    row = CityArea(
+        city_id=city_id,
+        code=code,
+        name=name,
+        direction=(payload.get("direction") or "").strip() or None,
+        source=(payload.get("source") or "").strip() or None,
+        sort_order=int(payload.get("sort_order", 0)),
+    )
+    db.session.add(row)
+    db.session.commit()
+    return {
+        "item": {
+            "id": row.id,
+            "city_id": row.city_id,
+            "code": row.code,
+            "name": row.name,
+            "direction": row.direction,
+            "source": row.source,
+        }
+    }, 201

@@ -85,6 +85,7 @@ def my_addresses():
             "phone": x.phone,
             "country_id": x.country_id,
             "city_id": x.city_id,
+            "city_area_id": x.city_area_id,
             "district": x.district,
             "street": x.street,
             "landmark": x.landmark,
@@ -142,6 +143,7 @@ def customer(customer_id):
         "name": item.name,
         "email": item.email,
         "city_id": item.city_id,
+        "city_area_id": item.city_area_id,
         "status": item.status,
         "addresses": [
             {

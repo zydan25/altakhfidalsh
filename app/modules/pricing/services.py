@@ -1,12 +1,17 @@
 from datetime import datetime, timezone
+from decimal import Decimal
 from ...extensions import db
 from ...models import (
+    City,
+    CityArea,
     Currency,
+    Customer,
     CustomerPricingAssignment,
     ExchangeRate,
     PricingGroup,
     PricingGroupCity,
     PricingGroupRule,
+    Region,
 )
 from ...services.pricing import price_for_customer
 
@@ -43,11 +48,17 @@ class PricingAdminService:
 
     @staticmethod
     def create_exchange_rate(payload):
-        base_id = int(payload["base_currency_id"])
+        sar = Currency.query.filter_by(code="SAR", is_active=True).first()
+        if sar is None:
+            raise ValueError("SAR base currency is not configured")
+        base_id = sar.id
         quote_id = int(payload["quote_currency_id"])
         rate = Decimal(str(payload["rate"]))
-        if db.session.get(Currency, base_id) is None or db.session.get(Currency, quote_id) is None:
+        quote = db.session.get(Currency, quote_id)
+        if quote is None or not quote.is_active:
             raise ValueError("currency not found")
+        if quote_id == base_id:
+            raise ValueError("quote currency must differ from SAR")
         if rate <= 0:
             raise ValueError("rate must be positive")
         row = ExchangeRate(
@@ -70,7 +81,11 @@ class PricingAdminService:
         group = PricingGroup(
             name=str(payload["name"]).strip(),
             description=(payload.get("description") or "").strip() or None,
-            default_currency_id=payload.get("default_currency_id"),
+            default_currency_id=int(payload["default_currency_id"]) if payload.get("default_currency_id") else None,
+            percent_markup=Decimal(str(payload.get("percent_markup", 0) or 0)),
+            fixed_markup_sar=Decimal(str(payload.get("fixed_markup_sar", payload.get("fixed_markup", 0)) or 0)),
+            rounding_rule=str(payload.get("rounding_rule", "nearest")),
+            decimals=int(payload.get("decimals", 2)),
             priority=int(payload.get("priority", 0)),
             starts_at=_dt(payload.get("starts_at")),
             ends_at=_dt(payload.get("ends_at")),
@@ -89,8 +104,8 @@ class PricingAdminService:
             db.session.add(PricingGroupRule(
                 group_id=group.id,
                 currency_id=currency_id,
-                percent_markup=Decimal(str(raw.get("percent_markup", 0))),
-                fixed_markup=Decimal(str(raw.get("fixed_markup", 0))),
+                percent_markup=Decimal(str(raw.get("percent_markup", group.percent_markup))),
+                fixed_markup=Decimal(str(raw.get("fixed_markup_sar", raw.get("fixed_markup", group.fixed_markup_sar)))),
                 rounding_rule=str(raw.get("rounding_rule", "nearest")),
                 decimals=int(raw.get("decimals", 2)),
             ))
@@ -102,17 +117,22 @@ class PricingAdminService:
         group_id = int(payload["pricing_group_id"])
         if db.session.get(PricingGroup, group_id) is None:
             raise ValueError("pricing group not found")
-        city_id = payload.get("city_id")
-        region_id = payload.get("region_id")
-        if (city_id is None) == (region_id is None):
-            raise ValueError("exactly one of city_id or region_id is required")
-        if city_id is not None and db.session.get(__import__("app.models", fromlist=["City"]).City, int(city_id)) is None:
+        city_id = int(payload["city_id"]) if payload.get("city_id") else None
+        region_id = int(payload["region_id"]) if payload.get("region_id") else None
+        area_id = int(payload["area_id"]) if payload.get("area_id") else None
+        targets = [x for x in (city_id, region_id, area_id) if x is not None]
+        if len(targets) != 1:
+            raise ValueError("exactly one of city_id, region_id or area_id is required")
+        if city_id is not None and db.session.get(City, city_id) is None:
             raise ValueError("city not found")
-        if region_id is not None and db.session.get(__import__("app.models", fromlist=["Region"]).Region, int(region_id)) is None:
+        if region_id is not None and db.session.get(Region, region_id) is None:
             raise ValueError("region not found")
+        if area_id is not None and db.session.get(CityArea, area_id) is None:
+            raise ValueError("city area not found")
         row = PricingGroupCity(
-            city_id=int(city_id) if city_id is not None else None,
-            region_id=int(region_id) if region_id is not None else None,
+            city_id=city_id,
+            region_id=region_id,
+            area_id=area_id,
             pricing_group_id=group_id,
             priority=int(payload.get("priority", 0)),
             starts_at=_dt(payload.get("starts_at")),
@@ -120,7 +140,7 @@ class PricingAdminService:
         )
         db.session.add(row)
         db.session.commit()
-        return {"id": row.id, "city_id": row.city_id, "region_id": row.region_id, "pricing_group_id": row.pricing_group_id}
+        return {"id": row.id, "city_id": row.city_id, "region_id": row.region_id, "area_id": row.area_id, "pricing_group_id": row.pricing_group_id}
 
     @staticmethod
     def assign_customer(payload):
@@ -147,6 +167,7 @@ class PricingAdminService:
             base_price_sar=Decimal(str(payload["base_price_sar"])),
             customer_id=payload.get("customer_id"),
             city_id=payload.get("city_id"),
+            area_id=payload.get("area_id"),
             currency_id=payload.get("currency_id"),
         )
         return {

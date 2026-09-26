@@ -15,6 +15,7 @@ def context():
         result = resolve_pricing_context(
             customer_id=request.args.get("customer_id", type=int),
             city_id=request.args.get("city_id", type=int),
+            area_id=request.args.get("area_id", type=int),
             currency_id=request.args.get("currency_id", type=int),
         )
     except LookupError as exc:
@@ -64,6 +65,10 @@ def groups():
             "id": x.id,
             "name": x.name,
             "default_currency_id": x.default_currency_id,
+            "percent_markup": str(x.percent_markup or 0),
+            "fixed_markup_sar": str(x.fixed_markup_sar or 0),
+            "rounding_rule": x.rounding_rule,
+            "decimals": x.decimals,
             "priority": x.priority,
             "is_default": x.is_default,
             "rules": [
@@ -71,6 +76,7 @@ def groups():
                     "currency_id": rule.currency_id,
                     "percent_markup": str(rule.percent_markup),
                     "fixed_markup": str(rule.fixed_markup),
+                    "fixed_markup_sar": str(rule.fixed_markup),
                     "rounding_rule": rule.rounding_rule,
                     "decimals": rule.decimals,
                 }
@@ -94,7 +100,14 @@ def create_group():
 @admin_api_required("pricing.manage")
 def exchange_rate():
     try:
-        return {"item": PricingAdminService.create_exchange_rate(request.get_json(silent=True) or {})}, 201
+        payload = request.get_json(silent=True) or {}
+        sar = Currency.query.filter_by(code="SAR", is_active=True).first()
+        if sar is None:
+            return {"error": "exchange_rate_creation_failed", "detail": "العملة الأساسية SAR غير موجودة."}, 400
+        payload["base_currency_id"] = sar.id
+        if int(payload["quote_currency_id"]) == sar.id:
+            return {"error": "exchange_rate_creation_failed", "detail": "العملة المستهدفة يجب أن تكون مختلفة عن SAR."}, 400
+        return {"item": PricingAdminService.create_exchange_rate(payload)}, 201
     except (KeyError, ValueError) as exc:
         return {"error": "exchange_rate_creation_failed", "detail": str(exc)}, 400
 

@@ -1,9 +1,13 @@
+from decimal import Decimal
+
 from flask import request
 
 from . import api_bp
 from ...security import admin_api_required
 from ..customer.security import customer_required, current_customer
 from .services import CommerceService
+from ...services.pricing import resolve_exchange_rate
+from ...services.shipping import ShippingService
 from ...extensions import db
 from ...models import Order
 
@@ -123,6 +127,54 @@ def payment_proof():
         return {"item": PaymentShippingService.attach_payment_proof(request.get_json(silent=True) or {})}, 201
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "payment_proof_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/shipping/quote")
+@customer_required
+def shipping_quote():
+    payload = request.get_json(silent=True) or {}
+    try:
+        customer = current_customer()
+        city_id = int(payload["city_id"]) if payload.get("city_id") else customer.city_id
+        area_id = int(payload["city_area_id"]) if payload.get("city_area_id") else customer.city_area_id
+        currency_id = int(payload["currency_id"]) if payload.get("currency_id") else None
+        subtotal_sar = Decimal(str(payload.get("subtotal_sar", "0")))
+        if subtotal_sar < 0:
+            raise ValueError("subtotal_sar cannot be negative")
+        if currency_id is None:
+            from ...models import PricingGroup
+            from ...services.pricing import resolve_pricing_context
+            ctx = resolve_pricing_context(customer_id=customer.id, city_id=city_id, area_id=area_id)
+            currency_id = ctx.currency_id
+        from ...models import Currency
+        sar = Currency.query.filter_by(code="SAR", is_active=True).first()
+        if sar is None:
+            raise LookupError("SAR base currency is not configured")
+        fx = resolve_exchange_rate(base_currency_id=sar.id, quote_currency_id=currency_id)
+        quote = ShippingService.quote(
+            customer_id=customer.id,
+            city_id=city_id,
+            area_id=area_id,
+            subtotal_sar=subtotal_sar,
+            currency_id=currency_id,
+            fx_rate=fx,
+        )
+        return {"item": {
+            "rate_id": quote.rate_id,
+            "method_id": quote.method_id,
+            "method_name": quote.method_name,
+            "price_sar": str(quote.price_sar),
+            "price_display": str(quote.price_display),
+            "free": quote.free,
+            "source": quote.source,
+            "currency_id": currency_id,
+            "fx_rate": str(fx),
+            "min_order_sar": str(quote.min_order_sar) if quote.min_order_sar is not None else None,
+            "max_order_sar": str(quote.max_order_sar) if quote.max_order_sar is not None else None,
+            "free_over_sar": str(quote.free_over_sar) if quote.free_over_sar is not None else None,
+        }}
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "shipping_quote_failed", "detail": str(exc)}, 400
 
 
 @api_bp.get("/shipping-methods")

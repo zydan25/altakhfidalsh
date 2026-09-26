@@ -37,6 +37,8 @@ ROUTE_PERMISSIONS = {
         "/admin/payments": "payment.manage",
         "/admin/payments/proofs": "payment.manage",
         "/admin/shipping": "shipping.manage",
+        "/admin/shipping/rates": "shipping.manage",
+        "/admin/shipping/rates": "shipping.manage",
         "/admin/returns": "refund.approve",
         "/admin/warranty": "policy.manage",
         "/admin/reviews": "content.manage",

@@ -1370,16 +1370,6 @@ def register_entity_views(admin_bp):
         records=[{"id":x.id,"title":x.name,"badge":f"#{x.id}","color":x.background_color,"edit_action":"update","archive_action":"archive","edit_fields":[{"name":"name","label":"الاسم","required":True,"value":x.name},{"name":"text_prefix","label":"مقدمة قصيرة","value":x.text_prefix},{"name":"text_body","label":"نص العرض","required":True,"type":"textarea","value":x.text_body},{"name":"background_color","label":"لون الخلفية","type":"color","value":x.background_color or "#111827"},{"name":"text_color","label":"لون النص","type":"color","value":x.text_color or "#ffffff"}],"fields":[{"label":"النص","value":x.text_body},{"label":"الخلفية","value":x.background_color or "—","dir":"ltr"},{"label":"لون النص","value":x.text_color or "—","dir":"ltr"}]} for x in rows]
         return render_template("admin/manage.html",title="جديدنا والعروض",section="المحتوى والمتجر",description="إضافة وتعديل وأرشفة شرائط العروض.",fields=[{"name":"name","label":"الاسم","required":True},{"name":"text_prefix","label":"مقدمة قصيرة"},{"name":"text_body","label":"نص العرض","required":True,"type":"textarea"},{"name":"background_color","label":"لون الخلفية","type":"color","value":"#111827"},{"name":"text_color","label":"لون النص","type":"color","value":"#ffffff"}],records=records,modal_id="promoStripAddModal",success=success,error=error,**_ctx())
 
-    @admin_bp.get("/geo")
-    def geo():
-        from ..models import City, Country, Region
-        rows = (
-            [["دولة", x.id, x.code, x.name_ar] for x in Country.query.filter_by(is_active=True).all()]
-            + [["منطقة", x.id, x.code, x.name] for x in Region.query.filter_by(is_active=True).all()]
-            + [["مدينة", x.id, x.code, x.name] for x in City.query.filter_by(is_active=True).all()]
-        )
-        return _render("المناطق والمدن", ["النوع", "ID", "الكود", "الاسم"], rows, "التسعير")
-
     @admin_bp.get("/payments/proofs")
     def payment_proofs():
         from ..models import PaymentProof
