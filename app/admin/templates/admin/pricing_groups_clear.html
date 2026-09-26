@@ -1,40 +1,123 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<section class="module-header pricing-control-header">
+<section class="module-header">
   <div class="module-toolbar">
     <div class="module-heading-copy">
-      <span class="eyebrow">التسعير</span>
+      <span class="eyebrow">التسعير · 1</span>
       <h2>مجموعات التسعير</h2>
-      <p class="muted">كل أسعار المنتجات تبدأ من SAR. المجموعة تحدد نسبة الزيادة والزيادة الثابتة بالسعودي، ثم يختار العميل عملة العرض.</p>
+      <p class="muted">أنشئ مجموعة واحدة لها قاعدة واضحة: سعر المنتج أساسه SAR، ثم نسبة زيادة + مبلغ ثابت SAR. بعد ذلك حدد بنفسك أين تطبق: محافظة، مدينة، أو منطقة داخل المدينة.</p>
     </div>
-    <div class="module-toolbar-actions"><span class="status-pill">{{ groups|selectattr('is_active')|list|length }} فعالة</span><button class="primary-button" type="button" data-open-modal="pricingGroupAdd">＋ مجموعة تسعير</button></div>
+    <div class="module-toolbar-actions">
+      <span class="status-pill">{{ groups|selectattr('is_active')|list|length }} مجموعة فعالة</span>
+      <button class="primary-button" type="button" data-open-modal="pricingGroupAdd">＋ مجموعة تسعير</button>
+    </div>
   </div>
 </section>
+
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
 <section class="pricing-explain-grid">
-  <article class="panel pricing-rule-card"><span class="eyebrow">01 · الأساس</span><strong>سعر المنتج = SAR</strong><p>لا نخزن سعر المنتج النهائي بعملة العميل.</p></article>
-  <article class="panel pricing-rule-card"><span class="eyebrow">02 · التحويل</span><strong>SAR × سعر الصرف</strong><p>سعر الصرف محفوظ كـ 1 SAR → العملة.</p></article>
-  <article class="panel pricing-rule-card"><span class="eyebrow">03 · الزيادة</span><strong>نسبة + ثابت SAR</strong><p>الزيادة الثابتة أيضًا أساسها SAR وتتحول مع FX.</p></article>
-  <article class="panel pricing-rule-card"><span class="eyebrow">04 · الاختيار</span><strong>عميل → منطقة → مدينة</strong><p>الأولوية تحدد المجموعة قبل احتساب السعر.</p></article>
+  <article class="panel pricing-rule-card"><span class="eyebrow">الأساس</span><strong>100 SAR</strong><p>هذا هو سعر المنتج قبل العرض.</p></article>
+  <article class="panel pricing-rule-card"><span class="eyebrow">الصرف</span><strong>× FX</strong><p>مثلًا 1 SAR = 72 YER.</p></article>
+  <article class="panel pricing-rule-card"><span class="eyebrow">المجموعة</span><strong>10% + 5 SAR</strong><p>الثابت يظل SAR ثم يتحول تلقائيًا.</p></article>
+  <article class="panel pricing-rule-card"><span class="eyebrow">المكان</span><strong>حسب المدينة</strong><p>مثل: مجموعة التجزئة ← مدينة إب.</p></article>
+</section>
+
+<section class="panel" style="margin-bottom:18px">
+  <div class="panel-heading">
+    <div><span class="eyebrow">طريقة الاستخدام</span><h3>لا تحتاج فتح شاشة ثانية لربط المدينة</h3></div>
+  </div>
+  <div class="muted">أنشئ المجموعة، ثم من نفس الصفحة افتح «تطبيق المجموعة على موقع» واختر «مدينة» ثم اختر المدينة. ويمكن لاحقًا إضافة منطقة داخلها بسعر مختلف.</div>
 </section>
 
 <section class="pricing-group-list">
 {% for group in groups %}
 <article class="panel pricing-group-card {% if not group.is_active %}is-inactive{% endif %}">
   <div class="pricing-group-card-head">
-    <div><span class="eyebrow">{{ "افتراضية" if group.is_default else "مجموعة" }}</span><h3>{{ group.name }}</h3><p class="muted">{{ group.description or "بدون وصف" }}</p></div>
-    <div class="pricing-group-head-badges"><span class="status-pill">{{ "فعالة" if group.is_active else "معطلة" }}</span><span class="status-pill">أولوية {{ group.priority }}</span></div>
+    <div>
+      <span class="eyebrow">{{ "افتراضية" if group.is_default else "مجموعة" }}</span>
+      <h3>{{ group.name }}</h3>
+      <p class="muted">{{ group.description or "بدون وصف" }}</p>
+    </div>
+    <div class="pricing-group-head-badges">
+      <span class="status-pill">{{ "فعالة" if group.is_active else "معطلة" }}</span>
+      <span class="status-pill">أولوية {{ group.priority }}</span>
+    </div>
   </div>
+
   <div class="pricing-stat-grid">
-    <div><span>الزيادة</span><strong>{{ group.percent_markup }}%</strong></div>
-    <div><span>ثابت SAR</span><strong>{{ group.fixed_markup_sar }}</strong></div>
-    <div><span>عملة افتراضية</span><strong>{{ currencies|selectattr('id','equalto',group.default_currency_id)|map(attribute='code')|first or 'SAR' }}</strong></div>
-    <div><span>روابط المواقع</span><strong>{{ assignments.get(group.id, 0) }}</strong></div>
+    <div><span>نسبة الزيادة</span><strong>{{ group.percent_markup }}%</strong></div>
+    <div><span>ثابت بالسعودي</span><strong>{{ group.fixed_markup_sar }} SAR</strong></div>
+    <div><span>العملة الافتراضية</span><strong>{{ currencies|selectattr('id','equalto',group.default_currency_id)|map(attribute='code')|first or 'SAR' }}</strong></div>
+    <div><span>مواقع مطبقة</span><strong>{{ assignments.get(group.id, 0) }}</strong></div>
   </div>
+
+  <div class="panel-subsection">
+    <div class="panel-heading">
+      <div><span class="eyebrow">حسب المدينة / الموقع</span><h4>أين تستخدم هذه المجموعة؟</h4></div>
+    </div>
+    {% set group_locations = location_rows|selectattr('pricing_group_id','equalto',group.id)|list %}
+    {% if group_locations %}
+      <div class="chip-row">
+      {% for row in group_locations %}
+        <span class="status-pill">
+          {% if row.area_id %}منطقة: {{ area_map.get(row.area_id, row.area_id) }}
+          {% elif row.city_id %}مدينة: {{ city_map.get(row.city_id, row.city_id) }}
+          {% elif row.region_id %}محافظة: {{ region_map.get(row.region_id, row.region_id) }}
+          {% endif %}
+          · أولوية {{ row.priority }}
+        </span>
+        <form method="post" style="display:inline">
+          <input type="hidden" name="action" value="archive_assignment">
+          <input type="hidden" name="assignment_id" value="{{ row.id }}">
+          <button class="ghost-button danger-button" type="submit">إزالة</button>
+        </form>
+      {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">لا يوجد ربط محدد. {% if group.is_default %}ستعمل كمجموعة افتراضية.{% else %}أضف مدينة أو منطقة من النموذج أدناه.{% endif %}</p>
+    {% endif %}
+  </div>
+
+  {% if group.is_active %}
   <details class="pricing-details">
-    <summary class="ghost-button">تعديل المجموعة</summary>
+    <summary class="ghost-button">تطبيق المجموعة على مدينة / منطقة</summary>
+    <form method="post" class="form-stack compact-form-grid" style="margin-top:10px">
+      <input type="hidden" name="action" value="assign_location">
+      <input type="hidden" name="pricing_group_id" value="{{ group.id }}">
+      <label>نوع التطبيق
+        <select name="location_scope" class="location-scope" data-scope-target="pricing-{{ group.id }}">
+          <option value="city">مدينة (المفضل)</option>
+          <option value="area">منطقة داخل المدينة</option>
+          <option value="region">محافظة / منطقة عامة</option>
+        </select>
+      </label>
+      <label data-scope-field="city" data-scope-target="pricing-{{ group.id }}">المدينة
+        <select name="location_id" class="location-target" data-scope="city" required>
+          <option value="">اختر المدينة</option>
+          {% for x in cities %}<option value="{{ x.id }}">{{ x.name }} · {{ region_map.get(x.region_id,'') }}</option>{% endfor %}
+        </select>
+      </label>
+      <label data-scope-field="area" data-scope-target="pricing-{{ group.id }}" hidden>المنطقة داخل المدينة
+        <select name="location_id" class="location-target" data-scope="area" disabled>
+          <option value="">اختر المنطقة</option>
+          {% for x in areas %}<option value="{{ x.id }}">{{ x.name }} · {{ city_map.get(x.city_id,'') }}</option>{% endfor %}
+        </select>
+      </label>
+      <label data-scope-field="region" data-scope-target="pricing-{{ group.id }}" hidden>المحافظة / المنطقة
+        <select name="location_id" class="location-target" data-scope="region" disabled>
+          <option value="">اختر المحافظة / المنطقة</option>
+          {% for x in regions %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>أولوية التطبيق<input type="number" name="location_priority" value="0"><small class="field-help">الأكبر يفوز داخل المستوى نفسه.</small></label>
+      <button class="primary-button form-field-wide" type="submit">حفظ ربط المجموعة</button>
+    </form>
+  </details>
+
+  <details class="pricing-details">
+    <summary class="ghost-button">تعديل بيانات المجموعة</summary>
     <form method="post" class="form-stack compact-form-grid">
       <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ group.id }}">
       <label>الاسم<input name="name" value="{{ group.name }}" required></label>
@@ -43,32 +126,57 @@
       <label>الزيادة الثابتة SAR<input name="fixed_markup_sar" type="number" step="0.0001" min="0" value="{{ group.fixed_markup_sar }}"></label>
       <label>التقريب<select name="rounding_rule"><option value="nearest" {% if group.rounding_rule=='nearest' %}selected{% endif %}>الأقرب</option><option value="up" {% if group.rounding_rule=='up' %}selected{% endif %}>للأعلى</option><option value="down" {% if group.rounding_rule=='down' %}selected{% endif %}>للأسفل</option></select></label>
       <label>المنازل العشرية<input name="decimals" type="number" min="0" max="6" value="{{ group.decimals }}"></label>
-      <label>الأولوية<input name="priority" type="number" value="{{ group.priority }}"></label>
+      <label>أولوية المجموعة<input name="priority" type="number" value="{{ group.priority }}"></label>
       <label class="form-field-wide">الوصف<textarea name="description">{{ group.description or "" }}</textarea></label>
       <label class="check-row form-field-wide"><input name="is_default" type="checkbox" {% if group.is_default %}checked{% endif %}><span>مجموعة افتراضية</span></label>
       <button class="primary-button form-field-wide" type="submit">حفظ المجموعة</button>
     </form>
   </details>
-  {% if group.is_active %}<form method="post" class="inline-form"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ group.id }}"><button class="ghost-button danger-button" type="submit">أرشفة</button></form>{% endif %}
+  <form method="post" class="inline-form"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ group.id }}"><button class="ghost-button danger-button" type="submit">أرشفة المجموعة</button></form>
+  {% endif %}
 </article>
 {% else %}
-<section class="empty-state panel"><h3>لا توجد مجموعات تسعير</h3><p class="muted">أنشئ المجموعة الافتراضية أولًا، ثم اربطها بالمدن والمناطق.</p></section>
+<section class="empty-state panel"><h3>لا توجد مجموعات</h3><p class="muted">ابدأ بإنشاء مجموعة افتراضية أو مجموعة خاصة بمدينة.</p></section>
 {% endfor %}
 </section>
 
 <div class="admin-modal" data-modal="pricingGroupAdd" hidden>
-<div class="admin-modal-backdrop" data-close-modal></div><section class="admin-modal-dialog"><div class="admin-modal-header"><div><span class="eyebrow">إضافة</span><h3>مجموعة تسعير جديدة</h3></div><button class="icon-button" type="button" data-close-modal>×</button></div>
-<form method="post" class="form-stack compact-form-grid">
-<input type="hidden" name="action" value="create">
-<label>اسم المجموعة *<input name="name" required placeholder="السعر المحلي / سعر التجزئة / جملة"></label>
-<label>العملة الافتراضية<select name="default_currency_id"><option value="">SAR</option>{% for c in currencies %}<option value="{{ c.id }}">{{ c.code }} · {{ c.name_ar }}</option>{% endfor %}</select></label>
-<label>نسبة الزيادة %<input name="percent_markup" type="number" step="0.0001" min="0" value="0"></label>
-<label>الزيادة الثابتة SAR<input name="fixed_markup_sar" type="number" step="0.0001" min="0" value="0"></label>
-<label>التقريب<select name="rounding_rule"><option value="nearest">الأقرب</option><option value="up">للأعلى</option><option value="down">للأسفل</option></select></label>
-<label>المنازل العشرية<input name="decimals" type="number" min="0" max="6" value="2"></label>
-<label>الأولوية<input name="priority" type="number" value="0"></label>
-<label class="form-field-wide">الوصف<textarea name="description" placeholder="متى تستخدم هذه المجموعة؟"></textarea></label>
-<label class="check-row form-field-wide"><input name="is_default" type="checkbox"><span>هذه هي المجموعة الافتراضية</span></label>
-<div class="modal-actions form-field-wide"><button class="ghost-button" type="button" data-close-modal>إلغاء</button><button class="primary-button" type="submit">إنشاء المجموعة</button></div>
-</form></section></div>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog">
+    <div class="admin-modal-header"><div><span class="eyebrow">إضافة</span><h3>مجموعة تسعير جديدة</h3></div><button class="icon-button" type="button" data-close-modal>×</button></div>
+    <form method="post" class="form-stack compact-form-grid">
+      <input type="hidden" name="action" value="create">
+      <label>اسم المجموعة *<input name="name" required placeholder="مثل: سعر مدينة إب / التجزئة"></label>
+      <label>العملة الافتراضية<select name="default_currency_id"><option value="">SAR</option>{% for c in currencies %}<option value="{{ c.id }}">{{ c.code }} · {{ c.name_ar }}</option>{% endfor %}</select></label>
+      <label>نسبة الزيادة %<input name="percent_markup" type="number" step="0.0001" min="0" value="0"></label>
+      <label>الزيادة الثابتة SAR<input name="fixed_markup_sar" type="number" step="0.0001" min="0" value="0"></label>
+      <label>التقريب<select name="rounding_rule"><option value="nearest">الأقرب</option><option value="up">للأعلى</option><option value="down">للأسفل</option></select></label>
+      <label>المنازل العشرية<input name="decimals" type="number" min="0" max="6" value="2"></label>
+      <label>أولوية المجموعة<input name="priority" type="number" value="0"></label>
+      <label class="form-field-wide">الوصف<textarea name="description" placeholder="متى تستخدم هذه المجموعة؟"></textarea></label>
+      <label class="check-row form-field-wide"><input name="is_default" type="checkbox"><span>استخدمها كمجموعة افتراضية</span></label>
+      <div class="modal-actions form-field-wide"><button class="ghost-button" type="button" data-close-modal>إلغاء</button><button class="primary-button" type="submit">إنشاء المجموعة</button></div>
+    </form>
+  </section>
+</div>
+
+<script>
+(function(){
+  function wire(root){
+    root.querySelectorAll(".location-scope").forEach(function(scope){
+      function apply(){
+        var target=scope.getAttribute("data-scope-target"), value=scope.value;
+        document.querySelectorAll('[data-scope-target="'+target+'"][data-scope-field]').forEach(function(w){
+          var active=w.getAttribute("data-scope-field")===value;
+          w.hidden=!active;
+          var select=w.querySelector("select");
+          if(select){ select.disabled=!active; select.required=active; }
+        });
+      }
+      scope.addEventListener("change",apply); apply();
+    });
+  }
+  wire(document);
+})();
+</script>
 {% endblock %}
