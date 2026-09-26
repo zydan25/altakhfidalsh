@@ -986,6 +986,12 @@ def register_entity_views(admin_bp):
                 elif action == "archive_side_category":
                     CatalogService.archive_side_category(request.form.get("id", type=int))
                     success = "تمت أرشفة الفئة الجانبية مع دوائرها."
+                elif action == "move_side_category":
+                    CatalogService.reorder_side_category(
+                        request.form.get("id", type=int),
+                        request.form.get("direction"),
+                    )
+                    success = "تم تحديث ترتيب الفئات الجانبية."
                 elif action == "create_circle":
                     side_id = request.form.get("side_category_id", type=int)
                     CatalogService.create_side_category_circle(
@@ -1005,6 +1011,12 @@ def register_entity_views(admin_bp):
                 elif action == "archive_circle":
                     CatalogService.archive_side_category_circle(request.form.get("id", type=int))
                     success = "تمت أرشفة الدائرة."
+                elif action == "move_circle":
+                    CatalogService.reorder_side_category_circle(
+                        request.form.get("id", type=int),
+                        request.form.get("direction"),
+                    )
+                    success = "تم تحديث ترتيب الدوائر."
                 else:
                     raise ValueError("إجراء الفئات الجانبية غير معروف.")
             except (ValueError, TypeError, OSError, LookupError) as exc:
