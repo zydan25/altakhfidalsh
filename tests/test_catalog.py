@@ -87,3 +87,84 @@ def test_side_category_tree_is_independent_and_root_only(app):
         config = CatalogService.product_reference_data(product.id)
         assert any(x["id"] == side["id"] for x in config["side_categories"])
         assert config["selected_side_category_circle_ids"] == [circle["id"]]
+
+
+def test_public_trend_exposes_countdown_and_overlay_metadata(app):
+    from datetime import datetime, timezone
+    from app.models import Hashtag, Trend, TrendProduct, ProductHashtag
+
+    with app.app_context():
+        currency = Currency(code="SAR", name_ar="ريال سعودي", is_base=True, decimals=2, is_base=True)
+        hashtag = Hashtag(name="مؤقت", slug="timed-trend", display_name="#مؤقت")
+        product = Product(
+            sku="TREND-TIMER-001",
+            name="منتج الترند",
+            slug="trend-timer-001",
+            base_currency_id=None,
+            base_price=50,
+            status="published",
+        )
+        asset = MediaAsset(
+            storage_key="trends/timer.webp",
+            url="/media/trends/timer.webp",
+            mime_type="image/webp",
+            width=1200,
+            height=500,
+            size_bytes=10,
+        )
+        db.session.add_all([currency, hashtag, product, asset])
+        db.session.flush()
+        product.base_currency_id = currency.id
+        trend = Trend(
+            hashtag_id=hashtag.id,
+            promo_text="عرض محدود",
+            duration_days=1,
+            background_asset_id=asset.id,
+            status="active",
+            timer_value=2,
+            timer_unit="minutes",
+            timer_started_at=datetime(2026, 9, 26, 12, 0, tzinfo=timezone.utc),
+            overlay_text="خصم اليوم",
+            overlay_text_color="#ffffff",
+            overlay_background_color="#7c3aed",
+            is_active=True,
+        )
+        db.session.add(trend)
+        db.session.flush()
+        db.session.add_all([
+            ProductHashtag(product_id=product.id, hashtag_id=hashtag.id),
+            TrendProduct(trend_id=trend.id, product_id=product.id, slot=0),
+            TrendProduct(trend_id=trend.id, product_id=product.id, slot=1),
+            TrendProduct(trend_id=trend.id, product_id=product.id, slot=2),
+        ])
+        # Three unique products are required by the public contract, so clone two more.
+        for idx in (2, 3):
+            extra = Product(
+                sku=f"TREND-TIMER-00{idx}",
+                name=f"منتج ترند {idx}",
+                slug=f"trend-timer-00{idx}",
+                base_currency_id=currency.id,
+                base_price=60 + idx,
+                status="published",
+            )
+            db.session.add(extra)
+            db.session.flush()
+            db.session.add(ProductHashtag(product_id=extra.id, hashtag_id=hashtag.id))
+            db.session.add(TrendProduct(trend_id=trend.id, product_id=extra.id, slot=idx - 1))
+        # Remove the accidental slot-0..2 rows for the first product and re-create exactly 3 slots.
+        TrendProduct.query.filter_by(trend_id=trend.id).delete()
+        db.session.add_all([
+            TrendProduct(trend_id=trend.id, product_id=product.id, slot=0),
+            TrendProduct(trend_id=trend.id, product_id=Product.query.filter_by(sku="TREND-TIMER-002").one().id, slot=1),
+            TrendProduct(trend_id=trend.id, product_id=Product.query.filter_by(sku="TREND-TIMER-003").one().id, slot=2),
+        ])
+        db.session.commit()
+
+        payload = CatalogService.serialize_public_trend(trend)
+        assert payload["timer"]["enabled"] is True
+        assert payload["timer"]["seconds"] == 120
+        assert payload["timer"]["ends_at"].endswith("+00:00")
+        assert payload["overlay"]["text"] == "خصم اليوم"
+        assert payload["overlay"]["text_color"] == "#ffffff"
+        assert payload["overlay"]["background_color"] == "#7c3aed"
+        assert len(payload["products"]) == 3
