@@ -50,10 +50,28 @@ class City(TimestampMixin, ActiveMixin, db.Model):
     region_id = db.Column(ForeignKey("regions.id", ondelete="CASCADE"), nullable=False)
     code = db.Column(String(40), nullable=False)
     name = db.Column(String(160), nullable=False)
+    direction = db.Column(String(20))
+    source = db.Column(String(120))
     sort_order = db.Column(Integer, nullable=False, default=0)
     __table_args__ = (
         UniqueConstraint("region_id", "code", name="uq_city_region_code"),
         Index("ix_city_region_active", "region_id", "is_active"),
+    )
+
+
+class CityArea(TimestampMixin, ActiveMixin, db.Model):
+    __tablename__ = "city_areas"
+
+    id = db.Column(Integer, primary_key=True)
+    city_id = db.Column(ForeignKey("cities.id", ondelete="CASCADE"), nullable=False)
+    code = db.Column(String(60), nullable=False)
+    name = db.Column(String(160), nullable=False)
+    direction = db.Column(String(20))
+    source = db.Column(String(120))
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("city_id", "code", name="uq_city_area_city_code"),
+        Index("ix_city_area_city_active", "city_id", "is_active"),
     )
 
 
@@ -95,6 +113,10 @@ class PricingGroup(TimestampMixin, ActiveMixin, db.Model):
     name = db.Column(String(160), nullable=False)
     description = db.Column(Text)
     default_currency_id = db.Column(ForeignKey("currencies.id"))
+    percent_markup = db.Column(Numeric(12, 4), nullable=False, default=0)
+    fixed_markup_sar = db.Column(Numeric(24, 4), nullable=False, default=0)
+    rounding_rule = db.Column(String(40), nullable=False, default="nearest")
+    decimals = db.Column(Integer, nullable=False, default=2)
     priority = db.Column(Integer, nullable=False, default=0)
     starts_at = db.Column(db.DateTime(timezone=True))
     ends_at = db.Column(db.DateTime(timezone=True))
@@ -122,14 +144,15 @@ class PricingGroupCity(TimestampMixin, ActiveMixin, db.Model):
     id = db.Column(Integer, primary_key=True)
     city_id = db.Column(ForeignKey("cities.id", ondelete="CASCADE"))
     region_id = db.Column(ForeignKey("regions.id", ondelete="CASCADE"))
+    area_id = db.Column(ForeignKey("city_areas.id", ondelete="CASCADE"))
     pricing_group_id = db.Column(ForeignKey("pricing_groups.id", ondelete="CASCADE"), nullable=False)
     priority = db.Column(Integer, nullable=False, default=0)
     starts_at = db.Column(db.DateTime(timezone=True))
     ends_at = db.Column(db.DateTime(timezone=True))
     __table_args__ = (
         CheckConstraint(
-            "(city_id IS NOT NULL) <> (region_id IS NOT NULL)",
-            name="ck_pricing_group_city_or_region",
+            "((city_id IS NOT NULL)::int + (region_id IS NOT NULL)::int + (area_id IS NOT NULL)::int) = 1",
+            name="ck_pricing_group_location_one_target",
         ),
         Index("ix_pricing_group_city_lookup", "city_id", "priority"),
         Index("ix_pricing_group_region_lookup", "region_id", "priority"),
@@ -144,6 +167,7 @@ class Customer(TimestampMixin, ActiveMixin, db.Model):
     name = db.Column(String(160))
     email = db.Column(String(255))
     city_id = db.Column(ForeignKey("cities.id"))
+    city_area_id = db.Column(ForeignKey("city_areas.id"))
     status = db.Column(String(40), nullable=False, default="active")
     created_via = db.Column(String(40), nullable=False, default="otp")
     __table_args__ = (Index("ix_customer_city_status", "city_id", "status"),)
@@ -158,6 +182,7 @@ class CustomerAddress(TimestampMixin, ActiveMixin, db.Model):
     phone = db.Column(String(32), nullable=False)
     country_id = db.Column(ForeignKey("countries.id"))
     city_id = db.Column(ForeignKey("cities.id"))
+    city_area_id = db.Column(ForeignKey("city_areas.id"))
     district = db.Column(String(160))
     street = db.Column(String(200))
     landmark = db.Column(String(200))
@@ -922,12 +947,23 @@ class ShippingRate(TimestampMixin, ActiveMixin, db.Model):
 
     id = db.Column(Integer, primary_key=True)
     method_id = db.Column(ForeignKey("shipping_methods.id", ondelete="CASCADE"), nullable=False)
+    customer_id = db.Column(ForeignKey("customers.id", ondelete="CASCADE"))
     city_id = db.Column(ForeignKey("cities.id", ondelete="CASCADE"))
     region_id = db.Column(ForeignKey("regions.id", ondelete="CASCADE"))
+    city_area_id = db.Column(ForeignKey("city_areas.id", ondelete="CASCADE"))
     min_order = db.Column(Numeric(24, 4))
     max_order = db.Column(Numeric(24, 4))
     price = db.Column(Numeric(24, 4), nullable=False)
     free_over = db.Column(Numeric(24, 4))
+    min_order_sar = db.Column(Numeric(24, 4))
+    max_order_sar = db.Column(Numeric(24, 4))
+    price_sar = db.Column(Numeric(24, 4))
+    free_over_sar = db.Column(Numeric(24, 4))
+    priority = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        Index("ix_shipping_rate_location", "city_area_id", "city_id", "region_id", "customer_id", "is_active"),
+        Index("ix_shipping_rate_customer", "customer_id", "priority"),
+    )
 
 
 class Cart(TimestampMixin, db.Model):
