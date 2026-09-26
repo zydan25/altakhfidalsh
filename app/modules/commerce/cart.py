@@ -38,6 +38,24 @@ class CartService:
 
 
     @staticmethod
+    def set_item_qty(customer_id, item_id, qty):
+        cart = Cart.query.filter_by(customer_id=customer_id).first()
+        if cart is None:
+            raise LookupError("cart not found")
+        item = CartItem.query.filter_by(cart_id=cart.id, id=item_id).first()
+        if item is None:
+            raise LookupError("cart item not found")
+        qty = int(qty)
+        if qty < 1:
+            db.session.delete(item)
+            db.session.commit()
+            return {"ok": True, "deleted": True}
+        item.qty = qty
+        db.session.commit()
+        return {"ok": True, "item_id": item.id, "qty": item.qty}
+
+
+    @staticmethod
     def remove_item(customer_id, item_id):
         cart = Cart.query.filter_by(customer_id=customer_id).first()
         if cart is None:
