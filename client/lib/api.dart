@@ -179,7 +179,7 @@ class ApiService {
     if(cityId!=null)'city_id':cityId,
     if(cityAreaId!=null)'city_area_id':cityAreaId,
     if(currencyId!=null)'currency_id':currencyId,
-    if(subtotal!=null)'subtotal':subtotal,
+    if(subtotal!=null)'subtotal_sar':subtotal,
   }));
   Future<List<int>> wishlistIds()async{
     final d=await get('/customer/me/wishlist');
