@@ -856,4 +856,4 @@ def test_side_category_reorder_and_circle_editor_preview_route(client, app):
     assert response.status_code == 200
     body = response.get_data(as_text=True)
     assert "إدارة الفئات الجانبية" in body
-    assert "استبدال صورة الدائرة" in body
+    assert "استبدال الصورة" in body
