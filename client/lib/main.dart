@@ -64,6 +64,103 @@ class _AppShellState extends State<AppShell>{
   );
 }
 
+class AuthScreen extends StatefulWidget{
+  const AuthScreen({super.key});
+  @override State<AuthScreen> createState()=>_AuthScreenState();
+}
+class _AuthScreenState extends State<AuthScreen>{
+  final phone=TextEditingController();
+  bool busy=false;
+  Future<void> send()async{
+    if(phone.text.trim().isEmpty)return;
+    setState(()=>busy=true);
+    try{
+      final r=await api.requestOtp(phone.text.trim());
+      if(!mounted)return;
+      Navigator.push(context,MaterialPageRoute(builder:(_)=>OtpScreen(
+        requestId:int.tryParse((r['otp_request_id']??0).toString())??0,
+        phone:phone.text.trim(),
+      )));
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));
+    }
+    if(mounted)setState(()=>busy=false);
+  }
+  @override Widget build(BuildContext context)=>Directionality(
+    textDirection:TextDirection.rtl,
+    child:Scaffold(
+      backgroundColor:Colors.white,
+      body:SafeArea(child:Padding(
+        padding:const EdgeInsets.all(24),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          const Spacer(),
+          const Text('التخفيض الصح',textAlign:TextAlign.center,style:TextStyle(fontSize:30,fontWeight:FontWeight.w900)),
+          const SizedBox(height:8),
+          const Text('تسوق أسرع، عروض أكثر، وكل شيء في مكان واحد.',textAlign:TextAlign.center,style:TextStyle(color:ClientTheme.muted,fontSize:12)),
+          const SizedBox(height:36),
+          const Text('الدخول برقم الهاتف',style:TextStyle(fontSize:17,fontWeight:FontWeight.w800)),
+          const SizedBox(height:10),
+          TextField(controller:phone,keyboardType:TextInputType.phone,decoration:const InputDecoration(prefixText:'+967 ',hintText:'7XXXXXXXX')),
+          const SizedBox(height:12),
+          SizedBox(height:50,child:FilledButton(
+            onPressed:busy?null:send,
+            style:FilledButton.styleFrom(backgroundColor:ClientTheme.ink),
+            child:busy?const CircularProgressIndicator(color:Colors.white):const Text('إرسال رمز التحقق'),
+          )),
+          const SizedBox(height:12),
+          const Text('سيصلك الرمز عبر WhatsApp.',textAlign:TextAlign.center,style:TextStyle(color:ClientTheme.muted,fontSize:11)),
+          const Spacer(),
+        ]),
+      )),
+    ),
+  );
+}
+
+class OtpScreen extends StatefulWidget{
+  final int requestId;
+  final String phone;
+  const OtpScreen({super.key,required this.requestId,required this.phone});
+  @override State<OtpScreen> createState()=>_OtpScreenState();
+}
+class _OtpScreenState extends State<OtpScreen>{
+  final code=TextEditingController();
+  bool busy=false;
+  Future<void> verify()async{
+    setState(()=>busy=true);
+    try{
+      await api.verifyOtp(widget.requestId,code.text.trim(),phone:widget.phone);
+      if(!mounted)return;
+      Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const AppShell()),(_)=>false);
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));
+    }
+    if(mounted)setState(()=>busy=false);
+  }
+  @override Widget build(BuildContext context)=>Directionality(
+    textDirection:TextDirection.rtl,
+    child:Scaffold(
+      appBar:AppBar(title:const Text('التحقق')),
+      body:Padding(
+        padding:const EdgeInsets.all(20),
+        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          const SizedBox(height:20),
+          const Text('أدخل رمز التحقق',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
+          const SizedBox(height:6),
+          Text('تم الإرسال إلى '+widget.phone,style:const TextStyle(color:ClientTheme.muted)),
+          const SizedBox(height:18),
+          TextField(controller:code,maxLength:6,keyboardType:TextInputType.number,textAlign:TextAlign.center,style:const TextStyle(fontSize:26,fontWeight:FontWeight.w900,letterSpacing:7)),
+          const SizedBox(height:10),
+          SizedBox(height:50,child:FilledButton(
+            onPressed:busy?null:verify,
+            style:FilledButton.styleFrom(backgroundColor:ClientTheme.ink),
+            child:busy?const CircularProgressIndicator(color:Colors.white):const Text('تأكيد الدخول'),
+          )),
+        ]),
+      ),
+    ),
+  );
+}
+
 class HomeScreen extends StatefulWidget{
   const HomeScreen({super.key});
   @override State<HomeScreen> createState()=>_HomeScreenState();
