@@ -1,0 +1,109 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <div class="module-toolbar">
+    <div class="module-heading-copy">
+      <span class="eyebrow">التسعير · الموقع</span>
+      <h2>الزيادة والنقص حسب المدينة والمناطق</h2>
+      <p class="muted">مجموعة التسعير تحدد العملة والصرف والأساس. هذه الشاشة مستقلة لتعديل السعر حسب المكان فقط، والافتراضي لكل مدينة هو 0%.</p>
+    </div>
+    <div class="module-toolbar-actions"><span class="status-pill">{{ cities|length }} مدينة</span><span class="status-pill">{{ adjustments|length }} تخصيص</span><button class="primary-button" type="button" data-open-modal="locationPricingAdd">＋ تعديل موقع</button></div>
+  </div>
+</section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="pricing-location-formula panel"><div><span class="eyebrow">السلسلة المالية</span><strong>سعر SAR → صرف العملة → مجموعة التسعير → تعديل الموقع → تقريب</strong></div><span class="muted">مثال: +10% زيادة · −5% تخفيض</span></section>
+
+<section class="panel pricing-location-table">
+  <div class="panel-heading"><div><span class="eyebrow">مصفوفة المدن</span><h3>التسعير الفعّال لكل مدينة</h3><p class="muted">لا توجد قاعدة = 0%. قاعدة المنطقة/المحافظة الأدق تظهر في معاينة السعر.</p></div></div>
+  <div class="data-table-wrap">
+    <table class="data-table">
+      <thead><tr><th>المدينة</th><th>المحافظة</th><th>التعديل</th><th>الثابت SAR</th><th>الأولوية</th><th></th></tr></thead>
+      <tbody>
+      {% for city in cities %}
+        {% set row = city_rule.get(city.id) %}
+        <tr>
+          <td><strong>{{ city.name }}</strong><small class="muted">{{ city.code }}</small></td>
+          <td>{{ region_map.get(city.region_id, "—") }}</td>
+          <td class="{% if row and row.percent_adjustment < 0 %}price-down{% elif row and row.percent_adjustment > 0 %}price-up{% endif %}"><strong>{{ row.percent_adjustment if row else 0 }}%</strong></td>
+          <td>{{ row.fixed_adjustment_sar if row else 0 }} SAR</td>
+          <td>{{ row.priority if row else 0 }}</td>
+          <td><button class="ghost-button" type="button" data-open-modal="editCity{{ city.id }}">تعديل</button>{% if row %}<form method="post" style="display:inline"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button danger-button">إزالة</button></form>{% endif %}</td>
+        </tr>
+        <div class="admin-modal" data-modal="editCity{{ city.id }}" hidden>
+          <div class="admin-modal-backdrop" data-close-modal></div>
+          <section class="admin-modal-dialog">
+            <div class="admin-modal-header"><div><span class="eyebrow">مدينة</span><h3>{{ city.name }}</h3></div><button class="icon-button" type="button" data-close-modal>×</button></div>
+            <form method="post" class="form-stack compact-form-grid">
+              <input type="hidden" name="action" value="{% if row %}update{% else %}create{% endif %}">{% if row %}<input type="hidden" name="id" value="{{ row.id }}">{% endif %}
+              <input type="hidden" name="location_scope" value="city"><input type="hidden" name="city_id" value="{{ city.id }}">
+              <label>زيادة / نقص %<input name="percent_adjustment" type="number" step="0.01" value="{{ row.percent_adjustment if row else 0 }}"></label>
+              <label>تعديل ثابت SAR<input name="fixed_adjustment_sar" type="number" step="0.01" value="{{ row.fixed_adjustment_sar if row else 0 }}"></label>
+              <label>الأولوية<input name="priority" type="number" value="{{ row.priority if row else 0 }}"></label>
+              <p class="field-help form-field-wide">-5 = تخفيض 5%، +7 = زيادة 7%.</p>
+              <button class="primary-button form-field-wide">حفظ</button>
+            </form>
+          </section>
+        </div>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel pricing-location-table">
+  <div class="panel-heading"><div><span class="eyebrow">استثناءات أدق</span><h3>المحافظات والمناطق داخل المدينة</h3><p class="muted">المنطقة الداخلية تفوز على المدينة، والمدينة تفوز على المحافظة.</p></div></div>
+  <div class="data-table-wrap">
+    <table class="data-table">
+      <thead><tr><th>النطاق</th><th>المكان</th><th>التعديل</th><th>الثابت</th><th>الأولوية</th><th></th></tr></thead>
+      <tbody>
+      {% for row in adjustments if row.city_id is none %}
+        <tr>
+          <td><strong>{{ "محافظة" if row.region_id else "منطقة داخل مدينة" }}</strong></td>
+          <td>{% if row.region_id %}{{ region_map.get(row.region_id,row.region_id) }}{% else %}{{ area_map.get(row.area_id,row.area_id) }}{% endif %}</td>
+          <td class="{% if row.percent_adjustment < 0 %}price-down{% elif row.percent_adjustment > 0 %}price-up{% endif %}"><strong>{{ row.percent_adjustment }}%</strong></td>
+          <td>{{ row.fixed_adjustment_sar }} SAR</td>
+          <td>{{ row.priority }}</td>
+          <td><form method="post"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button danger-button">إزالة</button></form></td>
+        </tr>
+      {% else %}<tr><td colspan="6" class="muted">لا توجد استثناءات للمحافظات أو المناطق الداخلية.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="admin-modal" data-modal="locationPricingAdd" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog">
+    <div class="admin-modal-header"><div><span class="eyebrow">تخصيص جديد</span><h3>زيادة أو نقص حسب الموقع</h3></div><button class="icon-button" type="button" data-close-modal>×</button></div>
+    <form method="post" class="form-stack compact-form-grid">
+      <input type="hidden" name="action" value="create">
+      <label>نوع الموقع<select name="location_scope" class="pricing-location-scope"><option value="city">مدينة</option><option value="region">محافظة</option><option value="area">منطقة داخل مدينة</option></select></label>
+      <label data-location-field="city">المدينة<select name="city_id">{% for x in cities %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+      <label data-location-field="region" hidden>المحافظة<select name="region_id" disabled>{% for x in regions %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+      <label data-location-field="area" hidden>المنطقة داخل المدينة<select name="area_id" disabled>{% for x in areas %}<option value="{{ x.id }}">{{ x.name }} · {{ city_map.get(x.city_id,'') }}</option>{% endfor %}</select></label>
+      <label>النسبة %<input name="percent_adjustment" type="number" step="0.01" value="0" required></label>
+      <label>المبلغ الثابت SAR<input name="fixed_adjustment_sar" type="number" step="0.01" value="0"></label>
+      <label>الأولوية<input name="priority" type="number" value="0"></label>
+      <div class="form-field-wide location-sign-hint"><span>＋ زيادة</span><span>− تخفيض</span><span>0 بدون تغيير</span></div>
+      <button class="primary-button form-field-wide">حفظ التخصيص</button>
+    </form>
+  </section>
+</div>
+<script>
+(function(){
+  const scope=document.querySelector(".pricing-location-scope");
+  if(!scope) return;
+  function apply(){
+    const value=scope.value;
+    document.querySelectorAll("[data-location-field]").forEach(w=>{
+      const active=w.dataset.locationField===value;
+      w.hidden=!active;
+      const select=w.querySelector("select");
+      if(select){select.disabled=!active;select.required=active;}
+    });
+  }
+  scope.addEventListener("change",apply); apply();
+})();
+</script>
+{% endblock %}
