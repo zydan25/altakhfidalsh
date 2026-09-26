@@ -877,6 +877,20 @@ class LookProduct(TimestampMixin, db.Model):
     )
 
 
+class LookCircle(TimestampMixin, ActiveMixin, db.Model):
+    """Circular category highlighted inside a Style look."""
+    __tablename__ = "look_circles"
+
+    id = db.Column(Integer, primary_key=True)
+    look_id = db.Column(ForeignKey("looks.id", ondelete="CASCADE"), nullable=False)
+    circle_id = db.Column(ForeignKey("side_category_circles.id", ondelete="CASCADE"), nullable=False)
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("look_id", "circle_id", name="uq_look_circle"),
+        Index("ix_look_circle_sort", "look_id", "sort_order"),
+    )
+
+
 class Campaign(TimestampMixin, ActiveMixin, db.Model):
     __tablename__ = "campaigns"
 
