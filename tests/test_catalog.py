@@ -148,7 +148,7 @@ def test_public_trend_exposes_countdown_and_overlay_metadata(app):
         payload = CatalogService.serialize_public_trend(trend)
         assert payload["timer"]["enabled"] is True
         assert payload["timer"]["seconds"] == 120
-        assert payload["timer"]["ends_at"].endswith("+00:00")
+        assert payload["timer"]["ends_at"] == "2026-09-26T12:02:00+00:00"
         assert payload["overlay"]["text"] == "خصم اليوم"
         assert payload["overlay"]["text_color"] == "#ffffff"
         assert payload["overlay"]["background_color"] == "#7c3aed"
