@@ -1,0 +1,68 @@
+name: Customer Web - GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'client/**'
+      - 'docs/CUSTOMER_SHEIN_PARITY.md'
+      - '.github/workflows/client-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate web runner
+        working-directory: client
+        run: flutter create --platforms=web .
+
+      - name: Dependencies
+        working-directory: client
+        run: flutter pub get
+
+      - name: Build Flutter web
+        working-directory: client
+        env:
+          API_BASE_URL: https://takhfidsh.alattab.site/api/v1
+        run: |
+          flutter build web --release \
+            --base-href "/${GITHUB_REPOSITORY#*/}/" \
+            --dart-define=API_BASE_URL="$API_BASE_URL"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: client/build/web
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
