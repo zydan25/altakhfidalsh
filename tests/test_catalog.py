@@ -1,7 +1,7 @@
 from decimal import Decimal
 
 from app.extensions import db
-from app.models import Category, Currency, InventoryLocation, Product, ProductMedia, ProductVariant, StockInventory, MediaAsset, SideCategory, SideCategoryCircle, ProductSideCategoryCircle
+from app.models import Category, Currency, InventoryLocation, Product, ProductMedia, ProductVariant, ProductCategory, StockInventory, MediaAsset, SideCategory, SideCategoryCircle, ProductSideCategoryCircle
 from app.modules.catalog.services import CatalogService
 
 
@@ -78,6 +78,8 @@ def test_side_category_tree_is_independent_and_root_only(app):
         db.session.flush()
         product.base_currency_id = currency.id
         db.session.add(product)
+        db.session.flush()
+        db.session.add(ProductCategory(product_id=product.id, category_id=root.id, is_primary=True))
         db.session.commit()
 
         assigned = CatalogService.set_product_side_category_circles(product.id, [circle["id"]])
