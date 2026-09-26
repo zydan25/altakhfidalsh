@@ -10,6 +10,7 @@ class CategoryModel {
     parentId: j['parent_id'] == null ? null : int.tryParse(j['parent_id'].toString()),
     name: (j['name'] ?? '').toString(),
     slug: j['slug']?.toString(),
+    iconUrl: j['icon_url']?.toString(),
   );
 }
 class ProductModel {
