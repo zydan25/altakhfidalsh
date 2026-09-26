@@ -145,24 +145,69 @@
     const root = document.getElementById("sideCategoryCircleSelection");
     const count = document.getElementById("sideCategoryCircleCount");
     if (!root) return;
+
     const query = (document.getElementById("sideCategoryCircleSearch")?.value || "").trim().toLocaleLowerCase();
+    const categories = configRefs?.categories || [];
+    const categoryMap = new Map(categories.map(row => [Number(row.id), row]));
+    const allowedRootIds = new Set();
+
+    const resolveRoot = id => {
+      let current = Number(id);
+      const visited = new Set();
+      while (current && !visited.has(current)) {
+        visited.add(current);
+        const row = categoryMap.get(current);
+        if (!row) return null;
+        if (row.parent_id == null) return current;
+        current = Number(row.parent_id);
+      }
+      return null;
+    };
+
+    draftCategoryIds.forEach(id => {
+      const rootId = resolveRoot(id);
+      if (rootId) allowedRootIds.add(rootId);
+    });
+
+    const hasCategoryContext = allowedRootIds.size > 0;
     const groups = (configRefs?.side_categories || []).filter(group =>
-      group.is_active && (group.circles || []).some(circle =>
-        circle.is_active && (!query || String(circle.name).toLocaleLowerCase().includes(query) || String(group.name).toLocaleLowerCase().includes(query))
+      group.is_active &&
+      (!hasCategoryContext || allowedRootIds.has(Number(group.root_category_id))) &&
+      (group.circles || []).some(circle =>
+        circle.is_active &&
+        (!query ||
+          String(circle.name).toLocaleLowerCase().includes(query) ||
+          String(group.name).toLocaleLowerCase().includes(query) ||
+          String(group.root_category_name || "").toLocaleLowerCase().includes(query))
       )
     );
+
     if (count) count.textContent = draftSideCircleIds.size + " دائرة";
-    if (!groups.length) {
-      root.innerHTML = '<div class="empty-state compact"><strong>لا توجد دوائر فئات جانبية متاحة.</strong><span class="muted">أنشئ فئة جانبية ودوائرها أولًا من إدارة الفئات الجانبية.</span></div>';
+
+    if (!hasCategoryContext) {
+      root.innerHTML = '<div class="empty-state compact"><strong>اختر تصنيف المنتج أولًا.</strong><span class="muted">بعد تحديد القسم الأساسي/أحد فروعه ستظهر لك فقط الفئات الجانبية المناسبة له.</span></div>';
       return;
     }
+
+    if (!groups.length) {
+      root.innerHTML = '<div class="empty-state compact"><strong>لا توجد دوائر مناسبة لهذا المنتج.</strong><span class="muted">أنشئ دائرة للفئة الجانبية التابعة للقسم الذي ينتمي إليه المنتج.</span></div>';
+      return;
+    }
+
     root.innerHTML = groups.map(group => {
       const circles = (group.circles || []).filter(circle =>
-        circle.is_active && (!query || String(circle.name).toLocaleLowerCase().includes(query) || String(group.name).toLocaleLowerCase().includes(query))
+        circle.is_active &&
+        (!query ||
+          String(circle.name).toLocaleLowerCase().includes(query) ||
+          String(group.name).toLocaleLowerCase().includes(query) ||
+          String(group.root_category_name || "").toLocaleLowerCase().includes(query))
       );
       if (!circles.length) return "";
       return '<section class="side-circle-picker-group">' +
-        '<div class="side-circle-picker-heading"><div><span class="eyebrow">القسم الجانبي</span><strong>' + escapeHtml(group.name) + '</strong><small>' + escapeHtml(group.root_category_name || '') + '</small></div><span class="status-pill">' + circles.length + ' دائرة</span></div>' +
+        '<div class="side-circle-picker-heading"><div><span class="eyebrow">القسم الجانبي · ' +
+        escapeHtml(group.root_category_name || "—") +
+        '</span><strong>' + escapeHtml(group.name) +
+        '</strong></div><span class="status-pill">' + circles.length + ' دائرة</span></div>' +
         '<div class="side-circle-picker-grid">' +
         circles.map(circle => {
           const checked = draftSideCircleIds.has(Number(circle.id));
@@ -174,7 +219,7 @@
           '</label>';
         }).join("") +
         '</div></section>';
-    }).join("") || '<div class="empty-state compact"><strong>لا توجد دوائر مطابقة.</strong></div>';
+    }).join("");
   };
 
   const renderDimensionChoices = () => {
