@@ -51,6 +51,16 @@ def upgrade():
             ],
         )
 
+    if _has_table("city_areas") and not _has_column("city_areas", "direction_id"):
+        op.add_column(
+            "city_areas",
+            sa.Column(
+                "direction_id",
+                sa.Integer(),
+                sa.ForeignKey("geo_directions.id", ondelete="SET NULL"),
+            ),
+        )
+
     if _has_table("pricing_location_adjustments"):
         # already created by an interrupted deployment; leave it intact.
         pass
