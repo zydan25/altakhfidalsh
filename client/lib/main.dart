@@ -35,207 +35,420 @@ class AppShell extends StatefulWidget{
 }
 class _AppShellState extends State<AppShell>{
   int index=0;
-  final screens=const[HomeScreen(),CategoryHubScreen(),LooksScreen(),CartScreen(),AccountScreen()];
+  final screens=const[
+    HomeScreen(),
+    CategoryHubScreen(),
+    LooksScreen(),
+    CartScreen(),
+    AccountScreen(),
+  ];
   @override Widget build(BuildContext context)=>Directionality(
     textDirection:TextDirection.rtl,
     child:Scaffold(
       body:IndexedStack(index:index,children:screens),
       bottomNavigationBar:NavigationBar(
-        height:64,
+        height:62,
+        backgroundColor:Colors.white,
+        indicatorColor:Colors.transparent,
         selectedIndex:index,
         onDestinationSelected:(v)=>setState(()=>index=v),
         destinations:const[
-          NavigationDestination(icon:Icon(Icons.home_outlined),selectedIcon:Icon(Icons.home),label:'تسوق'),
-          NavigationDestination(icon:Icon(Icons.grid_view_outlined),selectedIcon:Icon(Icons.grid_view),label:'الفئات'),
-          NavigationDestination(icon:Icon(Icons.auto_awesome_outlined),selectedIcon:Icon(Icons.auto_awesome),label:'الترند'),
-          NavigationDestination(icon:Icon(Icons.shopping_bag_outlined),selectedIcon:Icon(Icons.shopping_bag),label:'السلة'),
-          NavigationDestination(icon:Icon(Icons.person_outline),selectedIcon:Icon(Icons.person),label:'حسابي'),
+          NavigationDestination(icon:Icon(Icons.home_outlined,size:21),selectedIcon:Icon(Icons.home,size:21),label:'الرئيسية'),
+          NavigationDestination(icon:Icon(Icons.grid_view_outlined,size:21),selectedIcon:Icon(Icons.grid_view,size:21),label:'الفئات'),
+          NavigationDestination(icon:Icon(Icons.auto_awesome_outlined,size:21),selectedIcon:Icon(Icons.auto_awesome,size:21),label:'الإطلالات'),
+          NavigationDestination(icon:Icon(Icons.shopping_bag_outlined,size:21),selectedIcon:Icon(Icons.shopping_bag,size:21),label:'السلة'),
+          NavigationDestination(icon:Icon(Icons.person_outline,size:21),selectedIcon:Icon(Icons.person,size:21),label:'حسابي'),
         ],
       ),
     ),
   );
 }
 
-class AuthScreen extends StatefulWidget{
-  const AuthScreen({super.key});
-  @override State<AuthScreen> createState()=>_AuthScreenState();
+class HomeScreen extends StatefulWidget{
+  const HomeScreen({super.key});
+  @override State<HomeScreen> createState()=>_HomeScreenState();
 }
-class _AuthScreenState extends State<AuthScreen>{
-  final phone=TextEditingController();
-  bool busy=false;
-  Future<void> send()async{
-    if(phone.text.trim().isEmpty)return;
-    setState(()=>busy=true);
-    try{
-      final r=await api.requestOtp(phone.text.trim());
-      if(!mounted)return;
-      Navigator.push(context,MaterialPageRoute(builder:(_)=>OtpScreen(requestId:int.tryParse((r['otp_request_id']??0).toString())??0,phone:phone.text.trim())));
-    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}
-    if(mounted)setState(()=>busy=false);
-  }
-  @override Widget build(BuildContext context)=>Directionality(
-    textDirection:TextDirection.rtl,
-    child:Scaffold(
-      backgroundColor:Colors.white,
-      body:SafeArea(
-        child:Padding(
-          padding:const EdgeInsets.all(24),
-          child:Column(
-            crossAxisAlignment:CrossAxisAlignment.stretch,
-            children:[
-              const Spacer(),
-              const Text('التخفيض الصح',textAlign:TextAlign.center,style:TextStyle(fontSize:32,fontWeight:FontWeight.w900)),
-              const SizedBox(height:8),
-              const Text('تسوق أسرع، عروض أكثر، وكل شيء في مكان واحد.',textAlign:TextAlign.center,style:TextStyle(color:ClientTheme.muted,fontSize:12)),
-              const SizedBox(height:42),
-              const Text('الدخول برقم الهاتف',style:TextStyle(fontSize:17,fontWeight:FontWeight.w800)),
-              const SizedBox(height:10),
-              TextField(controller:phone,keyboardType:TextInputType.phone,decoration:const InputDecoration(prefixText:'+967 ',hintText:'7XXXXXXXX')),
-              const SizedBox(height:12),
-              SizedBox(height:50,child:FilledButton(
-                onPressed:busy?null:send,
-                style:FilledButton.styleFrom(backgroundColor:ClientTheme.ink,shape:const RoundedRectangleBorder(borderRadius:BorderRadius.all(Radius.circular(2)))),
-                child:busy?const CircularProgressIndicator(color:Colors.white):const Text('إرسال رمز التحقق'),
-              )),
-              const SizedBox(height:12),
-              const Text('سيصلك الرمز عبر WhatsApp.',textAlign:TextAlign.center,style:TextStyle(color:ClientTheme.muted,fontSize:11)),
-              const Spacer(),
-            ],
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-class OtpScreen extends StatefulWidget{
-  final int requestId;final String phone;
-  const OtpScreen({super.key,required this.requestId,required this.phone});
-  @override State<OtpScreen> createState()=>_OtpScreenState();
-}
-class _OtpScreenState extends State<OtpScreen>{
-  final code=TextEditingController();bool busy=false;
-  Future<void> verify()async{
-    setState(()=>busy=true);
-    try{
-      await api.verifyOtp(widget.requestId,code.text.trim(),phone:widget.phone);
-      if(!mounted)return;
-      Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const AppShell()),(_)=>false);
-    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}
-    if(mounted)setState(()=>busy=false);
-  }
-  @override Widget build(BuildContext context)=>Directionality(
-    textDirection:TextDirection.rtl,
-    child:Scaffold(
-      appBar:AppBar(title:const Text('التحقق')),
-      body:Padding(
-        padding:const EdgeInsets.all(20),
-        child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-          const SizedBox(height:20),
-          const Text('أدخل رمز التحقق',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),
-          const SizedBox(height:6),
-          Text('تم الإرسال إلى '+widget.phone,style:const TextStyle(color:ClientTheme.muted)),
-          const SizedBox(height:18),
-          TextField(controller:code,maxLength:6,keyboardType:TextInputType.number,textAlign:TextAlign.center,style:const TextStyle(fontSize:26,fontWeight:FontWeight.w900,letterSpacing:7)),
-          const SizedBox(height:10),
-          SizedBox(height:50,child:FilledButton(
-            onPressed:busy?null:verify,
-            style:FilledButton.styleFrom(backgroundColor:ClientTheme.ink),
-            child:busy?const CircularProgressIndicator(color:Colors.white):const Text('تأكيد الدخول'),
-          )),
-        ]),
-      ),
-    ),
-  );
-}
-
-class HomeScreen extends StatefulWidget{const HomeScreen({super.key});@override State<HomeScreen> createState()=>_HomeScreenState();}
 class _HomeScreenState extends State<HomeScreen>{
-  List<CategoryModel> cats=[];List<ProductModel> products=[];List<BannerModel>banners=[];List<Map<String,dynamic>> looks=[];List<Map<String,dynamic>> trends=[];
-  int? selected;bool loading=true;
-  @override void initState(){super.initState();load();}
+  List<CategoryModel> roots=[];
+  List<Map<String,dynamic>> side=[];
+  List<ProductModel> products=[];
+  List<Map<String,dynamic>> banners=[];
+  List<Map<String,dynamic>> looks=[];
+  List<Map<String,dynamic>> trends=[];
+  int? selectedRoot;
+  bool loading=true;
+
+  @override void initState(){
+    super.initState();
+    load();
+  }
+
   Future<void> load()async{
-    setState(()=>loading=true);
+    if(mounted)setState(()=>loading=true);
     try{
-      final roots=await api.roots();final home=await api.home();final feed=await api.feed(category:selected);
-      final bs=((home['banners']as List?)??const[]).whereType<Map>().map((e){final b=BannerModel.fromJson(Map<String,dynamic>.from(e));return BannerModel(id:b.id,title:b.title,image:api.url(b.image),mobileImage:api.url(b.mobileImage),targets:b.targets);}).toList();
-      setState(()=>cats=roots);
-      setState(()=>products=feed);
-      setState(()=>banners=bs);
-      looks=((home['looks']as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
-      trends=((home['trends']as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
-    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}
+      final home=await api.home();
+      roots=(await api.roots());
+      side=((home['side_categories'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
+      banners=((home['banners'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
+      looks=((home['looks'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
+      trends=((home['trends'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
+      products=await api.feed(category:selectedRoot);
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));
+    }
     if(mounted)setState(()=>loading=false);
   }
-  void bannerTap(BannerModel b){
-    if(b.targets.isEmpty)return;
-    final t=b.targets.first;final type=t['type']?.toString();final id=int.tryParse((t['id']??'').toString());
-    if(type=='category'&&id!=null)Navigator.push(context,MaterialPageRoute(builder:(_)=>CategoryScreen(categoryId:id)));
-    else if(type=='product'&&id!=null)Navigator.push(context,MaterialPageRoute(builder:(_)=>ProductScreen(id)));
-    else if(type=='style_tab')Navigator.push(context,MaterialPageRoute(builder:(_)=>LooksScreen()));
-    else Navigator.push(context,MaterialPageRoute(builder:(_)=>DealsScreen(categoryId:id,title:b.title??'العروض')));
+
+  void openBanner(Map<String,dynamic> banner){
+    Navigator.push(context,MaterialPageRoute(builder:(_)=>BannerLandingScreen(banner:banner)));
   }
+
   @override Widget build(BuildContext context)=>Directionality(
     textDirection:TextDirection.rtl,
     child:RefreshIndicator(
       onRefresh:load,
-      child:CustomScrollView(slivers:[
-        SliverAppBar(
-          pinned:true,
-          backgroundColor:Colors.white,
-          leading:IconButton(
-            onPressed:()=>Navigator.push(
-              context,
-              MaterialPageRoute(builder:(_)=>const NotificationsScreen()),
+      child:CustomScrollView(
+        slivers:[
+          SliverToBoxAdapter(
+            child:Padding(
+              padding:const EdgeInsets.fromLTRB(10,10,10,4),
+              child:Row(
+                children:[
+                  Expanded(child:SearchBox(onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SearchScreen())))),
+                  const SizedBox(width:4),
+                  IconButton(
+                    visualDensity:VisualDensity.compact,
+                    onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const NotificationsScreen())),
+                    icon:const Icon(Icons.mail_outline,size:22),
+                  ),
+                  IconButton(
+                    visualDensity:VisualDensity.compact,
+                    onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const WishlistScreen())),
+                    icon:const Icon(Icons.favorite_border,size:22),
+                  ),
+                  IconButton(
+                    visualDensity:VisualDensity.compact,
+                    onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const CartScreen())),
+                    icon:const Icon(Icons.shopping_bag_outlined,size:22),
+                  ),
+                ],
+              ),
             ),
-            icon:const Icon(Icons.mail_outline,size:21),
           ),
-          title:const Text(
-            'التخفيض الصح',
-            style:TextStyle(fontSize:18,fontWeight:FontWeight.w900,letterSpacing:-.4),
+          SliverToBoxAdapter(
+            child:RootCategoryRail(
+              categories:roots,
+              selected:selectedRoot,
+              onTap:(id)async{
+                setState(()=>selectedRoot=id);
+                await load();
+              },
+            ),
           ),
-          actions:[
-            IconButton(
-              onPressed:()=>Navigator.push(
-                context,
-                MaterialPageRoute(builder:(_)=>const SearchScreen()),
+          if(loading)
+            const SliverFillRemaining(hasScrollBody:false,child:Center(child:CircularProgressIndicator()))
+          else ...[
+            if(banners.isNotEmpty)
+              SliverToBoxAdapter(
+                child:PromoBannerRail(
+                  banners:banners,
+                  onTap:openBanner,
+                ),
               ),
-              icon:const Icon(Icons.search,size:22),
+            if(selectedRoot!=null)
+              SliverToBoxAdapter(
+                child:SideCategoryRail(
+                  categories:side.where((e)=>int.tryParse((e['root_category_id']??'').toString())==selectedRoot).toList(),
+                  onCircleTap:(circle)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>SideCategoryScreen(circle:circle))),
+                ),
+              )
+            else if(side.isNotEmpty)
+              SliverToBoxAdapter(
+                child:SideCategoryRail(
+                  categories:side.take(3).toList(),
+                  onCircleTap:(circle)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>SideCategoryScreen(circle:circle))),
+                ),
+              ),
+            if(trends.isNotEmpty)
+              SliverToBoxAdapter(child:HomeTrendRail(rows:trends)),
+            if(looks.isNotEmpty)
+              SliverToBoxAdapter(child:HomeLooksRail(rows:looks)),
+            const SliverToBoxAdapter(
+              child:SectionTitle(title:'مختارات لك'),
             ),
-            IconButton(
-              onPressed:()=>Navigator.push(
-                context,
-                MaterialPageRoute(builder:(_)=>const WishlistScreen()),
+            SliverToBoxAdapter(
+              child:ProductGrid(
+                products:products,
+                onTap:(p)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ProductScreen(p.id))),
+                onAdd:(p)async{
+                  if(p.variantId==null){
+                    Navigator.push(context,MaterialPageRoute(builder:(_)=>ProductScreen(p.id)));
+                    return;
+                  }
+                  try{
+                    await api.addCart(p.variantId!);
+                    if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تمت الإضافة إلى السلة')));
+                  }catch(e){
+                    if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));
+                  }
+                },
               ),
-              icon:const Icon(Icons.favorite_border,size:22),
-            ),
-            IconButton(
-              onPressed:()=>Navigator.push(
-                context,
-                MaterialPageRoute(builder:(_)=>const CartScreen()),
-              ),
-              icon:const Icon(Icons.shopping_bag_outlined,size:22),
             ),
           ],
-        ),
-        SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.fromLTRB(10,4,10,4),child:SearchBox(onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SearchScreen()))))),
-        SliverToBoxAdapter(child:CategoryTabs(categories:cats,selected:selected,onChanged:(id){setState(()=>selected=id);load();})),
-        if(loading)const SliverFillRemaining(hasScrollBody:false,child:Center(child:CircularProgressIndicator()))
-        else ...[
-          if(banners.isNotEmpty)SliverToBoxAdapter(child:BannerCarousel(banners:banners,onTap:bannerTap)),
-          const SliverToBoxAdapter(child:BenefitsRow()),
-          if(cats.isNotEmpty)SliverToBoxAdapter(child:CategoryCircles(categories:cats.take(8).toList())),
-          if(trends.isNotEmpty)SliverToBoxAdapter(child:TrendRow(rows:trends)),
-          if(looks.isNotEmpty)SliverToBoxAdapter(child:LooksRow(rows:looks)),
-          const SliverToBoxAdapter(child:SectionTitle(title:'الأكثر مشاهدة الآن')),
-          SliverToBoxAdapter(child:ProductGrid(
-            products:products,
-            onTap:(p)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>ProductScreen(p.id))),
-            onAdd:(p)async{if(p.variantId==null){Navigator.push(context,MaterialPageRoute(builder:(_)=>ProductScreen(p.id)));return;}try{await api.addCart(p.variantId!);if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تمت الإضافة إلى السلة')));}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}},
-          )),
         ],
-      ]),
+      ),
     ),
+  );
+}
+
+class RootCategoryRail extends StatelessWidget{
+  final List<CategoryModel>categories;
+  final int?selected;
+  final ValueChanged<int?>onTap;
+  const RootCategoryRail({super.key,required this.categories,required this.selected,required this.onTap});
+  @override Widget build(BuildContext context)=>SizedBox(
+    height:106,
+    child:ListView.separated(
+      scrollDirection:Axis.horizontal,
+      padding:const EdgeInsets.fromLTRB(10,6,10,8),
+      itemCount:categories.length+1,
+      separatorBuilder:(_,__)=>const SizedBox(width:10),
+      itemBuilder:(_,i){
+        if(i==0){
+          return _RootCategoryItem(
+            name:'الكل',
+            image:null,
+            active:selected==null,
+            onTap:()=>onTap(null),
+          );
+        }
+        final c=categories[i-1];
+        return _RootCategoryItem(
+          name:c.name,
+          image:api.url(c.iconUrl),
+          active:c.id==selected,
+          onTap:()=>onTap(c.id),
+        );
+      },
+    ),
+  );
+}
+
+class _RootCategoryItem extends StatelessWidget{
+  final String name;
+  final String?image;
+  final bool active;
+  final VoidCallback onTap;
+  const _RootCategoryItem({required this.name,required this.image,required this.active,required this.onTap});
+  @override Widget build(BuildContext context)=>InkWell(
+    onTap:onTap,
+    borderRadius:BorderRadius.circular(30),
+    child:SizedBox(
+      width:68,
+      child:Column(
+        children:[
+          Container(
+            width:62,
+            height:62,
+            decoration:BoxDecoration(
+              color:const Color(0xFFF5F5F5),
+              shape:BoxShape.circle,
+              border:Border.all(color:active?Colors.black:Colors.transparent,width:1.4),
+            ),
+            clipBehavior:Clip.antiAlias,
+            child:image==null||image!.isEmpty
+                ?const Icon(Icons.grid_view_rounded,size:24)
+                :Image.network(image!,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.category_outlined)),
+          ),
+          const SizedBox(height:5),
+          Text(name,maxLines:1,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:TextStyle(fontSize:9.5,fontWeight:active?FontWeight.w800:FontWeight.w500)),
+        ],
+      ),
+    ),
+  );
+}
+
+class PromoBannerRail extends StatefulWidget{
+  final List<Map<String,dynamic>>banners;
+  final ValueChanged<Map<String,dynamic>>onTap;
+  const PromoBannerRail({super.key,required this.banners,required this.onTap});
+  @override State<PromoBannerRail> createState()=>_PromoBannerRailState();
+}
+class _PromoBannerRailState extends State<PromoBannerRail>{
+  int page=0;
+  late final PageController controller;
+  @override void initState(){super.initState();controller=PageController(viewportFraction:.965);}
+  @override void dispose(){controller.dispose();super.dispose();}
+  @override Widget build(BuildContext context)=>Column(
+    children:[
+      SizedBox(
+        height:208,
+        child:PageView.builder(
+          controller:controller,
+          itemCount:widget.banners.length,
+          onPageChanged:(v)=>setState(()=>page=v),
+          itemBuilder:(_,i){
+            final b=widget.banners[i];
+            final image=api.url((b['mobile_image_url']??b['image_url']??'').toString());
+            return Padding(
+              padding:const EdgeInsets.symmetric(horizontal:2),
+              child:InkWell(
+                onTap:()=>widget.onTap(b),
+                child:ClipRRect(
+                  borderRadius:BorderRadius.circular(3),
+                  child:image.isEmpty
+                      ?Container(color:const Color(0xFFF0F0F0))
+                      :Image.network(image,fit:BoxFit.cover,errorBuilder:(_,__,___)=>Container(color:const Color(0xFFF0F0F0))),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+      const SizedBox(height:6),
+      Row(
+        mainAxisAlignment:MainAxisAlignment.center,
+        children:List.generate(widget.banners.length,(i)=>AnimatedContainer(
+          duration:const Duration(milliseconds:150),
+          margin:const EdgeInsets.symmetric(horizontal:2),
+          width:i==page?16:4,
+          height:2.5,
+          color:i==page?Colors.black:const Color(0xFFD0D0D0),
+        )),
+      ),
+    ],
+  );
+}
+
+class SideCategoryRail extends StatelessWidget{
+  final List<Map<String,dynamic>>categories;
+  final ValueChanged<Map<String,dynamic>>onCircleTap;
+  const SideCategoryRail({super.key,required this.categories,required this.onCircleTap});
+  @override Widget build(BuildContext context){
+    if(categories.isEmpty)return const SizedBox.shrink();
+    final circles=categories.expand((e)=>((e['circles'] as List?)??const[]).whereType<Map>().map((x)=>Map<String,dynamic>.from(x))).toList();
+    if(circles.isEmpty)return const SizedBox.shrink();
+    return Column(
+      children:[
+        const SectionTitle(title:'تسوق حسب الفئة'),
+        SizedBox(
+          height:114,
+          child:ListView.separated(
+            scrollDirection:Axis.horizontal,
+            padding:const EdgeInsets.symmetric(horizontal:10),
+            itemCount:circles.length,
+            separatorBuilder:(_,__)=>const SizedBox(width:12),
+            itemBuilder:(_,i){
+              final c=circles[i];
+              final image=api.url((c['image_url']??'').toString());
+              return InkWell(
+                onTap:()=>onCircleTap(c),
+                child:SizedBox(
+                  width:72,
+                  child:Column(
+                    children:[
+                      Container(
+                        width:64,
+                        height:64,
+                        decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFF4F4F4)),
+                        clipBehavior:Clip.antiAlias,
+                        child:image.isEmpty?const Icon(Icons.category_outlined):Image.network(image,fit:BoxFit.cover,errorBuilder:(_,__,___)=>const Icon(Icons.category_outlined)),
+                      ),
+                      const SizedBox(height:5),
+                      Text((c['name']??'').toString(),maxLines:2,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(fontSize:9.5,fontWeight:FontWeight.w600)),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class HomeTrendRail extends StatelessWidget{
+  final List<Map<String,dynamic>>rows;
+  const HomeTrendRail({super.key,required this.rows});
+  @override Widget build(BuildContext context)=>Column(
+    children:[
+      const SectionTitle(title:'الترند'),
+      SizedBox(
+        height:188,
+        child:ListView.separated(
+          scrollDirection:Axis.horizontal,
+          padding:const EdgeInsets.symmetric(horizontal:10),
+          itemCount:rows.length,
+          separatorBuilder:(_,__)=>const SizedBox(width:6),
+          itemBuilder:(_,i){
+            final r=rows[i];
+            final bg=r['background'] is Map?Map<String,dynamic>.from(r['background']):{};
+            final image=api.url((bg['url']??'').toString());
+            return InkWell(
+              onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>TrendDetailScreen(trend:r))),
+              child:Container(
+                width:155,
+                color:Colors.white,
+                child:Stack(
+                  children:[
+                    Positioned.fill(child:image.isEmpty?Container(color:const Color(0xFFEDEDED)):Image.network(image,fit:BoxFit.cover)),
+                    Positioned(left:6,right:6,bottom:6,child:Container(
+                      color:Colors.white.withOpacity(.9),
+                      padding:const EdgeInsets.all(7),
+                      child:Text((r['promo_text']??'').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800)),
+                    )),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    ],
+  );
+}
+
+class HomeLooksRail extends StatelessWidget{
+  final List<Map<String,dynamic>>rows;
+  const HomeLooksRail({super.key,required this.rows});
+  @override Widget build(BuildContext context)=>Column(
+    children:[
+      SectionTitle(title:'إطلالات مختارة',onMore:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const LooksScreen()))),
+      SizedBox(
+        height:210,
+        child:ListView.separated(
+          scrollDirection:Axis.horizontal,
+          padding:const EdgeInsets.symmetric(horizontal:10),
+          itemCount:rows.length,
+          separatorBuilder:(_,__)=>const SizedBox(width:6),
+          itemBuilder:(_,i){
+            final r=rows[i];
+            final image=api.url((r['cover_url']??'').toString());
+            return InkWell(
+              onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>LookDetailScreen(look:r))),
+              child:SizedBox(
+                width:150,
+                child:Stack(
+                  fit:StackFit.expand,
+                  children:[
+                    ClipRRect(
+                      borderRadius:BorderRadius.circular(2),
+                      child:image.isEmpty?Container(color:const Color(0xFFEDEDED)):Image.network(image,fit:BoxFit.cover),
+                    ),
+                    Positioned(left:0,right:0,bottom:0,child:Container(
+                      padding:const EdgeInsets.symmetric(horizontal:8,vertical:7),
+                      color:Colors.black.withOpacity(.5),
+                      child:Text((r['name']??'').toString(),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(color:Colors.white,fontSize:11,fontWeight:FontWeight.w800)),
+                    )),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    ],
   );
 }
 
