@@ -298,7 +298,10 @@ class _HomeHeroState extends State<_HomeHero> {
         PageView.builder(
           itemCount: widget.banners.length,
           onPageChanged: (v) => setState(() => page = v),
-          itemBuilder: (_, i) => SxImage(url: widget.banners[i]['mobile_image_url'] ?? widget.banners[i]['image_url'], width: double.infinity, height: 378),
+          itemBuilder: (_, i) => InkWell(
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SxBannerLandingScreen(banner: widget.banners[i]))),
+            child: SxImage(url: widget.banners[i]['mobile_image_url'] ?? widget.banners[i]['image_url'], width: double.infinity, height: 378),
+          ),
         ),
         if (widget.banners.isEmpty) const Positioned.fill(child: ColoredBox(color: ClientTheme.soft)),
         Positioned.fill(child: IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.center, colors: [Colors.black.withOpacity(.28), Colors.transparent]))))),
@@ -334,6 +337,61 @@ class _HomeHeroState extends State<_HomeHero> {
       ]),
     );
   }
+}
+
+class SxBannerLandingScreen extends StatefulWidget {
+  final Map<String, dynamic> banner;
+  const SxBannerLandingScreen({super.key, required this.banner});
+  @override State<SxBannerLandingScreen> createState() => _SxBannerLandingScreenState();
+}
+
+class _SxBannerLandingScreenState extends State<SxBannerLandingScreen> {
+  List<ProductModel> products = [];
+  bool loading = true;
+  String title = '';
+
+  @override void initState() {
+    super.initState();
+    title = sxText(widget.banner['title'], 'العرض');
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final targets = sxMaps(widget.banner['targets']);
+      final target = targets.isEmpty ? <String, dynamic>{} : targets.first;
+      final type = sxText(target['type']);
+      final id = sxInt(target['id']);
+      if (type == 'product' && id > 0) {
+        if (mounted) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SxProductScreen(id: id)));
+        }
+        return;
+      }
+      if (type == 'category' && id > 0) {
+        products = await api.feed(category: id, currencyId: state.currencyId);
+      } else if ((type == 'circle' || type == 'side_category_circle') && id > 0) {
+        products = await api.feed(circleId: id, currencyId: state.currencyId);
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e))));
+    }
+    if (mounted) setState(() => loading = false);
+  }
+
+  @override Widget build(BuildContext context) => SxShellPage(
+    title: title,
+    back: true,
+    child: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : ListView(
+      children: [
+        SizedBox(height: 285, child: SxImage(url: widget.banner['mobile_image_url'] ?? widget.banner['image_url'])),
+        if (sxText(widget.banner['description']).isNotEmpty)
+          Padding(padding: const EdgeInsets.all(14), child: Text(sxText(widget.banner['description']), textAlign: TextAlign.center, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, height: 1.5))),
+        const SxSectionTitle(title: 'منتجات العرض'),
+        Padding(padding: const EdgeInsets.fromLTRB(7, 0, 7, 20), child: SxProductGrid(products: products)),
+      ],
+    ),
+  );
 }
 
 class SxDeals extends StatelessWidget {
