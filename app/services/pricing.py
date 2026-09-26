@@ -16,6 +16,7 @@ from ..models import (
     PricingGroup,
     PricingGroupCity,
     PricingGroupRule,
+    PricingLocationAdjustment,
 )
 
 
@@ -34,7 +35,9 @@ class PriceResult:
     converted: Decimal
     percent_add: Decimal
     fixed_add: Decimal
-    final: Decimal
+    location_percent_add: Decimal = Decimal("0")
+    location_fixed_add: Decimal = Decimal("0")
+    final: Decimal = Decimal("0")
 
 
 @dataclass(frozen=True)
@@ -47,6 +50,9 @@ class PricingContext:
     override_percent: Optional[Decimal]
     override_fixed: Optional[Decimal]
     source: str
+    location_percent: Decimal = Decimal("0")
+    location_fixed_sar: Decimal = Decimal("0")
+    location_source: str = "none"
 
 
 def round_money(value: Decimal, decimals: int, rounding_rule: str = "nearest") -> Decimal:
@@ -68,8 +74,10 @@ def calculate_customer_price(
     *,
     override_percent: Optional[Decimal] = None,
     override_fixed: Optional[Decimal] = None,
+    location_percent: Decimal = Decimal("0"),
+    location_fixed_sar: Decimal = Decimal("0"),
 ) -> PriceResult:
-    """Calculate a customer price from SAR-only catalog inputs."""
+    """Calculate SAR -> display currency -> group markup -> signed location adjustment."""
     base = Decimal(base_price_sar)
     rate = Decimal(fx_rate)
     percent = rule.percent_markup if override_percent is None else Decimal(override_percent)
@@ -77,12 +85,11 @@ def calculate_customer_price(
     converted = base * rate
     percent_add = converted * percent / Decimal("100")
     fixed_add = fixed_sar * rate
-    final = round_money(
-        converted + percent_add + fixed_add,
-        rule.decimals,
-        rule.rounding_rule,
-    )
-    return PriceResult(base, rate, converted, percent_add, fixed_add, final)
+    grouped = converted + percent_add + fixed_add
+    location_percent_add = grouped * Decimal(location_percent) / Decimal("100")
+    location_fixed_add = Decimal(location_fixed_sar) * rate
+    final = round_money(grouped + location_percent_add + location_fixed_add, rule.decimals, rule.rounding_rule)
+    return PriceResult(base, rate, converted, percent_add, fixed_add, location_percent_add, location_fixed_add, final)
 
 
 def _active_window_clause(model, now):
@@ -227,13 +234,17 @@ def resolve_pricing_context(
     if currency is None or not currency.is_active:
         raise LookupError("Requested currency was not found")
 
-    # Group-level values are now the single source of truth and are
-    # intentionally independent from the display currency.
+    # Group-level pricing is the source of truth. Location adjustments are applied separately.
     rule = PricingRule(
         percent_markup=Decimal(group.percent_markup or 0),
         fixed_markup=Decimal(group.fixed_markup_sar or 0),
         decimals=int(group.decimals or currency.decimals or 2),
         rounding_rule=group.rounding_rule or "nearest",
+    )
+    location_percent, location_fixed_sar, location_source = resolve_location_adjustment(
+        city_id=effective_city_id,
+        area_id=effective_area_id,
+        now=now,
     )
     return PricingContext(
         pricing_group_id=group.id,
@@ -244,6 +255,9 @@ def resolve_pricing_context(
         override_percent=Decimal(override_percent) if override_percent is not None else None,
         override_fixed=Decimal(override_fixed) if override_fixed is not None else None,
         source=source,
+        location_percent=location_percent,
+        location_fixed_sar=location_fixed_sar,
+        location_source=location_source,
     )
 
 
@@ -288,6 +302,49 @@ def resolve_exchange_rate(
     raise LookupError("No active exchange rate exists for the requested currency")
 
 
+
+def resolve_location_adjustment(*, city_id: Optional[int] = None, area_id: Optional[int] = None, now: Optional[datetime] = None):
+    """Resolve a signed adjustment independently from the pricing group."""
+    now = now or datetime.now(timezone.utc)
+    effective_city_id = city_id
+    area = db.session.get(CityArea, area_id) if area_id else None
+    if area is not None:
+        effective_city_id = effective_city_id or area.city_id
+    city = db.session.get(City, effective_city_id) if effective_city_id else None
+    region_id = city.region_id if city else None
+    candidates = []
+    if area_id:
+        candidates += PricingLocationAdjustment.query.filter(
+            PricingLocationAdjustment.area_id == area_id,
+            PricingLocationAdjustment.is_active.is_(True),
+            _active_window_clause(PricingLocationAdjustment, now),
+        ).all()
+    if effective_city_id:
+        candidates += PricingLocationAdjustment.query.filter(
+            PricingLocationAdjustment.city_id == effective_city_id,
+            PricingLocationAdjustment.is_active.is_(True),
+            _active_window_clause(PricingLocationAdjustment, now),
+        ).all()
+    if region_id:
+        candidates += PricingLocationAdjustment.query.filter(
+            PricingLocationAdjustment.region_id == region_id,
+            PricingLocationAdjustment.is_active.is_(True),
+            _active_window_clause(PricingLocationAdjustment, now),
+        ).all()
+    if not candidates:
+        return Decimal("0"), Decimal("0"), "none"
+    def specificity(row):
+        return (
+            3 if row.area_id == area_id else
+            2 if row.city_id == effective_city_id else
+            1 if row.region_id == region_id else 0,
+            int(row.priority or 0),
+            row.id,
+        )
+    row = max(candidates, key=specificity)
+    source = "area" if row.area_id else "city" if row.city_id else "region"
+    return Decimal(row.percent_adjustment or 0), Decimal(row.fixed_adjustment_sar or 0), source
+
 def price_for_customer(
     *,
     base_price_sar: Decimal,
@@ -318,4 +375,6 @@ def price_for_customer(
         context.rule,
         override_percent=context.override_percent,
         override_fixed=context.override_fixed,
+        location_percent=context.location_percent,
+        location_fixed_sar=context.location_fixed_sar,
     )

@@ -3,7 +3,8 @@ from flask import request
 from . import api_bp
 from ...security import admin_api_required
 from ...extensions import db
-from ...models import City, CityArea, Country, Region
+from ...models import City, CityArea, Country, GeoDirection, Region
+from .services import generate_area_code, generate_city_code
 
 
 @api_bp.get("/countries")
@@ -72,18 +73,18 @@ def create_city():
     payload = request.get_json(silent=True) or {}
     try:
         region_id = int(payload["region_id"])
-        code = str(payload["code"]).strip().upper()
         name = str(payload["name"]).strip()
     except (KeyError, ValueError):
-        return {"error": "invalid_city", "detail": "region_id, code and name are required"}, 400
-    if db.session.get(Region, region_id) is None:
-        return {"error": "invalid_city", "detail": "region not found"}, 400
+        return {"error": "invalid_city", "detail": "region_id and name are required"}, 400
+    region = db.session.get(Region, region_id)
+    if region is None or not region.is_active or not name:
+        return {"error": "invalid_city", "detail": "active region and city name are required"}, 400
     row = City(
         region_id=region_id,
-        code=code,
+        code=generate_city_code(name, region_id),
         name=name,
         direction=(payload.get("direction") or "").strip() or None,
-        source=(payload.get("source") or "").strip() or None,
+        source=(payload.get("source") or "").strip() or "manual",
         sort_order=int(payload.get("sort_order", 0)),
     )
     db.session.add(row)
@@ -121,19 +122,26 @@ def create_city_area():
     payload = request.get_json(silent=True) or {}
     try:
         city_id = int(payload["city_id"])
-        code = str(payload["code"]).strip().upper()
         name = str(payload["name"]).strip()
     except (KeyError, ValueError):
-        return {"error": "invalid_city_area", "detail": "city_id, code and name are required"}, 400
+        return {"error": "invalid_city_area", "detail": "city_id and name are required"}, 400
     city = db.session.get(City, city_id)
-    if city is None:
-        return {"error": "invalid_city_area", "detail": "city not found"}, 400
+    if city is None or not city.is_active or not name:
+        return {"error": "invalid_city_area", "detail": "active city and area name are required"}, 400
+    direction_code = (payload.get("direction_code") or payload.get("direction") or "").strip().lower() or None
+    direction_id = None
+    if direction_code:
+        direction = GeoDirection.query.filter_by(code=direction_code, is_active=True).first()
+        if direction is None:
+            return {"error": "invalid_city_area", "detail": "unknown direction"}, 400
+        direction_id = direction.id
     row = CityArea(
         city_id=city_id,
-        code=code,
+        code=generate_area_code(name, city_id),
         name=name,
-        direction=(payload.get("direction") or "").strip() or None,
-        source=(payload.get("source") or "").strip() or None,
+        direction=direction_code,
+        direction_id=direction_id,
+        source=(payload.get("source") or "").strip() or "manual",
         sort_order=int(payload.get("sort_order", 0)),
     )
     db.session.add(row)
@@ -145,6 +153,13 @@ def create_city_area():
             "code": row.code,
             "name": row.name,
             "direction": row.direction,
+            "direction_id": row.direction_id,
             "source": row.source,
         }
     }, 201
+
+
+@api_bp.get("/directions")
+def directions():
+    rows = GeoDirection.query.filter_by(is_active=True).order_by(GeoDirection.sort_order, GeoDirection.name_ar).all()
+    return {"items": [{"id": x.id, "code": x.code, "name_ar": x.name_ar} for x in rows]}

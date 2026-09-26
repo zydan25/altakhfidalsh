@@ -46,6 +46,7 @@ def order(order_id):
 @customer_required
 def create_order():
     payload = request.get_json(silent=True) or {}
+    payload["customer_id"] = current_customer().id
     try:
         return {"item": CommerceService.create_order(payload)}, 201
     except (KeyError, ValueError, LookupError) as exc:
@@ -122,9 +123,16 @@ def record_payment():
 
 
 @api_bp.post("/payments/proofs")
+@customer_required
 def payment_proof():
+    payload = request.get_json(silent=True) or {}
     try:
-        return {"item": PaymentShippingService.attach_payment_proof(request.get_json(silent=True) or {})}, 201
+        order_id = int(payload["order_id"])
+        order = db.session.get(Order, order_id)
+        if order is None or order.customer_id != current_customer().id:
+            return {"error": "not_found"}, 404
+        payload["submitted_by"] = current_customer().id
+        return {"item": PaymentShippingService.attach_payment_proof(payload)}, 201
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "payment_proof_failed", "detail": str(exc)}, 400
 
@@ -215,15 +223,34 @@ from .cart import CartService
 
 
 @api_bp.get("/cart/<int:customer_id>")
+@customer_required
 def get_cart(customer_id):
+    if customer_id != current_customer().id:
+        return {"error": "forbidden"}, 403
     try:
         return {"item": CartService.get_cart(customer_id, request.args.get("currency_id", type=int))}
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "cart_read_failed", "detail": str(exc)}, 400
 
 
+@api_bp.patch("/cart/<int:customer_id>/items/<int:item_id>")
+@customer_required
+def update_cart_item(customer_id, item_id):
+    if customer_id != current_customer().id:
+        return {"error": "forbidden"}, 403
+    payload = request.get_json(silent=True) or {}
+    try:
+        qty = int(payload["qty"])
+        return {"item": CartService.set_item_qty(customer_id, item_id, qty)}
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "cart_update_failed", "detail": str(exc)}, 400
+
+
 @api_bp.delete("/cart/<int:customer_id>/items/<int:item_id>")
+@customer_required
 def remove_cart_item(customer_id, item_id):
+    if customer_id != current_customer().id:
+        return {"error": "forbidden"}, 403
     try:
         return {"item": CartService.remove_item(customer_id, item_id)}
     except LookupError as exc:
@@ -231,7 +258,10 @@ def remove_cart_item(customer_id, item_id):
 
 
 @api_bp.delete("/cart/<int:customer_id>")
+@customer_required
 def clear_cart(customer_id):
+    if customer_id != current_customer().id:
+        return {"error": "forbidden"}, 403
     return {"item": CartService.clear_cart(customer_id)}
 
 
@@ -274,6 +304,16 @@ def my_cart_item():
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "cart_update_failed", "detail": str(exc)}, 400
     return {"item": item}, 201
+
+
+@api_bp.patch("/me/cart/items/<int:item_id>")
+@customer_required
+def update_my_cart_item(item_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CartService.set_item_qty(current_customer().id, item_id, int(payload["qty"]))}
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "cart_update_failed", "detail": str(exc)}, 400
 
 
 @api_bp.get("/me/cart")

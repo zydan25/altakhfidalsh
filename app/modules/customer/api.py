@@ -110,6 +110,30 @@ def my_wishlist():
     return {"items": CustomerEngagementService.list_wishlist(current_customer().id)}
 
 
+@api_bp.patch("/me/addresses/<int:address_id>")
+@customer_required
+def update_my_address(address_id):
+    try:
+        return {"item": CustomerService.update_address(current_customer().id, address_id, request.get_json(silent=True) or {})}
+    except (ValueError, LookupError) as exc:
+        return {"error": "address_update_failed", "detail": str(exc)}, 400
+
+
+@api_bp.delete("/me/addresses/<int:address_id>")
+@customer_required
+def delete_my_address(address_id):
+    try:
+        return {"item": CustomerService.delete_address(current_customer().id, address_id)}
+    except LookupError as exc:
+        return {"error": "address_not_found", "detail": str(exc)}, 404
+
+
+@api_bp.delete("/me/wishlist/<int:product_id>")
+@customer_required
+def remove_my_wishlist(product_id):
+    return {"item": CustomerEngagementService.remove_wishlist(current_customer().id, product_id)}
+
+
 @api_bp.post("/me/wishlist/<int:product_id>")
 @customer_required
 def add_my_wishlist(product_id):
@@ -123,6 +147,15 @@ def add_my_wishlist(product_id):
 @customer_required
 def track_my_view(product_id):
     return {"item": CustomerEngagementService.track_view(current_customer().id, product_id)}
+
+
+@api_bp.get("/me/views")
+@customer_required
+def my_views():
+    return {"items": CustomerEngagementService.list_recent_views(
+        current_customer().id,
+        request.args.get("limit", 30, type=int) or 30,
+    )}
 
 
 @api_bp.get("/customers/<int:customer_id>")

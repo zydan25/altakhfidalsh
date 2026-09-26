@@ -1,0 +1,139 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <div class="module-toolbar">
+    <div class="module-heading-copy">
+      <span class="eyebrow">المحتوى والمتجر · Style</span>
+      <h2>استديو الإطلالات</h2>
+      <p class="muted">أنشئ إطلالة بصورة غلاف، حدّد الفئات الدائرية التي تقود إليها، وأضف منتجات مساندة مع جدولة وترتيب واضح.</p>
+    </div>
+    <div class="module-toolbar-actions">
+      <span class="status-pill">{{ looks|length }} إطلالة</span>
+      <details>
+        <summary class="primary-button">＋ إطلالة جديدة</summary>
+        <form method="post" enctype="multipart/form-data" class="form-stack look-editor-form">
+          <input type="hidden" name="action" value="look_create">
+          <div class="compact-form-grid">
+            <label>اسم الإطلالة<input name="name" required placeholder="إطلالة الخريف"></label>
+            <label>Slug<input name="slug" dir="ltr" placeholder="autumn-look"></label>
+            <label class="form-field-wide">الوصف<textarea name="description" rows="3" placeholder="وصف مختصر يظهر للعميل"></textarea></label>
+            <label>الحالة<select name="status"><option value="draft">مسودة</option><option value="active">نشطة</option></select></label>
+            <label>الترتيب<input name="sort_order" type="number" value="0"></label>
+            <label>تبدأ من<input name="starts_at" type="datetime-local"></label>
+            <label>تنتهي في<input name="ends_at" type="datetime-local"></label>
+            <label class="form-field-wide">صورة الغلاف<input name="cover_image" type="file" accept="image/*"></label>
+          </div>
+          <button class="primary-button">حفظ الإطلالة</button>
+        </form>
+      </details>
+    </div>
+  </div>
+</section>
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="look-legend">
+  <span>○ الفئات الدائرية هي الوجهات الأساسية للإطلالة</span>
+  <span>↗ يمكن للإطلالة أن تقود إلى عدة دوائر</span>
+  <span>◷ الجدولة تمنع الظهور خارج الفترة المحددة</span>
+</section>
+
+<section class="look-grid">
+{% for look in looks %}
+  {% set asset=asset_map.get(look.cover_asset_id) %}
+  {% set selected_circles=circles_by_look.get(look.id,[]) %}
+  <article class="panel look-card">
+    <div class="look-cover" style="background-image:url('{{ asset.url if asset else "" }}')">
+      <div class="look-cover-shade"></div>
+      <div class="look-cover-top"><span class="status-pill">{{ "نشطة" if look.status=="active" else "مسودة" }}</span><span class="look-order">#{{ look.sort_order }}</span></div>
+      <div class="look-cover-caption"><strong>{{ look.name }}</strong><small dir="ltr">{{ look.slug }}</small></div>
+    </div>
+
+    <div class="look-card-body">
+      <div class="look-card-head">
+        <div><h3>{{ look.name }}</h3><small class="muted">{{ look.description or "بدون وصف" }}</small></div>
+        <div class="look-stats"><span>{{ selected_circles|length }} دوائر</span><span>{{ products_by_look.get(look.id,[])|length }} منتجات</span></div>
+      </div>
+
+      {% if look.starts_at or look.ends_at %}
+      <div class="look-schedule"><span>◷</span><span>{{ look.starts_at or "بلا بداية" }}</span><span>→</span><span>{{ look.ends_at or "بلا نهاية" }}</span></div>
+      {% endif %}
+
+      <div class="look-subheading"><strong>الفئات الدائرية</strong><small class="muted">هذه هي الوجهات التي يفتحها العميل من الإطلالة.</small></div>
+      <div class="chip-row look-chip-list">
+        {% for lc in selected_circles %}
+          {% set circle=circle_map.get(lc.circle_id) %}
+          {% set side=circle_side_map.get(circle.side_category_id) if circle else None %}
+          <span class="banner-target-chip">
+            {{ circle.name if circle else lc.circle_id }}{% if side %} · {{ side.name }}{% endif %}
+            <form method="post"><input type="hidden" name="action" value="look_remove_circle"><input type="hidden" name="look_id" value="{{ look.id }}"><input type="hidden" name="circle_id" value="{{ lc.circle_id }}"><button class="chip-delete" title="إزالة">×</button></form>
+          </span>
+        {% else %}<span class="muted compact-empty">لم تُحدد دوائر بعد.</span>{% endfor %}
+      </div>
+
+      <details class="look-details">
+        <summary class="ghost-button">＋ ربط فئات دائرية</summary>
+        <form method="post" class="form-stack look-circle-form" style="margin-top:10px">
+          <input type="hidden" name="action" value="look_add_circles">
+          <input type="hidden" name="look_id" value="{{ look.id }}">
+          <div class="look-circle-picker">
+            {% for circle in circle_rows %}
+              {% set side=circle_side_map.get(circle.side_category_id) %}
+              {% set checked = selected_circles|selectattr("circle_id","equalto",circle.id)|list|length > 0 %}
+              <label class="look-circle-option {% if checked %}is-selected{% endif %}">
+                <input type="checkbox" name="circle_id" value="{{ circle.id }}" {% if checked %}checked{% endif %}>
+                <span class="look-circle-dot" style="background-image:url('{{ (circle.image_asset_id and circle_asset_map.get(circle.image_asset_id).url) if circle.image_asset_id and asset_map.get(circle.image_asset_id) else "" }}')"></span>
+                <span><strong>{{ circle.name }}</strong><small>{{ side.name if side else "فئة دائرية" }}</small></span>
+              </label>
+            {% else %}<p class="muted compact-empty">أنشئ الفئات الدائرية أولًا من وحدة دوائر الفئات.</p>{% endfor %}
+          </div>
+          <button class="primary-button">حفظ الدوائر المحددة</button>
+        </form>
+      </details>
+
+      <div class="look-subheading"><strong>المنتجات</strong><small class="muted">اختياري، لعرض منتجات مباشرة ضمن صفحة الإطلالة.</small></div>
+      <div class="chip-row look-chip-list">
+        {% for lp in products_by_look.get(look.id,[]) %}
+          <span class="banner-target-chip">{{ product_map.get(lp.product_id).name if product_map.get(lp.product_id) else lp.product_id }}
+            <form method="post"><input type="hidden" name="action" value="look_remove_product"><input type="hidden" name="look_id" value="{{ look.id }}"><input type="hidden" name="product_id" value="{{ lp.product_id }}"><button class="chip-delete" title="إزالة">×</button></form>
+          </span>
+        {% else %}<span class="muted compact-empty">لا توجد منتجات مباشرة.</span>{% endfor %}
+      </div>
+
+      <div class="look-action-row">
+        <details class="look-details grow">
+          <summary class="ghost-button">＋ إضافة منتج</summary>
+          <form method="post" class="form-grid" style="margin-top:8px">
+            <input type="hidden" name="action" value="look_add_product"><input type="hidden" name="look_id" value="{{ look.id }}">
+            <select name="product_id" required>{% for x in products %}<option value="{{ x.id }}">{{ x.name }} #{{ x.id }}</option>{% endfor %}</select>
+            <input name="sort_order" type="number" value="0">
+            <button class="primary-button">إضافة</button>
+          </form>
+        </details>
+
+        <details class="look-details grow">
+          <summary class="ghost-button">✎ تعديل</summary>
+          <form method="post" enctype="multipart/form-data" class="form-stack compact-form-grid" style="margin-top:8px">
+            <input type="hidden" name="action" value="look_update"><input type="hidden" name="id" value="{{ look.id }}">
+            <label>الاسم<input name="name" value="{{ look.name }}" required></label>
+            <label>Slug<input name="slug" value="{{ look.slug }}" dir="ltr"></label>
+            <label class="form-field-wide">الوصف<textarea name="description" rows="2">{{ look.description or "" }}</textarea></label>
+            <label>الحالة<select name="status"><option value="draft" {% if look.status!="active" %}selected{% endif %}>مسودة</option><option value="active" {% if look.status=="active" %}selected{% endif %}>نشطة</option></select></label>
+            <label>الترتيب<input name="sort_order" type="number" value="{{ look.sort_order }}"></label>
+            <label>تبدأ من<input name="starts_at" type="datetime-local" value="{{ look.starts_at.strftime('%Y-%m-%dT%H:%M') if look.starts_at else '' }}"></label>
+            <label>تنتهي في<input name="ends_at" type="datetime-local" value="{{ look.ends_at.strftime('%Y-%m-%dT%H:%M') if look.ends_at else '' }}"></label>
+            <label class="form-field-wide">الغلاف<input name="cover_image" type="file" accept="image/*"></label>
+            <button class="primary-button form-field-wide">حفظ التعديلات</button>
+          </form>
+        </details>
+
+        <form method="post"><input type="hidden" name="action" value="look_archive"><input type="hidden" name="id" value="{{ look.id }}"><button class="ghost-button danger-button">أرشفة</button></form>
+      </div>
+    </div>
+  </article>
+{% else %}
+  <div class="empty-state panel"><h3>لا توجد إطلالات</h3><p class="muted">أنشئ أول إطلالة ثم اربطها بالفئات الدائرية من هنا.</p></div>
+{% endfor %}
+</section>
+{% endblock %}

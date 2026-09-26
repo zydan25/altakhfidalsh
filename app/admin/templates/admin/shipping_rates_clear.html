@@ -4,162 +4,324 @@
   <div class="module-toolbar">
     <div class="module-heading-copy">
       <span class="eyebrow">المبيعات والطلبات · التوصيل</span>
-      <h2>طرق التوصيل وقواعدها</h2>
-      <p class="muted">هذه الشاشة تحتوي الاثنين معًا: أنشئ طريقة التوصيل أولًا، ثم أنشئ لها قواعد حسب المدينة أو المنطقة أو العميل، مع شرائح السلة والمجانية فوق مبلغ معين.</p>
+      <h2>التوصيل — سعر أساسي + محرك قواعد</h2>
+      <p class="muted">افصلنا سعر التوصيل الأساسي عن القواعد. السعر الأساسي يحدد حسب الموقع، ثم تُطبق قواعد مجانية/خصم/زيادة بالترتيب.</p>
     </div>
     <div class="module-toolbar-actions">
-      <span class="status-pill">{{ methods|length }} طريقة · {{ rows|length }} قاعدة</span>
+      <span class="status-pill">{{ methods|length }} طرق</span>
+      <span class="status-pill">{{ rows|length }} أسعار أساسية</span>
+      <span class="status-pill">{{ rules|length }} قواعد</span>
     </div>
   </div>
 </section>
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
-<section class="panel" style="margin-bottom:18px">
-  <div class="panel-heading"><div><span class="eyebrow">1 · طرق التوصيل</span><h3>أولًا أنشئ وسيلة التوصيل</h3></div></div>
-  <form method="post" class="form-stack compact-form-grid">
-    <input type="hidden" name="action" value="method">
-    <label>اسم الطريقة *<input name="name" required placeholder="مندوب داخل المدينة"></label>
-    <label>الكود *<input name="code" required placeholder="local-courier"></label>
-    <label>أقل مدة بالأيام<input name="delivery_days_min" type="number" min="0"></label>
-    <label>أقصى مدة بالأيام<input name="delivery_days_max" type="number" min="0"></label>
-    <label class="check-row"><input name="supports_cod" type="checkbox"><span>تدعم الدفع عند الاستلام</span></label>
-    <button class="primary-button" type="submit">إضافة طريقة التوصيل</button>
-  </form>
+<section class="shipping-overview-grid">
+  <article class="panel shipping-hero-card"><span class="eyebrow">1</span><strong>السعر الأساسي</strong><p class="muted">مندوب + مدينة/منطقة + سعر SAR.</p></article>
+  <article class="panel shipping-hero-card"><span class="eyebrow">2</span><strong>شرط السلة</strong><p class="muted">من/إلى مبلغ معين دون خلطه بالمكان.</p></article>
+  <article class="panel shipping-hero-card"><span class="eyebrow">3</span><strong>قاعدة التوصيل</strong><p class="muted">مجاني أو خصم نسبة أو مبلغ أو زيادة.</p></article>
 </section>
 
-<section class="entity-grid manage-grid" style="margin-bottom:18px">
-{% for method in methods %}
-<article class="panel entity-card manage-card">
-  <div class="manage-card-header"><strong>{{ method.name }}</strong><span class="status-pill">{{ rows|selectattr('method_id','equalto',method.id)|list|length }} قواعد</span></div>
-  <div class="entity-field"><span class="entity-label">الكود</span><strong>{{ method.code }}</strong></div>
-  <div class="entity-field"><span class="entity-label">المدة</span><strong>{% if method.delivery_days_min is not none %}{{ method.delivery_days_min }}{% endif %}{% if method.delivery_days_min is not none or method.delivery_days_max is not none %} - {% endif %}{% if method.delivery_days_max is not none %}{{ method.delivery_days_max }}{% endif %} يوم</strong></div>
-  <div class="entity-field"><span class="entity-label">الدفع عند الاستلام</span><strong>{{ "نعم" if method.supports_cod else "لا" }}</strong></div>
-  <details>
-    <summary class="ghost-button">تعديل الطريقة</summary>
-    <form method="post" class="form-stack compact-form-grid" style="margin-top:10px">
-      <input type="hidden" name="action" value="method_update"><input type="hidden" name="method_id" value="{{ method.id }}">
-      <label>الاسم<input name="name" value="{{ method.name }}" required></label>
-      <label>الكود<input name="code" value="{{ method.code }}" required></label>
-      <label>الحد الأدنى للأيام<input name="delivery_days_min" type="number" min="0" value="{{ method.delivery_days_min if method.delivery_days_min is not none else '' }}"></label>
-      <label>الحد الأعلى للأيام<input name="delivery_days_max" type="number" min="0" value="{{ method.delivery_days_max if method.delivery_days_max is not none else '' }}"></label>
-      <label class="check-row"><input name="supports_cod" type="checkbox" {% if method.supports_cod %}checked{% endif %}><span>تدعم الدفع عند الاستلام</span></label>
-      <button class="primary-button form-field-wide" type="submit">حفظ الطريقة</button>
-    </form>
-  </details>
-  <form method="post"><input type="hidden" name="action" value="method_archive"><input type="hidden" name="method_id" value="{{ method.id }}"><button class="ghost-button danger-button" type="submit">أرشفة الطريقة</button></form>
-</article>
-{% else %}
-<div class="empty-state panel" style="grid-column:1/-1"><h3>لا توجد طرق توصيل</h3><p class="muted">أضف أول طريقة مثل «مندوب داخل المدينة» ثم ستظهر هنا لتستخدمها في القواعد.</p></div>
-{% endfor %}
-</section>
-
-<section class="panel" style="margin-bottom:18px">
+<section class="panel shipping-section">
   <div class="panel-heading">
-    <div><span class="eyebrow">2 · قواعد التوصيل</span><h3>قواعد السعر حسب المكان والسلة</h3><p class="muted">كل الأرقام هنا SAR. اختر نطاقًا واحدًا فقط: عام أو عميل أو محافظة أو مدينة أو منطقة داخل المدينة.</p></div>
+    <div><span class="eyebrow">الطرق</span><h3>طرق التوصيل</h3></div>
+    <details><summary class="primary-button">＋ طريقة جديدة</summary>
+      <form method="post" class="form-stack compact-form-grid" style="margin-top:12px">
+        <input type="hidden" name="action" value="method">
+        <label>اسم الطريقة *<input name="name" required placeholder="مندوب داخل المدينة"></label>
+        <label>الكود *<input name="code" required placeholder="local-courier" dir="ltr"></label>
+        <label>أقل مدة<input name="delivery_days_min" type="number" min="0"></label>
+        <label>أقصى مدة<input name="delivery_days_max" type="number" min="0"></label>
+        <label class="check-row form-field-wide"><input name="supports_cod" type="checkbox"><span>الدفع عند الاستلام متاح</span></label>
+        <button class="primary-button form-field-wide" type="submit">حفظ الطريقة</button>
+      </form>
+    </details>
   </div>
-  <div class="shipping-priority-note"><strong>الأولوية:</strong> عميل → منطقة داخل المدينة → مدينة → محافظة → عام. ثم تُفحص شروط السلة.</div>
-  <form method="post" class="form-stack compact-form-grid" id="shippingCreateForm">
-    <input type="hidden" name="action" value="create">
-    <label>طريقة التوصيل *<select name="method_id" required><option value="">اختر الطريقة</option>{% for x in methods %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
-    <label>نطاق القاعدة
-      <select name="location_scope" class="shipping-scope" data-scope-target="shipping-create">
-        <option value="global">عام</option>
-        <option value="city">حسب المدينة</option>
-        <option value="area">حسب منطقة داخل المدينة</option>
-        <option value="region">حسب المحافظة / المنطقة</option>
-        <option value="customer">حسب العميل</option>
-      </select>
-    </label>
-    <label data-scope-field="city" data-scope-target="shipping-create" hidden>المدينة
-      <select name="city_id" data-scope="city" disabled>{% for x in cities %}<option value="{{ x.id }}">{{ x.name }} · {{ region_map.get(x.region_id,'') }}</option>{% endfor %}</select>
-    </label>
-    <label data-scope-field="area" data-scope-target="shipping-create" hidden>المنطقة داخل المدينة
-      <select name="city_area_id" data-scope="area" disabled>{% for x in areas %}<option value="{{ x.id }}">{{ x.name }} · {{ city_map.get(x.city_id,'') }}</option>{% endfor %}</select>
-    </label>
-    <label data-scope-field="region" data-scope-target="shipping-create" hidden>المحافظة / المنطقة
-      <select name="region_id" data-scope="region" disabled>{% for x in regions %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select>
-    </label>
-    <label data-scope-field="customer" data-scope-target="shipping-create" hidden>العميل
-      <select name="customer_id" data-scope="customer" disabled><option value="">اختر العميل</option>{% for x in customers %}<option value="{{ x.id }}">{{ x.name or x.phone_normalized }}</option>{% endfor %}</select>
-    </label>
-    <label>سعر التوصيل SAR<input name="price_sar" type="number" step="0.0001" min="0" value="0" required></label>
-    <label>من السلة SAR<input name="min_order_sar" type="number" step="0.0001" min="0" placeholder="اختياري"></label>
-    <label>إلى السلة SAR<input name="max_order_sar" type="number" step="0.0001" min="0" placeholder="اختياري"></label>
-    <label>مجاني فوق SAR<input name="free_over_sar" type="number" step="0.0001" min="0" placeholder="مثل 500"></label>
-    <label>الأولوية<input name="priority" type="number" value="0"></label>
-    <button class="primary-button form-field-wide" type="submit">إضافة قاعدة التوصيل</button>
-  </form>
+  <div class="shipping-method-grid">
+  {% for method in methods %}
+    <article class="shipping-method-card">
+      <div class="manage-card-header"><div><strong>{{ method.name }}</strong><small class="muted">{{ method.code }}</small></div><span class="status-pill">{{ rows|selectattr('method_id','equalto',method.id)|list|length }} أسعار</span></div>
+      <div class="shipping-method-meta">
+        <span>{% if method.delivery_days_min is not none or method.delivery_days_max is not none %}{{ method.delivery_days_min or 0 }}–{{ method.delivery_days_max or method.delivery_days_min or 0 }} يوم{% else %}المدة غير محددة{% endif %}</span>
+        <span>{{ "COD" if method.supports_cod else "بدون COD" }}</span>
+      </div>
+      <details><summary class="ghost-button">تعديل الطريقة</summary>
+        <form method="post" class="form-stack" style="margin-top:10px">
+          <input type="hidden" name="action" value="method_update"><input type="hidden" name="method_id" value="{{ method.id }}">
+          <label>الاسم<input name="name" value="{{ method.name }}" required></label>
+          <label>الكود<input name="code" value="{{ method.code }}" required dir="ltr"></label>
+          <div class="form-layout">
+            <label>من يوم<input name="delivery_days_min" type="number" min="0" value="{{ method.delivery_days_min or '' }}"></label>
+            <label>إلى يوم<input name="delivery_days_max" type="number" min="0" value="{{ method.delivery_days_max or '' }}"></label>
+          </div>
+          <label class="check-row"><input name="supports_cod" type="checkbox" {% if method.supports_cod %}checked{% endif %}><span>الدفع عند الاستلام</span></label>
+          <button class="primary-button" type="submit">حفظ</button>
+        </form>
+      </details>
+      <form method="post"><input type="hidden" name="action" value="method_archive"><input type="hidden" name="method_id" value="{{ method.id }}"><button class="ghost-button danger-button" type="submit">أرشفة</button></form>
+    </article>
+  {% else %}
+    <p class="muted">لا توجد طرق توصيل بعد.</p>
+  {% endfor %}
+  </div>
 </section>
 
-<section class="entity-grid manage-grid">
-{% for row in rows %}
-{% set scope = "customer" if row.customer_id else "area" if row.city_area_id else "city" if row.city_id else "region" if row.region_id else "global" %}
-<article class="entity-card panel manage-card">
-  <div class="manage-card-header">
-    <strong>{{ method_map.get(row.method_id,row.method_id) }}</strong>
-    <span class="status-pill">{{ row.price_sar or row.price }} SAR</span>
+<section class="panel shipping-section">
+  <div class="panel-heading">
+    <div><span class="eyebrow">السعر الأساسي</span><h3>أسعار التوصيل حسب الموقع</h3><p class="muted">أنشئ سعرًا أساسيًا لكل مدينة، منطقة داخل مدينة، محافظة أو قاعدة عامة. شروط السلة هنا اختيارية.</p></div>
   </div>
-  <div class="entity-field"><span class="entity-label">التطبيق</span><strong>
-    {% if row.customer_id %}عميل: {{ customer_map.get(row.customer_id,row.customer_id) }}
-    {% elif row.city_area_id %}منطقة: {{ area_map.get(row.city_area_id,row.city_area_id) }}
-    {% elif row.city_id %}مدينة: {{ city_map.get(row.city_id,row.city_id) }}
-    {% elif row.region_id %}محافظة: {{ region_map.get(row.region_id,row.region_id) }}
-    {% else %}عام{% endif %}
-  </strong></div>
-  <div class="entity-field"><span class="entity-label">السلة</span><strong>
-    {% if row.min_order_sar is not none %}من {{ row.min_order_sar }}{% endif %}
-    {% if row.max_order_sar is not none %} إلى {{ row.max_order_sar }}{% endif %}
-    {% if row.free_over_sar is not none %} · مجاني فوق {{ row.free_over_sar }}{% endif %}
-  </strong></div>
-  <div class="entity-field"><span class="entity-label">الأولوية</span><strong>{{ row.priority }}</strong></div>
+  <form method="post" class="form-stack compact-form-grid">
+    <input type="hidden" name="action" value="create">
+    <label>طريقة التوصيل *<select name="method_id" required>{% for x in methods %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+    <label>نطاق السعر<select name="location_scope" class="shipping-scope" data-scope-target="base-create"><option value="global">عام</option><option value="region">محافظة / منطقة</option><option value="city" selected>مدينة</option><option value="area">منطقة داخل المدينة</option><option value="customer">عميل</option></select></label>
+    <label data-scope-field="region" data-scope-target="base-create" hidden>المحافظة<select name="region_id" disabled>{% for x in regions %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+    <label data-scope-field="city" data-scope-target="base-create">المدينة<select name="city_id">{% for x in cities %}<option value="{{ x.id }}">{{ x.name }} · {{ region_map.get(x.region_id,'') }}</option>{% endfor %}</select></label>
+    <label data-scope-field="area" data-scope-target="base-create" hidden>المنطقة داخل المدينة<select name="city_area_id" disabled>{% for x in areas %}<option value="{{ x.id }}">{{ x.name }} · {{ city_map.get(x.city_id,'') }}</option>{% endfor %}</select></label>
+    <label data-scope-field="customer" data-scope-target="base-create" hidden>العميل<select name="customer_id" disabled><option value="">اختر</option>{% for x in customers %}<option value="{{ x.id }}">{{ x.name or x.phone_normalized }}</option>{% endfor %}</select></label>
+    <label>سعر التوصيل SAR<input name="price_sar" type="number" step="0.01" min="0" value="0" required></label>
+    <label>من السلة SAR<input name="min_order_sar" type="number" step="0.01" min="0"></label>
+    <label>إلى السلة SAR<input name="max_order_sar" type="number" step="0.01" min="0"></label>
+    <label>أولوية السعر<input name="priority" type="number" value="0"></label>
+    <button class="primary-button form-field-wide" type="submit">＋ إضافة السعر الأساسي</button>
+  </form>
+  <div class="data-table-wrap" style="margin-top:16px">
+    <table class="data-table">
+      <thead><tr><th>الطريقة</th><th>الموقع</th><th>السعر</th><th>السلة</th><th>الأولوية</th><th></th></tr></thead>
+      <tbody>
+      {% for row in rows %}
+        <tr>
+          <td>{{ method_map.get(row.method_id,row.method_id) }}</td>
+          <td>{% if row.city_area_id %}منطقة · {{ area_map.get(row.city_area_id,row.city_area_id) }}{% elif row.city_id %}مدينة · {{ city_map.get(row.city_id,row.city_id) }}{% elif row.region_id %}محافظة · {{ region_map.get(row.region_id,row.region_id) }}{% elif row.customer_id %}عميل · {{ customer_map.get(row.customer_id,row.customer_id) }}{% else %}عام{% endif %}</td>
+          <td><strong>{{ row.price_sar or row.price }} SAR</strong></td>
+          <td>{% if row.min_order_sar is not none %}{{ row.min_order_sar }}{% else %}0{% endif %}{% if row.max_order_sar is not none %} → {{ row.max_order_sar }}{% else %} → ∞{% endif %}</td>
+          <td>{{ row.priority }}</td>
+          <td>
+            <details><summary class="ghost-button">تعديل</summary>
+              <form method="post" class="form-stack compact-form-grid" style="margin-top:8px">
+                <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ row.id }}">
+                <label>الطريقة<select name="method_id">{% for x in methods %}<option value="{{ x.id }}" {% if x.id==row.method_id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
+                <label>السعر SAR<input name="price_sar" type="number" step="0.01" min="0" value="{{ row.price_sar if row.price_sar is not none else row.price }}"></label>
+                <label>من السلة<input name="min_order_sar" type="number" step="0.01" min="0" value="{{ row.min_order_sar or '' }}"></label>
+                <label>إلى السلة<input name="max_order_sar" type="number" step="0.01" min="0" value="{{ row.max_order_sar or '' }}"></label>
+                <label>الأولوية<input name="priority" type="number" value="{{ row.priority }}"></label>
+                <input type="hidden" name="location_scope" value="{% if row.city_area_id %}area{% elif row.city_id %}city{% elif row.region_id %}region{% elif row.customer_id %}customer{% else %}global{% endif %}">
+                <input type="hidden" name="city_id" value="{{ row.city_id or '' }}"><input type="hidden" name="city_area_id" value="{{ row.city_area_id or '' }}"><input type="hidden" name="region_id" value="{{ row.region_id or '' }}"><input type="hidden" name="customer_id" value="{{ row.customer_id or '' }}">
+                <button class="primary-button">حفظ</button>
+              </form>
+            </details>
+            <form method="post" style="display:inline"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button danger-button">أرشفة</button></form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 
-  <details>
-    <summary class="ghost-button">تعديل القاعدة</summary>
-    <form method="post" class="form-stack compact-form-grid shipping-edit-form">
-      <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ row.id }}">
-      <label>طريقة التوصيل<select name="method_id" required>{% for x in methods %}<option value="{{ x.id }}" {% if x.id == row.method_id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
-      <label>النطاق
-        <select name="location_scope" class="shipping-scope" data-scope-target="shipping-{{ row.id }}">
-          <option value="global" {% if scope=="global" %}selected{% endif %}>عام</option>
-          <option value="city" {% if scope=="city" %}selected{% endif %}>حسب المدينة</option>
-          <option value="area" {% if scope=="area" %}selected{% endif %}>حسب منطقة داخل المدينة</option>
-          <option value="region" {% if scope=="region" %}selected{% endif %}>حسب المحافظة / المنطقة</option>
-          <option value="customer" {% if scope=="customer" %}selected{% endif %}>حسب العميل</option>
-        </select>
-      </label>
-      <label data-scope-field="city" data-scope-target="shipping-{{ row.id }}" {% if scope!="city" %}hidden{% endif %}>المدينة<select name="city_id" data-scope="city" {% if scope!="city" %}disabled{% endif %}>{% for x in cities %}<option value="{{ x.id }}" {% if x.id==row.city_id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
-      <label data-scope-field="area" data-scope-target="shipping-{{ row.id }}" {% if scope!="area" %}hidden{% endif %}>المنطقة داخل المدينة<select name="city_area_id" data-scope="area" {% if scope!="area" %}disabled{% endif %}>{% for x in areas %}<option value="{{ x.id }}" {% if x.id==row.city_area_id %}selected{% endif %}>{{ x.name }} · {{ city_map.get(x.city_id,'') }}</option>{% endfor %}</select></label>
-      <label data-scope-field="region" data-scope-target="shipping-{{ row.id }}" {% if scope!="region" %}hidden{% endif %}>المحافظة / المنطقة<select name="region_id" data-scope="region" {% if scope!="region" %}disabled{% endif %}>{% for x in regions %}<option value="{{ x.id }}" {% if x.id==row.region_id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
-      <label data-scope-field="customer" data-scope-target="shipping-{{ row.id }}" {% if scope!="customer" %}hidden{% endif %}>العميل<select name="customer_id" data-scope="customer" {% if scope!="customer" %}disabled{% endif %}><option value="">اختر العميل</option>{% for x in customers %}<option value="{{ x.id }}" {% if x.id==row.customer_id %}selected{% endif %}>{{ x.name or x.phone_normalized }}</option>{% endfor %}</select></label>
-      <label>سعر التوصيل SAR<input name="price_sar" type="number" step="0.0001" min="0" value="{{ row.price_sar if row.price_sar is not none else row.price }}" required></label>
-      <label>من السلة SAR<input name="min_order_sar" type="number" step="0.0001" min="0" value="{{ row.min_order_sar if row.min_order_sar is not none else row.min_order or '' }}"></label>
-      <label>إلى السلة SAR<input name="max_order_sar" type="number" step="0.0001" min="0" value="{{ row.max_order_sar if row.max_order_sar is not none else row.max_order or '' }}"></label>
-      <label>مجاني فوق SAR<input name="free_over_sar" type="number" step="0.0001" min="0" value="{{ row.free_over_sar if row.free_over_sar is not none else row.free_over or '' }}"></label>
-      <label>الأولوية<input name="priority" type="number" value="{{ row.priority }}"></label>
-      <button class="primary-button form-field-wide" type="submit">حفظ القاعدة</button>
-    </form>
-  </details>
-  <form method="post"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button danger-button" type="submit">أرشفة القاعدة</button></form>
-</article>
-{% else %}
-<section class="empty-state panel" style="grid-column:1/-1"><h3>لا توجد قواعد توصيل</h3><p class="muted">ابدأ بإنشاء طريقة توصيل ثم أضف قاعدة «حسب المدينة» بسعر SAR.</p></section>
-{% endfor %}
+<section class="panel shipping-section">
+  <div class="panel-heading">
+    <div><span class="eyebrow">محرك القواعد</span><h3>قواعد التوصيل</h3><p class="muted">حدد طريقة التوصيل، شرط السلة، نوع القاعدة، ثم اختر الأماكن من الشجرة. اختيار المحافظة يحدد مدنها ومناطقها تلقائيًا.</p></div>
+  </div>
+  <div class="shipping-rule-legend">
+    <span>ترتيب المطابقة: منطقة داخل المدينة ← مدينة ← محافظة ← الكل</span>
+    <span>ثم الأولوية</span>
+    <span>ثم حالة إيقاف القواعد</span>
+  </div>
+
+  <form method="post" class="shipping-rule-editor">
+    <input type="hidden" name="action" value="rule_create">
+    <div class="form-layout">
+      <label>طريقة التوصيل<select name="rule_method_id" required>{% for x in methods %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+      <label>نوع القاعدة<select name="rule_type" class="rule-type"><option value="free_shipping">توصيل مجاني</option><option value="percent_discount">خصم نسبة من التوصيل</option><option value="fixed_discount">خصم مبلغ ثابت</option><option value="surcharge">زيادة مبلغ</option><option value="set_price">تحديد سعر نهائي</option></select></label>
+    </div>
+    <div class="form-layout">
+      <label class="rule-value-field">القيمة<input name="rule_value" type="number" step="0.01" min="0" value="0"></label>
+      <label>من السلة SAR<input name="rule_min_order_sar" type="number" step="0.01" min="0"></label>
+      <label>إلى السلة SAR<input name="rule_max_order_sar" type="number" step="0.01" min="0"></label>
+      <label>الأولوية<input name="rule_priority" type="number" value="0"></label>
+    </div>
+    <div class="check-row-grid">
+      <label class="check-row"><input name="rule_applies_to_all" class="rule-all" type="checkbox"><span>تطبيق على كل المناطق</span></label>
+      <label class="check-row"><input name="rule_stackable" type="checkbox"><span>يمكن دمجها مع قاعدة لاحقة</span></label>
+      <label class="check-row"><input name="rule_stop_processing" type="checkbox" checked><span>أوقف بعد هذه القاعدة</span></label>
+    </div>
+    <div class="shipping-tree-card">
+      <div class="shipping-tree-head"><strong>اختر المدن والمناطق</strong><span class="muted">يمكن اختيار أكثر من مكان</span></div>
+      <div class="ship-tree">
+      {% for country in countries %}
+        <div class="ship-country">
+          <div class="ship-country-title">{{ country.name_ar }}</div>
+          {% for region in regions if region.country_id == country.id %}
+            <details open>
+              <summary class="ship-node-summary">
+                <label class="ship-check"><input type="checkbox" class="tree-check tree-region rule-location" value="region:{{ region.id }}"><span>{{ region.name }}</span></label>
+                <small class="muted">{{ cities_by_region.get(region.id, [])|length }} مدن</small>
+              </summary>
+              <div class="ship-tree-children">
+              {% for city in cities_by_region.get(region.id, []) %}
+                <details>
+                  <summary class="ship-node-summary">
+                    <label class="ship-check"><input type="checkbox" class="tree-check tree-city rule-location" value="city:{{ city.id }}" data-region="{{ region.id }}"><span>{{ city.name }}</span></label>
+                    <small class="muted">{{ areas_by_city.get(city.id, [])|length }} مناطق</small>
+                  </summary>
+                  <div class="ship-tree-children">
+                  {% for area in areas_by_city.get(city.id, []) %}
+                    <label class="ship-check ship-area"><input type="checkbox" class="tree-check tree-area rule-location" value="area:{{ area.id }}" data-city="{{ city.id }}" data-region="{{ region.id }}"><span>{{ area.name }}</span></label>
+                  {% endfor %}
+                  </div>
+                </details>
+              {% endfor %}
+              </div>
+            </details>
+          {% endfor %}
+        </div>
+      {% endfor %}
+      </div>
+    </div>
+    <button class="primary-button" type="submit">＋ إضافة قاعدة التوصيل</button>
+  </form>
+
+  <div class="shipping-rule-list">
+  {% for rule in rules %}
+    {% set selected = target_keys_by_rule.get(rule.id, []) %}
+    <article class="shipping-rule-card panel">
+      <div class="manage-card-header">
+        <div><strong>{{ method_map.get(rule.method_id, rule.method_id) }}</strong><small class="muted">
+          {% if rule.rule_type=="free_shipping" %}مجاني{% elif rule.rule_type=="percent_discount" %}خصم {{ rule.value }}%{% elif rule.rule_type=="fixed_discount" %}خصم {{ rule.value }} SAR{% elif rule.rule_type=="surcharge" %}زيادة {{ rule.value }} SAR{% else %}سعر نهائي {{ rule.value }} SAR{% endif %}
+        </small></div>
+        <span class="status-pill">أولوية {{ rule.priority }}</span>
+      </div>
+      <div class="shipping-rule-meta">
+        <span>{% if rule.applies_to_all %}كل المناطق{% elif selected %}{{ selected|length }} أهداف{% else %}بدون أهداف{% endif %}</span>
+        <span>{% if rule.min_order_sar is not none %}من {{ rule.min_order_sar }}{% endif %}{% if rule.max_order_sar is not none %} إلى {{ rule.max_order_sar }}{% endif %}</span>
+        <span>{{ "يستمر" if rule.stackable else "غير قابل للدمج" }}</span>
+      </div>
+      <details><summary class="ghost-button">تعديل القاعدة</summary>
+        <form method="post" class="shipping-rule-editor compact-rule-editor" style="margin-top:12px">
+          <input type="hidden" name="action" value="rule_update"><input type="hidden" name="rule_id" value="{{ rule.id }}">
+          <div class="form-layout">
+            <label>طريقة التوصيل<select name="rule_method_id" required>{% for x in methods %}<option value="{{ x.id }}" {% if x.id==rule.method_id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
+            <label>النوع<select name="rule_type" class="rule-type"><option value="free_shipping" {% if rule.rule_type=="free_shipping" %}selected{% endif %}>توصيل مجاني</option><option value="percent_discount" {% if rule.rule_type=="percent_discount" %}selected{% endif %}>خصم نسبة</option><option value="fixed_discount" {% if rule.rule_type=="fixed_discount" %}selected{% endif %}>خصم مبلغ</option><option value="surcharge" {% if rule.rule_type=="surcharge" %}selected{% endif %}>زيادة مبلغ</option><option value="set_price" {% if rule.rule_type=="set_price" %}selected{% endif %}>سعر نهائي</option></select></label>
+          </div>
+          <div class="form-layout">
+            <label class="rule-value-field">القيمة<input name="rule_value" type="number" step="0.01" min="0" value="{{ rule.value }}"></label>
+            <label>من السلة<input name="rule_min_order_sar" type="number" step="0.01" min="0" value="{{ rule.min_order_sar or '' }}"></label>
+            <label>إلى السلة<input name="rule_max_order_sar" type="number" step="0.01" min="0" value="{{ rule.max_order_sar or '' }}"></label>
+            <label>الأولوية<input name="rule_priority" type="number" value="{{ rule.priority }}"></label>
+          </div>
+          <div class="check-row-grid">
+            <label class="check-row"><input name="rule_applies_to_all" class="rule-all" type="checkbox" {% if rule.applies_to_all %}checked{% endif %}><span>الكل</span></label>
+            <label class="check-row"><input name="rule_stackable" type="checkbox" {% if rule.stackable %}checked{% endif %}><span>قابل للدمج</span></label>
+            <label class="check-row"><input name="rule_stop_processing" type="checkbox" {% if rule.stop_processing %}checked{% endif %}><span>أوقف بعدها</span></label>
+          </div>
+          <div class="shipping-tree-card">
+            <div class="shipping-tree-head"><strong>نطاق القاعدة</strong></div>
+            <div class="ship-tree">
+            {% for country in countries %}
+              <div class="ship-country">
+                <div class="ship-country-title">{{ country.name_ar }}</div>
+                {% for region in regions if region.country_id == country.id %}
+                  <details open>
+                    <summary class="ship-node-summary">
+                      <label class="ship-check"><input type="checkbox" class="tree-check tree-region rule-location" value="region:{{ region.id }}" {% if "region:" ~ region.id in selected %}checked{% endif %}><span>{{ region.name }}</span></label>
+                      <small class="muted">{{ cities_by_region.get(region.id, [])|length }} مدن</small>
+                    </summary>
+                    <div class="ship-tree-children">
+                    {% for city in cities_by_region.get(region.id, []) %}
+                      <details>
+                        <summary class="ship-node-summary">
+                          <label class="ship-check"><input type="checkbox" class="tree-check tree-city rule-location" value="city:{{ city.id }}" {% if "city:" ~ city.id in selected %}checked{% endif %}><span>{{ city.name }}</span></label>
+                          <small class="muted">{{ areas_by_city.get(city.id, [])|length }} مناطق</small>
+                        </summary>
+                        <div class="ship-tree-children">
+                        {% for area in areas_by_city.get(city.id, []) %}
+                          <label class="ship-check ship-area"><input type="checkbox" class="tree-check tree-area rule-location" value="area:{{ area.id }}" {% if "area:" ~ area.id in selected %}checked{% endif %}><span>{{ area.name }}</span></label>
+                        {% endfor %}
+                        </div>
+                      </details>
+                    {% endfor %}
+                    </div>
+                  </details>
+                {% endfor %}
+              </div>
+            {% endfor %}
+            </div>
+          </div>
+          <button class="primary-button" type="submit">حفظ القاعدة</button>
+        </form>
+      </details>
+      <form method="post" style="margin-top:8px"><input type="hidden" name="action" value="rule_archive"><input type="hidden" name="rule_id" value="{{ rule.id }}"><button class="ghost-button danger-button">أرشفة القاعدة</button></form>
+    </article>
+  {% else %}
+    <div class="empty-state"><h3>لا توجد قواعد بعد</h3><p class="muted">مثال: «مجاني عندما تتجاوز السلة 500 SAR» أو «خصم 20% على التوصيل بين 200 و399 SAR في مدينة محددة».</p></div>
+  {% endfor %}
+  </div>
 </section>
 
 <script>
 (function(){
+  function syncTree(tree){
+    const all = tree.querySelector(".rule-all");
+    const boxes = Array.from(tree.querySelectorAll(".rule-location"));
+    function update(){
+      if(!all) return;
+      const disabled = all.checked;
+      boxes.forEach(b => { b.disabled = disabled; if(disabled) b.indeterminate = false; });
+    }
+    function descendants(box){
+      const value = box.value;
+      const [kind, id] = value.split(":");
+      if(kind === "region") return boxes.filter(x => x.dataset.region === id || x.value === value);
+      if(kind === "city") return boxes.filter(x => x.dataset.city === id || x.value === value);
+      return [];
+    }
+    boxes.forEach(box => box.addEventListener("change", function(){
+      if(this.checked){
+        descendants(this).forEach(x => { x.checked = true; x.indeterminate = false; });
+      }else{
+        descendants(this).forEach(x => { x.checked = false; x.indeterminate = false; });
+      }
+      syncParents();
+    }));
+    function syncParents(){
+      boxes.filter(x => x.classList.contains("tree-city")).forEach(parent => {
+        const id = parent.value.split(":")[1];
+        const children = boxes.filter(x => x.dataset.city === id && x !== parent);
+        if(children.length){ parent.checked = children.every(x => x.checked); parent.indeterminate = children.some(x => x.checked) && !parent.checked; }
+      });
+      boxes.filter(x => x.classList.contains("tree-region")).forEach(parent => {
+        const id = parent.value.split(":")[1];
+        const children = boxes.filter(x => x.dataset.region === id && x !== parent);
+        if(children.length){ parent.checked = children.every(x => x.checked); parent.indeterminate = children.some(x => x.checked) && !parent.checked; }
+      });
+    }
+    all?.addEventListener("change", update);
+    update();
+    syncParents();
+  }
+  document.querySelectorAll(".shipping-rule-editor").forEach(syncTree);
   document.querySelectorAll(".shipping-scope").forEach(function(scope){
     function apply(){
-      var target=scope.getAttribute("data-scope-target"), value=scope.value;
-      document.querySelectorAll('[data-scope-target="'+target+'"][data-scope-field]').forEach(function(w){
-        var active=w.getAttribute("data-scope-field")===value;
+      const target=scope.dataset.scopeTarget, value=scope.value;
+      document.querySelectorAll('[data-scope-target="'+target+'"][data-scope-field]').forEach(w=>{
+        const active=w.dataset.scopeField===value;
         w.hidden=!active;
-        var select=w.querySelector("select");
+        const select=w.querySelector("select");
         if(select){ select.disabled=!active; select.required=active && value!=="global"; }
       });
     }
     scope.addEventListener("change",apply); apply();
+  });
+  document.querySelectorAll(".rule-type").forEach(function(select){
+    function apply(){
+      const field=select.closest("form")?.querySelector(".rule-value-field");
+      if(!field) return;
+      field.hidden=select.value==="free_shipping";
+      const input=field.querySelector("input");
+      if(input) input.disabled=field.hidden;
+    }
+    select.addEventListener("change",apply); apply();
   });
 })();
 </script>

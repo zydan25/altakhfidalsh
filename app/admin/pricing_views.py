@@ -18,8 +18,13 @@ from ..models import (
     Region,
     ShippingMethod,
     ShippingRate,
+    PricingLocationAdjustment,
+    GeoDirection,
+    ShippingRule,
+    ShippingRuleTarget,
 )
 from .context import build_admin_context
+from ..modules.geo.services import generate_area_code, generate_city_code
 
 
 DIRECTIONS = (
@@ -338,6 +343,95 @@ def register_pricing_views(admin_bp):
             **build_admin_context(),
         )
 
+    @admin_bp.route("/pricing/location-adjustments", methods=["GET", "POST"])
+    def pricing_location_adjustments():
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                action = (request.form.get("action") or "create").strip()
+                row = db.session.get(PricingLocationAdjustment, request.form.get("id", type=int))
+                if action in {"create", "update"}:
+                    scope = (request.form.get("location_scope") or "city").strip()
+                    city_id = request.form.get("city_id", type=int) or None
+                    region_id = request.form.get("region_id", type=int) or None
+                    area_id = request.form.get("area_id", type=int) or None
+                    targets = [x for x in (city_id, region_id, area_id) if x is not None]
+                    if len(targets) != 1 or scope not in {"region", "city", "area"}:
+                        raise ValueError("اختر مدينة أو محافظة أو منطقة داخل المدينة واحدة فقط.")
+                    target = (
+                        db.session.get(Region, region_id)
+                        if scope == "region"
+                        else db.session.get(City, city_id)
+                        if scope == "city"
+                        else db.session.get(CityArea, area_id)
+                    )
+                    if target is None or not target.is_active:
+                        raise ValueError("الموقع المختار غير موجود أو غير فعال.")
+                    percent = _decimal(request.form.get("percent_adjustment"), "0")
+                    fixed = _decimal(request.form.get("fixed_adjustment_sar"), "0")
+                    if percent <= Decimal("-100"):
+                        raise ValueError("نسبة التخفيض يجب أن تكون أكبر من -100%.")
+                    if action == "create":
+                        row = PricingLocationAdjustment(
+                            city_id=city_id,
+                            region_id=region_id,
+                            area_id=area_id,
+                        )
+                        db.session.add(row)
+                    else:
+                        if row is None:
+                            raise ValueError("قاعدة التسعير حسب الموقع غير موجودة.")
+                        row.city_id, row.region_id, row.area_id = city_id, region_id, area_id
+                    row.percent_adjustment = percent
+                    row.fixed_adjustment_sar = fixed
+                    row.priority = request.form.get("priority", 0, type=int) or 0
+                    row.starts_at = None
+                    row.ends_at = None
+                    success = "تم تحديث تسعير الموقع." if action == "update" else "تمت إضافة تسعير الموقع."
+                    db.session.commit()
+                elif action == "archive":
+                    if row is None:
+                        raise ValueError("قاعدة التسعير غير موجودة.")
+                    row.is_active = False
+                    db.session.commit()
+                    success = "تمت إزالة تسعير الموقع."
+                else:
+                    raise ValueError("إجراء تسعير الموقع غير معروف.")
+            except (ValueError, TypeError, IntegrityError) as exc:
+                db.session.rollback()
+                error = "تعذر حفظ تسعير الموقع: " + str(exc)
+
+        countries = Country.query.filter_by(is_active=True).order_by(Country.name_ar).all()
+        regions = Region.query.filter_by(is_active=True).order_by(Region.name).all()
+        cities = City.query.filter_by(is_active=True).order_by(City.name).all()
+        areas = CityArea.query.filter_by(is_active=True).order_by(CityArea.name).all()
+        adjustments = PricingLocationAdjustment.query.filter_by(is_active=True).order_by(
+            PricingLocationAdjustment.priority.desc(),
+            PricingLocationAdjustment.id.desc(),
+        ).limit(1000).all()
+        city_rule = {}
+        for item in adjustments:
+            if item.city_id is not None and item.city_id not in city_rule:
+                city_rule[item.city_id] = item
+        return render_template(
+            "admin/pricing_location_adjustments.html",
+            title="الزيادة والنقص حسب الموقع",
+            section="التسعير",
+            countries=countries,
+            regions=regions,
+            cities=cities,
+            areas=areas,
+            adjustments=adjustments,
+            city_rule=city_rule,
+            region_map={x.id: x.name for x in regions},
+            city_map={x.id: x.name for x in cities},
+            area_map={x.id: x.name for x in areas},
+            error=error,
+            success=success,
+            **build_admin_context(),
+        )
+
     @admin_bp.route("/pricing/customer-overrides", methods=["GET", "POST"])
     def pricing_customer_assignments():
         error = None
@@ -433,43 +527,49 @@ def register_pricing_views(admin_bp):
 
                 elif action == "city":
                     region_id = request.form.get("region_id", type=int)
-                    code = (request.form.get("code") or "").strip().upper()
                     name = (request.form.get("name") or "").strip()
                     region = db.session.get(Region, region_id)
                     if region is None or not region.is_active:
                         raise ValueError("اختر المحافظة/المنطقة أولًا.")
-                    if not code or not name:
-                        raise ValueError("كود المدينة واسمها مطلوبان.")
-                    if City.query.filter(City.region_id == region_id, City.code == code).first():
-                        raise ValueError("كود المدينة مستخدم داخل هذه المحافظة/المنطقة.")
+                    if not name:
+                        raise ValueError("اسم المدينة مطلوب.")
                     db.session.add(City(
-                        region_id=region_id, code=code, name=name,
+                        region_id=region_id,
+                        code=generate_city_code(name, region_id),
+                        name=name,
                         direction=(request.form.get("direction") or "").strip() or None,
-                        source=(request.form.get("source") or "").strip() or None,
+                        source=(request.form.get("source") or "").strip() or "manual",
                         sort_order=request.form.get("sort_order", 0, type=int) or 0,
                     ))
                     db.session.commit()
-                    success = "تمت إضافة المدينة."
+                    success = "تمت إضافة المدينة وتوليد كودها تلقائيًا."
 
                 elif action == "area":
                     city_id = request.form.get("city_id", type=int)
-                    code = (request.form.get("code") or "").strip().upper()
                     name = (request.form.get("name") or "").strip()
                     city = db.session.get(City, city_id)
                     if city is None or not city.is_active:
                         raise ValueError("اختر المدينة أولًا.")
-                    if not code or not name:
-                        raise ValueError("كود المنطقة داخل المدينة واسمها مطلوبان.")
-                    if CityArea.query.filter(CityArea.city_id == city_id, CityArea.code == code).first():
-                        raise ValueError("كود المنطقة داخل المدينة مستخدم.")
+                    if not name:
+                        raise ValueError("اسم المنطقة داخل المدينة مطلوب.")
+                    direction_code = (request.form.get("direction_code") or "").strip().lower() or None
+                    direction_id = None
+                    if direction_code:
+                        direction = db.session.get(GeoDirection, request.form.get("direction_id", type=int)) if request.form.get("direction_id") else GeoDirection.query.filter_by(code=direction_code, is_active=True).first()
+                        if direction is None:
+                            raise ValueError("نوع الاتجاه غير موجود.")
+                        direction_id = direction.id
                     db.session.add(CityArea(
-                        city_id=city_id, code=code, name=name,
-                        direction=(request.form.get("direction") or "").strip() or None,
-                        source=(request.form.get("source") or "").strip() or None,
+                        city_id=city_id,
+                        code=generate_area_code(name, city_id),
+                        name=name,
+                        direction=direction_code,
+                        direction_id=direction_id,
+                        source=(request.form.get("source") or "").strip() or "manual",
                         sort_order=request.form.get("sort_order", 0, type=int) or 0,
                     ))
                     db.session.commit()
-                    success = "تمت إضافة المنطقة داخل المدينة."
+                    success = "تمت إضافة المنطقة وتوليد كودها تلقائيًا."
                 else:
                     raise ValueError("إجراء المواقع غير معروف.")
             except (ValueError, TypeError, IntegrityError) as exc:
@@ -504,6 +604,7 @@ def register_pricing_views(admin_bp):
             region_map={x.id: x.name for x in regions},
             city_map={x.id: x.name for x in cities},
             directions=DIRECTIONS,
+        geo_directions=GeoDirection.query.filter_by(is_active=True).order_by(GeoDirection.sort_order, GeoDirection.name_ar).all(),
             direction_map=dict(DIRECTIONS),
             error=error,
             success=success,
@@ -519,7 +620,89 @@ def register_pricing_views(admin_bp):
                 action = (request.form.get("action") or "").strip()
                 row = db.session.get(ShippingRate, request.form.get("id", type=int))
 
-                if action == "method":
+                if action == "rule_create" or action == "rule_update":
+                    method_id = request.form.get("rule_method_id", type=int)
+                    method = db.session.get(ShippingMethod, method_id)
+                    if method is None or not method.is_active:
+                        raise ValueError("اختر طريقة توصيل فعالة.")
+                    rule_type = (request.form.get("rule_type") or "percent_discount").strip()
+                    allowed = {"free_shipping", "percent_discount", "fixed_discount", "surcharge", "set_price"}
+                    if rule_type not in allowed:
+                        raise ValueError("نوع قاعدة التوصيل غير صحيح.")
+                    value = _decimal(request.form.get("rule_value"), "0")
+                    min_order = _decimal(request.form.get("rule_min_order_sar"), "0") if request.form.get("rule_min_order_sar") else None
+                    max_order = _decimal(request.form.get("rule_max_order_sar"), "0") if request.form.get("rule_max_order_sar") else None
+                    if value < 0:
+                        raise ValueError("قيمة القاعدة لا يمكن أن تكون سالبة.")
+                    if rule_type == "percent_discount" and value > 100:
+                        raise ValueError("خصم النسبة لا يمكن أن يتجاوز 100%.")
+                    if min_order is not None and max_order is not None and max_order < min_order:
+                        raise ValueError("الحد الأعلى للسلة يجب ألا يقل عن الحد الأدنى.")
+                    rule = db.session.get(ShippingRule, request.form.get("rule_id", type=int))
+                    if action == "rule_update":
+                        if rule is None:
+                            raise ValueError("قاعدة التوصيل غير موجودة.")
+                        ShippingRuleTarget.query.filter_by(rule_id=rule.id).delete()
+                    else:
+                        rule = ShippingRule(method_id=method.id)
+                        db.session.add(rule)
+                        db.session.flush()
+                    rule.method_id = method.id
+                    rule.rule_type = rule_type
+                    rule.min_order_sar = min_order
+                    rule.max_order_sar = max_order
+                    rule.value = Decimal("0") if rule_type == "free_shipping" else value
+                    rule.priority = request.form.get("rule_priority", 0, type=int) or 0
+                    rule.stackable = request.form.get("rule_stackable") == "on"
+                    rule.stop_processing = request.form.get("rule_stop_processing") == "on"
+                    selected = [x.strip().lower() for x in request.form.getlist("rule_target") if ":" in x]
+                    applies_to_all = request.form.get("rule_applies_to_all") == "on" or not selected
+                    rule.applies_to_all = applies_to_all
+                    if not applies_to_all:
+                        parsed = []
+                        for raw in selected:
+                            target_type, raw_id = raw.split(":", 1)
+                            if target_type not in {"region", "city", "area"}:
+                                continue
+                            target_id = int(raw_id)
+                            target_obj = db.session.get(
+                                Region if target_type == "region" else City if target_type == "city" else CityArea,
+                                target_id,
+                            )
+                            if target_obj is None or not target_obj.is_active:
+                                continue
+                            parsed.append((target_type, target_id))
+                        # Compress a checked parent: it already covers all descendants.
+                        region_ids = {x[1] for x in parsed if x[0] == "region"}
+                        city_ids = {x[1] for x in parsed if x[0] == "city"}
+                        normalized = []
+                        for target_type, target_id in parsed:
+                            if target_type == "city":
+                                city = db.session.get(City, target_id)
+                                if city and city.region_id in region_ids:
+                                    continue
+                            if target_type == "area":
+                                area = db.session.get(CityArea, target_id)
+                                if area and (area.city_id in city_ids or (db.session.get(City, area.city_id) and db.session.get(City, area.city_id).region_id in region_ids)):
+                                    continue
+                            if (target_type, target_id) not in normalized:
+                                normalized.append((target_type, target_id))
+                        if not normalized:
+                            raise ValueError("اختر مدينة أو محافظة أو منطقة، أو فعّل «الكل».")
+                        for target_type, target_id in normalized:
+                            db.session.add(ShippingRuleTarget(rule_id=rule.id, target_type=target_type, target_id=target_id))
+                    success = "تم تحديث قاعدة التوصيل." if action == "rule_update" else "تمت إضافة قاعدة التوصيل."
+                    db.session.commit()
+
+                elif action == "rule_archive":
+                    rule = db.session.get(ShippingRule, request.form.get("rule_id", type=int))
+                    if rule is None:
+                        raise ValueError("قاعدة التوصيل غير موجودة.")
+                    rule.is_active = False
+                    db.session.commit()
+                    success = "تمت أرشفة قاعدة التوصيل."
+
+                elif action == "method":
                     name = (request.form.get("name") or "").strip()
                     code = (request.form.get("code") or "").strip().lower()
                     lo = request.form.get("delivery_days_min", type=int)
@@ -645,27 +828,47 @@ def register_pricing_views(admin_bp):
 
         methods = ShippingMethod.query.filter_by(is_active=True).order_by(ShippingMethod.name).all()
         customers = Customer.query.filter_by(is_active=True).order_by(Customer.id.desc()).limit(500).all()
+        countries = Country.query.filter_by(is_active=True).order_by(Country.name_ar).all()
         regions = Region.query.filter_by(is_active=True).order_by(Region.name).all()
         cities = City.query.filter_by(is_active=True).order_by(City.name).all()
         areas = CityArea.query.filter_by(is_active=True).order_by(CityArea.name).all()
         rows = ShippingRate.query.filter_by(is_active=True).order_by(
             ShippingRate.priority.desc(), ShippingRate.id.desc()
         ).limit(500).all()
+        rules = ShippingRule.query.filter_by(is_active=True).order_by(
+            ShippingRule.priority.desc(), ShippingRule.id.desc()
+        ).limit(300).all()
+        target_rows = ShippingRuleTarget.query.filter(
+            ShippingRuleTarget.rule_id.in_([x.id for x in rules])
+        ).all() if rules else []
+        targets_by_rule = {}
+        for target in target_rows:
+            targets_by_rule.setdefault(target.rule_id, []).append(target)
+        target_keys_by_rule = {
+            rule_id: [f"{target.target_type}:{target.target_id}" for target in items]
+            for rule_id, items in targets_by_rule.items()
+        }
         return render_template(
             "admin/shipping_rates_clear.html",
             title="طرق التوصيل وقواعدها",
             section="المبيعات والطلبات",
             methods=methods,
             customers=customers,
+            countries=countries,
             regions=regions,
             cities=cities,
             areas=areas,
             rows=rows,
+            rules=rules,
+            targets_by_rule=targets_by_rule,
+            target_keys_by_rule=target_keys_by_rule,
             region_map={x.id: x.name for x in regions},
             city_map={x.id: x.name for x in cities},
             area_map={x.id: x.name for x in areas},
             method_map={x.id: x.name for x in methods},
             customer_map={x.id: (x.name or x.phone_normalized) for x in customers},
+            cities_by_region={rid: [x for x in cities if x.region_id == rid] for rid in {x.region_id for x in cities}},
+            areas_by_city={cid: [x for x in areas if x.city_id == cid] for cid in {x.city_id for x in areas}},
             error=error,
             success=success,
             **build_admin_context(),

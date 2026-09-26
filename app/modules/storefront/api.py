@@ -1,9 +1,11 @@
+from datetime import datetime, timezone
 from flask import request
 
 from . import api_bp
 from ...security import admin_api_required
 from ...extensions import db
-from ...models import Banner, BannerTarget, StorefrontPage, StorefrontSection, StorefrontSectionItem
+from ...models import Banner, BannerTarget, Campaign, Category, Hashtag, Look, LookProduct, LookCircle, SideCategory, SideCategoryCircle, MediaAsset, Product, StorefrontPage, StorefrontSection, StorefrontSectionItem
+from sqlalchemy import or_
 
 
 @api_bp.get("/pages")
@@ -71,14 +73,30 @@ def add_section_item(section_id):
 def create_banner():
     payload = request.get_json(silent=True) or {}
     try:
+        root_category_id = payload.get("root_category_id")
+        if root_category_id is not None:
+            root = db.session.get(Category, int(root_category_id))
+            if root is None or not root.is_active or root.parent_id is not None:
+                return {"error": "invalid_banner", "detail": "root_category must be a top-level active category"}, 400
         row = Banner(
             name=str(payload["name"]).strip(),
             image_asset_id=int(payload["image_asset_id"]),
-            mobile_asset_id=payload.get("mobile_asset_id"),
+            mobile_asset_id=int(payload["mobile_asset_id"]) if payload.get("mobile_asset_id") else None,
+            root_category_id=int(root_category_id) if root_category_id else None,
+            title=payload.get("title"),
+            description=payload.get("description"),
+            button_label=payload.get("button_label"),
+            title_color=payload.get("title_color", "#ffffff"),
+            description_color=payload.get("description_color", "#ffffff"),
+            button_text_color=payload.get("button_text_color", "#ffffff"),
+            button_background_color=payload.get("button_background_color", "#111827"),
+            overlay_background_color=payload.get("overlay_background_color", "#111827"),
+            overlay_opacity=payload.get("overlay_opacity", 0),
             size_spec=payload.get("size_spec"),
             overlay_text=payload.get("overlay_text"),
-            position_text=payload.get("position_text"),
-            duration=payload.get("duration"),
+            position_text=payload.get("position_text", "center"),
+            duration=int(payload.get("duration", 6)),
+            sort_order=int(payload.get("sort_order", 0)),
             status="draft",
         )
     except (KeyError, ValueError):
@@ -94,11 +112,36 @@ def add_banner_target(banner_id):
     payload = request.get_json(silent=True) or {}
     if db.session.get(Banner, banner_id) is None:
         return {"error": "not_found"}, 404
+    target_type = str(payload["target_type"]).strip()
+    if target_type not in {"category", "campaign", "hashtag", "product", "style_tab", "url"}:
+        return {"error": "invalid_target_type"}, 400
+    target_id = payload.get("target_id")
+    mapping = {"category": Category, "campaign": Campaign, "hashtag": Hashtag, "product": Product}
+    if target_type == "style_tab":
+        if target_id not in (None, "", 0, "0"):
+            try:
+                target_id = int(target_id)
+            except (TypeError, ValueError):
+                return {"error": "invalid_target"}, 400
+            if db.session.get(Look, target_id) is None:
+                return {"error": "look_not_found"}, 404
+        else:
+            target_id = None
+    elif target_type in mapping:
+        try:
+            target_id = int(target_id)
+        except (TypeError, ValueError):
+            return {"error": "invalid_target"}, 400
+        if db.session.get(mapping[target_type], target_id) is None:
+            return {"error": "target_not_found"}, 404
+    else:
+        target_id = None
     target = BannerTarget(
         banner_id=banner_id,
-        target_type=str(payload["target_type"]),
-        target_id=payload.get("target_id"),
-        url=payload.get("url"),
+        target_type=target_type,
+        target_id=target_id,
+        url=payload.get("url") or ("/looks" if target_type == "style_tab" else None),
+        config_json=payload.get("config_json") or {},
         priority=int(payload.get("priority", 0)),
     )
     db.session.add(target)
@@ -137,10 +180,164 @@ def page(code):
     }
 
 
+
+
+@api_bp.get("/home")
+def home():
+    """Single discovery payload for the customer storefront."""
+    from ..catalog.services import CatalogService
+
+    page = StorefrontPage.query.filter_by(code="home", is_active=True).first()
+    page_payload = None
+    if page:
+        sections = StorefrontSection.query.filter_by(page_id=page.id).order_by(
+            StorefrontSection.sort_order, StorefrontSection.id
+        ).all()
+        page_payload = {
+            "id": page.id,
+            "code": page.code,
+            "name": page.name,
+            "route": page.route,
+            "sections": [
+                {
+                    "id": section.id,
+                    "type": section.section_type,
+                    "title": section.title,
+                    "settings": section.settings or {},
+                    "sort_order": section.sort_order,
+                    "items": [
+                        {
+                            "id": item.id,
+                            "type": item.item_type,
+                            "item_id": item.item_id,
+                            "sort_order": item.sort_order,
+                            "custom_label": item.custom_label,
+                        }
+                        for item in StorefrontSectionItem.query.filter_by(
+                            section_id=section.id
+                        ).order_by(StorefrontSectionItem.sort_order, StorefrontSectionItem.id).all()
+                    ],
+                }
+                for section in sections
+            ],
+        }
+
+    banner_payload = banners().get("items", [])
+    look_payload = looks().get("items", [])
+    return {
+        "page": page_payload,
+        "categories": CatalogService.list_categories(),
+        "side_categories": CatalogService.list_side_categories(include_archived=False),
+        "trends": CatalogService.list_public_trends(limit=20),
+        "looks": look_payload,
+        "banners": banner_payload,
+    }
+
 @api_bp.get("/banners")
 def banners():
-    rows = Banner.query.filter_by(is_active=True).order_by(Banner.id.desc()).all()
-    return {"items": [{"id": x.id, "name": x.name, "image_asset_id": x.image_asset_id, "mobile_asset_id": x.mobile_asset_id, "status": x.status} for x in rows]}
+    now = datetime.now(timezone.utc)
+    rows = (
+        Banner.query
+        .filter(
+            Banner.is_active.is_(True),
+            Banner.status == "active",
+            or_(Banner.starts_at.is_(None), Banner.starts_at <= now),
+            or_(Banner.ends_at.is_(None), Banner.ends_at >= now),
+        )
+        .order_by(Banner.sort_order, Banner.id.desc())
+        .all()
+    )
+    asset_ids = []
+    for row in rows:
+        asset_ids.append(row.image_asset_id)
+        if row.mobile_asset_id:
+            asset_ids.append(row.mobile_asset_id)
+    assets = MediaAsset.query.filter(MediaAsset.id.in_(asset_ids)).all() if asset_ids else []
+    asset_urls = {x.id: x.url for x in assets}
+    items = []
+    for row in rows:
+        target_rows = BannerTarget.query.filter_by(banner_id=row.id).order_by(
+            BannerTarget.priority.desc(), BannerTarget.id
+        ).all()
+        items.append({
+            "id": row.id,
+            "name": row.name,
+            "title": row.title,
+            "description": row.description,
+            "button_label": row.button_label,
+            "image_url": asset_urls.get(row.image_asset_id),
+            "mobile_image_url": asset_urls.get(row.mobile_asset_id) if row.mobile_asset_id else None,
+            "root_category_id": row.root_category_id,
+            "overlay_text": row.overlay_text,
+            "position_text": row.position_text,
+            "duration": row.duration,
+            "title_color": row.title_color,
+            "description_color": row.description_color,
+            "button_text_color": row.button_text_color,
+            "button_background_color": row.button_background_color,
+            "overlay_background_color": row.overlay_background_color,
+            "overlay_opacity": float(row.overlay_opacity or 0),
+            "sort_order": row.sort_order,
+            "targets": [
+                {
+                    "type": target.target_type,
+                    "id": target.target_id,
+                    "url": target.url,
+                    "config": target.config_json or {},
+                    "priority": target.priority,
+                }
+                for target in target_rows
+            ],
+        })
+    return {"items": items}
+
+
+@api_bp.get("/looks")
+def looks():
+    now = datetime.now(timezone.utc)
+    rows = Look.query.filter(
+        Look.is_active.is_(True),
+        Look.status == "active",
+        or_(Look.starts_at.is_(None), Look.starts_at <= now),
+        or_(Look.ends_at.is_(None), Look.ends_at >= now),
+    ).order_by(Look.sort_order, Look.id.desc()).all()
+    asset_ids = [x.cover_asset_id for x in rows if x.cover_asset_id]
+    assets = MediaAsset.query.filter(MediaAsset.id.in_(asset_ids)).all() if asset_ids else []
+    asset_urls = {x.id: x.url for x in assets}
+    return {
+        "items": [
+            {
+                "id": look.id,
+                "name": look.name,
+                "slug": look.slug,
+                "description": look.description,
+                "cover_url": asset_urls.get(look.cover_asset_id),
+                "starts_at": look.starts_at.isoformat() if look.starts_at else None,
+                "ends_at": look.ends_at.isoformat() if look.ends_at else None,
+                "products": [
+                    item.product_id
+                    for item in LookProduct.query.filter_by(look_id=look.id).order_by(LookProduct.sort_order, LookProduct.id).all()
+                ],
+                "circles": [
+                    {
+                        "id": circle.id,
+                        "name": circle.name,
+                        "slug": circle.slug,
+                        "side_category_id": circle.side_category_id,
+                        "sort_order": link.sort_order,
+                        "image_url": (
+                            MediaAsset.query.get(circle.image_asset_id).url
+                            if circle.image_asset_id else None
+                        ),
+                    }
+                    for link in LookCircle.query.filter_by(look_id=look.id).order_by(LookCircle.sort_order, LookCircle.id).all()
+                    for circle in [db.session.get(SideCategoryCircle, link.circle_id)]
+                    if circle is not None and circle.is_active
+                ],
+            }
+            for look in rows
+        ]
+    }
 
 
 @api_bp.post("/navigation-actions")
