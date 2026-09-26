@@ -671,7 +671,12 @@ def public_trends():
 def public_trend_detail(trend_id):
     from ...models import Trend
     trend = db.session.get(Trend, trend_id)
-    if trend is None or not trend.is_active or trend.status != "active":
+    if (
+        trend is None
+        or not trend.is_active
+        or trend.status != "active"
+        or CatalogService.is_trend_timer_expired(trend)
+    ):
         return {"error": "not_found", "detail": "trend not found"}, 404
     payload = CatalogService.serialize_public_trend(trend)
     if not payload["hashtag"] or not payload["background"] or len(payload["products"]) != 3:
