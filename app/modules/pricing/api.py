@@ -15,6 +15,7 @@ def context():
         result = resolve_pricing_context(
             customer_id=request.args.get("customer_id", type=int),
             city_id=request.args.get("city_id", type=int),
+            area_id=request.args.get("area_id", type=int),
             currency_id=request.args.get("currency_id", type=int),
         )
     except LookupError as exc:
@@ -64,6 +65,10 @@ def groups():
             "id": x.id,
             "name": x.name,
             "default_currency_id": x.default_currency_id,
+            "percent_markup": str(x.percent_markup or 0),
+            "fixed_markup_sar": str(x.fixed_markup_sar or 0),
+            "rounding_rule": x.rounding_rule,
+            "decimals": x.decimals,
             "priority": x.priority,
             "is_default": x.is_default,
             "rules": [
@@ -71,6 +76,7 @@ def groups():
                     "currency_id": rule.currency_id,
                     "percent_markup": str(rule.percent_markup),
                     "fixed_markup": str(rule.fixed_markup),
+                    "fixed_markup_sar": str(rule.fixed_markup),
                     "rounding_rule": rule.rounding_rule,
                     "decimals": rule.decimals,
                 }
