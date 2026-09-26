@@ -34,9 +34,15 @@
           <span class="eyebrow">الهاشتاج الرئيسي</span>
           <h3>{{ hashtag_map.get(trend.hashtag_id, "—") }}</h3>
         </div>
-        <span class="status-pill">خلال {{ trend.duration_days }} يوم</span>
+        <div class="trend-card-statuses">
+          <span class="status-pill">خلال {{ trend.duration_days }} يوم</span>
+          {% if trend.timer_value %}<span class="status-pill trend-timer-pill">⏱ {{ trend.timer_value }} {{ "دقيقة" if trend.timer_unit == "minutes" else "ثانية" }}</span>{% endif %}
+        </div>
       </div>
       <p class="trend-promo">{{ trend.promo_text }}</p>
+      {% if trend.overlay_text %}
+      <div class="trend-overlay-preview" style="--trend-overlay-bg:{{ trend.overlay_background_color }};--trend-overlay-fg:{{ trend.overlay_text_color }}">{{ trend.overlay_text }}</div>
+      {% endif %}
 
       <div class="trend-products-strip">
         {% for item in trend.products %}
@@ -180,6 +186,7 @@
         <label>
           مدة العرض <b class="required-mark">*</b>
           <input id="trendDurationDays" name="duration_days" type="number" min="1" max="3650" value="8" required>
+          <small class="field-help">مدة صلاحية الترند بالأيام.</small>
         </label>
         <label>
           ترتيب الظهور
@@ -192,6 +199,57 @@
             <option value="draft">مسودة — لا يظهر</option>
           </select>
         </label>
+      </section>
+
+      <section class="trend-editor-section">
+        <div class="trend-field-heading">
+          <label>المؤقت التنازلي</label>
+          <small>مؤقت اختياري يبدأ من لحظة حفظ الترند النشط. يمكن ضبطه بالثواني أو الدقائق.</small>
+        </div>
+        <label class="check-row trend-toggle-row">
+          <input id="trendTimerEnabled" name="timer_enabled" type="checkbox">
+          <span><strong>تفعيل المؤقت</strong><small>عند إلغاء التفعيل لا يظهر أي عداد للعميل.</small></span>
+        </label>
+        <div class="trend-inline-fields trend-timer-fields">
+          <label>
+            قيمة المؤقت
+            <input id="trendTimerValue" name="timer_value" type="number" min="1" max="100000000" value="60" inputmode="numeric">
+          </label>
+          <label>
+            الوحدة
+            <select id="trendTimerUnit" name="timer_unit">
+              <option value="seconds">ثوانٍ</option>
+              <option value="minutes">دقائق</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="trend-editor-section">
+        <div class="trend-field-heading">
+          <label>النص المخصص داخل صورة الترند</label>
+          <small>نص اختياري يثبت فوق الصورة بألوان تختارها.</small>
+        </div>
+        <label>
+          النص المخصص
+          <input id="trendOverlayText" name="overlay_text" maxlength="220" placeholder="مثال: خصم اليوم فقط ✨">
+        </label>
+        <div class="form-grid">
+          <label>
+            لون الخط
+            <span class="color-input-row">
+              <input id="trendOverlayTextColor" name="overlay_text_color" type="color" value="#ffffff">
+              <input id="trendOverlayTextColorText" class="color-text-input" value="#ffffff" dir="ltr" maxlength="7">
+            </span>
+          </label>
+          <label>
+            لون خلفية الخط
+            <span class="color-input-row">
+              <input id="trendOverlayBackgroundColor" name="overlay_background_color" type="color" value="#111827">
+              <input id="trendOverlayBackgroundColorText" class="color-text-input" value="#111827" dir="ltr" maxlength="7">
+            </span>
+          </label>
+        </div>
       </section>
 
       <section class="trend-editor-section">
