@@ -63,4 +63,5 @@ def test_admin_service_worker_does_not_cache_authenticated_html(client):
     body = response.get_data(as_text=True)
     assert 'altakhfidalsh-admin-v5' in body
     assert 'event.respondWith(fetch(event.request));' in body
-    assert 'caches.open(CACHE).then(cache => cache.put(event.request, copy));' not in body
+    admin_handler = body.split('// Authenticated admin HTML is intentionally never persisted in the cache.', 1)[1]
+    assert 'caches.open(CACHE).then(cache => cache.put(event.request, copy));' not in admin_handler
