@@ -693,6 +693,39 @@ class ProductHashtag(TimestampMixin, db.Model):
     )
 
 
+class Trend(TimestampMixin, ActiveMixin, db.Model):
+    """Client-facing rectangular trend content driven by one hashtag."""
+
+    __tablename__ = "trends"
+
+    id = db.Column(Integer, primary_key=True)
+    hashtag_id = db.Column(ForeignKey("hashtags.id", ondelete="RESTRICT"), nullable=False)
+    promo_text = db.Column(String(300), nullable=False)
+    duration_days = db.Column(Integer, nullable=False, default=8)
+    background_asset_id = db.Column(ForeignKey("media_assets.id", ondelete="RESTRICT"), nullable=False)
+    status = db.Column(String(40), nullable=False, default="draft")
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        Index("ix_trend_active_sort", "is_active", "status", "sort_order"),
+        Index("ix_trend_hashtag", "hashtag_id", "is_active"),
+    )
+
+
+class TrendProduct(TimestampMixin, db.Model):
+    __tablename__ = "trend_products"
+
+    id = db.Column(Integer, primary_key=True)
+    trend_id = db.Column(ForeignKey("trends.id", ondelete="CASCADE"), nullable=False)
+    product_id = db.Column(ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    slot = db.Column(Integer, nullable=False)
+    __table_args__ = (
+        UniqueConstraint("trend_id", "slot", name="uq_trend_product_slot"),
+        UniqueConstraint("trend_id", "product_id", name="uq_trend_product_product"),
+        CheckConstraint("slot >= 0 AND slot < 3", name="ck_trend_product_slot"),
+        Index("ix_trend_product_trend", "trend_id", "slot"),
+    )
+
+
 class Campaign(TimestampMixin, ActiveMixin, db.Model):
     __tablename__ = "campaigns"
 
