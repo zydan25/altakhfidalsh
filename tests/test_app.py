@@ -32,3 +32,35 @@ def test_module_blueprints_are_registered(client):
         else:
             response = client.get(path)
         assert response.status_code == status or (path.endswith("/request-otp") and response.status_code == 201), path
+
+
+def test_admin_navigation_routes_have_explicit_permissions():
+    from app.admin.navigation import NAVIGATION
+    from app.admin.security import permission_code
+
+    routes = [
+        item.route
+        for section in NAVIGATION
+        for item in section.children
+    ]
+
+    assert routes
+    missing = [route for route in routes if permission_code(route, "GET") is None]
+    assert missing == []
+
+
+def test_unknown_admin_route_fails_closed_to_system_permission():
+    from app.admin.security import permission_code
+
+    assert permission_code("/admin/future-module", "GET") == "system.manage"
+    assert permission_code("/admin/future-module", "POST") == "system.manage"
+    assert permission_code("/public/future-module", "GET") is None
+
+
+def test_admin_service_worker_does_not_cache_authenticated_html(client):
+    response = client.get("/admin/static/sw.js")
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert 'altakhfidalsh-admin-v5' in body
+    assert 'event.respondWith(fetch(event.request));' in body
+    assert 'caches.open(CACHE).then(cache => cache.put(event.request, copy));' not in body

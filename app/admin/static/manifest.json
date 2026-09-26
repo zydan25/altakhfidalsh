@@ -7,7 +7,7 @@
   "orientation": "portrait",
   "lang": "ar",
   "dir": "rtl",
-  "theme_color": "#111827",
+  "theme_color": "#7c3aed",
   "background_color": "#f5f7fb",
   "icons": [
     {"src": "/admin/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}

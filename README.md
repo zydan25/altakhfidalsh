@@ -56,4 +56,4 @@
 - docs/DATABASE_DOMAINS_AR.md
 
 ## حالة المرحلة
-هذا الفرع هو بداية البناء الإداري الحقيقي. الوحدات التي لم تكتمل بعد لها routes ومساحات أولية، لكنها لا تعتبر CRUD مكتملة حتى تمر بـmodel + migration + service + API/admin UI + permission + audit + tests.
+هذا الفرع هو بداية البناء الإداري الحقيقي. الوحدات التي لم تكتمل بعد لها routes ومساحات أولية، لكنها لا تعتبر CRUD مكتملة حتى تمر بـmodel + migration + service + API/admin UI + permission + audit + tests.\n## الحالة الحالية\n\n- لوحة الإدارة RTL/Mobile-First مع ثيم قابل للتعديل.\n- محرر ترند مستطيل مرتبط بهاشتاج وثلاثة منتجات.\n- حماية صفحـات الإدارة مبنية على permissions مع fail-closed للمسارات الجديدة.\n- Service Worker يكاش الأصول الثابتة فقط ولا يحفظ HTML الإداري.\n- خطة إكمال الإدارة وتطبيق العميل موثقة في `docs/ADMIN_COMPLETION_AR.md`.\n

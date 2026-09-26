@@ -4,44 +4,104 @@ from flask import current_app, request, session
 ROUTE_PERMISSIONS = {
     "GET": {
         "/admin/": "dashboard.view",
+        "/admin/tasks": "order.manage",
         "/admin/products": "product.view",
+        "/admin/products/new": "product.create",
+        "/admin/products/drafts": "product.view",
         "/admin/categories": "category.view",
+        "/admin/category-strip": "content.manage",
         "/admin/brands": "product.view",
         "/admin/options": "product.view",
-        "/admin/pricing/groups": "pricing.view",
-        "/admin/pricing/preview": "pricing.view",
+        "/admin/inventory": "inventory.manage",
+        "/admin/media": "product.view",
+        "/admin/product-settings": "product.edit",
+        "/admin/catalog/policies": "policy.manage",
         "/admin/banners": "content.view",
-        "/admin/campaigns": "campaign.view",
+        "/admin/banner-targets": "content.manage",
+        "/admin/category-circles": "content.view",
+        "/admin/trends": "hashtag.view",
         "/admin/hashtags": "hashtag.view",
+        "/admin/campaigns": "campaign.view",
+        "/admin/storefront/pages": "content.manage",
+        "/admin/storefront/sections": "content.manage",
+        "/admin/storefront/collections": "content.manage",
+        "/admin/pricing/groups": "pricing.view",
+        "/admin/pricing/currencies": "pricing.view",
+        "/admin/pricing/rates": "pricing.view",
+        "/admin/geo": "geo.manage",
+        "/admin/pricing/city-assignments": "pricing.view",
+        "/admin/pricing/customer-assignments": "pricing.view",
+        "/admin/pricing/preview": "pricing.view",
+        "/admin/orders": "order.view",
         "/admin/payments": "payment.manage",
         "/admin/payments/proofs": "payment.manage",
         "/admin/shipping": "shipping.manage",
         "/admin/returns": "refund.approve",
         "/admin/warranty": "policy.manage",
         "/admin/reviews": "content.manage",
-        "/admin/chat": "customer.view",
         "/admin/customers": "customer.view",
+        "/admin/customers/addresses": "customer.view",
+        "/admin/chat": "customer.view",
+        "/admin/notifications": "customer.view",
+        "/admin/attachments": "customer.view",
+        "/admin/promotions/coupons": "promotion.manage",
+        "/admin/promotions/gifts": "promotion.manage",
+        "/admin/finance/wallets": "wallet.adjust",
+        "/admin/finance/wallet-ledger": "wallet.adjust",
+        "/admin/reports": "report.view",
         "/admin/whatsapp": "system.manage",
+        "/admin/system/admins": "system.manage",
+        "/admin/system/roles": "system.manage",
+        "/admin/system/audit": "system.manage",
         "/admin/system/theme": "theme.manage",
         "/admin/system/settings": "system.manage",
         "/admin/system/features": "system.manage",
-        "/admin/storefront/pages": "content.manage",
-        "/admin/storefront/sections": "content.manage",
     },
     "POST": {
         "/admin/products": "product.create",
-        "/admin/brands": "product.edit",
-        "/admin/options": "product.edit",
         "/admin/products/new": "product.create",
         "/admin/categories": "category.manage",
-        "/admin/pricing/groups": "pricing.manage",
+        "/admin/category-strip": "content.manage",
+        "/admin/brands": "product.edit",
+        "/admin/options": "product.edit",
+        "/admin/catalog/policies": "policy.manage",
         "/admin/banners": "banner.manage",
-        "/admin/campaigns": "campaign.manage",
+        "/admin/banner-targets": "content.manage",
+        "/admin/trends": "hashtag.manage",
         "/admin/hashtags": "hashtag.manage",
+        "/admin/campaigns": "campaign.manage",
+        "/admin/storefront/pages": "content.manage",
+        "/admin/storefront/sections": "content.manage",
+        "/admin/storefront/collections": "content.manage",
+        "/admin/pricing/groups": "pricing.manage",
+        "/admin/pricing/currencies": "pricing.manage",
+        "/admin/pricing/rates": "pricing.manage",
+        "/admin/geo": "geo.manage",
+        "/admin/pricing/city-assignments": "pricing.manage",
+        "/admin/pricing/customer-assignments": "pricing.manage",
+        "/admin/orders": "order.manage",
+        "/admin/payments": "payment.manage",
+        "/admin/payments/proofs": "payment.manage",
+        "/admin/shipping": "shipping.manage",
+        "/admin/returns": "refund.approve",
+        "/admin/warranty": "policy.manage",
+        "/admin/reviews": "content.manage",
+        "/admin/customers": "customer.manage",
+        "/admin/customers/addresses": "customer.manage",
+        "/admin/chat": "customer.manage",
+        "/admin/notifications": "customer.manage",
+        "/admin/attachments": "customer.manage",
+        "/admin/promotions/coupons": "promotion.manage",
+        "/admin/promotions/gifts": "promotion.manage",
+        "/admin/finance/wallets": "wallet.adjust",
+        "/admin/finance/wallet-ledger": "wallet.adjust",
+        "/admin/whatsapp": "system.manage",
+        "/admin/system/admins": "system.manage",
+        "/admin/system/roles": "system.manage",
+        "/admin/system/audit": "system.manage",
         "/admin/system/theme": "theme.manage",
         "/admin/system/settings": "system.manage",
         "/admin/system/features": "system.manage",
-        "/admin/whatsapp": "system.manage",
     },
 }
 
@@ -50,13 +110,36 @@ def permission_code(path, method):
     exact = ROUTE_PERMISSIONS.get(method, {})
     if path in exact:
         return exact[path]
-    if path.startswith("/admin/products/"):
-        return "product.edit" if method in {"PATCH", "PUT", "POST"} else "product.view"
-    if path.startswith("/admin/orders"):
-        return "order.manage" if method != "GET" else "order.view"
-    if path.startswith("/admin/customers"):
-        return "customer.manage" if method != "GET" else "customer.view"
+
+    prefix_permissions = (
+        ("/admin/products/", "product.edit"),
+        ("/admin/orders/", "order.manage"),
+        ("/admin/customers/", "customer.manage"),
+        ("/admin/pricing/", "pricing.manage"),
+        ("/admin/promotions/", "promotion.manage"),
+        ("/admin/finance/", "wallet.adjust"),
+        ("/admin/system/", "system.manage"),
+        ("/admin/storefront/", "content.manage"),
+        ("/admin/catalog/", "policy.manage"),
+    )
+    for prefix, code in prefix_permissions:
+        if path.startswith(prefix):
+            if method == "GET" and prefix == "/admin/pricing/":
+                return "pricing.view"
+            if method == "GET" and prefix == "/admin/products/":
+                return "product.edit" if path.rstrip("/").endswith("/edit") else "product.view"
+            if method == "GET" and prefix == "/admin/orders/":
+                return "order.view"
+            if method == "GET" and prefix == "/admin/customers/":
+                return "customer.view"
+            return code
+
+    if path.startswith("/admin/"):
+        # Fail closed for future admin routes until an explicit permission is assigned.
+        return "system.manage"
     return None
+
+
 
 
 def can_access(code):
