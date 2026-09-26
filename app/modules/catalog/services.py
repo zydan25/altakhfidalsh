@@ -524,6 +524,17 @@ class CatalogService:
         if child:
             raise ValueError("move or delete child categories first")
         category.is_active = False
+        if category.parent_id is None:
+            side_categories = SideCategory.query.filter_by(
+                root_category_id=category_id,
+                is_active=True,
+            ).all()
+            for side_category in side_categories:
+                side_category.is_active = False
+                SideCategoryCircle.query.filter_by(
+                    side_category_id=side_category.id,
+                    is_active=True,
+                ).update({"is_active": False})
         db.session.commit()
 
     @staticmethod
