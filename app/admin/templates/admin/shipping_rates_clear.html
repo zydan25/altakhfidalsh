@@ -26,6 +26,23 @@
 <div class="entity-field"><span class="entity-label">النطاق</span><strong>{% if row.customer_id %}عميل · {{ customer_map.get(row.customer_id,row.customer_id) }}{% elif row.city_area_id %}منطقة داخل المدينة · {{ area_map.get(row.city_area_id,row.city_area_id) }}{% elif row.city_id %}مدينة · {{ city_map.get(row.city_id,row.city_id) }}{% elif row.region_id %}محافظة/منطقة · {{ region_map.get(row.region_id,row.region_id) }}{% else %}عام{% endif %}</strong></div>
 <div class="entity-field"><span class="entity-label">شروط السلة</span><strong>{% if row.min_order_sar %}من {{ row.min_order_sar }}{% endif %}{% if row.max_order_sar %} إلى {{ row.max_order_sar }}{% endif %}{% if row.free_over_sar %} · مجاني فوق {{ row.free_over_sar }}{% endif %}</strong></div>
 <div class="entity-field"><span class="entity-label">الأولوية</span><strong>{{ row.priority }}</strong></div>
+<details style="grid-column:1/-1">
+  <summary class="ghost-button">تعديل القاعدة</summary>
+  <form method="post" class="form-stack compact-form-grid" style="margin-top:10px">
+    <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ row.id }}">
+    <label>طريقة التوصيل<select name="method_id" required>{% for x in methods %}<option value="{{ x.id }}" {% if x.id == row.method_id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
+    <label>عميل محدد<select name="customer_id"><option value="">كل العملاء</option>{% for x in customers %}<option value="{{ x.id }}" {% if x.id == row.customer_id %}selected{% endif %}>{{ x.name or x.phone_normalized }}</option>{% endfor %}</select></label>
+    <label>محافظة / منطقة<select name="region_id"><option value="">أي</option>{% for x in regions %}<option value="{{ x.id }}" {% if x.id == row.region_id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
+    <label>مدينة<select name="city_id"><option value="">أي</option>{% for x in cities %}<option value="{{ x.id }}" {% if x.id == row.city_id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
+    <label>منطقة داخل المدينة<select name="city_area_id"><option value="">أي</option>{% for x in areas %}<option value="{{ x.id }}" {% if x.id == row.city_area_id %}selected{% endif %}>{{ x.name }} · {{ city_map.get(x.city_id,'') }}</option>{% endfor %}</select></label>
+    <label>سعر التوصيل SAR<input name="price_sar" type="number" step="0.0001" min="0" value="{{ row.price_sar or row.price }}"></label>
+    <label>من السلة SAR<input name="min_order_sar" type="number" step="0.0001" min="0" value="{{ row.min_order_sar if row.min_order_sar is not none else row.min_order or '' }}"></label>
+    <label>إلى السلة SAR<input name="max_order_sar" type="number" step="0.0001" min="0" value="{{ row.max_order_sar if row.max_order_sar is not none else row.max_order or '' }}"></label>
+    <label>مجاني فوق SAR<input name="free_over_sar" type="number" step="0.0001" min="0" value="{{ row.free_over_sar if row.free_over_sar is not none else row.free_over or '' }}"></label>
+    <label>الأولوية<input name="priority" type="number" value="{{ row.priority }}"></label>
+    <button class="primary-button form-field-wide" type="submit">حفظ التعديل</button>
+  </form>
+</details>
 <form method="post" style="grid-column:1/-1"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button danger-button" type="submit">أرشفة القاعدة</button></form>
 </article>
 {% else %}<section class="empty-state panel" style="grid-column:1/-1"><h3>لا توجد قواعد توصيل</h3><p class="muted">أضف أول قاعدة حسب مدينتك، ثم أضف قواعد خاصة بالسلة أو العميل.</p></section>{% endfor %}
