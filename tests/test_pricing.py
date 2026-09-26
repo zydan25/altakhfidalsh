@@ -205,3 +205,98 @@ def test_shipping_rule_uses_customer_location_and_cart_tiers(app):
         )
         assert quote.free is True
         assert quote.price_display == Decimal("0")
+
+
+
+def test_city_location_adjustment_is_applied_after_group_markup(app):
+    from app.extensions import db
+    from app.models import City, Country, Currency, PricingGroup, PricingLocationAdjustment, Region
+    from app.services.pricing import price_for_customer
+
+    with app.app_context():
+        country = Country(code="YE-LOC", name_ar="اليمن")
+        sar = Currency(code="SAR", name_ar="ريال سعودي", is_base=True)
+        group = PricingGroup(
+            name="أساس",
+            default_currency_id=sar.id,
+            percent_markup=Decimal("10"),
+            fixed_markup_sar=Decimal("0"),
+            is_default=True,
+        )
+        db.session.add_all([country, sar, group])
+        db.session.flush()
+        region = Region(country_id=country.id, code="LOC-R", name="إب")
+        city = City(region_id=region.id, code="LOC-C", name="إب")
+        db.session.add_all([region, city])
+        db.session.flush()
+        db.session.add(
+            PricingLocationAdjustment(
+                city_id=city.id,
+                percent_adjustment=Decimal("-5"),
+                fixed_adjustment_sar=Decimal("0"),
+                priority=10,
+            )
+        )
+        db.session.commit()
+
+        _, result = price_for_customer(
+            base_price_sar=Decimal("100"),
+            city_id=city.id,
+            currency_id=sar.id,
+        )
+        assert result.converted == Decimal("100")
+        assert result.percent_add == Decimal("10")
+        assert result.location_percent_add == Decimal("-5.50")
+        assert result.final == Decimal("104.50")
+
+
+def test_shipping_percent_rule_applies_to_selected_city(app):
+    from app.extensions import db
+    from app.models import City, Country, Region, ShippingMethod, ShippingRate, ShippingRule, ShippingRuleTarget
+    from app.services.shipping import ShippingService
+
+    with app.app_context():
+        country = Country(code="YE-SHIP-RULE", name_ar="اليمن")
+        db.session.add(country)
+        db.session.flush()
+        region = Region(country_id=country.id, code="SHIP-R", name="إب")
+        city = City(region_id=region.id, code="SHIP-C", name="إب")
+        method = ShippingMethod(name="مندوب", code="ship-rule-test")
+        db.session.add_all([region, city, method])
+        db.session.flush()
+        db.session.add(
+            ShippingRate(
+                method_id=method.id,
+                city_id=city.id,
+                price_sar=Decimal("20"),
+                price=Decimal("20"),
+                priority=1,
+            )
+        )
+        rule = ShippingRule(
+            method_id=method.id,
+            rule_type="percent_discount",
+            min_order_sar=Decimal("100"),
+            max_order_sar=Decimal("299"),
+            value=Decimal("25"),
+            priority=20,
+            stackable=False,
+            stop_processing=True,
+            applies_to_all=False,
+        )
+        db.session.add(rule)
+        db.session.flush()
+        db.session.add(
+            ShippingRuleTarget(rule_id=rule.id, target_type="city", target_id=city.id)
+        )
+        db.session.commit()
+
+        quote = ShippingService.quote(
+            city_id=city.id,
+            subtotal_sar=Decimal("150"),
+            fx_rate=Decimal("72"),
+        )
+        assert quote.base_price_sar == Decimal("20")
+        assert quote.price_sar == Decimal("15")
+        assert quote.price_display == Decimal("1080")
+        assert quote.applied_rule_ids == (rule.id,)
