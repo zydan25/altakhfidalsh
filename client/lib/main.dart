@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'api.dart';
 import 'app_state.dart';
 import 'shein_ui.dart';
 import 'models.dart';
