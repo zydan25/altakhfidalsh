@@ -62,6 +62,42 @@ def upgrade():
             if not _has_column("pricing_groups", name):
                 op.add_column("pricing_groups", column)
 
+        # Backfill the new group-level defaults from the first existing currency rule.
+        op.execute(
+            """
+            UPDATE pricing_groups pg
+            SET
+                percent_markup = COALESCE((
+                    SELECT pgr.percent_markup
+                    FROM pricing_group_rules pgr
+                    WHERE pgr.group_id = pg.id
+                    ORDER BY pgr.id
+                    LIMIT 1
+                ), 0),
+                fixed_markup_sar = COALESCE((
+                    SELECT pgr.fixed_markup
+                    FROM pricing_group_rules pgr
+                    WHERE pgr.group_id = pg.id
+                    ORDER BY pgr.id
+                    LIMIT 1
+                ), 0),
+                rounding_rule = COALESCE((
+                    SELECT pgr.rounding_rule
+                    FROM pricing_group_rules pgr
+                    WHERE pgr.group_id = pg.id
+                    ORDER BY pgr.id
+                    LIMIT 1
+                ), 'nearest'),
+                decimals = COALESCE((
+                    SELECT pgr.decimals
+                    FROM pricing_group_rules pgr
+                    WHERE pgr.group_id = pg.id
+                    ORDER BY pgr.id
+                    LIMIT 1
+                ), 2)
+            """
+        )
+
     if _has_table("pricing_group_cities"):
         if not _has_column("pricing_group_cities", "area_id"):
             op.add_column(
