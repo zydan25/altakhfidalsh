@@ -543,6 +543,9 @@ def register_operation_routes(admin_bp):
             if item.circle_id in circle_side_ids:
                 circles_by_look.setdefault(item.look_id, []).append(item)
         circle_map = {x.id: x for x in circle_rows}
+        circle_asset_ids = [x.image_asset_id for x in circle_rows if x.image_asset_id]
+        circle_assets = MediaAsset.query.filter(MediaAsset.id.in_(circle_asset_ids)).all() if circle_asset_ids else []
+        circle_asset_map = {x.id: x for x in circle_assets}
         return render_template(
             "admin/looks.html",
             title="الإطلالات",
@@ -554,6 +557,7 @@ def register_operation_routes(admin_bp):
             products_by_look=products_by_look,
             circle_rows=circle_rows,
             circle_map=circle_map,
+            circle_asset_map=circle_asset_map,
             circle_side_map=circle_side_map,
             circles_by_look=circles_by_look,
             success=success,
