@@ -343,6 +343,95 @@ def register_pricing_views(admin_bp):
             **build_admin_context(),
         )
 
+    @admin_bp.route("/pricing/location-adjustments", methods=["GET", "POST"])
+    def pricing_location_adjustments():
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                action = (request.form.get("action") or "create").strip()
+                row = db.session.get(PricingLocationAdjustment, request.form.get("id", type=int))
+                if action in {"create", "update"}:
+                    scope = (request.form.get("location_scope") or "city").strip()
+                    city_id = request.form.get("city_id", type=int) or None
+                    region_id = request.form.get("region_id", type=int) or None
+                    area_id = request.form.get("area_id", type=int) or None
+                    targets = [x for x in (city_id, region_id, area_id) if x is not None]
+                    if len(targets) != 1 or scope not in {"region", "city", "area"}:
+                        raise ValueError("اختر مدينة أو محافظة أو منطقة داخل المدينة واحدة فقط.")
+                    target = (
+                        db.session.get(Region, region_id)
+                        if scope == "region"
+                        else db.session.get(City, city_id)
+                        if scope == "city"
+                        else db.session.get(CityArea, area_id)
+                    )
+                    if target is None or not target.is_active:
+                        raise ValueError("الموقع المختار غير موجود أو غير فعال.")
+                    percent = _decimal(request.form.get("percent_adjustment"), "0")
+                    fixed = _decimal(request.form.get("fixed_adjustment_sar"), "0")
+                    if percent <= Decimal("-100"):
+                        raise ValueError("نسبة التخفيض يجب أن تكون أكبر من -100%.")
+                    if action == "create":
+                        row = PricingLocationAdjustment(
+                            city_id=city_id,
+                            region_id=region_id,
+                            area_id=area_id,
+                        )
+                        db.session.add(row)
+                    else:
+                        if row is None:
+                            raise ValueError("قاعدة التسعير حسب الموقع غير موجودة.")
+                        row.city_id, row.region_id, row.area_id = city_id, region_id, area_id
+                    row.percent_adjustment = percent
+                    row.fixed_adjustment_sar = fixed
+                    row.priority = request.form.get("priority", 0, type=int) or 0
+                    row.starts_at = None
+                    row.ends_at = None
+                    success = "تم تحديث تسعير الموقع." if action == "update" else "تمت إضافة تسعير الموقع."
+                    db.session.commit()
+                elif action == "archive":
+                    if row is None:
+                        raise ValueError("قاعدة التسعير غير موجودة.")
+                    row.is_active = False
+                    db.session.commit()
+                    success = "تمت إزالة تسعير الموقع."
+                else:
+                    raise ValueError("إجراء تسعير الموقع غير معروف.")
+            except (ValueError, TypeError, IntegrityError) as exc:
+                db.session.rollback()
+                error = "تعذر حفظ تسعير الموقع: " + str(exc)
+
+        countries = Country.query.filter_by(is_active=True).order_by(Country.name_ar).all()
+        regions = Region.query.filter_by(is_active=True).order_by(Region.name).all()
+        cities = City.query.filter_by(is_active=True).order_by(City.name).all()
+        areas = CityArea.query.filter_by(is_active=True).order_by(CityArea.name).all()
+        adjustments = PricingLocationAdjustment.query.filter_by(is_active=True).order_by(
+            PricingLocationAdjustment.priority.desc(),
+            PricingLocationAdjustment.id.desc(),
+        ).limit(1000).all()
+        city_rule = {}
+        for item in adjustments:
+            if item.city_id is not None and item.city_id not in city_rule:
+                city_rule[item.city_id] = item
+        return render_template(
+            "admin/pricing_location_adjustments.html",
+            title="الزيادة والنقص حسب الموقع",
+            section="التسعير",
+            countries=countries,
+            regions=regions,
+            cities=cities,
+            areas=areas,
+            adjustments=adjustments,
+            city_rule=city_rule,
+            region_map={x.id: x.name for x in regions},
+            city_map={x.id: x.name for x in cities},
+            area_map={x.id: x.name for x in areas},
+            error=error,
+            success=success,
+            **build_admin_context(),
+        )
+
     @admin_bp.route("/pricing/customer-overrides", methods=["GET", "POST"])
     def pricing_customer_assignments():
         error = None
