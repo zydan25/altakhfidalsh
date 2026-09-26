@@ -153,3 +153,9 @@ def test_public_trend_exposes_countdown_and_overlay_metadata(app):
         assert payload["overlay"]["text_color"] == "#ffffff"
         assert payload["overlay"]["background_color"] == "#7c3aed"
         assert len(payload["products"]) == 3
+        assert CatalogService.is_trend_timer_expired(
+            trend, datetime(2026, 9, 26, 12, 1, 59, tzinfo=timezone.utc)
+        ) is False
+        assert CatalogService.is_trend_timer_expired(
+            trend, datetime(2026, 9, 26, 12, 2, tzinfo=timezone.utc)
+        ) is True
