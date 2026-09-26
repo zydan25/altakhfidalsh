@@ -274,7 +274,7 @@ class LooksRow extends StatelessWidget{
       final image=api.url(rows[i]['cover_url']?.toString());return Container(width:105,margin:const EdgeInsets.only(left:8),child:Column(children:[
         Expanded(child:ClipOval(child:image.isEmpty?Container(color:const Color(0xFFEDEDED)):Image.network(image,fit:BoxFit.cover,width:105))),
         const SizedBox(height:4),Text((rows[i]['name']??'').toString(),maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w700)),
-      ]);}),
+      ]));}),
     )),
   ]);
 }
@@ -401,7 +401,7 @@ class OptionBlock extends StatelessWidget{
   @override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
     Text((option['name']??'اختيار').toString(),style:const TextStyle(fontWeight:FontWeight.w800,fontSize:13)),
     const SizedBox(height:7),
-    Wrap(spacing:7,runSpacing:7,children:((option['values']as List?)??const[]).whereType<Map>().map((v)=>ChoiceChip(label:Text((v['label']??'').toString(),style:const TextStyle(fontSize:10)),selected:false,onSelected:(_){}})).toList()),
+    Wrap(spacing:7,runSpacing:7,children:((option['values']as List?)??const[]).whereType<Map>().map((v)=>ChoiceChip(label:Text((v['label']??'').toString(),style:const TextStyle(fontSize:10)),selected:false,onSelected:(_){},)).toList()),
   ]);
 }
 
@@ -490,7 +490,7 @@ class OrderSuccess extends StatelessWidget{
     const Text('تم استلام طلبك',style:TextStyle(fontSize:22,fontWeight:FontWeight.w900)),
     const SizedBox(height:7),Text('رقم الطلب: '+no,style:const TextStyle(color:ClientTheme.muted)),const SizedBox(height:20),
     FilledButton(onPressed:()=>Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const AppShell()),(_)=>false),style:FilledButton.styleFrom(backgroundColor:ClientTheme.ink),child:const Text('العودة للتسوق')),
-  ]))));
+  ])))));
 }
 
 class OrdersScreen extends StatefulWidget{const OrdersScreen({super.key});@override State<OrdersScreen> createState()=>_OrdersScreenState();}
@@ -530,7 +530,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>{
         ...items.map((raw){final e=Map<String,dynamic>.from(raw);final media=(e['media']as List?)??const[];final image=media.isNotEmpty?api.url((media.first as Map)['url']?.toString()):'';return Container(color:Colors.white,margin:const EdgeInsets.only(top:6),padding:const EdgeInsets.all(8),child:Row(children:[
           SizedBox(width:76,height:94,child:image.isEmpty?Container(color:const Color(0xFFEDEDED)):Image.network(image,fit:BoxFit.cover)),
           const SizedBox(width:10),Expanded(child:Text((e['name']??'').toString()+'\n'+(e['qty']??1).toString()+' × '+(e['sale_price_display']??'0').toString(),style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700))),
-        ]);}),
+        ]));}),
         if(shipments.isNotEmpty)...[
           const SectionTitle(title:'تتبع الشحنة'),
           ...shipments.expand((s)=>((s['events']as List?)??const[]).whereType<Map>().map((e)=>ListTile(leading:const Icon(Icons.local_shipping_outlined),title:Text((e['status']??'').toString()),subtitle:Text(((e['location']??'').toString()+' '+(e['description']??'').toString()).trim())))),
@@ -641,7 +641,7 @@ class _LooksScreenState extends State<LooksScreen>{
       SizedBox(height:190,child:ListView.builder(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:10),itemCount:t.length,itemBuilder:(_,i){final bg=t[i]['background']is Map?Map<String,dynamic>.from(t[i]['background']):{};final image=api.url(bg['url']?.toString());return Container(width:160,margin:const EdgeInsets.only(left:8),child:Stack(children:[Positioned.fill(child:image.isEmpty?Container(color:const Color(0xFFEDEDED)):Image.network(image,fit:BoxFit.cover)),Positioned(left:8,right:8,bottom:8,child:Container(color:Colors.white.withOpacity(.9),padding:const EdgeInsets.all(8),child:Text((t[i]['promo_text']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800,fontSize:11))))]));})),
       const SectionTitle(title:'Looks'),
       ...l.map((r){final image=api.url(r['cover_url']?.toString());return ListTile(leading:image.isEmpty?const CircleAvatar(child:Icon(Icons.style_outlined)):ClipOval(child:Image.network(image,width:48,height:48,fit:BoxFit.cover)),title:Text((r['name']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text((r['description']??'').toString()));}),
-    ];}),
+    ]);}),
   ));
 }
 
