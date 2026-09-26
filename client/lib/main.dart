@@ -243,7 +243,7 @@ class CategoryCircles extends StatelessWidget{
     child:ListView.separated(
       scrollDirection:Axis.horizontal,padding:const EdgeInsets.fromLTRB(10,10,10,0),itemCount:categories.length,separatorBuilder:(_,__)=>const SizedBox(width:14),
       itemBuilder:(_,i){final c=categories[i];return InkWell(onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>CategoryScreen(categoryId:c.id))),child:SizedBox(width:64,child:Column(children:[
-        Container(width:60,height:60,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFF0F0F0)),child:const Icon(Icons.category_outlined)),
+        Container(width:60,height:60,decoration:const BoxDecoration(shape:BoxShape.circle,color:Color(0xFFF0F0F0)),child:c.iconUrl==null||c.iconUrl!.isEmpty?const Icon(Icons.category_outlined):ClipOval(child:Image.network(api.url(c.iconUrl),fit:BoxFit.cover,width:60,height:60,errorBuilder:(_,__,___)=>const Icon(Icons.category_outlined)))),
         const SizedBox(height:5),
         Text(c.name,maxLines:2,overflow:TextOverflow.ellipsis,textAlign:TextAlign.center,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w600)),
       ])));},
