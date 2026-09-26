@@ -846,6 +846,37 @@ class TrendProduct(TimestampMixin, db.Model):
     )
 
 
+class Look(TimestampMixin, ActiveMixin, db.Model):
+    """Client-facing outfit/style collection used by the Style tab."""
+    __tablename__ = "looks"
+
+    id = db.Column(Integer, primary_key=True)
+    name = db.Column(String(180), nullable=False)
+    slug = db.Column(String(200), nullable=False, unique=True)
+    cover_asset_id = db.Column(ForeignKey("media_assets.id", ondelete="SET NULL"))
+    description = db.Column(Text)
+    status = db.Column(String(40), nullable=False, default="draft")
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    starts_at = db.Column(db.DateTime(timezone=True))
+    ends_at = db.Column(db.DateTime(timezone=True))
+    __table_args__ = (
+        Index("ix_look_active_sort", "is_active", "status", "sort_order", "starts_at", "ends_at"),
+    )
+
+
+class LookProduct(TimestampMixin, db.Model):
+    __tablename__ = "look_products"
+
+    id = db.Column(Integer, primary_key=True)
+    look_id = db.Column(ForeignKey("looks.id", ondelete="CASCADE"), nullable=False)
+    product_id = db.Column(ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("look_id", "product_id", name="uq_look_product"),
+        Index("ix_look_product_sort", "look_id", "sort_order"),
+    )
+
+
 class Campaign(TimestampMixin, ActiveMixin, db.Model):
     __tablename__ = "campaigns"
 
