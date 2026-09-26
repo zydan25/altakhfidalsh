@@ -100,7 +100,7 @@
           {% else %}<span class="muted">لا توجد فئات رئيسية نشطة.</span>{% endfor %}
           </div>
         </div>
-        <div class="banner-style-note target-extra-field" data-target-form="{{ banner.id }}" hidden><strong>الإطلالة</strong><span class="muted">تم تجهيز الهدف؛ بعد إنشاء نظام الإطلالات سيصبح الاختيار مرتبطًا بإطلالة محددة.</span></div>
+        <label class="target-extra-field banner-style-select-field" data-target-form="{{ banner.id }}" hidden>الإطلالة<select name="target_id">{% for look in looks %}<option value="{{ look.id }}">{{ look.name }}</option>{% else %}<option value="">لا توجد إطلالات بعد</option>{% endfor %}</select></label>
         <label>الأولوية<input name="target_priority" type="number" value="0"></label>
         <button class="primary-button form-field-wide">حفظ التوجيه</button>
       </form>
