@@ -1,5 +1,6 @@
 {% extends "admin/base.html" %}
 {% block content %}
+{% set selected_side_category_id = request.args.get('side_category_id')|int %}
 <section class="module-header side-category-page-header">
   <div class="module-toolbar">
     <div class="module-heading-copy">
@@ -120,7 +121,7 @@
     <select id="sideCircleFilter">
       <option value="">كل الفئات الجانبية</option>
       {% for row in side_categories %}
-      <option value="{{ row.id }}" {% if request.args.get('side_category_id', type=int) == row.id %}selected{% endif %}>{{ row.name }} · {{ row.root_category_name }}</option>
+      <option value="{{ row.id }}" {% if selected_side_category_id == row.id %}selected{% endif %}>{{ row.name }} · {{ row.root_category_name }}</option>
       {% endfor %}
     </select>
     <a class="ghost-button" href="{{ request.path }}?view=groups">عودة للقائمة</a>
@@ -128,7 +129,7 @@
 
   <div class="side-circle-grid">
     {% for circle in circles %}
-    {% if not request.args.get('side_category_id', type=int) or request.args.get('side_category_id', type=int) == circle.side_category_id %}
+    {% if not selected_side_category_id or selected_side_category_id == circle.side_category_id %}
     {% set side_circle_rows = circles|selectattr('side_category_id', 'equalto', circle.side_category_id)|list %}
     {% set side_circle_ids = side_circle_rows|map(attribute='id')|list %}
     {% set side_circle_index = side_circle_ids.index(circle.id) %}
