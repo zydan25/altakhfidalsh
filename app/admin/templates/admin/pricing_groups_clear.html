@@ -1,0 +1,74 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header pricing-control-header">
+  <div class="module-toolbar">
+    <div class="module-heading-copy">
+      <span class="eyebrow">التسعير</span>
+      <h2>مجموعات التسعير</h2>
+      <p class="muted">كل أسعار المنتجات تبدأ من SAR. المجموعة تحدد نسبة الزيادة والزيادة الثابتة بالسعودي، ثم يختار العميل عملة العرض.</p>
+    </div>
+    <div class="module-toolbar-actions"><span class="status-pill">{{ groups|selectattr('is_active')|list|length }} فعالة</span><button class="primary-button" type="button" data-open-modal="pricingGroupAdd">＋ مجموعة تسعير</button></div>
+  </div>
+</section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="pricing-explain-grid">
+  <article class="panel pricing-rule-card"><span class="eyebrow">01 · الأساس</span><strong>سعر المنتج = SAR</strong><p>لا نخزن سعر المنتج النهائي بعملة العميل.</p></article>
+  <article class="panel pricing-rule-card"><span class="eyebrow">02 · التحويل</span><strong>SAR × سعر الصرف</strong><p>سعر الصرف محفوظ كـ 1 SAR → العملة.</p></article>
+  <article class="panel pricing-rule-card"><span class="eyebrow">03 · الزيادة</span><strong>نسبة + ثابت SAR</strong><p>الزيادة الثابتة أيضًا أساسها SAR وتتحول مع FX.</p></article>
+  <article class="panel pricing-rule-card"><span class="eyebrow">04 · الاختيار</span><strong>عميل → منطقة → مدينة</strong><p>الأولوية تحدد المجموعة قبل احتساب السعر.</p></article>
+</section>
+
+<section class="pricing-group-list">
+{% for group in groups %}
+<article class="panel pricing-group-card {% if not group.is_active %}is-inactive{% endif %}">
+  <div class="pricing-group-card-head">
+    <div><span class="eyebrow">{{ "افتراضية" if group.is_default else "مجموعة" }}</span><h3>{{ group.name }}</h3><p class="muted">{{ group.description or "بدون وصف" }}</p></div>
+    <div class="pricing-group-head-badges"><span class="status-pill">{{ "فعالة" if group.is_active else "معطلة" }}</span><span class="status-pill">أولوية {{ group.priority }}</span></div>
+  </div>
+  <div class="pricing-stat-grid">
+    <div><span>الزيادة</span><strong>{{ group.percent_markup }}%</strong></div>
+    <div><span>ثابت SAR</span><strong>{{ group.fixed_markup_sar }}</strong></div>
+    <div><span>عملة افتراضية</span><strong>{{ currencies|selectattr('id','equalto',group.default_currency_id)|map(attribute='code')|first or 'SAR' }}</strong></div>
+    <div><span>روابط المواقع</span><strong>{{ assignments.get(group.id, 0) }}</strong></div>
+  </div>
+  <details class="pricing-details">
+    <summary class="ghost-button">تعديل المجموعة</summary>
+    <form method="post" class="form-stack compact-form-grid">
+      <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ group.id }}">
+      <label>الاسم<input name="name" value="{{ group.name }}" required></label>
+      <label>العملة الافتراضية<select name="default_currency_id"><option value="">SAR</option>{% for c in currencies %}<option value="{{ c.id }}" {% if c.id == group.default_currency_id %}selected{% endif %}>{{ c.code }} · {{ c.name_ar }}</option>{% endfor %}</select></label>
+      <label>نسبة الزيادة %<input name="percent_markup" type="number" step="0.0001" min="0" value="{{ group.percent_markup }}"></label>
+      <label>الزيادة الثابتة SAR<input name="fixed_markup_sar" type="number" step="0.0001" min="0" value="{{ group.fixed_markup_sar }}"></label>
+      <label>التقريب<select name="rounding_rule"><option value="nearest" {% if group.rounding_rule=='nearest' %}selected{% endif %}>الأقرب</option><option value="up" {% if group.rounding_rule=='up' %}selected{% endif %}>للأعلى</option><option value="down" {% if group.rounding_rule=='down' %}selected{% endif %}>للأسفل</option></select></label>
+      <label>المنازل العشرية<input name="decimals" type="number" min="0" max="6" value="{{ group.decimals }}"></label>
+      <label>الأولوية<input name="priority" type="number" value="{{ group.priority }}"></label>
+      <label class="form-field-wide">الوصف<textarea name="description">{{ group.description or "" }}</textarea></label>
+      <label class="check-row form-field-wide"><input name="is_default" type="checkbox" {% if group.is_default %}checked{% endif %}><span>مجموعة افتراضية</span></label>
+      <button class="primary-button form-field-wide" type="submit">حفظ المجموعة</button>
+    </form>
+  </details>
+  {% if group.is_active %}<form method="post" class="inline-form"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ group.id }}"><button class="ghost-button danger-button" type="submit">أرشفة</button></form>{% endif %}
+</article>
+{% else %}
+<section class="empty-state panel"><h3>لا توجد مجموعات تسعير</h3><p class="muted">أنشئ المجموعة الافتراضية أولًا، ثم اربطها بالمدن والمناطق.</p></section>
+{% endfor %}
+</section>
+
+<div class="admin-modal" data-modal="pricingGroupAdd" hidden>
+<div class="admin-modal-backdrop" data-close-modal></div><section class="admin-modal-dialog"><div class="admin-modal-header"><div><span class="eyebrow">إضافة</span><h3>مجموعة تسعير جديدة</h3></div><button class="icon-button" type="button" data-close-modal>×</button></div>
+<form method="post" class="form-stack compact-form-grid">
+<input type="hidden" name="action" value="create">
+<label>اسم المجموعة *<input name="name" required placeholder="السعر المحلي / سعر التجزئة / جملة"></label>
+<label>العملة الافتراضية<select name="default_currency_id"><option value="">SAR</option>{% for c in currencies %}<option value="{{ c.id }}">{{ c.code }} · {{ c.name_ar }}</option>{% endfor %}</select></label>
+<label>نسبة الزيادة %<input name="percent_markup" type="number" step="0.0001" min="0" value="0"></label>
+<label>الزيادة الثابتة SAR<input name="fixed_markup_sar" type="number" step="0.0001" min="0" value="0"></label>
+<label>التقريب<select name="rounding_rule"><option value="nearest">الأقرب</option><option value="up">للأعلى</option><option value="down">للأسفل</option></select></label>
+<label>المنازل العشرية<input name="decimals" type="number" min="0" max="6" value="2"></label>
+<label>الأولوية<input name="priority" type="number" value="0"></label>
+<label class="form-field-wide">الوصف<textarea name="description" placeholder="متى تستخدم هذه المجموعة؟"></textarea></label>
+<label class="check-row form-field-wide"><input name="is_default" type="checkbox"><span>هذه هي المجموعة الافتراضية</span></label>
+<div class="modal-actions form-field-wide"><button class="ghost-button" type="button" data-close-modal>إلغاء</button><button class="primary-button" type="submit">إنشاء المجموعة</button></div>
+</form></section></div>
+{% endblock %}
