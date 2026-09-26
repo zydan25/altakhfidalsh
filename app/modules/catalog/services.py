@@ -1182,11 +1182,7 @@ class CatalogService:
 
 
     @staticmethod
-    def set_trend_products(trend_id, hashtag_id, product_ids):
-        trend = db.session.get(Trend, trend_id)
-        if trend is None:
-            raise LookupError("trend not found")
-
+    def validate_trend_product_selection(hashtag_id, product_ids):
         hashtag = db.session.get(Hashtag, int(hashtag_id))
         if hashtag is None:
             raise ValueError("الهاشتاج المختار غير موجود.")
@@ -1206,8 +1202,7 @@ class CatalogService:
             Product.is_active.is_(True),
             Product.status == "published",
         ).all()
-        products_by_id = {product.id: product for product in products}
-        if len(products_by_id) != 3:
+        if len(products) != 3:
             raise ValueError("يجب أن تكون المنتجات الثلاثة منشورة ونشطة.")
 
         linked_ids = {
@@ -1219,10 +1214,17 @@ class CatalogService:
             )
             .all()
         }
-        missing = [product_id for product_id in normalized if product_id not in linked_ids]
-        if missing:
+        if any(product_id not in linked_ids for product_id in normalized):
             raise ValueError("كل المنتجات المختارة يجب أن تكون مرتبطة بالهاشتاج الرئيسي.")
+        return normalized
 
+    @staticmethod
+    def set_trend_products(trend_id, hashtag_id, product_ids):
+        trend = db.session.get(Trend, trend_id)
+        if trend is None:
+            raise LookupError("trend not found")
+
+        normalized = CatalogService.validate_trend_product_selection(hashtag_id, product_ids)
         TrendProduct.query.filter_by(trend_id=trend.id).delete()
         for slot, product_id in enumerate(normalized):
             db.session.add(TrendProduct(
