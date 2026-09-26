@@ -43,3 +43,10 @@
 - audit_logs يحتفظ before/after للعمليات الحساسة
 
 العلاقات المرنة مثل storefront_section_items وbanner_targets مقصودة، ويجب أن تمنع طبقة service أي target غير صالح قبل الحفظ أو النشر.
+
+## الفئات الجانبية
+
+- `side_categories.root_category_id` يشير إلى Category من المستوى الأعلى فقط.
+- `side_category_circles` منفصلة عن `categories` لتوفير Merchandising مستقل للواجهة.
+- `product_side_category_circles` تربط المنتجات بالدوائر الجانبية وتسمح بتعدد الروابط.
+- حذف/أرشفة القسم الجانبي يؤرشف دوائره، بينما أرشفة الدائرة لا تحذف المنتج.
