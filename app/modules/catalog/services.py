@@ -247,6 +247,63 @@ class CatalogService:
         db.session.commit()
 
     @staticmethod
+    def _swap_sort_order(model, current_id, direction, scope_filters):
+        current = db.session.get(model, int(current_id))
+        if current is None or not current.is_active:
+            raise LookupError("item not found")
+        if direction not in {"up", "down"}:
+            raise ValueError("invalid reorder direction")
+
+        query = model.query.filter(*scope_filters, model.is_active.is_(True))
+        rows = query.order_by(model.sort_order, model.id).all()
+        index = next((i for i, row in enumerate(rows) if row.id == current.id), None)
+        if index is None:
+            raise LookupError("item not found")
+        neighbor_index = index - 1 if direction == "up" else index + 1
+        if neighbor_index < 0 or neighbor_index >= len(rows):
+            return CatalogService._serialize_side_category(current) if model is SideCategory else CatalogService._serialize_side_category_circle(current, include_products=True)
+
+        neighbor = rows[neighbor_index]
+        current_order, neighbor_order = current.sort_order, neighbor.sort_order
+        if current_order == neighbor_order:
+            current.sort_order = neighbor_index
+            neighbor.sort_order = index
+        else:
+            current.sort_order = neighbor_order
+            neighbor.sort_order = current_order
+        db.session.commit()
+
+        return (
+            CatalogService._serialize_side_category(current)
+            if model is SideCategory
+            else CatalogService._serialize_side_category_circle(current, include_products=True)
+        )
+
+    @staticmethod
+    def reorder_side_category(side_category_id, direction):
+        current = db.session.get(SideCategory, int(side_category_id))
+        if current is None:
+            raise LookupError("side category not found")
+        return CatalogService._swap_sort_order(
+            SideCategory,
+            side_category_id,
+            direction,
+            [SideCategory.root_category_id == current.root_category_id],
+        )
+
+    @staticmethod
+    def reorder_side_category_circle(circle_id, direction):
+        current = db.session.get(SideCategoryCircle, int(circle_id))
+        if current is None:
+            raise LookupError("side category circle not found")
+        return CatalogService._swap_sort_order(
+            SideCategoryCircle,
+            circle_id,
+            direction,
+            [SideCategoryCircle.side_category_id == current.side_category_id],
+        )
+
+    @staticmethod
     def create_side_category_circle(side_category_id, payload, files=None):
         side = db.session.get(SideCategory, int(side_category_id))
         if side is None or not side.is_active:
