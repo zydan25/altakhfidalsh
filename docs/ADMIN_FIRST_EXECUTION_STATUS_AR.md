@@ -16,7 +16,7 @@
 ## نتيجة الفحص الحالي
 - الفرع غير مدمج في main.
 - النماذج الحالية تحتوي نواة واسعة جدًا وتغطي جداول التقرير، مع ثلاث جداول إضافية لتفصيل الشارات/الشرائط.
-- لا توجد migration ابتدائية محفوظة داخل migrations/versions؛ CI كان يولد migration مؤقتة من metadata للتحقق من schema.
+- توجد migrations محفوظة ومراجعة داخل `migrations/versions` حتى `20260926_0004_rectangular_trends.py`، وCI يطبقها على PostgreSQL نظيف.
 - لوحة الإدارة تحتوي Navigation شجرية Mobile Drawer / Desktop Sidebar، لكن كان جزء من الحالة يُخزن في كائنات Navigation عالمية؛ تم فصل الحالة لتصبح request-scoped.
 - الشارات في القائمة أصبحت تقرأ أعدادًا فعلية من قاعدة البيانات بدل الرقم 0 الثابت.
 - عقد API أصبح يطابق prefixes الموثقة: /api/v1/<domain>/...
@@ -44,7 +44,7 @@ city_id + pricing_group_id + currency_id + fx_rate + markup_percent + markup_fix
 
 ## ما لا يعتبر مكتملًا بعد
 - لا تزال migration الإنتاجية الابتدائية غير محفوظة.
-- CRUD الإدارة الكامل لكل domain لم يكتمل؛ بعض صفحات الإدارة ما زالت قوائم قراءة.
+- تم توسيع طبقة حماية صفحات الإدارة لتغلق المسارات غير المعروفة افتراضيًا، لكن بعض صفحات التشغيل المتقدمة ما زالت تحتاج CRUD تفاعلي كامل.
 - إدارة الفئات تحتاج تحرير/حذف/إعادة ترتيب مرئي كامل وربط الصور والشارات.
 - Product Wizard يحتاج استكمال عرض الوسائط الحقيقي، إدارة كل خصائص المنتج، وواجهة variant matrix أكثر قوة.
 - Storefront يحتاج محرر صفحات/sections كاملًا مع ترتيب العناصر وقواعد الظهور.
@@ -112,3 +112,4 @@ city_id + pricing_group_id + currency_id + fx_rate + markup_percent + markup_fix
 ## قاعدة العمل
 لا يتم اعتبار رابط إدارة موجودًا "مكتملًا" لمجرد أنه يعيد صفحة. Definition of Done لكل وحدة:
 Model + constraints/indexes + migration + service + API + admin UI + loading/empty/error + permission + audit عند الحاجة + tests + documentation.
+\n\n## موجة الإكمال الأخيرة\n\nتم توثيق تحسينات التصميم، حماية المسارات، أمان كاش لوحة الإدارة، ومحرر الترند المستطيل في `docs/ADMIN_COMPLETION_AR.md`.\n

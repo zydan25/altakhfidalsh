@@ -5,12 +5,15 @@
   --border: #e5e7eb;
   --text: #111827;
   --muted: #6b7280;
-  --accent: #111827;
-  --accent-soft: #eef2f7;
+  --accent: #7c3aed;
+  --accent-strong: #6d28d9;
+  --accent-soft: #f5f3ff;
   --success: #0f766e;
   --sidebar-width: 308px;
   --radius: 16px;
-  --shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
+  --shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
+  --shadow-hover: 0 14px 36px rgba(15, 23, 42, 0.10);
+  --ring: 0 0 0 3px rgba(124,58,237,.14);
   font-family: "Tajawal", "Noto Sans Arabic", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -874,4 +877,49 @@ body.modal-open { overflow:hidden; }
   .trend-card-heading { flex-direction:column; }
   .trend-card-actions { flex-wrap:wrap; }
   .trend-save-button { flex:1; min-width:0; }
+}
+
+
+/* Refined admin visual system: compact, tactile, mobile-first, Bootstrap-like ergonomics. */
+a, button { transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+.primary-button {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  box-shadow: 0 8px 18px rgba(124,58,237,.18);
+}
+.primary-button:hover { transform: translateY(-1px); box-shadow: 0 12px 24px rgba(124,58,237,.22); }
+.ghost-button:hover, .icon-button:hover {
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.panel { box-shadow: var(--shadow); }
+.panel:hover { box-shadow: var(--shadow-hover); }
+.form-stack input::placeholder, .form-stack textarea::placeholder { color: #9ca3af; }
+.form-stack input[type="color"] {
+  min-height: 52px;
+  padding: 5px;
+  cursor: pointer;
+}
+.check-row:hover, .stack-row:hover, .entity-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+  background: color-mix(in srgb, var(--accent-soft) 32%, var(--surface-soft));
+}
+.status-pill {
+  border: 1px solid color-mix(in srgb, var(--success) 16%, transparent);
+}
+.module-header, .trend-page-header {
+  position: relative;
+}
+.module-header::after, .trend-page-header::after {
+  content: "";
+  display: block;
+  width: 54px;
+  height: 4px;
+  margin-top: 11px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), transparent);
 }

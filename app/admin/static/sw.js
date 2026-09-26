@@ -1,4 +1,4 @@
-const CACHE = "altakhfidalsh-admin-v4";
+const CACHE = "altakhfidalsh-admin-v5";
 const STATIC_SHELL = [
   "/admin/static/admin.css",
   "/admin/static/admin.js",
@@ -47,14 +47,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Admin pages: network-first, cached fallback only when offline.
+  // Authenticated admin HTML is intentionally never persisted in the cache.
+  // Static assets remain cacheable; pages always come from the network.
   if (event.request.mode === "navigate" || url.pathname.startsWith("/admin/")) {
-    event.respondWith(
-      fetch(event.request).then(response => {
-        const copy = response.clone();
-        caches.open(CACHE).then(cache => cache.put(event.request, copy));
-        return response;
-      }).catch(() => caches.match(event.request).then(cached => cached || caches.match("/admin/")))
-    );
+    event.respondWith(fetch(event.request));
   }
 });
