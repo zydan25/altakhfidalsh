@@ -573,3 +573,175 @@ def test_product_edit_renders_reference_seed_and_quick_color_can_be_linked(clien
     assert response.status_code == 200
     selected = {row["id"] for row in response.get_json()["item"]["colors"] if row["selected"]}
     assert selected == {existing_id, created_id}
+
+
+def test_rectangular_trend_requires_hashtag_products_and_exposes_public_contract(client, app):
+    from io import BytesIO
+    from PIL import Image
+    from app.models import Hashtag, MediaAsset, ProductHashtag, ProductMedia, Trend, TrendProduct
+
+    with client.session_transaction() as session:
+        session["admin_id"] = 1
+
+    with app.app_context():
+        currency = Currency(code="SAR", name_ar="ريال سعودي", is_base=True)
+        hashtag = Hashtag(
+            name="عودة_التراث",
+            slug="heritage-return",
+            display_name="#عودة_التراث",
+            sort_order=1,
+        )
+        db.session.add_all([currency, hashtag])
+        db.session.flush()
+
+        product_ids = []
+        for index in range(1, 4):
+            product = Product(
+                sku=f"TREND-TEST-{index:03d}",
+                name=f"منتج الترند {index}",
+                slug=f"trend-test-{index}",
+                base_currency_id=currency.id,
+                base_price=100 + index,
+                status="published",
+                is_active=True,
+            )
+            db.session.add(product)
+            db.session.flush()
+
+            asset = MediaAsset(
+                storage_key=f"trends/test-product-{index}.webp",
+                url=f"/media/trends/test-product-{index}.webp",
+                mime_type="image/webp",
+                width=600,
+                height=600,
+                size_bytes=1000,
+            )
+            db.session.add(asset)
+            db.session.flush()
+            db.session.add(ProductMedia(
+                product_id=product.id,
+                asset_id=asset.id,
+                role="gallery",
+                sort_order=0,
+            ))
+            db.session.add(ProductHashtag(product_id=product.id, hashtag_id=hashtag.id))
+            product_ids.append(product.id)
+
+        db.session.commit()
+        hashtag_id = hashtag.id
+
+    image = Image.new("RGB", (1200, 520), (30, 30, 45))
+    buffer = BytesIO()
+    image.save(buffer, format="JPEG")
+    buffer.seek(0)
+
+    response = client.post(
+        "/admin/trends",
+        data={
+            "action": "create",
+            "hashtag_id": str(hashtag_id),
+            "promo_text": "اختيارنا لأجمل القطع التراثية",
+            "duration_days": "8",
+            "sort_order": "1",
+            "status": "active",
+            "product_ids": [str(product_id) for product_id in product_ids],
+            "background_image_file": (buffer, "trend-background.jpg"),
+        },
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 200
+    assert "تم إنشاء الترند المستطيل" in response.get_data(as_text=True)
+
+    with app.app_context():
+        trend = Trend.query.one()
+        assignments = (
+            TrendProduct.query
+            .filter_by(trend_id=trend.id)
+            .order_by(TrendProduct.slot)
+            .all()
+        )
+        assert trend.hashtag_id == hashtag_id
+        assert len(assignments) == 3
+        assert [row.product_id for row in assignments] == product_ids
+        assert [row.slot for row in assignments] == [0, 1, 2]
+
+    response = client.get("/api/v1/catalog/reference/hashtag-products?hashtag_id={}".format(hashtag_id))
+    assert response.status_code == 200
+    assert [item["id"] for item in response.get_json()["items"]] == list(reversed(product_ids))
+
+    response = client.get("/api/v1/catalog/trends")
+    assert response.status_code == 200
+    payload = response.get_json()["items"]
+    assert len(payload) == 1
+    assert payload[0]["hashtag"]["display_name"] == "#عودة_التراث"
+    assert payload[0]["promo_text"] == "اختيارنا لأجمل القطع التراثية"
+    assert payload[0]["background"]["url"].startswith("/media/trends/")
+    assert [item["product"]["id"] for item in payload[0]["products"]] == product_ids
+    assert [item["slot"] for item in payload[0]["products"]] == [0, 1, 2]
+
+
+def test_rectangular_trend_rejects_products_not_linked_to_selected_hashtag(client, app):
+    from io import BytesIO
+    from PIL import Image
+    from app.models import Hashtag, ProductHashtag
+
+    with client.session_transaction() as session:
+        session["admin_id"] = 1
+
+    with app.app_context():
+        currency = Currency(code="SAR2", name_ar="ريال سعودي 2", is_base=True)
+        hashtag = Hashtag(name="وسم ترند", slug="trend-tag-invalid", display_name="#وسم_ترند")
+        db.session.add_all([currency, hashtag])
+        db.session.flush()
+
+        linked_ids = []
+        for index in range(1, 3):
+            product = Product(
+                sku=f"TREND-LINKED-{index:03d}",
+                name=f"مرتبط {index}",
+                slug=f"trend-linked-{index}",
+                base_currency_id=currency.id,
+                base_price=50,
+                status="published",
+                is_active=True,
+            )
+            db.session.add(product)
+            db.session.flush()
+            db.session.add(ProductHashtag(product_id=product.id, hashtag_id=hashtag.id))
+            linked_ids.append(product.id)
+
+        unrelated = Product(
+            sku="TREND-UNRELATED-003",
+            name="غير مرتبط",
+            slug="trend-unrelated-3",
+            base_currency_id=currency.id,
+            base_price=50,
+            status="published",
+            is_active=True,
+        )
+        db.session.add(unrelated)
+        db.session.commit()
+        hashtag_id = hashtag.id
+        unrelated_id = unrelated.id
+
+    image = Image.new("RGB", (900, 400), (50, 50, 60))
+    buffer = BytesIO()
+    image.save(buffer, format="JPEG")
+    buffer.seek(0)
+
+    response = client.post(
+        "/admin/trends",
+        data={
+            "action": "create",
+            "hashtag_id": str(hashtag_id),
+            "promo_text": "ترند غير صالح",
+            "duration_days": "8",
+            "sort_order": "0",
+            "status": "draft",
+            "product_ids": [str(linked_ids[0]), str(linked_ids[1]), str(unrelated_id)],
+            "background_image_file": (buffer, "invalid-trend.jpg"),
+        },
+        content_type="multipart/form-data",
+    )
+    assert response.status_code == 200
+    assert "كل المنتجات المختارة يجب أن تكون مرتبطة بالهاشتاج الرئيسي" in response.get_data(as_text=True)

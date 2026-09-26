@@ -34,7 +34,7 @@ from ..models import (
 )
 from .context import build_admin_context
 from ..modules.commerce.services import CommerceService
-from ..modules.catalog.services import MediaService
+from ..modules.catalog.services import CatalogService, MediaService
 from ..modules.support.services import SupportService
 
 
@@ -964,52 +964,221 @@ def register_entity_views(admin_bp):
 
     @admin_bp.route("/trends", methods=["GET", "POST"])
     def trends():
-        from ..models import Hashtag
+        from ..models import (
+            Hashtag,
+            MediaAsset,
+            Product,
+            ProductHashtag,
+            Trend,
+            TrendProduct,
+        )
         error = None
         success = None
+
         if request.method == "POST":
+            action = (request.form.get("action") or "create").strip()
             try:
-                name = (request.form.get("name") or "").strip()
-                display_name = (request.form.get("display_name") or "").strip() or None
-                slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(Hashtag, display_name or name, fallback="tag")
-                if not name:
-                    raise ValueError("اسم الهاشتاج مطلوب.")
-                if Hashtag.query.filter_by(slug=slug).first():
-                    raise ValueError("الـSlug مستخدم مسبقًا.")
-                db.session.add(Hashtag(
-                    name=name,
-                    slug=slug,
-                    display_name=display_name,
-                    sort_order=request.form.get("sort_order", 0, type=int),
-                ))
-                db.session.commit()
-                success = "تمت إضافة الهاشتاج."
-            except (ValueError, TypeError) as exc:
+                trend_id = request.form.get("id", type=int)
+                hashtag_id = request.form.get("hashtag_id", type=int)
+                promo_text = (request.form.get("promo_text") or "").strip()
+                duration_days = request.form.get("duration_days", type=int) or 8
+                sort_order = request.form.get("sort_order", type=int) or 0
+                status = (request.form.get("status") or "draft").strip().lower()
+                product_ids = request.form.getlist("product_ids", type=int)
+
+                if action in {"create", "update"}:
+                    if not hashtag_id:
+                        raise ValueError("الهاشتاج الرئيسي مطلوب.")
+                    if not promo_text:
+                        raise ValueError("النص الترويجي مطلوب.")
+                    if duration_days < 1:
+                        raise ValueError("مدة العرض يجب أن تكون يومًا واحدًا على الأقل.")
+                    if status not in {"draft", "active"}:
+                        raise ValueError("حالة الترند غير صحيحة.")
+
+                    product_ids = CatalogService.validate_trend_product_selection(
+                        hashtag_id,
+                        product_ids,
+                    )
+
+                    trend = db.session.get(Trend, trend_id) if action == "update" else None
+                    if action == "update" and trend is None:
+                        raise ValueError("الترند غير موجود.")
+
+                    image_file = request.files.get("background_image_file")
+                    if image_file and image_file.filename:
+                        assets = MediaService.save_generic_files([image_file], "trends")
+                        if not assets:
+                            raise ValueError("تعذر حفظ صورة خلفية الترند.")
+                        background_asset_id = assets[0]["id"]
+                    elif action == "create":
+                        raise ValueError("صورة الخلفية مطلوبة.")
+                    else:
+                        background_asset_id = trend.background_asset_id
+
+                    if action == "create":
+                        trend = Trend(
+                            hashtag_id=hashtag_id,
+                            promo_text=promo_text,
+                            duration_days=duration_days,
+                            background_asset_id=background_asset_id,
+                            status=status,
+                            sort_order=sort_order,
+                            is_active=True,
+                        )
+                        db.session.add(trend)
+                        db.session.flush()
+                        message = "تم إنشاء الترند المستطيل."
+                    else:
+                        trend.hashtag_id = hashtag_id
+                        trend.promo_text = promo_text
+                        trend.duration_days = duration_days
+                        trend.background_asset_id = background_asset_id
+                        trend.status = status
+                        trend.sort_order = sort_order
+                        trend.is_active = True
+                        message = "تم تحديث الترند المستطيل."
+
+                    TrendProduct.query.filter_by(trend_id=trend.id).delete()
+                    db.session.add_all([
+                        TrendProduct(trend_id=trend.id, product_id=product_id, slot=slot)
+                        for slot, product_id in enumerate(product_ids)
+                    ])
+                    db.session.commit()
+                    success = message
+
+                elif action == "archive":
+                    trend = db.session.get(Trend, trend_id)
+                    if trend is None:
+                        raise ValueError("الترند غير موجود.")
+                    trend.is_active = False
+                    db.session.commit()
+                    success = "تمت أرشفة الترند."
+
+                elif action == "restore":
+                    trend = db.session.get(Trend, trend_id)
+                    if trend is None:
+                        raise ValueError("الترند غير موجود.")
+                    trend.is_active = True
+                    trend.status = "draft"
+                    db.session.commit()
+                    success = "تمت إعادة الترند كمسودة."
+
+                elif action == "hashtag_create":
+                    name = (request.form.get("name") or "").strip()
+                    display_name = (request.form.get("display_name") or "").strip() or None
+                    slug = (
+                        (request.form.get("slug") or "").strip().lower()
+                        or _unique_slug(Hashtag, display_name or name, fallback="tag")
+                    )
+                    if not name:
+                        raise ValueError("اسم الهاشتاج مطلوب.")
+                    if Hashtag.query.filter_by(slug=slug).first():
+                        raise ValueError("الـSlug مستخدم مسبقًا.")
+                    db.session.add(Hashtag(
+                        name=name,
+                        slug=slug,
+                        display_name=display_name,
+                        sort_order=request.form.get("hashtag_sort_order", 0, type=int),
+                    ))
+                    db.session.commit()
+                    success = "تمت إضافة الهاشتاج."
+
+                else:
+                    raise ValueError("إجراء الترند غير معروف.")
+            except (ValueError, TypeError, OSError) as exc:
                 db.session.rollback()
                 error = str(exc)
-        rows = Hashtag.query.filter_by(is_active=True).order_by(Hashtag.sort_order, Hashtag.id.desc()).limit(300).all()
-        records = [
-            {
-                "title": row.display_name or row.name,
-                "badge": f"#{row.id}",
-                "fields": [
-                    {"label": "Slug", "value": row.slug, "dir": "ltr"},
-                    {"label": "الاسم الداخلي", "value": row.name},
-                    {"label": "الترتيب", "value": row.sort_order},
-                ],
-            }
-            for row in rows
-        ]
+
+        hashtags = (
+            Hashtag.query
+            .filter(Hashtag.is_active.is_(True))
+            .order_by(Hashtag.sort_order, Hashtag.name)
+            .limit(500)
+            .all()
+        )
+        hashtag_map = {
+            int(hashtag.id): (hashtag.display_name or f"#{hashtag.name}")
+            for hashtag in hashtags
+        }
+
+        hashtag_products_count = {
+            int(hashtag.id): ProductHashtag.query
+            .join(Product, Product.id == ProductHashtag.product_id)
+            .filter(
+                ProductHashtag.hashtag_id == hashtag.id,
+                Product.is_active.is_(True),
+                Product.status == "published",
+            )
+            .count()
+            for hashtag in hashtags
+        }
+
+        active_trends = (
+            Trend.query
+            .filter(Trend.is_active.is_(True))
+            .order_by(Trend.sort_order, Trend.id.desc())
+            .limit(100)
+            .all()
+        )
+        archived_trends = (
+            Trend.query
+            .filter(Trend.is_active.is_(False))
+            .order_by(Trend.id.desc())
+            .limit(100)
+            .all()
+        )
+
+        trend_seeds = []
+        for trend in active_trends:
+            background = db.session.get(MediaAsset, trend.background_asset_id)
+            selected_products = []
+            for assignment in (
+                TrendProduct.query
+                .filter_by(trend_id=trend.id)
+                .order_by(TrendProduct.slot, TrendProduct.id)
+                .all()
+            ):
+                product = db.session.get(Product, assignment.product_id)
+                if product is None:
+                    continue
+                selected_products.append({
+                    "slot": assignment.slot,
+                    "product": CatalogService._serialize_trend_product(product),
+                })
+            trend_seeds.append({
+                "id": trend.id,
+                "hashtag_id": trend.hashtag_id,
+                "promo_text": trend.promo_text,
+                "duration_days": trend.duration_days,
+                "sort_order": trend.sort_order,
+                "status": trend.status,
+                "is_active": bool(trend.is_active),
+                "background_url": background.url if background else "",
+                "products": selected_products,
+            })
+
         return render_template(
-            "admin/manage.html", title="الترندات والهاشتاجات", section="المحتوى والمتجر",
-            description="أضف الهاشتاج من النافذة المنبثقة، والـSlug يتم توليده تلقائيًا ويمكن تعديله قبل الحفظ.",
-            fields=[
-                {"name": "name", "label": "الاسم", "required": True, "placeholder": "مثال: عروض_العيد"},
-                {"name": "slug", "label": "Slug", "dir": "ltr", "placeholder": "يُولد تلقائيًا", "help": "يمكنك تعديل القيمة المقترحة."},
-                {"name": "display_name", "label": "اسم العرض", "placeholder": "#عروض_العيد"},
-                {"name": "sort_order", "label": "الترتيب", "type": "number", "value": 0, "min": 0},
+            "admin/trends.html",
+            title="الترندات والهاشتاجات",
+            section="المحتوى والمتجر",
+            hashtags=hashtags,
+            hashtag_map=hashtag_map,
+            hashtag_products_count=hashtag_products_count,
+            active_trends=active_trends,
+            archived_trends=archived_trends,
+            trend_seeds=trend_seeds,
+            hashtag_seeds=[
+                {
+                    "id": hashtag.id,
+                    "name": hashtag.name,
+                    "display_name": hashtag.display_name or f"#{hashtag.name}",
+                    "slug": hashtag.slug,
+                }
+                for hashtag in hashtags
             ],
-            records=records, modal_id="hashtagAddModal", success=success, error=error,
+            error=error,
+            success=success,
             **_ctx(),
         )
 

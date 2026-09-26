@@ -38,6 +38,8 @@ from ...models import (
     ProductPromotionalStrip,
     Campaign,
     CampaignProduct,
+    Trend,
+    TrendProduct,
     SizeGuide,
     ProductColorReference,
     ProductSizeReference,
@@ -1177,6 +1179,186 @@ class CatalogService:
                 "publish": bool(categories and variants and media),
             },
         }
+
+
+    @staticmethod
+    def validate_trend_product_selection(hashtag_id, product_ids):
+        hashtag = db.session.get(Hashtag, int(hashtag_id))
+        if hashtag is None:
+            raise ValueError("الهاشتاج المختار غير موجود.")
+        if not hashtag.is_active:
+            raise ValueError("لا يمكن ربط ترند بهاشتاج مؤرشف.")
+
+        normalized = []
+        for raw in product_ids or []:
+            product_id = int(raw)
+            if product_id not in normalized:
+                normalized.append(product_id)
+        if len(normalized) != 3:
+            raise ValueError("يجب اختيار 3 منتجات للترند بالضبط.")
+
+        products = Product.query.filter(
+            Product.id.in_(normalized),
+            Product.is_active.is_(True),
+            Product.status == "published",
+        ).all()
+        if len(products) != 3:
+            raise ValueError("يجب أن تكون المنتجات الثلاثة منشورة ونشطة.")
+
+        linked_ids = {
+            product_id
+            for (product_id,) in db.session.query(ProductHashtag.product_id)
+            .filter(
+                ProductHashtag.hashtag_id == hashtag.id,
+                ProductHashtag.product_id.in_(normalized),
+            )
+            .all()
+        }
+        if any(product_id not in linked_ids for product_id in normalized):
+            raise ValueError("كل المنتجات المختارة يجب أن تكون مرتبطة بالهاشتاج الرئيسي.")
+        return normalized
+
+    @staticmethod
+    def set_trend_products(trend_id, hashtag_id, product_ids):
+        trend = db.session.get(Trend, trend_id)
+        if trend is None:
+            raise LookupError("trend not found")
+
+        normalized = CatalogService.validate_trend_product_selection(hashtag_id, product_ids)
+        TrendProduct.query.filter_by(trend_id=trend.id).delete()
+        for slot, product_id in enumerate(normalized):
+            db.session.add(TrendProduct(
+                trend_id=trend.id,
+                product_id=product_id,
+                slot=slot,
+            ))
+        db.session.commit()
+        return normalized
+
+    @staticmethod
+    def trend_product_candidates(hashtag_id, limit=100):
+        hashtag = db.session.get(Hashtag, int(hashtag_id))
+        if hashtag is None:
+            raise LookupError("hashtag not found")
+
+        products = (
+            Product.query
+            .join(ProductHashtag, ProductHashtag.product_id == Product.id)
+            .filter(
+                ProductHashtag.hashtag_id == hashtag.id,
+                Product.is_active.is_(True),
+                Product.status == "published",
+            )
+            .order_by(Product.id.desc())
+            .limit(min(max(int(limit), 1), 200))
+            .all()
+        )
+        items = []
+        for product in products:
+            media = (
+                db.session.query(MediaAsset)
+                .join(ProductMedia, ProductMedia.asset_id == MediaAsset.id)
+                .filter(ProductMedia.product_id == product.id)
+                .order_by(ProductMedia.sort_order, ProductMedia.id)
+                .first()
+            )
+            brand = db.session.get(Brand, product.brand_id) if product.brand_id else None
+            items.append({
+                "id": product.id,
+                "sku": product.sku,
+                "name": product.name,
+                "slug": product.slug,
+                "price": str(product.base_price),
+                "compare_at_price": str(product.compare_at_price) if product.compare_at_price is not None else None,
+                "brand": {
+                    "id": brand.id,
+                    "name": brand.name,
+                } if brand else None,
+                "image_url": media.url if media else None,
+            })
+        return items
+
+    @staticmethod
+    def _serialize_trend_product(product):
+        media = (
+            db.session.query(MediaAsset)
+            .join(ProductMedia, ProductMedia.asset_id == MediaAsset.id)
+            .filter(ProductMedia.product_id == product.id)
+            .order_by(ProductMedia.sort_order, ProductMedia.id)
+            .first()
+        )
+        brand = db.session.get(Brand, product.brand_id) if product.brand_id else None
+        return {
+            "id": product.id,
+            "sku": product.sku,
+            "name": product.name,
+            "slug": product.slug,
+            "price": str(product.base_price),
+            "compare_at_price": str(product.compare_at_price) if product.compare_at_price is not None else None,
+            "brand": {
+                "id": brand.id,
+                "name": brand.name,
+            } if brand else None,
+            "image_url": media.url if media else None,
+        }
+
+    @staticmethod
+    def serialize_public_trend(trend):
+        hashtag = db.session.get(Hashtag, trend.hashtag_id)
+        background = db.session.get(MediaAsset, trend.background_asset_id)
+        assignments = (
+            TrendProduct.query
+            .filter_by(trend_id=trend.id)
+            .order_by(TrendProduct.slot, TrendProduct.id)
+            .all()
+        )
+        products = []
+        for assignment in assignments:
+            product = db.session.get(Product, assignment.product_id)
+            if not product or not product.is_active or product.status != "published":
+                continue
+            products.append({
+                "slot": assignment.slot,
+                "product": CatalogService._serialize_trend_product(product),
+            })
+        return {
+            "id": trend.id,
+            "hashtag": {
+                "id": hashtag.id,
+                "name": hashtag.name,
+                "slug": hashtag.slug,
+                "display_name": hashtag.display_name or f"#{hashtag.name}",
+            } if hashtag else None,
+            "promo_text": trend.promo_text,
+            "duration_days": trend.duration_days,
+            "status": trend.status,
+            "background": {
+                "id": background.id,
+                "url": background.url,
+                "width": background.width,
+                "height": background.height,
+            } if background else None,
+            "products": products,
+        }
+
+    @staticmethod
+    def list_public_trends(limit=20):
+        rows = (
+            Trend.query
+            .filter(
+                Trend.is_active.is_(True),
+                Trend.status == "active",
+            )
+            .order_by(Trend.sort_order, Trend.id.desc())
+            .limit(min(max(int(limit), 1), 50))
+            .all()
+        )
+        items = []
+        for trend in rows:
+            payload = CatalogService.serialize_public_trend(trend)
+            if payload["hashtag"] and payload["background"] and len(payload["products"]) == 3:
+                items.append(payload)
+        return items
 
 
 class MediaService:

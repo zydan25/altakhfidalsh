@@ -523,6 +523,37 @@ def create_hashtag_reference():
     return {"item": {"id": row.id, "name": row.name, "slug": row.slug, "display_name": row.display_name, "is_active": bool(row.is_active)}}, 201
 
 
+@api_bp.get("/trends")
+def public_trends():
+    limit = min(max(request.args.get("limit", 20, type=int), 1), 50)
+    return {"items": CatalogService.list_public_trends(limit=limit)}
+
+
+@api_bp.get("/trends/<int:trend_id>")
+def public_trend_detail(trend_id):
+    from ...models import Trend
+    trend = db.session.get(Trend, trend_id)
+    if trend is None or not trend.is_active or trend.status != "active":
+        return {"error": "not_found", "detail": "trend not found"}, 404
+    payload = CatalogService.serialize_public_trend(trend)
+    if not payload["hashtag"] or not payload["background"] or len(payload["products"]) != 3:
+        return {"error": "not_found", "detail": "trend not available"}, 404
+    return {"item": payload}
+
+
+@api_bp.get("/reference/hashtag-products")
+@admin_api_required("product.edit")
+def hashtag_product_references():
+    hashtag_id = request.args.get("hashtag_id", type=int)
+    if not hashtag_id:
+        return {"error": "invalid_hashtag", "detail": "معرّف الهاشتاج مطلوب."}, 400
+    try:
+        items = CatalogService.trend_product_candidates(hashtag_id, limit=request.args.get("limit", 100, type=int) or 100)
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    return {"items": items}
+
+
 @api_bp.post("/reference/promotional-strips")
 @admin_api_required("product.edit")
 def create_promotional_strip_reference():
