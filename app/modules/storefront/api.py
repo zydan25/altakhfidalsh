@@ -4,7 +4,7 @@ from flask import request
 from . import api_bp
 from ...security import admin_api_required
 from ...extensions import db
-from ...models import Banner, BannerTarget, Campaign, Category, Hashtag, Look, LookProduct, MediaAsset, Product, StorefrontPage, StorefrontSection, StorefrontSectionItem
+from ...models import Banner, BannerTarget, Campaign, Category, Hashtag, Look, LookProduct, LookCircle, SideCategory, SideCategoryCircle, MediaAsset, Product, StorefrontPage, StorefrontSection, StorefrontSectionItem
 from sqlalchemy import or_
 
 
@@ -249,9 +249,27 @@ def looks():
                 "slug": look.slug,
                 "description": look.description,
                 "cover_url": asset_urls.get(look.cover_asset_id),
+                "starts_at": look.starts_at.isoformat() if look.starts_at else None,
+                "ends_at": look.ends_at.isoformat() if look.ends_at else None,
                 "products": [
                     item.product_id
                     for item in LookProduct.query.filter_by(look_id=look.id).order_by(LookProduct.sort_order, LookProduct.id).all()
+                ],
+                "circles": [
+                    {
+                        "id": circle.id,
+                        "name": circle.name,
+                        "slug": circle.slug,
+                        "side_category_id": circle.side_category_id,
+                        "sort_order": link.sort_order,
+                        "image_url": (
+                            MediaAsset.query.get(circle.image_asset_id).url
+                            if circle.image_asset_id else None
+                        ),
+                    }
+                    for link in LookCircle.query.filter_by(look_id=look.id).order_by(LookCircle.sort_order, LookCircle.id).all()
+                    for circle in [db.session.get(SideCategoryCircle, link.circle_id)]
+                    if circle is not None and circle.is_active
                 ],
             }
             for look in rows
