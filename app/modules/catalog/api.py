@@ -180,9 +180,14 @@ def public_product_feed():
     from sqlalchemy import or_
     query = Product.query.filter(Product.is_active.is_(True), Product.status == "published")
     category_id = request.args.get("category_id", type=int)
+    circle_id = request.args.get("circle_id", type=int)
     if category_id:
         query = query.join(ProductCategory, ProductCategory.product_id == Product.id).filter(
             ProductCategory.category_id == category_id
+        )
+    if circle_id:
+        query = query.join(ProductSideCategoryCircle, ProductSideCategoryCircle.product_id == Product.id).filter(
+            ProductSideCategoryCircle.circle_id == circle_id
         )
     search = (request.args.get("q") or "").strip()
     if search:
