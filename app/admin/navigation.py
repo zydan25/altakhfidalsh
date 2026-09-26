@@ -52,7 +52,7 @@ NAVIGATION = [
         NavItem("أسعار الصرف (SAR)", "/admin/pricing/exchange-rates", "↻"),
         NavItem("المدن والمناطق", "/admin/geo", "⌖"),
         NavItem("تطبيق مجموعات التسعير", "/admin/pricing/location-assignments", "↔"),
-        NavItem("استثناءات العملاء", "/admin/pricing/customer-assignments", "♙"),
+        NavItem("استثناءات العملاء", "/admin/pricing/customer-overrides", "♙"),
         NavItem("معاينة السعر", "/admin/pricing/preview", "≈"),
     ]),
     NavSection("المبيعات والطلبات", "▣", [
