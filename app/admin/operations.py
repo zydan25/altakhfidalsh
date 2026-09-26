@@ -424,7 +424,20 @@ def register_operation_routes(admin_bp):
                     look.slug = slug
                     look.description = (request.form.get("description") or "").strip() or None
                     look.status = (request.form.get("status") or "draft").strip()
+                    if look.status not in {"draft", "active"}:
+                        raise ValueError("حالة الإطلالة غير صحيحة.")
                     look.sort_order = request.form.get("sort_order", 0, type=int) or 0
+                    from datetime import datetime, timezone
+                    def parse_look_dt(value):
+                        value = (value or "").strip()
+                        if not value:
+                            return None
+                        dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+                    look.starts_at = parse_look_dt(request.form.get("starts_at"))
+                    look.ends_at = parse_look_dt(request.form.get("ends_at"))
+                    if look.starts_at and look.ends_at and look.ends_at < look.starts_at:
+                        raise ValueError("نهاية جدولة الإطلالة يجب أن تكون بعد البداية.")
                     cover = request.files.get("cover_image")
                     if cover and cover.filename:
                         assets = MediaService.save_generic_files([cover], "looks")
@@ -454,6 +467,26 @@ def register_operation_routes(admin_bp):
                         if row:
                             db.session.delete(row)
                         success = "تمت إزالة المنتج من الإطلالة."
+                elif action == "look_add_circles":
+                    look_id = request.form.get("look_id", type=int)
+                    circle_ids = [int(x) for x in request.form.getlist("circle_id") if str(x).isdigit()]
+                    if db.session.get(Look, look_id) is None:
+                        raise ValueError("الإطلالة غير موجودة.")
+                    created = 0
+                    for circle_id in circle_ids:
+                        circle = db.session.get(SideCategoryCircle, circle_id)
+                        if circle is None or not circle.is_active:
+                            continue
+                        if not LookCircle.query.filter_by(look_id=look_id, circle_id=circle_id).first():
+                            db.session.add(LookCircle(
+                                look_id=look_id,
+                                circle_id=circle_id,
+                                sort_order=request.form.get("sort_order", 0, type=int) or 0,
+                            ))
+                            created += 1
+                    if not created:
+                        raise ValueError("اختر فئة دائرية واحدة على الأقل.")
+                    success = f"تم ربط {created} فئة دائرية بالإطلالة."
                 elif action in {"look_add_circle", "look_remove_circle"}:
                     look_id = request.form.get("look_id", type=int)
                     circle_id = request.form.get("circle_id", type=int)
