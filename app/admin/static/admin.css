@@ -1413,3 +1413,96 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .look-card-head h3 { margin:0 0 2px; }
 @media (max-width:899px) { .look-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:559px) { .look-grid { grid-template-columns:1fr; } }
+
+
+/* Mobile-first storefront banner studio. */
+.banner-admin-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.banner-admin-card { display:grid; gap:12px; overflow:hidden; }
+.banner-preview-shell { width:100%; display:grid; place-items:center; }
+.banner-preview-image {
+  position:relative; width:100%; aspect-ratio:16/7; border-radius:18px; overflow:hidden;
+  background-size:cover; background-position:center; background-repeat:no-repeat; isolation:isolate;
+}
+.banner-preview-overlay { position:absolute; inset:0; z-index:0; pointer-events:none; }
+.banner-preview-content {
+  position:absolute; inset:0; z-index:1; padding:16px; display:flex; flex-direction:column;
+  gap:6px; max-width:88%; justify-content:center;
+}
+.banner-pos-top_left,.banner-pos-top_center,.banner-pos-top_right { justify-content:flex-start; }
+.banner-pos-bottom_left,.banner-pos-bottom_center,.banner-pos-bottom_right { justify-content:flex-end; }
+.banner-pos-top_left,.banner-pos-center_left,.banner-pos-bottom_left { align-items:flex-start; text-align:start; }
+.banner-pos-top_center,.banner-pos-center,.banner-pos-bottom_center { align-items:center; text-align:center; }
+.banner-pos-top_right,.banner-pos-center_right,.banner-pos-bottom_right { align-items:flex-end; text-align:end; }
+.banner-preview-content strong { font-size:clamp(18px,2.3vw,28px); line-height:1.15; }
+.banner-preview-content p { margin:0; font-size:clamp(11px,1.2vw,15px); line-height:1.55; }
+.banner-preview-button { display:inline-flex; align-items:center; justify-content:center; padding:8px 13px; border-radius:999px; font-size:12px; font-weight:900; }
+.banner-floating-text { padding:5px 9px; border-radius:999px; background:rgba(0,0,0,.18); font-size:10px; font-weight:800; }
+.banner-duration-badge { position:absolute; top:9px; inset-inline-end:9px; z-index:2; padding:5px 8px; border-radius:999px; background:rgba(0,0,0,.58); color:#fff; font-size:10px; font-weight:900; }
+.banner-admin-head { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+.banner-admin-head h3 { margin:3px 0 2px; font-size:18px; }
+.banner-admin-actions { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.banner-meta-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
+.banner-meta-grid > div { padding:9px; border-radius:12px; border:1px solid var(--border); background:var(--surface-soft); min-width:0; }
+.banner-meta-grid span { display:block; font-size:10px; color:var(--muted); }
+.banner-meta-grid strong { display:block; margin-top:2px; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.banner-targets { display:grid; gap:7px; padding-top:3px; }
+.banner-target-header { display:flex; justify-content:space-between; gap:8px; }
+.banner-target-chip { display:inline-flex; align-items:center; gap:6px; padding:6px 9px; border-radius:999px; border:1px solid var(--border); background:var(--surface-soft); font-size:11px; }
+.banner-target-chip form { display:contents; }
+.chip-delete { border:0; background:transparent; color:var(--muted); cursor:pointer; padding:0; min-height:auto; }
+.banner-category-tree { display:grid; gap:6px; max-height:260px; overflow:auto; padding:8px; border:1px solid var(--border); border-radius:14px; background:var(--surface-soft); }
+.banner-category-tree details { border:1px solid var(--border); border-radius:12px; padding:7px 9px; background:var(--surface); }
+.tree-check-row { display:flex; align-items:center; gap:8px; min-height:30px; font-weight:800; }
+.tree-check-row.nested { margin-inline-start:18px; font-size:12px; }
+.banner-sort-panel { margin-bottom:14px; }
+.banner-sort-list { display:grid; gap:7px; }
+.banner-sort-card { display:grid; grid-template-columns:auto 48px 1fr auto; gap:9px; align-items:center; padding:8px; border:1px solid var(--border); border-radius:13px; background:var(--surface); cursor:grab; }
+.banner-sort-card.is-dragging { opacity:.6; }
+.banner-sort-card img { width:48px; height:30px; object-fit:cover; border-radius:8px; background:var(--surface-soft); }
+.banner-sort-card strong,.banner-sort-card small { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.drag-handle { color:var(--muted); font-size:15px; letter-spacing:-4px; }
+.banner-style-note { padding:10px 12px; border:1px dashed var(--border); border-radius:12px; background:var(--surface-soft); display:grid; gap:3px; }
+.pricing-location-formula { display:flex; justify-content:space-between; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:14px; }
+.pricing-location-formula strong { display:block; margin-top:4px; font-size:15px; }
+.pricing-location-table { margin-bottom:14px; }
+.pricing-location-table small { display:block; color:var(--muted); font-size:10px; }
+.price-up { font-weight:900; }
+.price-down { font-weight:900; }
+.location-sign-hint { display:flex; gap:7px; flex-wrap:wrap; }
+.location-sign-hint span { padding:6px 9px; border:1px solid var(--border); border-radius:999px; background:var(--surface-soft); font-size:11px; }
+.geo-mobile-tree { display:grid; gap:8px; }
+.geo-node { border:1px solid var(--border); border-radius:15px; background:var(--surface); overflow:hidden; }
+.geo-node > summary { list-style:none; display:flex; justify-content:space-between; align-items:center; gap:8px; padding:10px 12px; cursor:pointer; }
+.geo-node > summary::-webkit-details-marker { display:none; }
+.geo-node > summary > div { min-width:0; }
+.geo-node > summary strong,.geo-node > summary small { display:block; }
+.geo-node > summary small { margin-top:2px; }
+.geo-node > summary > span { flex:0 0 auto; font-size:11px; color:var(--muted); }
+.geo-node-children { display:grid; gap:7px; padding:0 9px 9px; }
+.geo-region { border-radius:13px; }
+.geo-city { border-radius:12px; }
+.geo-area-grid { display:grid; gap:6px; padding:7px; background:var(--surface-soft); border-top:1px solid var(--border); }
+.geo-area-row { display:flex; justify-content:space-between; gap:8px; align-items:center; padding:8px 9px; border:1px dashed var(--border); border-radius:10px; background:var(--surface); }
+.geo-area-row strong,.geo-area-row small { display:block; }
+.geo-area-row small { margin-top:1px; }
+.direction-tag,.auto-code-badge { padding:5px 8px; border-radius:999px; background:var(--accent-soft); color:var(--accent); font-size:10px; font-weight:900; }
+.geo-highlight-card { border-color:color-mix(in srgb,var(--accent) 32%,var(--border)); }
+.compact-empty { padding:10px; margin:0; }
+
+@media (max-width:899px) {
+  .banner-admin-grid { grid-template-columns:1fr; }
+  .banner-meta-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width:559px) {
+  .banner-preview-image { aspect-ratio:16/8; border-radius:14px; }
+  .banner-preview-content { padding:12px; gap:5px; max-width:94%; }
+  .banner-preview-content strong { font-size:18px; }
+  .banner-preview-content p { font-size:11px; }
+  .banner-preview-button { padding:7px 11px; font-size:11px; }
+  .banner-admin-head { flex-direction:column; }
+  .banner-admin-actions { justify-content:flex-start; }
+  .banner-sort-card { grid-template-columns:auto 44px 1fr auto; }
+  .banner-sort-card img { width:44px; height:28px; }
+  .pricing-location-formula strong { font-size:13px; }
+  .geo-node > summary { padding:9px 10px; }
+}
