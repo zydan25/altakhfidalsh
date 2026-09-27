@@ -118,8 +118,15 @@
         <label>عنوان فوق الصورة<input name="title" value="{{ banner.title or '' }}" placeholder="العنوان الرئيسي"></label>
         <label>وصف مختصر<textarea name="description" rows="3">{{ banner.description or '' }}</textarea></label>
         <label>نص عائم<input name="overlay_text" value="{{ banner.overlay_text or '' }}" placeholder="خصم اليوم فقط"></label>
-        <label>موضع النص<select name="position_text">{% for value,label in positions.items() %}<option value="{{ value }}" {% if banner.position_text==value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label>موضع النص والعناوين<select name="position_text">{% for value,label in positions.items() %}<option value="{{ value }}" {% if banner.position_text==value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><small class="field-help">يحدد مكان الكتابة على صورة البانر: أعلى/وسط/أسفل مع يمين/وسط/يسار.</small></label>
+        <label>موضع الزر<select name="button_position"><option value="same" {% if banner.button_position=="same" or not banner.button_position %}selected{% endif %}>مع النص</option>{% for value,label in positions.items() %}<option value="{{ value }}" {% if banner.button_position==value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><small class="field-help">يمكن وضع الزر في مكان مستقل عن العنوان والوصف.</small></label>
         <label>نص الزر<input name="button_label" value="{{ banner.button_label or '' }}" placeholder="تسوق الآن"></label>
+        <label>حجم النص العائم<input name="overlay_font_size" type="number" min="8" max="36" value="{{ banner.overlay_font_size }}"></label>
+        <label>حجم العنوان<input name="title_font_size" type="number" min="10" max="60" value="{{ banner.title_font_size }}"></label>
+        <label>حجم الوصف<input name="description_font_size" type="number" min="8" max="40" value="{{ banner.description_font_size }}"></label>
+        <label>حجم نص الزر<input name="button_font_size" type="number" min="8" max="30" value="{{ banner.button_font_size }}"></label>
+        <label>انحناء الزر<input name="button_radius" type="number" min="0" max="40" value="{{ banner.button_radius }}"></label>
+        <label>هامش الكتابة داخل البانر<input name="content_padding" type="number" min="0" max="80" value="{{ banner.content_padding }}"></label>
         <label>مدة الظهور بالثواني<input name="duration" type="number" min="1" max="120" value="{{ banner.duration }}"></label>
         <label>الترتيب<input name="sort_order" type="number" value="{{ banner.sort_order }}"></label>
         <label>الحالة<select name="status"><option value="draft" {% if banner.status!="active" %}selected{% endif %}>مسودة</option><option value="active" {% if banner.status=="active" %}selected{% endif %}>نشط</option></select></label>
@@ -152,8 +159,15 @@
       <label>عنوان فوق الصورة<input name="title" placeholder="خصم حتى 70%"></label>
       <label>الوصف<textarea name="description" rows="3" placeholder="اختيارات مختارة لفترة محدودة"></textarea></label>
       <label>نص عائم<input name="overlay_text" placeholder="لفترة محدودة"></label>
-      <label>موضع النص<select name="position_text">{% for value,label in positions.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
+      <label>موضع النص والعناوين<select name="position_text">{% for value,label in positions.items() %}<option value="{{ value }}" {% if value=="center" %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><small class="field-help">يحدد مكان الكتابة فوق الصورة.</small></label>
+      <label>موضع الزر<select name="button_position"><option value="same" selected>مع النص</option>{% for value,label in positions.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
       <label>نص الزر<input name="button_label" placeholder="تسوق الآن"></label>
+      <label>حجم النص العائم<input name="overlay_font_size" type="number" min="8" max="36" value="13"></label>
+      <label>حجم العنوان<input name="title_font_size" type="number" min="10" max="60" value="28"></label>
+      <label>حجم الوصف<input name="description_font_size" type="number" min="8" max="40" value="16"></label>
+      <label>حجم نص الزر<input name="button_font_size" type="number" min="8" max="30" value="11"></label>
+      <label>انحناء الزر<input name="button_radius" type="number" min="0" max="40" value="0"></label>
+      <label>هامش الكتابة داخل البانر<input name="content_padding" type="number" min="0" max="80" value="18"></label>
       <label>مدة الظهور بالثواني<input name="duration" type="number" min="1" max="120" value="6"></label>
       <label>الترتيب<input name="sort_order" type="number" value="0"></label>
       <label>الحالة<select name="status"><option value="draft">مسودة</option><option value="active">نشط</option></select></label>
