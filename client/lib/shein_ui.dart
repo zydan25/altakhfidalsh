@@ -278,28 +278,13 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
             ),
             if (loading)
               const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
-            else ...[
-              SliverToBoxAdapter(child: SxSectionTitle(title: discoveryTab == 1 ? 'جديد' : discoveryTab == 0 ? 'العروض' : 'لك')),
+            else
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(7, 0, 7, 18),
+                  padding: const EdgeInsets.fromLTRB(6, 3, 6, 18),
                   child: SxProductGrid(products: products),
                 ),
               ),
-              if (looks.isNotEmpty)
-                SliverToBoxAdapter(child: SxFeatureTiles(rows: looks.take(4).toList())),
-              if (side.isNotEmpty)
-                SliverToBoxAdapter(child: SxCircleRail(
-                  title: 'مختارات من أجلك',
-                  rows: side.expand((e) => sxMaps(e['circles'])).take(14).toList(),
-                  onTap: (item) => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => SxResults(title: sxText(item['name']), circleId: sxInt(item['id']))),
-                  ),
-                )),
-              if (trends.isNotEmpty)
-                SliverToBoxAdapter(child: SxTrendRail(trends: trends)),
-            ],
           ],
         ),
       ),
@@ -338,8 +323,15 @@ class _HomeHeroState extends State<_HomeHero> {
       ...widget.roots,
     ];
 
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final heroHeight = viewportWidth < 360
+        ? viewportWidth * .75
+        : viewportWidth > 430
+            ? 320.0
+            : viewportWidth * .70;
+
     return SizedBox(
-      height: 412,
+      height: heroHeight,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -376,7 +368,7 @@ class _HomeHeroState extends State<_HomeHero> {
             ),
           ),
           Positioned(
-            top: 7,
+            top: 3,
             left: 10,
             right: 10,
             child: SafeArea(
@@ -419,7 +411,7 @@ class _HomeHeroState extends State<_HomeHero> {
             child: Directionality(
               textDirection: TextDirection.rtl,
               child: SizedBox(
-                height: 47,
+                height: 42,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 7),
@@ -436,7 +428,7 @@ class _HomeHeroState extends State<_HomeHero> {
                               t.name,
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 14,
+                                fontSize: 13,
                                 fontWeight: active ? FontWeight.w900 : FontWeight.w700,
                                 shadows: const [
                                   Shadow(
@@ -447,7 +439,7 @@ class _HomeHeroState extends State<_HomeHero> {
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 7),
+                            const SizedBox(height: 5),
                             AnimatedContainer(
                               duration: const Duration(milliseconds: 150),
                               width: active ? 35 : 0,
@@ -467,7 +459,7 @@ class _HomeHeroState extends State<_HomeHero> {
             ),
           ),
           Positioned(
-            bottom: 10,
+            bottom: 7,
             left: 0,
             right: 0,
             child: Row(
@@ -477,8 +469,8 @@ class _HomeHeroState extends State<_HomeHero> {
                 (i) => AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
                   margin: const EdgeInsets.symmetric(horizontal: 2),
-                  width: i == page ? 18 : 5,
-                  height: 4,
+                  width: i == page ? 16 : 4,
+                  height: 3,
                   decoration: BoxDecoration(
                     color: i == page ? Colors.white : Colors.white54,
                     borderRadius: BorderRadius.circular(10),
@@ -693,7 +685,7 @@ class SxCouponStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.fromLTRB(0, 1, 0, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(
@@ -709,7 +701,7 @@ class SxCouponStrip extends StatelessWidget {
         ],
       ),
       child: Container(
-        height: 68,
+        height: 53,
         decoration: BoxDecoration(
           color: const Color(0xFFFFFAF0),
           borderRadius: BorderRadius.circular(6),
@@ -726,7 +718,7 @@ class SxCouponStrip extends StatelessWidget {
             ),
             Container(
               width: 1,
-              height: 40,
+              height: 34,
               color: const Color(0xFFD5CDBD),
             ),
             const Expanded(
@@ -765,7 +757,7 @@ class _Coupon extends StatelessWidget {
             Text(
               title,
               style: const TextStyle(
-                fontSize: 11.5,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -804,7 +796,7 @@ class SxRootCategoryGrid extends StatelessWidget {
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(9, 10, 9, 7),
+      padding: const EdgeInsets.fromLTRB(7, 8, 7, 5),
       child: GridView.builder(
         shrinkWrap: true,
         primary: false,
@@ -812,8 +804,8 @@ class SxRootCategoryGrid extends StatelessWidget {
         itemCount: categories.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 5,
-          mainAxisSpacing: 7,
-          crossAxisSpacing: 4,
+          mainAxisSpacing: 5,
+          crossAxisSpacing: 3,
           childAspectRatio: .83,
         ),
         itemBuilder: (_, i) => InkWell(
@@ -822,8 +814,8 @@ class SxRootCategoryGrid extends StatelessWidget {
           child: Column(
             children: [
               Container(
-                width: 60,
-                height: 60,
+                width: 58,
+                height: 58,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: Color(0xFFF4F4F4),
@@ -846,7 +838,7 @@ class SxRootCategoryGrid extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 8.5,
+                    fontSize: 8.2,
                     height: 1.05,
                     fontWeight: FontWeight.w700,
                   ),
@@ -880,7 +872,7 @@ class SxDiscoveryTabs extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(top: 2),
-      padding: const EdgeInsets.fromLTRB(9, 7, 9, 7),
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
       decoration: const BoxDecoration(
         color: Color(0xFFF8F8F8),
         border: Border(
@@ -899,7 +891,7 @@ class SxDiscoveryTabs extends StatelessWidget {
                 onTap: () => onChanged(i),
                 borderRadius: BorderRadius.circular(3),
                 child: Container(
-                  height: 43,
+                  height: 36,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: active ? Colors.black : Colors.white,
@@ -912,14 +904,14 @@ class SxDiscoveryTabs extends StatelessWidget {
                         labels[i].$1,
                         style: TextStyle(
                           color: active ? Colors.white : Colors.black,
-                          fontSize: 12,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       const SizedBox(width: 5),
                       Icon(
                         labels[i].$2,
-                        size: 16,
+                        size: 15,
                         color: active ? Colors.white : Colors.black,
                       ),
                     ],
@@ -935,19 +927,6 @@ class SxDiscoveryTabs extends StatelessWidget {
 }
 
 
-class _Deal extends StatelessWidget {
-  final String title, sub; final bool active;
-  const _Deal({required this.title, required this.sub, this.active = false});
-  @override Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
-    decoration: BoxDecoration(color: active ? const Color(0xFFFFEEF4) : Colors.white, borderRadius: BorderRadius.circular(16)),
-    child: Column(children: [
-      Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900, color: active ? ClientTheme.promo : const Color(0xFF8A2740))),
-      const SizedBox(height: 2),
-      Text(sub, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.w600)),
-    ]),
-  );
-}
 
 class SxFeatureTiles extends StatelessWidget {
   final List<Map<String, dynamic>> rows;
