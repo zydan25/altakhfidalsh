@@ -4,13 +4,15 @@ class CategoryModel {
   final String name;
   final String? slug;
   final String? iconUrl;
-  const CategoryModel({required this.id, this.parentId, required this.name, this.slug, this.iconUrl});
+  final int sortOrder;
+  const CategoryModel({required this.id, this.parentId, required this.name, this.slug, this.iconUrl, this.sortOrder = 0});
   factory CategoryModel.fromJson(Map<String,dynamic> j) => CategoryModel(
     id: int.tryParse((j['id'] ?? 0).toString()) ?? 0,
     parentId: j['parent_id'] == null ? null : int.tryParse(j['parent_id'].toString()),
     name: (j['name'] ?? '').toString(),
     slug: j['slug']?.toString(),
     iconUrl: j['icon_url']?.toString(),
+    sortOrder: int.tryParse((j['sort_order'] ?? 0).toString()) ?? 0,
   );
 }
 class ProductModel {
