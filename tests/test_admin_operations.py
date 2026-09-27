@@ -1,6 +1,6 @@
 from io import BytesIO
 from app.extensions import db
-from app.models import Badge, Category, Color, Customer, CustomerAddress, Currency, HomeCouponCard, MediaAsset, Product, ProductCategory, ProductMedia, StorefrontPage, StorefrontSection, StorefrontSectionItem
+from app.models import Badge, Banner, Category, Color, Customer, CustomerAddress, Currency, HomeCouponCard, MediaAsset, Product, ProductCategory, ProductMedia, StorefrontPage, StorefrontSection, StorefrontSectionItem
 
 
 def test_customer_admin_profile_and_address(client, app):
@@ -901,3 +901,86 @@ def test_home_coupon_admin_and_customer_payload(client, app):
     payload = response.get_json()["coupon_strip"]
     assert payload["all"]["enabled"] is True
     assert any(x["code"] == "TEST20" for x in payload["cards"]["all"])
+
+
+def test_category_home_display_get_and_banner_settings_persist(client, app):
+    with client.session_transaction() as session:
+        session["admin_id"] = 1
+
+    response = client.get("/admin/category-home-display")
+    assert response.status_code == 200
+    assert "إعدادات فئات الصفحة الرئيسية" in response.get_data(as_text=True)
+
+    with app.app_context():
+        category = Category(name="بانر اختبار", slug="banner-test-root", parent_id=None, is_active=True)
+        asset = MediaAsset(
+            storage_key="test/banner.webp",
+            url="/media/test/banner.webp",
+            mime_type="image/webp",
+            width=800,
+            height=350,
+            size_bytes=100,
+        )
+        db.session.add_all([category, asset])
+        db.session.flush()
+        banner = Banner(
+            name="بانر إعدادات",
+            image_asset_id=asset.id,
+            root_category_id=category.id,
+            title="عنوان قديم",
+            description="وصف قديم",
+            button_label="افتح",
+            title_color="#FFFFFF",
+            description_color="#FFFFFF",
+            button_text_color="#FFFFFF",
+            button_background_color="#111827",
+            overlay_background_color="#111827",
+            overlay_opacity=0,
+            size_spec="mobile 16:7",
+            position_text="center",
+            duration=6,
+            sort_order=0,
+            status="draft",
+        )
+        db.session.add(banner)
+        db.session.commit()
+        banner_id = banner.id
+
+    response = client.post(
+        "/admin/banners",
+        data={
+            "action": "update_banner",
+            "id": str(banner_id),
+            "name": "بانر إعدادات محدث",
+            "root_category_id": str(category.id),
+            "title": "عنوان جديد",
+            "description": "وصف جديد",
+            "overlay_text": "خصم اليوم",
+            "button_label": "تسوق الآن",
+            "position_text": "bottom_center",
+            "duration": "8",
+            "sort_order": "3",
+            "status": "active",
+            "size_spec": "mobile 4:1",
+            "overlay_opacity": "0.35",
+            "title_color": "#FF0000",
+            "description_color": "#00FF00",
+            "button_text_color": "#FFFFFF",
+            "button_background_color": "#000000",
+            "overlay_background_color": "#222222",
+        },
+    )
+    assert response.status_code == 200
+
+    with app.app_context():
+        row = db.session.get(Banner, banner_id)
+        assert row.name == "بانر إعدادات محدث"
+        assert row.title == "عنوان جديد"
+        assert row.description == "وصف جديد"
+        assert row.overlay_text == "خصم اليوم"
+        assert row.position_text == "bottom_center"
+        assert row.duration == 8
+        assert row.sort_order == 3
+        assert row.status == "active"
+        assert str(row.overlay_opacity) in {"0.35", "0.350"}
+        assert row.title_color == "#FF0000"
