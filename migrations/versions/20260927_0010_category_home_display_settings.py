@@ -98,6 +98,24 @@ def upgrade():
                 "WHERE item_label_bold IS NULL"
             )
         )
+    # Later schema revisions add independent dimensions. Some deployment/PR
+    # histories can already contain these NOT NULL columns when this migration
+    # first creates/repairs the default "all" row. Populate them before any
+    # insert so the migration remains safe across both schema shapes.
+    if "item_width" in columns:
+        bind.execute(
+            sa.text(
+                f"UPDATE {TABLE} SET item_width = COALESCE(item_size, 64) "
+                "WHERE item_width IS NULL OR item_width <= 0"
+            )
+        )
+    if "item_height" in columns:
+        bind.execute(
+            sa.text(
+                f"UPDATE {TABLE} SET item_height = COALESCE(item_size, 64) "
+                "WHERE item_height IS NULL OR item_height <= 0"
+            )
+        )
 
     existing_scopes = bind.execute(
         sa.text(f"SELECT scope_key FROM {TABLE}")
@@ -108,26 +126,50 @@ def upgrade():
             column["name"]
             for column in sa.inspect(bind).get_columns(TABLE)
         }
+        insert_columns = [
+            "scope_key",
+            "category_id",
+            "grid_rows",
+            "show_coupon_strip",
+            "item_shape",
+            "item_size",
+            "item_spacing",
+        ]
+        insert_values = [
+            "'all'",
+            "NULL",
+            "2",
+            "TRUE",
+            "'circle'",
+            "64",
+            "6",
+        ]
+
         if "show_looks_strip" in columns:
-            bind.execute(
-                sa.text(
-                    f"""
-                    INSERT INTO {TABLE}
-                        (scope_key, category_id, grid_rows, show_coupon_strip, show_looks_strip, item_shape, item_size, item_spacing, item_corner_radius, item_label_font_size, item_label_bold)
-                    VALUES ('all', NULL, 2, TRUE, TRUE, 'circle', 64, 6, 16, 9, TRUE)
-                    """
-                )
+            insert_columns.append("show_looks_strip")
+            insert_values.append("TRUE")
+        if "item_corner_radius" in columns:
+            insert_columns.append("item_corner_radius")
+            insert_values.append("16")
+        if "item_label_font_size" in columns:
+            insert_columns.append("item_label_font_size")
+            insert_values.append("9")
+        if "item_label_bold" in columns:
+            insert_columns.append("item_label_bold")
+            insert_values.append("TRUE")
+        if "item_width" in columns:
+            insert_columns.append("item_width")
+            insert_values.append("64")
+        if "item_height" in columns:
+            insert_columns.append("item_height")
+            insert_values.append("64")
+
+        bind.execute(
+            sa.text(
+                f"INSERT INTO {TABLE} ({', '.join(insert_columns)}) "
+                f"VALUES ({', '.join(insert_values)})"
             )
-        else:
-            bind.execute(
-                sa.text(
-                    f"""
-                    INSERT INTO {TABLE}
-                        (scope_key, category_id, grid_rows, show_coupon_strip, item_shape, item_size, item_spacing)
-                    VALUES ('all', NULL, 2, TRUE, 'circle', 64, 6)
-                    """
-                )
-            )
+        )
 
 
 def downgrade():
