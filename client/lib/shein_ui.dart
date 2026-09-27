@@ -473,7 +473,9 @@ class _HomeHeroState extends State<_HomeHero> {
             ),
           ),
           Positioned(
-            top: 79,
+            // Keep the category tabs visually close to the search/actions row
+            // without touching it on phones with a status-bar inset.
+            top: 75,
             left: 0,
             right: 0,
             child: Directionality(
@@ -623,22 +625,39 @@ class _BannerSlide extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: _color(banner['description_color'], Colors.white),
-                          fontSize: 14,
+                          fontSize: 15,
                           height: 1.2,
                           fontWeight: FontWeight.w700,
+                          shadows: const [
+                            Shadow(
+                              blurRadius: 2,
+                              offset: Offset(0, 1),
+                              color: Colors.black26,
+                            ),
+                          ],
                         ),
                       ),
                     ),
                   if (button.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 10),
-                      child: OutlinedButton(
+                      child: ElevatedButton(
                         onPressed: onTap,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _color(banner['button_text_color'], Colors.white),
-                          side: BorderSide(
-                            color: _color(banner['button_text_color'], Colors.white),
-                            width: 1,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _color(
+                            banner['button_background_color'],
+                            Colors.black,
+                          ),
+                          foregroundColor: _color(
+                            banner['button_text_color'],
+                            Colors.white,
+                          ),
+                          surfaceTintColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 9,
                           ),
                           shape: const RoundedRectangleBorder(
                             borderRadius: BorderRadius.zero,
@@ -647,8 +666,8 @@ class _BannerSlide extends StatelessWidget {
                         child: Text(
                           button,
                           style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
                       ),
@@ -914,13 +933,20 @@ class SxHomeCategoryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final rootIds = rootCategories.map((category) => category.id).toSet();
+
+    // The circle area is always for subcategories, never for the parent/root
+    // categories that are already represented by the top horizontal tabs.
     final categories = selectedRootId < 0
-        ? rootCategories
+        ? allCategories.where((category) => category.parentId != null && rootIds.contains(category.parentId)).toList()
+          ..sort((a, b) => a.sortOrder == b.sortOrder
+              ? a.id.compareTo(b.id)
+              : a.sortOrder.compareTo(b.sortOrder))
         : _descendantsOf(selectedRootId);
 
     return _CategoryCircleGrid(
       categories: categories.take(15).toList(),
-      onTap: selectedRootId < 0 ? onRootTap : onCategoryTap,
+      onTap: onCategoryTap,
     );
   }
 }
