@@ -205,10 +205,11 @@ def public_product_feed():
     max_price_raw = (request.args.get("max_price") or "").strip()
 
     if category_id:
+        category_ids = CatalogService.category_descendant_ids(category_id)
         query = query.join(
             ProductCategory,
             ProductCategory.product_id == Product.id,
-        ).filter(ProductCategory.category_id == category_id)
+        ).filter(ProductCategory.category_id.in_(category_ids))
 
     if circle_id:
         query = query.join(
