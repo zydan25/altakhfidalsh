@@ -302,6 +302,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       return const {
         'grid_rows': 2,
         'show_coupon_strip': true,
+        'show_looks_strip': true,
         'item_shape': 'circle',
         'item_size': 64,
         'item_spacing': 6,
@@ -345,7 +346,9 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
             )),
             if (categoryDisplay['show_coupon_strip'] == true)
               const SliverToBoxAdapter(child: SxCouponStrip()),
-            if (!loading && _homeLooks().isNotEmpty)
+            if (!loading &&
+                categoryDisplay['show_looks_strip'] == true &&
+                _homeLooks().isNotEmpty)
               SliverToBoxAdapter(
                 child: SxHomeLookCarousel(
                   looks: _homeLooks(),
