@@ -428,9 +428,18 @@ def register_operation_routes(admin_bp):
                     position_text = (request.form.get("position_text") or "center").strip()
                     if position_text not in positions:
                         raise ValueError("موضع النص غير مدعوم.")
+                    button_position = (request.form.get("button_position") or "same").strip()
+                    if button_position != "same" and button_position not in positions:
+                        raise ValueError("موضع الزر غير مدعوم.")
                     opacity = _decimal(request.form.get("overlay_opacity"), "0")
                     if opacity < 0 or opacity > 1:
                         raise ValueError("شفافية الخلفية يجب أن تكون بين 0 و1.")
+                    overlay_font_size = max(8, min(36, request.form.get("overlay_font_size", 13, type=int)))
+                    title_font_size = max(10, min(60, request.form.get("title_font_size", 28, type=int)))
+                    description_font_size = max(8, min(40, request.form.get("description_font_size", 16, type=int)))
+                    button_font_size = max(8, min(30, request.form.get("button_font_size", 11, type=int)))
+                    button_radius = max(0, min(40, request.form.get("button_radius", 0, type=int)))
+                    content_padding = max(0, min(80, request.form.get("content_padding", 18, type=int)))
 
                     values = {
                         "name": name,
@@ -447,6 +456,13 @@ def register_operation_routes(admin_bp):
                         "size_spec": (request.form.get("size_spec") or "").strip() or None,
                         "overlay_text": (request.form.get("overlay_text") or "").strip() or None,
                         "position_text": position_text,
+                        "button_position": button_position,
+                        "overlay_font_size": overlay_font_size,
+                        "title_font_size": title_font_size,
+                        "description_font_size": description_font_size,
+                        "button_font_size": button_font_size,
+                        "button_radius": button_radius,
+                        "content_padding": content_padding,
                         "duration": duration,
                         "sort_order": request.form.get("sort_order", 0, type=int) or 0,
                         "status": status,
