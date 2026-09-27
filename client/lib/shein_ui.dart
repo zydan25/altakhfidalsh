@@ -229,7 +229,10 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       final h = await api.home();
       home = h;
       allCategories = sxMaps(h['categories']).map(CategoryModel.fromJson).toList();
-      roots = allCategories.where((x) => x.parentId == null).toList();
+      roots = allCategories.where((x) => x.parentId == null).toList()
+        ..sort((a, b) => a.sortOrder == b.sortOrder
+            ? a.id.compareTo(b.id)
+            : a.sortOrder.compareTo(b.sortOrder));
       products = await api.feed(
         category: selected < 0 ? null : selected,
         sort: discoveryTab == 1 ? 'newest' : 'recommended',
@@ -887,7 +890,9 @@ class SxHomeCategoryGrid extends StatelessWidget {
     return allCategories
         .where((category) => category.parentId == parentId)
         .toList()
-      ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort((a, b) => a.sortOrder == b.sortOrder
+          ? a.id.compareTo(b.id)
+          : a.sortOrder.compareTo(b.sortOrder));
   }
 
   List<CategoryModel> _descendantsOf(int rootId) {
