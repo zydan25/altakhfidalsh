@@ -4,7 +4,7 @@ from flask import request
 from . import api_bp
 from ...security import admin_api_required
 from ...extensions import db
-from ...models import Banner, BannerTarget, Campaign, Category, Hashtag, Look, LookTarget, LookProduct, LookCircle, SideCategory, SideCategoryCircle, MediaAsset, Product, StorefrontPage, StorefrontSection, StorefrontSectionItem
+from ...models import Banner, BannerTarget, Campaign, Category, Hashtag, Look, LookTarget, LookProduct, LookCircle, SideCategory, SideCategoryCircle, MediaAsset, Product, StorefrontPage, StorefrontSection, StorefrontSectionItem, HomeCouponDisplaySetting, HomeCouponCard
 from sqlalchemy import or_
 
 
@@ -182,6 +182,124 @@ def page(code):
 
 
 
+def _coupon_defaults():
+    return {
+        "enabled": True,
+        "auto_flip": True,
+        "flip_seconds": 4,
+        "cards_per_slide": 1,
+        "card_height": 96,
+        "card_radius": 18,
+        "card_spacing": 8,
+        "title_font_size": 16,
+        "subtitle_font_size": 11,
+        "badge_font_size": 10,
+        "default_background_color": "#E2EFDA",
+        "default_text_color": "#1B5E20",
+        "default_badge_background_color": "#166534",
+        "default_badge_text_color": "#FFFFFF",
+    }
+
+
+def _serialize_coupon_card(card):
+    target = None
+    if card.display_type == "redirect" and card.target_type:
+        target = {
+            "type": card.target_type,
+            "id": card.target_id,
+            "url": card.target_url,
+        }
+        if card.target_type == "category" and card.target_id:
+            item = db.session.get(Category, card.target_id)
+            if item is not None:
+                target["name"] = item.name
+        elif card.target_type == "product" and card.target_id:
+            item = db.session.get(Product, card.target_id)
+            if item is not None:
+                target["name"] = item.name
+        elif card.target_type == "hashtag" and card.target_id:
+            item = db.session.get(Hashtag, card.target_id)
+            if item is not None:
+                target["name"] = item.display_name or item.name
+    return {
+        "id": card.id,
+        "name": card.name,
+        "root_category_id": card.root_category_id,
+        "display_type": card.display_type,
+        "code": card.code,
+        "headline": card.headline,
+        "subtitle": card.subtitle,
+        "badge_text": card.badge_text,
+        "icon_type": card.icon_type,
+        "target": target,
+        "background_color": card.background_color,
+        "text_color": card.text_color,
+        "badge_background_color": card.badge_background_color,
+        "badge_text_color": card.badge_text_color,
+        "border_color": card.border_color,
+        "sort_order": card.sort_order,
+        "duration": card.duration,
+    }
+
+
+def _coupon_payload():
+    now = datetime.now(timezone.utc)
+    defaults = _coupon_defaults()
+    settings_rows = HomeCouponDisplaySetting.query.order_by(
+        HomeCouponDisplaySetting.root_category_id.is_(None).desc(),
+        HomeCouponDisplaySetting.root_category_id,
+    ).all()
+    settings_all = dict(defaults)
+    settings_categories = {}
+    for row in settings_rows:
+        values = {
+            "enabled": bool(row.enabled),
+            "auto_flip": bool(row.auto_flip),
+            "flip_seconds": int(row.flip_seconds),
+            "cards_per_slide": int(row.cards_per_slide),
+            "card_height": int(row.card_height),
+            "card_radius": int(row.card_radius),
+            "card_spacing": int(row.card_spacing),
+            "title_font_size": int(row.title_font_size),
+            "subtitle_font_size": int(row.subtitle_font_size),
+            "badge_font_size": int(row.badge_font_size),
+            "default_background_color": row.default_background_color,
+            "default_text_color": row.default_text_color,
+            "default_badge_background_color": row.default_badge_background_color,
+            "default_badge_text_color": row.default_badge_text_color,
+        }
+        if row.root_category_id is None:
+            settings_all.update(values)
+        else:
+            settings_categories[str(row.root_category_id)] = values
+
+    rows = HomeCouponCard.query.filter(
+        HomeCouponCard.is_active.is_(True),
+        or_(HomeCouponCard.starts_at.is_(None), HomeCouponCard.starts_at <= now),
+        or_(HomeCouponCard.ends_at.is_(None), HomeCouponCard.ends_at >= now),
+    ).order_by(
+        HomeCouponCard.root_category_id,
+        HomeCouponCard.sort_order,
+        HomeCouponCard.id.desc(),
+    ).all()
+    all_cards = []
+    category_cards = {}
+    for card in rows:
+        item = _serialize_coupon_card(card)
+        if card.root_category_id is None:
+            all_cards.append(item)
+        else:
+            category_cards.setdefault(str(card.root_category_id), []).append(item)
+    return {
+        "all": settings_all,
+        "categories": settings_categories,
+        "cards": {
+            "all": all_cards,
+            "categories": category_cards,
+        },
+    }
+
+
 @api_bp.get("/home")
 def home():
     """Single discovery payload for the customer storefront."""
@@ -232,6 +350,7 @@ def home():
         "trends": CatalogService.list_public_trends(limit=20),
         "looks": look_payload,
         "banners": banner_payload,
+        "coupon_strip": _coupon_payload(),
     }
 
 @api_bp.get("/banners")
