@@ -256,6 +256,8 @@ def register_admin_routes(admin_bp):
         context = _navigation_context()
         error = None
         success = None
+        # Preserve the currently selected scope on both GET and POST.
+        selected_scope = request.args.get("scope") or "all"
 
         if request.method == "POST":
             try:
