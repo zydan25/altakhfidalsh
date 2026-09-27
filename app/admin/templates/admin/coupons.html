@@ -336,6 +336,15 @@
               <option value="">اتبع مؤقت الشريط</option>
               {% for s in [2,3,4,5,6,8,10,15] %}<option value="{{ s }}">{{ s }} ثوانٍ لهذه القسيمة</option>{% endfor %}
             </select>
+            <small class="field-help">اتركها على «اتبع المؤقت» إلا إذا أردت لهذه القسيمة وقتًا مختلفًا.</small>
+          </label>
+          <label>تاريخ ووقت بداية العرض
+            <input name="starts_at" type="datetime-local">
+            <small class="field-help">اتركه فارغًا ليبدأ العرض فورًا.</small>
+          </label>
+          <label>تاريخ ووقت نهاية العرض
+            <input name="ends_at" type="datetime-local">
+            <small class="field-help">اتركه فارغًا ليستمر حتى تقوم بإيقافه.</small>
           </label>
         </div>
         <label class="check-row"><input type="checkbox" name="is_active" checked> مفعلة الآن</label>
@@ -452,6 +461,14 @@
               <div class="form-grid-2">
                 <label>الترتيب<input name="sort_order" type="number" value="{{ row.sort_order }}"><small class="field-help">الأصغر يظهر أولًا.</small></label>
                 <label>المدة<select name="duration"><option value="">اتبع مؤقت الشريط</option>{% for s in [2,3,4,5,6,8,10,15] %}<option value="{{ s }}" {% if row.duration == s %}selected{% endif %}>{{ s }} ثوانٍ</option>{% endfor %}</select></label>
+                <label>بداية العرض
+                  <input name="starts_at" type="datetime-local" value="{% if row.starts_at %}{{ row.starts_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                  <small class="field-help">فارغ = يبدأ فورًا.</small>
+                </label>
+                <label>نهاية العرض
+                  <input name="ends_at" type="datetime-local" value="{% if row.ends_at %}{{ row.ends_at.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                  <small class="field-help">فارغ = بلا نهاية.</small>
+                </label>
               </div>
               <label class="check-row"><input type="checkbox" name="is_active" {% if row.is_active %}checked{% endif %}> مفعلة</label>
               <button class="primary-button" type="submit">حفظ هذه القسيمة</button>
