@@ -10,6 +10,7 @@ from sqlalchemy import or_
 from ...extensions import db
 from ...models import (
     Category,
+    CategoryHomeDisplaySetting,
     Color,
     Currency,
     MediaAsset,
@@ -91,6 +92,100 @@ class CatalogService:
             .all()
         )
         return [CatalogService._serialize_category(row) for row in rows]
+
+    @staticmethod
+    def default_home_category_display():
+        return {
+            "grid_rows": 2,
+            "show_coupon_strip": True,
+            "item_shape": "circle",
+            "item_size": 64,
+            "item_spacing": 6,
+        }
+
+    @staticmethod
+    def serialize_home_category_display(setting=None):
+        values = CatalogService.default_home_category_display()
+        if setting is not None:
+            values.update({
+                "grid_rows": int(setting.grid_rows),
+                "show_coupon_strip": bool(setting.show_coupon_strip),
+                "item_shape": setting.item_shape,
+                "item_size": int(setting.item_size),
+                "item_spacing": int(setting.item_spacing),
+            })
+        return values
+
+    @staticmethod
+    def list_home_category_display():
+        settings = CategoryHomeDisplaySetting.query.order_by(
+            CategoryHomeDisplaySetting.category_id.is_(None).desc(),
+            CategoryHomeDisplaySetting.category_id,
+        ).all()
+        return {
+            "all": CatalogService.serialize_home_category_display(
+                next((x for x in settings if x.category_id is None), None)
+            ),
+            "categories": {
+                str(x.category_id): CatalogService.serialize_home_category_display(x)
+                for x in settings
+                if x.category_id is not None
+            },
+        }
+
+    @staticmethod
+    def get_home_category_display(category_id=None):
+        settings = CategoryHomeDisplaySetting.query
+        if category_id is None:
+            setting = settings.filter(CategoryHomeDisplaySetting.category_id.is_(None)).first()
+            return CatalogService.serialize_home_category_display(setting)
+        setting = settings.filter(
+            CategoryHomeDisplaySetting.category_id == int(category_id)
+        ).first()
+        if setting is not None:
+            return CatalogService.serialize_home_category_display(setting)
+        global_setting = CategoryHomeDisplaySetting.query.filter(
+            CategoryHomeDisplaySetting.category_id.is_(None)
+        ).first()
+        return CatalogService.serialize_home_category_display(global_setting)
+
+    @staticmethod
+    def save_home_category_display(category_id, payload):
+        normalized_category_id = None if category_id in (None, "", 0, "0", -1, "-1") else int(category_id)
+        category = (
+            db.session.get(Category, normalized_category_id)
+            if normalized_category_id is not None
+            else None
+        )
+        if normalized_category_id is not None and (
+            category is None or not category.is_active or category.parent_id is not None
+        ):
+            raise ValueError("إعدادات الدوائر يجب أن ترتبط بفئة رئيسية نشطة.")
+
+        grid_rows = max(1, min(6, int(payload.get("grid_rows", 2))))
+        item_size = max(42, min(110, int(payload.get("item_size", 64))))
+        item_spacing = max(0, min(24, int(payload.get("item_spacing", 6))))
+        item_shape = str(payload.get("item_shape", "circle")).strip().lower()
+        if item_shape not in {"circle", "rounded", "square"}:
+            raise ValueError("شكل الفئات غير صالح.")
+        show_coupon_strip = bool(payload.get("show_coupon_strip", True))
+
+        scope_key = "all" if normalized_category_id is None else f"category:{normalized_category_id}"
+        setting = CategoryHomeDisplaySetting.query.filter_by(scope_key=scope_key).first()
+        if setting is None:
+            setting = CategoryHomeDisplaySetting(
+                scope_key=scope_key,
+                category_id=normalized_category_id,
+            )
+            db.session.add(setting)
+
+        setting.grid_rows = grid_rows
+        setting.show_coupon_strip = show_coupon_strip
+        setting.item_shape = item_shape
+        setting.item_size = item_size
+        setting.item_spacing = item_spacing
+        db.session.commit()
+        return CatalogService.serialize_home_category_display(setting)
 
     @staticmethod
     def category_descendant_ids(category_id):
