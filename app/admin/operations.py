@@ -24,6 +24,7 @@ from ..models import (
     ReturnPolicy,
     WarrantyPolicy,
     Look,
+    LookTarget,
     LookProduct,
     LookCircle,
     SideCategory,
@@ -426,6 +427,23 @@ def register_operation_routes(admin_bp):
                     look.status = (request.form.get("status") or "draft").strip()
                     if look.status not in {"draft", "active"}:
                         raise ValueError("حالة الإطلالة غير صحيحة.")
+
+                    root_category_id = request.form.get("root_category_id", type=int)
+                    if root_category_id is not None:
+                        root = db.session.get(Category, root_category_id)
+                        if root is None or not root.is_active or root.parent_id is not None:
+                            raise ValueError("الفئة المرتبطة بالإطلالة يجب أن تكون فئة رئيسية نشطة.")
+                    look.root_category_id = root_category_id
+                    look.show_on_home = request.form.get("show_on_home") == "on"
+                    look.card_shape = (request.form.get("card_shape") or "rounded").strip()
+                    if look.card_shape not in {"circle", "rounded", "square"}:
+                        raise ValueError("شكل الإطلالة غير صحيح.")
+                    look.card_width = max(100, min(260, request.form.get("card_width", 160, type=int)))
+                    look.card_height = max(140, min(360, request.form.get("card_height", 220, type=int)))
+                    look.card_radius = max(0, min(80, request.form.get("card_radius", 14, type=int)))
+                    look.card_spacing = max(0, min(30, request.form.get("card_spacing", 8, type=int)))
+                    look.caption_background_color = request.form.get("caption_background_color") or "#000000"
+                    look.caption_text_color = request.form.get("caption_text_color") or "#ffffff"
                     look.sort_order = request.form.get("sort_order", 0, type=int) or 0
                     from datetime import datetime, timezone
                     def parse_look_dt(value):
@@ -444,6 +462,42 @@ def register_operation_routes(admin_bp):
                         if assets:
                             look.cover_asset_id = assets[0]["id"]
                     success = "تم تحديث الإطلالة." if action == "look_update" else "تم إنشاء الإطلالة."
+                elif action == "look_add_target":
+                    look_id = request.form.get("look_id", type=int)
+                    target_type = (request.form.get("target_type") or "").strip()
+                    target_id = request.form.get("target_id", type=int)
+                    if db.session.get(Look, look_id) is None:
+                        raise ValueError("الإطلالة غير موجودة.")
+                    if target_type not in {"circle", "hashtag"} or target_id is None:
+                        raise ValueError("وجهة الإطلالة غير صحيحة.")
+                    if target_type == "circle":
+                        target = db.session.get(SideCategoryCircle, target_id)
+                        if target is None or not target.is_active:
+                            raise ValueError("الفئة الدائرية غير موجودة أو مؤرشفة.")
+                    else:
+                        target = db.session.get(Hashtag, target_id)
+                        if target is None or not target.is_active:
+                            raise ValueError("الهاشتاج غير موجود أو مؤرشف.")
+                    duplicate = LookTarget.query.filter_by(
+                        look_id=look_id,
+                        target_type=target_type,
+                        target_id=target_id,
+                    ).first()
+                    if duplicate is None:
+                        db.session.add(LookTarget(
+                            look_id=look_id,
+                            target_type=target_type,
+                            target_id=target_id,
+                            priority=request.form.get("priority", 0, type=int) or 0,
+                        ))
+                    success = "تمت إضافة وجهة الإطلالة."
+                elif action == "look_remove_target":
+                    target_id = request.form.get("target_record_id", type=int)
+                    target = db.session.get(LookTarget, target_id)
+                    if target is None:
+                        raise ValueError("وجهة الإطلالة غير موجودة.")
+                    db.session.delete(target)
+                    success = "تمت إزالة وجهة الإطلالة."
                 elif action == "look_archive":
                     if look is None:
                         raise ValueError("الإطلالة غير موجودة.")
@@ -554,6 +608,30 @@ def register_operation_routes(admin_bp):
         circle_asset_ids = [x.image_asset_id for x in circle_rows if x.image_asset_id]
         circle_assets = MediaAsset.query.filter(MediaAsset.id.in_(circle_asset_ids)).all() if circle_asset_ids else []
         circle_asset_map = {x.id: x for x in circle_assets}
+
+        root_categories = (
+            Category.query
+            .filter(Category.is_active.is_(True), Category.parent_id.is_(None))
+            .order_by(Category.sort_order, Category.name, Category.id)
+            .all()
+        )
+        hashtags = (
+            Hashtag.query
+            .filter(Hashtag.is_active.is_(True))
+            .order_by(Hashtag.sort_order, Hashtag.name, Hashtag.id)
+            .all()
+        )
+        look_target_rows = (
+            LookTarget.query
+            .filter(LookTarget.look_id.in_([x.id for x in looks_rows]))
+            .order_by(LookTarget.priority.desc(), LookTarget.id)
+            .all()
+            if looks_rows else []
+        )
+        targets_by_look = {}
+        for target in look_target_rows:
+            targets_by_look.setdefault(target.look_id, []).append(target)
+
         return render_template(
             "admin/looks.html",
             title="الإطلالات",
@@ -568,6 +646,9 @@ def register_operation_routes(admin_bp):
             circle_asset_map=circle_asset_map,
             circle_side_map=circle_side_map,
             circles_by_look=circles_by_look,
+            root_categories=root_categories,
+            hashtags=hashtags,
+            targets_by_look=targets_by_look,
             success=success,
             error=error,
             **context,
