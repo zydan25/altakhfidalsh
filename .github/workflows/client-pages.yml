@@ -57,15 +57,38 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import os
-          p = Path('build/web/index.html')
-          s = p.read_text(encoding='utf-8')
+          import re
+          
+          root = Path('build/web')
           sha = os.environ['BUILD_SHA']
+          
+          # Bust the browser cache for both Flutter's bootstrap and the
+          # generated main bundle. GitHub Pages serves immutable-looking
+          # static assets for a while, so query-version the actual JS entry.
+          index = root / 'index.html'
+          s = index.read_text(encoding='utf-8')
           s = s.replace(
-              '<script src="flutter_bootstrap.js" async></script>',
-              '<script src="flutter_bootstrap.js?v=' + sha + '" async></script>'
+              'flutter_bootstrap.js',
+              'flutter_bootstrap.js?v=' + sha
           )
+          
+          # Also version every direct main.dart.js reference that Flutter's
+          # bootstrap emits. This is the part that prevents an old app bundle
+          # from surviving after a successful Pages deployment.
+          for p in root.rglob('*.js'):
+              js = p.read_text(encoding='utf-8')
+              js = re.sub(
+                  r'(?<![A-Za-z0-9_./-])main\.dart\.js(?:\?[^"\'\s)]*)?',
+                  'main.dart.js?v=' + sha,
+                  js,
+              )
+              p.write_text(js, encoding='utf-8')
+          
           guard = '''
           <meta name="altakhfid-build" content="BUILD_SHA_PLACEHOLDER">
+          <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+          <meta http-equiv="Pragma" content="no-cache">
+          <meta http-equiv="Expires" content="0">
           <script>
           (async function(){
             try {
@@ -82,7 +105,7 @@ jobs:
           </script>
           '''.replace('BUILD_SHA_PLACEHOLDER', sha)
           s = s.replace('</head>', guard + '\n</head>')
-          p.write_text(s, encoding='utf-8')
+          index.write_text(s, encoding='utf-8')
           PY
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
