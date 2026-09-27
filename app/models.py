@@ -1501,7 +1501,7 @@ class HomeCouponDisplaySetting(TimestampMixin, db.Model):
     cards_per_slide = db.Column(Integer, nullable=False, default=1)
     card_height = db.Column(Integer, nullable=False, default=64)
     card_radius = db.Column(Integer, nullable=False, default=14)
-    card_spacing = db.Column(Integer, nullable=False, default=8)
+    card_spacing = db.Column(Integer, nullable=False, default=6)
     title_font_size = db.Column(Integer, nullable=False, default=16)
     subtitle_font_size = db.Column(Integer, nullable=False, default=11)
     badge_font_size = db.Column(Integer, nullable=False, default=10)
