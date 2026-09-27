@@ -1049,6 +1049,13 @@ class Banner(TimestampMixin, ActiveMixin, db.Model):
     size_spec = db.Column(String(60))
     overlay_text = db.Column(Text)
     position_text = db.Column(String(40), nullable=False, default="center")
+    button_position = db.Column(String(40), nullable=False, default="same")
+    overlay_font_size = db.Column(Integer, nullable=False, default=13)
+    title_font_size = db.Column(Integer, nullable=False, default=28)
+    description_font_size = db.Column(Integer, nullable=False, default=16)
+    button_font_size = db.Column(Integer, nullable=False, default=11)
+    button_radius = db.Column(Integer, nullable=False, default=0)
+    content_padding = db.Column(Integer, nullable=False, default=18)
     duration = db.Column(Integer, nullable=False, default=6)
     sort_order = db.Column(Integer, nullable=False, default=0)
     starts_at = db.Column(db.DateTime(timezone=True))
@@ -1056,6 +1063,12 @@ class Banner(TimestampMixin, ActiveMixin, db.Model):
     status = db.Column(String(40), nullable=False, default="draft")
     __table_args__ = (
         CheckConstraint("overlay_opacity >= 0 AND overlay_opacity <= 1", name="ck_banner_overlay_opacity"),
+        CheckConstraint("overlay_font_size >= 8 AND overlay_font_size <= 36", name="ck_banner_overlay_font"),
+        CheckConstraint("title_font_size >= 10 AND title_font_size <= 60", name="ck_banner_title_font"),
+        CheckConstraint("description_font_size >= 8 AND description_font_size <= 40", name="ck_banner_description_font"),
+        CheckConstraint("button_font_size >= 8 AND button_font_size <= 30", name="ck_banner_button_font"),
+        CheckConstraint("button_radius >= 0 AND button_radius <= 40", name="ck_banner_button_radius"),
+        CheckConstraint("content_padding >= 0 AND content_padding <= 80", name="ck_banner_content_padding"),
         Index("ix_banner_active_schedule", "is_active", "status", "sort_order", "starts_at", "ends_at"),
     )
 
