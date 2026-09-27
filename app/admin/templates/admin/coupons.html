@@ -132,11 +132,11 @@
           </label>
           <label>ارتفاع الشريط
             <select name="card_height">
-              {% for v,l in [(72,'صغير'),(96,'متوسط — الافتراضي'),(120,'كبير'),(150,'كبير جدًا')] %}
+              {% for v,l in [(48,'صغير جدًا'),(56,'صغير'),(64,'مضغوط — مناسب للهاتف'),(72,'متوسط صغير'),(96,'متوسط — الافتراضي'),(120,'كبير'),(150,'كبير جدًا')] %}
                 <option value="{{ v }}" {% if settings.card_height == v %}selected{% endif %}>{{ l }}</option>
               {% endfor %}
             </select>
-            <small class="field-help">يتم حفظ القياس المناسب تلقائيًا.</small>
+            <small class="field-help">48–64 بكسل يعطي شريطًا رفيعًا ومريحًا للهاتف مع الحفاظ على الكود والعنوان والوصف.</small>
           </label>
           <label>انحناء الحواف
             <select name="card_radius">
