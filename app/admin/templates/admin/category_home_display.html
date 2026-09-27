@@ -59,6 +59,11 @@
           <small class="field-help">تباعد أفقي ورأسي موحد داخل الشبكة.</small>
         </label>
 
+        <label>انحناء الحواف بالضبط
+          <input name="item_corner_radius" type="number" min="0" max="80" value="{{ s.item_corner_radius }}" required>
+          <small class="field-help">بالبكسل. يُستخدم مع «منحني الحواف» و«مربع». الدائري يبقى دائرة كاملة مهما كانت القيمة.</small>
+        </label>
+
         <label class="check-row">
           <input name="show_coupon_strip" type="checkbox" {% if s.show_coupon_strip %}checked{% endif %}>
           <span>
@@ -73,6 +78,7 @@
             <span class="banner-target-chip">الشكل: {{ "دائري" if s.item_shape=="circle" else ("منحني الحواف" if s.item_shape=="rounded" else "مربع") }}</span>
             <span class="banner-target-chip">الحجم: {{ s.item_size }}px</span>
             <span class="banner-target-chip">التباعد: {{ s.item_spacing }}px</span>
+            <span class="banner-target-chip">الانحناء: {{ s.item_corner_radius }}px</span>
             <span class="banner-target-chip">الصفوف: {{ s.grid_rows }}</span>
             <span class="banner-target-chip">{{ "القسائم ظاهرة" if s.show_coupon_strip else "القسائم مخفية" }}</span>
           </div>
