@@ -42,6 +42,7 @@ def upgrade():
             ),
             sa.Column("grid_rows", sa.Integer(), nullable=False, server_default="2"),
             sa.Column("show_coupon_strip", sa.Boolean(), nullable=False, server_default=sa.true()),
+            sa.Column("show_looks_strip", sa.Boolean(), nullable=False, server_default=sa.true()),
             sa.Column("item_shape", sa.String(length=20), nullable=False, server_default="circle"),
             sa.Column("item_size", sa.Integer(), nullable=False, server_default="64"),
             sa.Column("item_spacing", sa.Integer(), nullable=False, server_default="6"),
@@ -72,15 +73,30 @@ def upgrade():
     ).scalars().all()
 
     if "all" not in set(existing_scopes):
-        bind.execute(
-            sa.text(
-                f"""
-                INSERT INTO {TABLE}
-                    (scope_key, category_id, grid_rows, show_coupon_strip, item_shape, item_size, item_spacing)
-                VALUES ('all', NULL, 2, TRUE, 'circle', 64, 6)
-                """
+        columns = {
+            column["name"]
+            for column in sa.inspect(bind).get_columns(TABLE)
+        }
+        if "show_looks_strip" in columns:
+            bind.execute(
+                sa.text(
+                    f"""
+                    INSERT INTO {TABLE}
+                        (scope_key, category_id, grid_rows, show_coupon_strip, show_looks_strip, item_shape, item_size, item_spacing)
+                    VALUES ('all', NULL, 2, TRUE, TRUE, 'circle', 64, 6)
+                    """
+                )
             )
-        )
+        else:
+            bind.execute(
+                sa.text(
+                    f"""
+                    INSERT INTO {TABLE}
+                        (scope_key, category_id, grid_rows, show_coupon_strip, item_shape, item_size, item_spacing)
+                    VALUES ('all', NULL, 2, TRUE, 'circle', 64, 6)
+                    """
+                )
+            )
 
 
 def downgrade():
