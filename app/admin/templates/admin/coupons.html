@@ -1,21 +1,171 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<section class="module-header"><span class="eyebrow">الترويج والمالية</span><h2>الكوبونات</h2><p class="muted">إنشاء كوبون ونوع الخصم والقيمة والحد الأدنى وحد الاستخدام.</p></section>
-{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="module-header">
+  <span class="eyebrow">الترويج والواجهة الرئيسية</span>
+  <h2>شريط القسائم والعروض</h2>
+  <p class="muted">إعدادات عامة لكل نطاق + بطاقات قسائم مستقلة. القسيمة بالكود تنسخ الكود، والقسيمة بالتوجيه تفتح الوجهة المحددة.</p>
+</section>
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="panel" style="padding:14px;margin-bottom:16px">
+  <div class="panel-heading">
+    <div><span class="eyebrow">النطاق</span><h3>الشاشة التي يظهر فيها الشريط</h3></div>
+  </div>
+  <div class="chip-row">
+    {% for scope in scopes %}
+      <a class="ghost-button {% if selected_scope == scope.key %}is-current{% endif %}" href="/admin/promotions/coupons?scope={{ scope.key }}">{{ scope.name }}</a>
+    {% endfor %}
+  </div>
+</section>
+
 <section class="two-panel">
-<article class="panel"><div class="panel-heading"><div><span class="eyebrow">إنشاء</span><h3>كوبون جديد</h3></div></div>
-<form method="post" class="form-stack">
-<label>الكود<input name="code" required dir="ltr" placeholder="WELCOME10"></label>
-<label>النوع<select name="type"><option value="percent">نسبة</option><option value="fixed">ثابت</option></select></label>
-<label>القيمة<input name="value" type="number" step="0.0001" min="0" required></label>
-<label>الحد الأدنى<input name="min_order" type="number" step="0.0001" min="0"></label>
-<label>أقصى خصم<input name="max_discount" type="number" step="0.0001" min="0"></label>
-<label>حد الاستخدام<input name="usage_limit" type="number" min="1"></label>
-<button class="primary-button">إنشاء</button>
-</form></article>
-<article class="panel"><div class="panel-heading"><div><span class="eyebrow">السجل</span><h3>الكوبونات</h3></div><span class="status-pill">{{ coupons|length }}</span></div>
-<div class="stack-list">{% for row in coupons %}<details class="panel" style="padding:12px"><summary><strong>{{ row.code }}</strong><span class="muted"> · {{ row.type }} · {{ row.value }} · حد {{ row.usage_limit or "∞" }}</span></summary>
-<form method="post" class="form-stack" style="margin-top:10px"><input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ row.id }}"><label>الكود<input name="code" value="{{ row.code }}" required dir="ltr"></label><label>النوع<select name="type"><option value="percent" {% if row.type=="percent" %}selected{% endif %}>نسبة</option><option value="fixed" {% if row.type=="fixed" %}selected{% endif %}>ثابت</option></select></label><label>القيمة<input name="value" type="number" step="0.0001" min="0" value="{{ row.value }}" required></label><label>الحد الأدنى<input name="min_order" type="number" step="0.0001" min="0" value="{{ row.min_order or 0 }}"></label><label>أقصى خصم<input name="max_discount" type="number" step="0.0001" min="0" value="{{ row.max_discount or '' }}"></label><label>حد الاستخدام<input name="usage_limit" type="number" min="1" value="{{ row.usage_limit or '' }}"></label><button class="primary-button">حفظ التعديل</button></form>
-<form method="post" style="margin-top:8px"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button">أرشفة الكوبون</button></form></details>{% else %}<span class="muted">لا توجد كوبونات.</span>{% endfor %}</div></article>
+  <article class="panel">
+    <div class="panel-heading">
+      <div><span class="eyebrow">إعدادات الشريط</span><h3>الإعدادات العامة لهذا النطاق</h3></div>
+    </div>
+    <form method="post" class="form-stack">
+      <input type="hidden" name="action" value="save_settings">
+      <input type="hidden" name="scope" value="{{ selected_scope }}">
+      <label class="check-row"><input type="checkbox" name="enabled" {% if settings.enabled %}checked{% endif %}> إظهار شريط القسائم</label>
+      <label class="check-row"><input type="checkbox" name="auto_flip" {% if settings.auto_flip %}checked{% endif %}> التقليب التلقائي</label>
+      <label>مدة بقاء الشاشة قبل الانتقال
+        <input name="flip_seconds" type="number" min="1" max="120" value="{{ settings.flip_seconds }}">
+        <small class="field-help">بالثواني.</small>
+      </label>
+      <label>عدد القسائم في الشاشة
+        <select name="cards_per_slide">
+          <option value="1" {% if settings.cards_per_slide == 1 %}selected{% endif %}>قسيمة واحدة كاملة</option>
+          <option value="2" {% if settings.cards_per_slide == 2 %}selected{% endif %}>قسيمتان نصفان</option>
+        </select>
+      </label>
+      <label>ارتفاع القسيمة
+        <input name="card_height" type="number" min="40" max="300" value="{{ settings.card_height }}">
+      </label>
+      <label>انحناء الحواف
+        <input name="card_radius" type="number" min="0" max="100" value="{{ settings.card_radius }}">
+      </label>
+      <label>المسافة بين القسائم
+        <input name="card_spacing" type="number" min="0" max="40" value="{{ settings.card_spacing }}">
+      </label>
+      <label>حجم العنوان الرئيسي
+        <input name="title_font_size" type="number" min="8" max="32" value="{{ settings.title_font_size }}">
+      </label>
+      <label>حجم العنوان الفرعي
+        <input name="subtitle_font_size" type="number" min="7" max="24" value="{{ settings.subtitle_font_size }}">
+      </label>
+      <label>حجم الشارة/الكود
+        <input name="badge_font_size" type="number" min="7" max="22" value="{{ settings.badge_font_size }}">
+      </label>
+      <div class="form-grid">
+        <label>خلفية افتراضية<input name="default_background_color" value="{{ settings.default_background_color }}" dir="ltr"></label>
+        <label>لون النص الافتراضي<input name="default_text_color" value="{{ settings.default_text_color }}" dir="ltr"></label>
+        <label>خلفية الشارة الافتراضية<input name="default_badge_background_color" value="{{ settings.default_badge_background_color }}" dir="ltr"></label>
+        <label>لون نص الشارة الافتراضي<input name="default_badge_text_color" value="{{ settings.default_badge_text_color }}" dir="ltr"></label>
+      </div>
+      <button class="primary-button">حفظ إعدادات الشريط</button>
+    </form>
+  </article>
+
+  <article class="panel">
+    <div class="panel-heading">
+      <div><span class="eyebrow">إضافة</span><h3>إضافة قسيمة جديدة</h3></div>
+    </div>
+    <form method="post" class="form-stack">
+      <input type="hidden" name="action" value="create_card">
+      <input type="hidden" name="scope" value="{{ selected_scope }}">
+      <label>اسم داخلي<input name="name" required placeholder="خصم اليوم"></label>
+      <label>نوع القسيمة
+        <select name="display_type">
+          <option value="code">كود — الضغط ينسخ الكود</option>
+          <option value="redirect">توجيه — الضغط يفتح الوجهة</option>
+        </select>
+      </label>
+      <label>الكود<input name="code" dir="ltr" placeholder="SAVE20"></label>
+      <label>العنوان الرئيسي<input name="headline" required placeholder="خصم 20%"></label>
+      <label>العنوان الفرعي<input name="subtitle" placeholder="للطلبات المؤهلة"></label>
+      <label>الشارة العلوية<input name="badge_text" placeholder="عرض خاص وحصري ⭐"></label>
+      <label>الأيقونة
+        <select name="icon_type">
+          <option value="percent">نسبة خصم</option><option value="tag">قسيمة</option><option value="gift">هدية</option>
+          <option value="star">مميز</option><option value="truck">شحن وتوصيل</option><option value="shield">أمان</option>
+          <option value="zap">سريع وفوري</option>
+        </select>
+      </label>
+      <fieldset class="panel" style="padding:12px">
+        <legend>وجهة التوجيه</legend>
+        <label>نوع الوجهة
+          <select name="target_type">
+            <option value="">اختر عند استخدام التوجيه</option>
+            <option value="category">تصنيف</option><option value="product">منتج</option><option value="hashtag">هاشتاج</option><option value="url">رابط</option>
+          </select>
+        </label>
+        <label>العنصر المستهدف
+          <select name="target_id">
+            <option value="">اختر العنصر</option>
+            <optgroup label="التصنيفات">{% for x in categories %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</optgroup>
+            <optgroup label="المنتجات">{% for x in products %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</optgroup>
+            <optgroup label="الهاشتاجات">{% for x in hashtags %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</optgroup>
+          </select>
+        </label>
+        <label>الرابط المباشر عند اختيار «رابط»<input name="target_url" dir="ltr" placeholder="https://..."></label>
+      </fieldset>
+      <div class="form-grid">
+        <label>لون الخلفية<input name="background_color" value="#E2EFDA" dir="ltr"></label>
+        <label>لون النص<input name="text_color" value="#1B5E20" dir="ltr"></label>
+        <label>خلفية الشارة<input name="badge_background_color" value="#166534" dir="ltr"></label>
+        <label>لون نص الشارة<input name="badge_text_color" value="#ffffff" dir="ltr"></label>
+        <label>لون الإطار اختياري<input name="border_color" value="#B7D9A6" dir="ltr"></label>
+      </div>
+      <div class="form-grid">
+        <label>الترتيب<input name="sort_order" type="number" value="0"></label>
+        <label>مدة خاصة بالقسيمة<input name="duration" type="number" min="1" max="120" placeholder="افتراضي"></label>
+      </div>
+      <label class="check-row"><input type="checkbox" name="is_active" checked> مفعلة</label>
+      <button class="primary-button">إضافة القسيمة</button>
+    </form>
+  </article>
+</section>
+
+<section class="panel" style="padding:14px;margin-top:16px">
+  <div class="panel-heading">
+    <div><span class="eyebrow">البطاقات</span><h3>قسائم نطاق «{{ scopes|selectattr('key','equalto',selected_scope)|map(attribute='name')|first or 'كل الفئات' }}»</h3></div>
+    <span class="status-pill">{{ cards|length }}</span>
+  </div>
+  <div class="stack-list">
+    {% for row in cards %}
+    <details class="panel" style="padding:12px">
+      <summary><strong>{{ row.headline }}</strong><span class="muted"> · {% if row.display_type == 'code' %}كود: {{ row.code }}{% else %}توجيه{% endif %} · {{ row.name }}</span></summary>
+      <form method="post" class="form-stack" style="margin-top:12px">
+        <input type="hidden" name="action" value="update_card"><input type="hidden" name="id" value="{{ row.id }}"><input type="hidden" name="scope" value="{{ selected_scope }}">
+        <label>الاسم الداخلي<input name="name" value="{{ row.name }}" required></label>
+        <label>النوع<select name="display_type"><option value="code" {% if row.display_type=='code' %}selected{% endif %}>كود — نسخ</option><option value="redirect" {% if row.display_type=='redirect' %}selected{% endif %}>توجيه</option></select></label>
+        <label>الكود<input name="code" value="{{ row.code or '' }}" dir="ltr"></label>
+        <label>العنوان الرئيسي<input name="headline" value="{{ row.headline }}" required></label>
+        <label>العنوان الفرعي<input name="subtitle" value="{{ row.subtitle or '' }}"></label>
+        <label>الشارة<input name="badge_text" value="{{ row.badge_text or '' }}"></label>
+        <label>الأيقونة<select name="icon_type">{% for icon,label in [('percent','نسبة خصم'),('tag','قسيمة'),('gift','هدية'),('star','مميز'),('truck','شحن وتوصيل'),('shield','أمان'),('zap','سريع وفوري')] %}<option value="{{ icon }}" {% if row.icon_type==icon %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <fieldset class="panel" style="padding:12px"><legend>الوجهة</legend>
+          <label>النوع<select name="target_type"><option value="">بدون</option>{% for t,l in [('category','تصنيف'),('product','منتج'),('hashtag','هاشتاج'),('url','رابط')] %}<option value="{{ t }}" {% if row.target_type==t %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+          <label>العنصر<select name="target_id"><option value="">اختر</option>{% for x in categories %}<option value="{{ x.id }}" {% if row.target_id==x.id %}selected{% endif %}>تصنيف: {{ x.name }}</option>{% endfor %}{% for x in products %}<option value="{{ x.id }}" {% if row.target_id==x.id %}selected{% endif %}>منتج: {{ x.name }}</option>{% endfor %}{% for x in hashtags %}<option value="{{ x.id }}" {% if row.target_id==x.id %}selected{% endif %}>هاشتاج: {{ x.name }}</option>{% endfor %}</select></label>
+          <label>الرابط<input name="target_url" value="{{ row.target_url or '' }}" dir="ltr"></label>
+        </fieldset>
+        <div class="form-grid">
+          <label>الخلفية<input name="background_color" value="{{ row.background_color }}" dir="ltr"></label>
+          <label>لون النص<input name="text_color" value="{{ row.text_color }}" dir="ltr"></label>
+          <label>خلفية الشارة<input name="badge_background_color" value="{{ row.badge_background_color }}" dir="ltr"></label>
+          <label>لون نص الشارة<input name="badge_text_color" value="{{ row.badge_text_color }}" dir="ltr"></label>
+          <label>الإطار<input name="border_color" value="{{ row.border_color or '' }}" dir="ltr"></label>
+          <label>الترتيب<input name="sort_order" type="number" value="{{ row.sort_order }}"></label>
+          <label>مدة خاصة<input name="duration" type="number" min="1" max="120" value="{{ row.duration or '' }}"></label>
+        </div>
+        <label class="check-row"><input type="checkbox" name="is_active" {% if row.is_active %}checked{% endif %}> مفعلة</label>
+        <button class="primary-button">حفظ القسيمة</button>
+      </form>
+      <form method="post" style="margin-top:8px"><input type="hidden" name="action" value="archive_card"><input type="hidden" name="id" value="{{ row.id }}"><input type="hidden" name="scope" value="{{ selected_scope }}"><button class="ghost-button">أرشفة</button></form>
+    </details>
+    {% else %}<span class="muted">لا توجد قسائم في هذا النطاق.</span>{% endfor %}
+  </div>
 </section>
 {% endblock %}
