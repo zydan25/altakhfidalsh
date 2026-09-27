@@ -258,6 +258,8 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         'show_looks_strip': true,
         'item_shape': 'circle',
         'item_size': 64,
+        'item_width': 64,
+        'item_height': 64,
         'item_spacing': 6,
         'item_corner_radius': 16,
         'item_label_font_size': 9,
@@ -366,6 +368,8 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                   gridRows: sxInt(categoryDisplay['grid_rows'], 2).clamp(1, 6),
                   itemShape: sxText(categoryDisplay['item_shape'], 'circle'),
                   itemSize: sxDouble(categoryDisplay['item_size'], 64),
+                  itemWidth: sxDouble(categoryDisplay['item_width'], sxDouble(categoryDisplay['item_size'], 64)),
+                  itemHeight: sxDouble(categoryDisplay['item_height'], sxDouble(categoryDisplay['item_size'], 64)),
                   itemSpacing: sxDouble(categoryDisplay['item_spacing'], 6),
                   itemCornerRadius: sxDouble(
                     categoryDisplay['item_corner_radius'],
@@ -1034,7 +1038,7 @@ class SxHomeLookCarousel extends StatelessWidget {
   Widget build(BuildContext context) {
     if (looks.isEmpty) return const SizedBox.shrink();
     final maxCardHeight = looks
-        .map((look) => sxDouble(look['card_height'], 220))
+        .map((look) => sxDouble(look['card_height'], 110))
         .fold<double>(40, (maxValue, value) =>
             value > maxValue ? value : maxValue);
     final sectionHeight = maxCardHeight.clamp(40.0, 500.0) + 24;
@@ -1060,7 +1064,7 @@ class SxHomeLookCarousel extends StatelessWidget {
           },
           itemBuilder: (_, i) {
             final look = looks[i];
-            final width = sxDouble(look['card_width'], 160)
+            final width = sxDouble(look['card_width'], 90)
                 .clamp(40.0, 500.0)
                 .toDouble();
             final height = sxDouble(look['card_height'], 220)
@@ -1133,6 +1137,8 @@ class SxHomeCategoryGrid extends StatelessWidget {
   final int gridRows;
   final String itemShape;
   final double itemSize;
+  final double itemWidth;
+  final double itemHeight;
   final double itemSpacing;
   final double itemCornerRadius;
   final double itemLabelFontSize;
@@ -1148,6 +1154,8 @@ class SxHomeCategoryGrid extends StatelessWidget {
     required this.gridRows,
     required this.itemShape,
     required this.itemSize,
+    required this.itemWidth,
+    required this.itemHeight,
     required this.itemSpacing,
     required this.itemCornerRadius,
     required this.itemLabelFontSize,
@@ -1220,6 +1228,8 @@ class _CategoryCircleGrid extends StatelessWidget {
   final List<CategoryModel> categories;
   final String itemShape;
   final double itemSize;
+  final double itemWidth;
+  final double itemHeight;
   final double itemSpacing;
   final double itemCornerRadius;
   final double itemLabelFontSize;
@@ -1231,6 +1241,8 @@ class _CategoryCircleGrid extends StatelessWidget {
     required this.categories,
     required this.itemShape,
     required this.itemSize,
+    required this.itemWidth,
+    required this.itemHeight,
     required this.itemSpacing,
     required this.itemCornerRadius,
     required this.itemLabelFontSize,
@@ -1245,24 +1257,23 @@ class _CategoryCircleGrid extends StatelessWidget {
       return const SizedBox(height: 8);
     }
 
-    const horizontalPadding = 14.0;
-    final viewportWidth = MediaQuery.sizeOf(context).width;
-    final cellWidth = ((viewportWidth -
-                horizontalPadding -
-                (itemSpacing * 4))
-            / 5)
-        .clamp(54.0, 140.0)
-        .toDouble();
-    final effectiveSize = itemSize
-        .clamp(42.0, cellWidth)
-        .toDouble();
+    final width = itemWidth.clamp(42.0, 240.0).toDouble();
+    final height = itemHeight.clamp(42.0, 240.0).toDouble();
+    final effectiveWidth = itemShape == 'circle'
+        ? width < height ? width : height
+        : width;
+    final effectiveHeight = itemShape == 'circle'
+        ? width < height ? width : height
+        : height;
     final radius = itemShape == 'circle'
-        ? effectiveSize / 2
-        : itemCornerRadius.clamp(0.0, 80.0).toDouble();
-    // The configured row count controls the grid vertically; additional
-    // columns become horizontally scrollable so no category is hidden. 
+        ? effectiveWidth / 2
+        : itemCornerRadius.clamp(0.0, 100.0).toDouble();
+    // The configured dimensions are the actual visual tile dimensions.
+    // Horizontal overflow is intentional so increasing the size never gets
+    // silently clamped to the phone viewport.
     final rowCount = gridRows.clamp(1, 6).toInt();
-    final cellHeight = effectiveSize + 40;
+    final cellWidth = effectiveWidth + itemSpacing;
+    final cellHeight = effectiveHeight + 40;
     final gridHeight = cellHeight * rowCount +
         (rowCount - 1) * itemSpacing +
         11;
@@ -1295,8 +1306,8 @@ class _CategoryCircleGrid extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: effectiveSize,
-                  height: effectiveSize,
+                  width: effectiveWidth,
+                  height: effectiveHeight,
                   decoration: BoxDecoration(
                     shape: itemShape == 'circle'
                         ? BoxShape.circle
@@ -1327,10 +1338,12 @@ class _CategoryCircleGrid extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 8.2,
+                      style: TextStyle(
+                        fontSize: itemLabelFontSize.clamp(7.0, 24.0).toDouble(),
                         height: 1.05,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: itemLabelBold
+                            ? FontWeight.w900
+                            : FontWeight.w500,
                       ),
                     ),
                   ),
