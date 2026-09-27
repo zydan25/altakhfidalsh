@@ -1475,6 +1475,75 @@ class Coupon(TimestampMixin, ActiveMixin, db.Model):
     conditions = db.Column(db.JSON, nullable=False, default=dict)
 
 
+class HomeCouponDisplaySetting(TimestampMixin, db.Model):
+    """Global/per-root display settings for the home coupon strip."""
+    __tablename__ = "home_coupon_display_settings"
+
+    id = db.Column(Integer, primary_key=True)
+    scope_key = db.Column(String(80), nullable=False, unique=True)
+    root_category_id = db.Column(ForeignKey("categories.id", ondelete="CASCADE"))
+    enabled = db.Column(Boolean, nullable=False, default=True)
+    auto_flip = db.Column(Boolean, nullable=False, default=True)
+    flip_seconds = db.Column(Integer, nullable=False, default=4)
+    cards_per_slide = db.Column(Integer, nullable=False, default=1)
+    card_height = db.Column(Integer, nullable=False, default=96)
+    card_radius = db.Column(Integer, nullable=False, default=18)
+    card_spacing = db.Column(Integer, nullable=False, default=8)
+    title_font_size = db.Column(Integer, nullable=False, default=16)
+    subtitle_font_size = db.Column(Integer, nullable=False, default=11)
+    badge_font_size = db.Column(Integer, nullable=False, default=10)
+    default_background_color = db.Column(String(20), nullable=False, default="#E2EFDA")
+    default_text_color = db.Column(String(20), nullable=False, default="#1B5E20")
+    default_badge_background_color = db.Column(String(20), nullable=False, default="#166534")
+    default_badge_text_color = db.Column(String(20), nullable=False, default="#ffffff")
+    __table_args__ = (
+        CheckConstraint("flip_seconds >= 1 AND flip_seconds <= 120", name="ck_coupon_display_flip_seconds"),
+        CheckConstraint("cards_per_slide IN (1, 2)", name="ck_coupon_display_cards_per_slide"),
+        CheckConstraint("card_height >= 40 AND card_height <= 300", name="ck_coupon_display_height"),
+        CheckConstraint("card_radius >= 0 AND card_radius <= 100", name="ck_coupon_display_radius"),
+        CheckConstraint("card_spacing >= 0 AND card_spacing <= 40", name="ck_coupon_display_spacing"),
+        CheckConstraint("title_font_size >= 8 AND title_font_size <= 32", name="ck_coupon_display_title_font"),
+        CheckConstraint("subtitle_font_size >= 7 AND subtitle_font_size <= 24", name="ck_coupon_display_subtitle_font"),
+        CheckConstraint("badge_font_size >= 7 AND badge_font_size <= 22", name="ck_coupon_display_badge_font"),
+    )
+
+
+class HomeCouponCard(TimestampMixin, ActiveMixin, db.Model):
+    """One customer-facing coupon/promo card shown inside the home coupon strip."""
+    __tablename__ = "home_coupon_cards"
+
+    id = db.Column(Integer, primary_key=True)
+    name = db.Column(String(180), nullable=False)
+    root_category_id = db.Column(ForeignKey("categories.id", ondelete="SET NULL"))
+    display_type = db.Column(String(20), nullable=False, default="code")
+    code = db.Column(String(120))
+    headline = db.Column(String(220), nullable=False)
+    subtitle = db.Column(String(300))
+    badge_text = db.Column(String(120))
+    icon_type = db.Column(String(40), nullable=False, default="percent")
+    target_type = db.Column(String(30))
+    target_id = db.Column(Integer)
+    target_url = db.Column(String(1000))
+    background_color = db.Column(String(20), nullable=False, default="#E2EFDA")
+    text_color = db.Column(String(20), nullable=False, default="#1B5E20")
+    badge_background_color = db.Column(String(20), nullable=False, default="#166534")
+    badge_text_color = db.Column(String(20), nullable=False, default="#ffffff")
+    border_color = db.Column(String(20))
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    duration = db.Column(Integer)
+    starts_at = db.Column(db.DateTime(timezone=True))
+    ends_at = db.Column(db.DateTime(timezone=True))
+    __table_args__ = (
+        CheckConstraint("display_type IN ('code','redirect')", name="ck_home_coupon_display_type"),
+        CheckConstraint(
+            "target_type IS NULL OR target_type IN ('category','product','hashtag','url')",
+            name="ck_home_coupon_target_type",
+        ),
+        CheckConstraint("duration IS NULL OR (duration >= 1 AND duration <= 120)", name="ck_home_coupon_duration"),
+        Index("ix_home_coupon_scope_sort", "root_category_id", "is_active", "sort_order", "id"),
+    )
+
+
 class CouponRedemption(TimestampMixin, db.Model):
     __tablename__ = "coupon_redemptions"
 
