@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'app_state.dart';
 import 'models.dart';
@@ -283,6 +284,56 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
     return global;
   }
 
+  Map<String, dynamic> _couponDisplaySettings() {
+    final payload = home['coupon_strip'];
+    const defaults = <String, dynamic>{
+      'enabled': true,
+      'auto_flip': true,
+      'flip_seconds': 4,
+      'cards_per_slide': 2,
+      'card_height': 96,
+      'card_radius': 18,
+      'card_spacing': 8,
+      'title_font_size': 16,
+      'subtitle_font_size': 11,
+      'badge_font_size': 10,
+      'default_background_color': '#E2EFDA',
+      'default_text_color': '#1B5E20',
+      'default_badge_background_color': '#166534',
+      'default_badge_text_color': '#FFFFFF',
+    };
+    if (payload is! Map) return {...defaults};
+    final global = payload['all'] is Map
+        ? Map<String, dynamic>.from(payload['all'] as Map)
+        : <String, dynamic>{};
+    final categories = payload['categories'];
+    if (selected >= 0 && categories is Map) {
+      final scoped = categories[selected.toString()];
+      if (scoped is Map) {
+        return {...defaults, ...global, ...Map<String, dynamic>.from(scoped)};
+      }
+    }
+    return {...defaults, ...global};
+  }
+
+  List<Map<String, dynamic>> _homeCoupons() {
+    final payload = home['coupon_strip'];
+    if (payload is! Map) return const [];
+    final cards = payload['cards'];
+    if (cards is! Map) return const [];
+    final global = sxMaps(cards['all']);
+    if (selected >= 0) {
+      final categoryCards = cards['categories'];
+      if (categoryCards is Map) {
+        final scoped = categoryCards[selected.toString()];
+        if (scoped is List && scoped.isNotEmpty) {
+          return sxMaps(scoped);
+        }
+      }
+    }
+    return global;
+  }
+
   List<Map<String, dynamic>> _homeLooks() {
     return looks.where((look) {
       final rootId = look['root_category_id'];
@@ -333,6 +384,11 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   @override Widget build(BuildContext context) {
     final banners = sxMaps(home['banners']);
     final categoryDisplay = _categoryDisplaySettings();
+    final couponStrip = _couponDisplaySettings();
+    final coupons = _homeCoupons();
+    final showCoupons = categoryDisplay['show_coupon_strip'] == true &&
+        couponStrip['enabled'] == true &&
+        coupons.isNotEmpty;
     return Scaffold(
       backgroundColor: Colors.white,
       body: RefreshIndicator(
@@ -348,8 +404,13 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               onWishlist: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxWishlistScreen())),
               onNotifications: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen())),
             )),
-            if (categoryDisplay['show_coupon_strip'] == true)
-              const SliverToBoxAdapter(child: SxCouponStrip()),
+            if (showCoupons)
+              SliverToBoxAdapter(
+                child: SxCouponStrip(
+                  settings: couponStrip,
+                  coupons: coupons,
+                ),
+              ),
             if (!loading &&
                 categoryDisplay['show_looks_strip'] == true &&
                 _homeLooks().isNotEmpty)
@@ -914,104 +975,372 @@ class _SxBannerLandingScreenState extends State<SxBannerLandingScreen> {
   );
 }
 
-class SxCouponStrip extends StatelessWidget {
-  const SxCouponStrip({super.key});
+class SxCouponStrip extends StatefulWidget {
+  final Map<String, dynamic> settings;
+  final List<Map<String, dynamic>> coupons;
+
+  const SxCouponStrip({
+    super.key,
+    required this.settings,
+    required this.coupons,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(0, 1, 0, 0),
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(14),
-          bottom: Radius.circular(5),
-        ),
-        boxShadow: [
-          BoxShadow(
-            blurRadius: 8,
-            color: Color(0x11000000),
-            offset: Offset(0, 2),
+  State<SxCouponStrip> createState() => _SxCouponStripState();
+}
+
+class _SxCouponStripState extends State<SxCouponStrip> {
+  PageController? _controller;
+  Timer? _timer;
+  int _page = 0;
+
+  int get _perSlide {
+    final value = sxInt(widget.settings['cards_per_slide'], 2);
+    return value == 2 ? 2 : 1;
+  }
+
+  List<List<Map<String, dynamic>>> get _pages {
+    final pages = <List<Map<String, dynamic>>>[];
+    for (var i = 0; i < widget.coupons.length; i += _perSlide) {
+      pages.add(
+        widget.coupons.skip(i).take(_perSlide).toList(),
+      );
+    }
+    return pages;
+  }
+
+  int _secondsForPage(int index) {
+    final page = _pages.isEmpty ? const <Map<String, dynamic>>[] : _pages[index.clamp(0, _pages.length - 1)];
+    for (final card in page) {
+      final custom = sxInt(card['duration']);
+      if (custom > 0) return custom.clamp(1, 120);
+    }
+    return sxInt(widget.settings['flip_seconds'], 4).clamp(1, 120);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(covariant SxCouponStrip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.coupons.length != widget.coupons.length ||
+        oldWidget.settings['flip_seconds'] != widget.settings['flip_seconds'] ||
+        oldWidget.settings['cards_per_slide'] != widget.settings['cards_per_slide']) {
+      _page = 0;
+      _schedule();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _schedule() {
+    _timer?.cancel();
+    if (!mounted || widget.settings['auto_flip'] != true || _pages.length <= 1) {
+      return;
+    }
+    final seconds = _secondsForPage(_page);
+    _timer = Timer(Duration(seconds: seconds), () {
+      if (!mounted || _controller == null || !_controller!.hasClients) return;
+      final next = (_page + 1) % _pages.length;
+      _controller!.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  void _pageChanged(int value) {
+    if (!mounted) return;
+    setState(() => _page = value);
+    _schedule();
+  }
+
+  Color _color(dynamic value, Color fallback) {
+    final raw = sxText(value);
+    if (!RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(raw)) return fallback;
+    return Color(
+      int.tryParse('FF' + raw.substring(1), radix: 16) ?? fallback.value,
+    );
+  }
+
+  IconData _icon(String type) {
+    switch (type) {
+      case 'gift':
+        return Icons.card_giftcard_outlined;
+      case 'tag':
+        return Icons.local_offer_outlined;
+      case 'star':
+        return Icons.star_outline;
+      case 'truck':
+        return Icons.local_shipping_outlined;
+      case 'shield':
+        return Icons.verified_user_outlined;
+      case 'zap':
+        return Icons.bolt_outlined;
+      case 'percent':
+      default:
+        return Icons.percent_outlined;
+    }
+  }
+
+  Future<void> _openCoupon(BuildContext context, Map<String, dynamic> coupon) async {
+    final type = sxText(coupon['display_type'], 'code');
+    if (type == 'code') {
+      final code = sxText(coupon['code']);
+      if (code.isEmpty) return;
+      await Clipboard.setData(ClipboardData(text: code));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('تم نسخ الكود: $code'),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(milliseconds: 1300),
           ),
-        ],
-      ),
-      child: Container(
-        height: 53,
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFFAF0),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Row(
-          textDirection: TextDirection.ltr,
-          children: [
-            const Expanded(
-              child: _Coupon(
-                icon: Icons.assignment_return_outlined,
-                title: 'إرجاع سهل',
-                sub: 'عرض التفاصيل',
-              ),
+        );
+      }
+      return;
+    }
+
+    final target = coupon['target'];
+    if (target is! Map) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('لا توجد وجهة لهذا العرض.')),
+        );
+      }
+      return;
+    }
+    final targetType = sxText(target['type']);
+    final id = sxInt(target['id']);
+    if ((targetType == 'category' || targetType == 'product' || targetType == 'hashtag') && id <= 0) return;
+
+    if (targetType == 'product') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => SxProductScreen(id: id)),
+      );
+    } else if (targetType == 'category') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => SxResults(
+          title: sxText(target['name'], 'العروض'),
+          categoryId: id,
+        )),
+      );
+    } else if (targetType == 'hashtag') {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => SxResults(
+          title: sxText(target['name'], 'العروض'),
+          hashtagId: id,
+        )),
+      );
+    } else if (targetType == 'url') {
+      final raw = sxText(target['url']);
+      final uri = Uri.tryParse(raw);
+      if (uri != null && await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تعذر فتح الرابط.')),
+        );
+      }
+    }
+  }
+
+  Widget _card(BuildContext context, Map<String, dynamic> coupon, double width) {
+    final bg = _color(coupon['background_color'], Colors.white);
+    final text = _color(coupon['text_color'], Colors.black87);
+    final badgeBg = _color(coupon['badge_background_color'], Colors.black);
+    final badgeText = _color(coupon['badge_text_color'], Colors.white);
+    final border = coupon['border_color'].toString().isEmpty
+        ? bg
+        : _color(coupon['border_color'], bg);
+    final radius = sxDouble(widget.settings['card_radius'], 18)
+        .clamp(0.0, 100.0)
+        .toDouble();
+    final height = sxDouble(widget.settings['card_height'], 96)
+        .clamp(40.0, 300.0)
+        .toDouble();
+    final titleSize = sxDouble(widget.settings['title_font_size'], 16)
+        .clamp(8.0, 32.0)
+        .toDouble();
+    final subtitleSize = sxDouble(widget.settings['subtitle_font_size'], 11)
+        .clamp(7.0, 24.0)
+        .toDouble();
+    final badgeSize = sxDouble(widget.settings['badge_font_size'], 10)
+        .clamp(7.0, 22.0)
+        .toDouble();
+    final badge = sxText(
+      coupon['badge_text'],
+      sxText(coupon['display_type']) == 'code' ? sxText(coupon['code']) : 'عرض',
+    );
+
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Material(
+        color: bg,
+        borderRadius: BorderRadius.circular(radius),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(radius),
+          onTap: () => _openCoupon(context, coupon),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(radius),
+              border: Border.all(color: border, width: .8),
             ),
-            Container(
-              width: 1,
-              height: 34,
-              color: const Color(0xFFD5CDBD),
+            child: Row(
+              textDirection: TextDirection.rtl,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(radius * .55),
+                  ),
+                  child: Icon(_icon(sxText(coupon['icon_type'])), size: 20, color: badgeText),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (badge.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: badgeBg,
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Text(
+                            badge,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: badgeText,
+                              fontSize: badgeSize,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      Text(
+                        sxText(coupon['headline'], 'عرض خاص'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: text,
+                          fontSize: titleSize,
+                          height: 1.05,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      if (sxText(coupon['subtitle']).isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Text(
+                            sxText(coupon['subtitle']),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: text.withOpacity(.78),
+                              fontSize: subtitleSize,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  sxText(coupon['display_type']) == 'code'
+                      ? Icons.content_copy_outlined
+                      : Icons.arrow_back_ios_new,
+                  size: 15,
+                  color: text.withOpacity(.6),
+                ),
+              ],
             ),
-            const Expanded(
-              child: _Coupon(
-                icon: Icons.local_shipping_outlined,
-                title: 'شحن مجاني',
-                sub: 'اطلب بأكثر من 149 ر.س',
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
-}
-
-class _Coupon extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String sub;
-
-  const _Coupon({
-    required this.icon,
-    required this.title,
-    required this.sub,
-  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w900,
+    if (widget.coupons.isEmpty) return const SizedBox.shrink();
+    final pages = _pages;
+    final height = sxDouble(widget.settings['card_height'], 96)
+        .clamp(40.0, 300.0)
+        .toDouble();
+    final spacing = sxDouble(widget.settings['card_spacing'], 8)
+        .clamp(0.0, 40.0)
+        .toDouble();
+    return Container(
+      color: Colors.white,
+      padding: EdgeInsets.fromLTRB(7, 5, 7, spacing > 8 ? 8 : 5),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: height,
+            child: PageView.builder(
+              controller: _controller,
+              onPageChanged: _pageChanged,
+              itemCount: pages.length,
+              itemBuilder: (_, index) {
+                final pair = pages[index];
+                if (_perSlide == 1 || pair.length == 1) {
+                  return _card(context, pair.first, double.infinity);
+                }
+                final usable = MediaQuery.of(context).size.width - 14;
+                final cardWidth = (usable - spacing) / 2;
+                return Row(
+                  textDirection: TextDirection.rtl,
+                  children: [
+                    _card(context, pair[0], cardWidth),
+                    SizedBox(width: spacing),
+                    _card(context, pair[1], cardWidth),
+                  ],
+                );
+              },
+            ),
+          ),
+          if (pages.length > 1)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                pages.length,
+                (i) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  width: i == _page ? 15 : 4,
+                  height: 3,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: i == _page ? Colors.black : const Color(0xFFBDBDBD),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(width: 5),
-            Icon(icon, size: 17),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          sub,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 10,
-            color: Color(0xFF4E4E4E),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
