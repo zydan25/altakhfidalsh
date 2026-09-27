@@ -266,7 +266,12 @@ def register_admin_routes(admin_bp):
                     "show_looks_strip": request.form.get("show_looks_strip") == "on",
                     "item_shape": request.form.get("item_shape") or "circle",
                     "item_size": request.form.get("item_size", 64, type=int),
+                    "item_width": request.form.get("item_width", 64, type=int),
+                    "item_height": request.form.get("item_height", 64, type=int),
                     "item_spacing": request.form.get("item_spacing", 6, type=int),
+                    "item_corner_radius": request.form.get("item_corner_radius", 16, type=int),
+                    "item_label_font_size": request.form.get("item_label_font_size", 9, type=int),
+                    "item_label_bold": request.form.get("item_label_bold") == "on",
                 })
                 success = "تم حفظ إعدادات فئات الصفحة الرئيسية."
             except (ValueError, TypeError, OSError) as exc:
