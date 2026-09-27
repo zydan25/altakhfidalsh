@@ -945,6 +945,7 @@ def test_category_home_display_get_and_banner_settings_persist(client, app):
         db.session.add(banner)
         db.session.commit()
         banner_id = banner.id
+        category_id = category.id
 
     response = client.post(
         "/admin/banners",
@@ -952,7 +953,7 @@ def test_category_home_display_get_and_banner_settings_persist(client, app):
             "action": "update_banner",
             "id": str(banner_id),
             "name": "بانر إعدادات محدث",
-            "root_category_id": str(category.id),
+            "root_category_id": str(category_id),
             "title": "عنوان جديد",
             "description": "وصف جديد",
             "overlay_text": "خصم اليوم",
