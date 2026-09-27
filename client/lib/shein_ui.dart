@@ -216,6 +216,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   Map<String, dynamic> home = {};
   List<ProductModel> products = [];
   List<CategoryModel> roots = [];
+  List<CategoryModel> allCategories = [];
   List<Map<String, dynamic>> sideCategories = [];
   int selected = -1;
   int discoveryTab = 2;
@@ -226,7 +227,8 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
     try {
       final h = await api.home();
       home = h;
-      roots = sxMaps(h['categories']).map(CategoryModel.fromJson).where((x) => x.parentId == null).toList();
+      allCategories = sxMaps(h['categories']).map(CategoryModel.fromJson).toList();
+      roots = allCategories.where((x) => x.parentId == null).toList();
       sideCategories = sxMaps(h['side_categories']);
       products = await api.feed(
         category: selected < 0 ? null : selected,
@@ -264,6 +266,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               SliverToBoxAdapter(
                 child: SxHomeCategoryGrid(
                   rootCategories: roots.take(10).toList(),
+                  allCategories: allCategories,
                   sideCategories: sideCategories,
                   selectedRootId: selected,
                   onRootTap: (category) async {
@@ -805,6 +808,7 @@ class _Coupon extends StatelessWidget {
 
 class SxHomeCategoryGrid extends StatelessWidget {
   final List<CategoryModel> rootCategories;
+  final List<CategoryModel> allCategories;
   final List<Map<String, dynamic>> sideCategories;
   final int selectedRootId;
   final ValueChanged<CategoryModel> onRootTap;
@@ -813,6 +817,7 @@ class SxHomeCategoryGrid extends StatelessWidget {
   const SxHomeCategoryGrid({
     super.key,
     required this.rootCategories,
+    required this.allCategories,
     required this.sideCategories,
     required this.selectedRootId,
     required this.onRootTap,
@@ -830,11 +835,23 @@ class SxHomeCategoryGrid extends StatelessWidget {
         .expand((row) => sxMaps(row['circles']))
         .toList();
 
-    if (selectedRootId >= 0 && circles.isNotEmpty) {
-      return _CircleGrid(
-        rows: circles.take(15).toList(),
-        onTap: onCircleTap,
-      );
+    if (selectedRootId >= 0) {
+      if (circles.isNotEmpty) {
+        return _CircleGrid(
+          rows: circles.take(15).toList(),
+          onTap: onCircleTap,
+        );
+      }
+
+      final children = allCategories
+          .where((category) => category.parentId == selectedRootId)
+          .toList();
+      if (children.isNotEmpty) {
+        return _RootGrid(
+          categories: children,
+          onTap: onRootTap,
+        );
+      }
     }
 
     return _RootGrid(
