@@ -1,0 +1,89 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">الواجهة الرئيسية · الفئات</span>
+  <h2>إعدادات الفئات الدائرية</h2>
+  <p class="muted">تحكم بشكل ومساحة فئات الصفحة الرئيسية لكل فئة رئيسية، مع إعداد مستقل لـ«كل الفئات». الإعدادات لا تغيّر شجرة التصنيفات نفسها.</p>
+</section>
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <span class="eyebrow">حسب السياق</span>
+      <h3>إعداد كل فئة رئيسية</h3>
+      <p class="muted">عند اختيار «كل الفئات» في التطبيق، تُستخدم إعداداتها. عند اختيار فئة رئيسية، تُستخدم إعداداتها الخاصة إن تم حفظها؛ وإلا يرث إعداد «كل الفئات».</p>
+    </div>
+    <a class="ghost-button" href="/admin/categories">إدارة شجرة التصنيفات</a>
+  </div>
+
+  <div class="stack-list">
+    {% for scope in scopes %}
+    {% set s = scope.settings %}
+    <details class="panel" style="padding:14px" {% if loop.first %}open{% endif %}>
+      <summary>
+        <strong>{{ scope.name }}</strong>
+        <span class="muted"> · {{ s.grid_rows }} صفوف · {{ s.item_size }}px · {{ s.item_spacing }}px</span>
+      </summary>
+
+      <form method="post" class="form-stack compact-form-grid" style="margin-top:14px">
+        <input type="hidden" name="scope" value="{{ scope.key }}">
+
+        <div class="field-caption">
+          <strong>نطاق الإعداد</strong>
+          <small class="muted">هذه الصفحة تعرض جميع الفئات الأب النشطة، بالإضافة إلى إعداد مستقل لـ«كل الفئات».</small>
+        </div>
+
+        <label>عدد صفوف الفئات
+          <input name="grid_rows" type="number" min="1" max="6" value="{{ s.grid_rows }}" required>
+          <small class="field-help">عدد الصفوف داخل شبكة الفئات في الصفحة الرئيسية. الأعمدة على الهاتف ثابتة ومتكيفة.</small>
+        </label>
+
+        <label>شكل الفئات
+          <select name="item_shape">
+            <option value="circle" {% if s.item_shape == "circle" %}selected{% endif %}>دائري</option>
+            <option value="rounded" {% if s.item_shape == "rounded" %}selected{% endif %}>منحني الحواف</option>
+            <option value="square" {% if s.item_shape == "square" %}selected{% endif %}>مربع</option>
+          </select>
+        </label>
+
+        <label>حجم الفئة
+          <input name="item_size" type="number" min="42" max="110" value="{{ s.item_size }}" required>
+          <small class="field-help">بالبكسل. الحجم الافتراضي 64px قريب من حجم المرجع المرسل.</small>
+        </label>
+
+        <label>التباعد بين الفئات
+          <input name="item_spacing" type="number" min="0" max="24" value="{{ s.item_spacing }}" required>
+          <small class="field-help">تباعد أفقي ورأسي موحد داخل الشبكة.</small>
+        </label>
+
+        <label class="check-row">
+          <input name="show_coupon_strip" type="checkbox" {% if s.show_coupon_strip %}checked{% endif %}>
+          <span>
+            <strong>إظهار شريط القسائم</strong>
+            <small class="field-help">عند التفعيل يظهر شريط «إرجاع سهل / شحن مجاني» قبل الفئات.</small>
+          </span>
+        </label>
+
+        <div class="panel" style="padding:10px;background:#fafafa;border:1px solid #ececec">
+          <strong>المعاينة المنطقية</strong>
+          <div class="chip-row" style="margin-top:8px">
+            <span class="banner-target-chip">الشكل: {{ "دائري" if s.item_shape=="circle" else ("منحني الحواف" if s.item_shape=="rounded" else "مربع") }}</span>
+            <span class="banner-target-chip">الحجم: {{ s.item_size }}px</span>
+            <span class="banner-target-chip">التباعد: {{ s.item_spacing }}px</span>
+            <span class="banner-target-chip">الصفوف: {{ s.grid_rows }}</span>
+            <span class="banner-target-chip">{{ "القسائم ظاهرة" if s.show_coupon_strip else "القسائم مخفية" }}</span>
+          </div>
+        </div>
+
+        <button class="primary-button form-field-wide" type="submit">حفظ إعدادات {{ scope.name }}</button>
+      </form>
+    </details>
+    {% else %}
+      <div class="empty-state">لا توجد فئات رئيسية نشطة بعد.</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
