@@ -84,6 +84,20 @@ def upgrade():
                 "WHERE item_corner_radius IS NULL"
             )
         )
+    if "item_label_font_size" in columns:
+        bind.execute(
+            sa.text(
+                f"UPDATE {TABLE} SET item_label_font_size = 9 "
+                "WHERE item_label_font_size IS NULL"
+            )
+        )
+    if "item_label_bold" in columns:
+        bind.execute(
+            sa.text(
+                f"UPDATE {TABLE} SET item_label_bold = TRUE "
+                "WHERE item_label_bold IS NULL"
+            )
+        )
 
     existing_scopes = bind.execute(
         sa.text(f"SELECT scope_key FROM {TABLE}")
@@ -99,8 +113,8 @@ def upgrade():
                 sa.text(
                     f"""
                     INSERT INTO {TABLE}
-                        (scope_key, category_id, grid_rows, show_coupon_strip, show_looks_strip, item_shape, item_size, item_spacing, item_corner_radius)
-                    VALUES ('all', NULL, 2, TRUE, TRUE, 'circle', 64, 6, 16)
+                        (scope_key, category_id, grid_rows, show_coupon_strip, show_looks_strip, item_shape, item_size, item_spacing, item_corner_radius, item_label_font_size, item_label_bold)
+                    VALUES ('all', NULL, 2, TRUE, TRUE, 'circle', 64, 6, 16, 9, TRUE)
                     """
                 )
             )
