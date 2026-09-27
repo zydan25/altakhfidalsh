@@ -217,7 +217,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   List<ProductModel> products = [];
   List<CategoryModel> roots = [];
   int selected = -1;
-  int discoveryTab = 0;
+  int discoveryTab = 2;
   bool loading = true;
   @override void initState() { super.initState(); load(); }
   Future<void> load() async {
@@ -282,7 +282,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
             if (loading)
               const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
             else ...[
-              const SliverToBoxAdapter(child: SxSectionTitle(title: 'لك')),
+              SliverToBoxAdapter(child: SxSectionTitle(title: discoveryTab == 1 ? 'جديد' : discoveryTab == 0 ? 'العروض' : 'لك')),
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(7, 0, 7, 18),
