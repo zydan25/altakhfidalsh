@@ -1,171 +1,504 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<section class="module-header">
-  <span class="eyebrow">الترويج والواجهة الرئيسية</span>
-  <h2>شريط القسائم والعروض</h2>
-  <p class="muted">إعدادات عامة لكل نطاق + بطاقات قسائم مستقلة. القسيمة بالكود تنسخ الكود، والقسيمة بالتوجيه تفتح الوجهة المحددة.</p>
-</section>
+<style>
+  .coupon-page{direction:rtl}
+  .coupon-intro{display:grid;grid-template-columns:1.3fr .9fr;gap:14px;align-items:stretch}
+  .coupon-card{border:1px solid #e8e8e8;border-radius:16px;background:#fff;box-shadow:0 5px 18px rgba(0,0,0,.05)}
+  .coupon-card .inner{padding:16px}
+  .coupon-step{display:flex;gap:10px;align-items:flex-start}
+  .coupon-step-num{width:30px;height:30px;flex:0 0 30px;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900}
+  .coupon-step h4{margin:0 0 4px;font-size:14px}
+  .coupon-step p{margin:0;color:#6b7280;font-size:11px;line-height:1.6}
+  .help-box{padding:11px 13px;border-radius:12px;background:#f7f7f7;color:#5f6368;font-size:11px;line-height:1.7}
+  .preset-row{display:flex;flex-wrap:wrap;gap:7px}
+  .preset-chip{border:1px solid #ddd;background:#fff;border-radius:10px;padding:7px 9px;cursor:pointer;font-size:10px;display:flex;gap:7px;align-items:center}
+  .preset-dot{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.12)}
+  .color-line{display:flex;align-items:center;gap:8px}
+  .color-line input[type=color]{width:46px;height:38px;padding:2px;border:1px solid #ddd;border-radius:10px;background:#fff;cursor:pointer}
+  .color-label{font-size:10px;color:#6b7280}
+  .mini-preview{border-radius:16px;padding:14px;min-height:122px;display:flex;align-items:center}
+  .mini-coupon{width:100%;border:1px solid #B7D9A6;border-radius:18px;padding:13px 14px;display:flex;align-items:center;gap:11px}
+  .mini-icon{width:38px;height:38px;border-radius:12px;background:#166534;color:#fff;display:flex;align-items:center;justify-content:center}
+  .mini-copy{flex:1;min-width:0}
+  .mini-copy strong{display:block;font-size:18px}
+  .mini-copy span{display:block;font-size:11px;margin-top:3px}
+  .mini-badge{font-size:10px;font-weight:900;padding:5px 7px;border-radius:7px;white-space:nowrap}
+  .scope-chips{display:flex;flex-wrap:wrap;gap:7px}
+  .scope-chip{display:inline-flex;padding:8px 11px;border:1px solid #ddd;border-radius:10px;text-decoration:none;color:#222;background:#fff;font-size:11px}
+  .scope-chip.is-current{background:#111;color:#fff;border-color:#111}
+  .field-help{display:block;margin-top:4px;color:#8a8f98;font-size:10px;line-height:1.6}
+  .form-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .setting-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .color-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .section-divider{border:0;border-top:1px solid #eee;margin:14px 0}
+  .choice-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .choice{border:1px solid #ddd;border-radius:12px;padding:10px;cursor:pointer}
+  .choice:has(input:checked){border-color:#111;box-shadow:0 0 0 1px #111 inset}
+  .choice input{margin-left:7px}
+  .card-list{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .card-item{border:1px solid #e8e8e8;border-radius:14px;background:#fff;overflow:hidden}
+  .card-item summary{list-style:none;cursor:pointer;padding:12px 14px}
+  .card-item summary::-webkit-details-marker{display:none}
+  .card-summary{display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .card-summary-main strong{display:block;font-size:13px}
+  .card-summary-main span{display:block;font-size:10px;color:#7a7f87;margin-top:3px}
+  .type-pill{padding:5px 7px;border-radius:8px;font-size:9px;font-weight:900;background:#f1f1f1}
+  .card-body{padding:0 14px 14px}
+  .swatch-toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+  .swatch-btn{width:28px;height:28px;border-radius:8px;border:1px solid rgba(0,0,0,.12);cursor:pointer}
+  @media(max-width:900px){
+    .coupon-intro,.card-list,.setting-grid,.color-grid,.form-grid-2{grid-template-columns:1fr}
+  }
+</style>
 
-{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
-{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<div class="coupon-page">
+  <section class="module-header">
+    <span class="eyebrow">الترويج والواجهة الرئيسية</span>
+    <h2>شريط القسائم والعروض</h2>
+    <p class="muted">أنشئ قسائم سهلة الفهم مثل «خصم 20%» و«هدية مجانية». الزائر يضغط على الكود لنسخه، أو على العرض لفتح الوجهة.</p>
+  </section>
 
-<section class="panel" style="padding:14px;margin-bottom:16px">
-  <div class="panel-heading">
-    <div><span class="eyebrow">النطاق</span><h3>الشاشة التي يظهر فيها الشريط</h3></div>
-  </div>
-  <div class="chip-row">
-    {% for scope in scopes %}
-      <a class="ghost-button {% if selected_scope == scope.key %}is-current{% endif %}" href="/admin/promotions/coupons?scope={{ scope.key }}">{{ scope.name }}</a>
-    {% endfor %}
-  </div>
-</section>
+  {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
-<section class="two-panel">
-  <article class="panel">
-    <div class="panel-heading">
-      <div><span class="eyebrow">إعدادات الشريط</span><h3>الإعدادات العامة لهذا النطاق</h3></div>
-    </div>
-    <form method="post" class="form-stack">
-      <input type="hidden" name="action" value="save_settings">
-      <input type="hidden" name="scope" value="{{ selected_scope }}">
-      <label class="check-row"><input type="checkbox" name="enabled" {% if settings.enabled %}checked{% endif %}> إظهار شريط القسائم</label>
-      <label class="check-row"><input type="checkbox" name="auto_flip" {% if settings.auto_flip %}checked{% endif %}> التقليب التلقائي</label>
-      <label>مدة بقاء الشاشة قبل الانتقال
-        <input name="flip_seconds" type="number" min="1" max="120" value="{{ settings.flip_seconds }}">
-        <small class="field-help">بالثواني.</small>
-      </label>
-      <label>عدد القسائم في الشاشة
-        <select name="cards_per_slide">
-          <option value="1" {% if settings.cards_per_slide == 1 %}selected{% endif %}>قسيمة واحدة كاملة</option>
-          <option value="2" {% if settings.cards_per_slide == 2 %}selected{% endif %}>قسيمتان نصفان</option>
-        </select>
-      </label>
-      <label>ارتفاع القسيمة
-        <input name="card_height" type="number" min="40" max="300" value="{{ settings.card_height }}">
-      </label>
-      <label>انحناء الحواف
-        <input name="card_radius" type="number" min="0" max="100" value="{{ settings.card_radius }}">
-      </label>
-      <label>المسافة بين القسائم
-        <input name="card_spacing" type="number" min="0" max="40" value="{{ settings.card_spacing }}">
-      </label>
-      <label>حجم العنوان الرئيسي
-        <input name="title_font_size" type="number" min="8" max="32" value="{{ settings.title_font_size }}">
-      </label>
-      <label>حجم العنوان الفرعي
-        <input name="subtitle_font_size" type="number" min="7" max="24" value="{{ settings.subtitle_font_size }}">
-      </label>
-      <label>حجم الشارة/الكود
-        <input name="badge_font_size" type="number" min="7" max="22" value="{{ settings.badge_font_size }}">
-      </label>
-      <div class="form-grid">
-        <label>خلفية افتراضية<input name="default_background_color" value="{{ settings.default_background_color }}" dir="ltr"></label>
-        <label>لون النص الافتراضي<input name="default_text_color" value="{{ settings.default_text_color }}" dir="ltr"></label>
-        <label>خلفية الشارة الافتراضية<input name="default_badge_background_color" value="{{ settings.default_badge_background_color }}" dir="ltr"></label>
-        <label>لون نص الشارة الافتراضي<input name="default_badge_text_color" value="{{ settings.default_badge_text_color }}" dir="ltr"></label>
+  <section class="coupon-intro" style="margin-bottom:14px">
+    <article class="coupon-card"><div class="inner">
+      <div class="panel-heading">
+        <div><span class="eyebrow">طريقة الاستخدام</span><h3>ثلاث خطوات فقط</h3></div>
       </div>
-      <button class="primary-button">حفظ إعدادات الشريط</button>
-    </form>
-  </article>
-
-  <article class="panel">
-    <div class="panel-heading">
-      <div><span class="eyebrow">إضافة</span><h3>إضافة قسيمة جديدة</h3></div>
-    </div>
-    <form method="post" class="form-stack">
-      <input type="hidden" name="action" value="create_card">
-      <input type="hidden" name="scope" value="{{ selected_scope }}">
-      <label>اسم داخلي<input name="name" required placeholder="خصم اليوم"></label>
-      <label>نوع القسيمة
-        <select name="display_type">
-          <option value="code">كود — الضغط ينسخ الكود</option>
-          <option value="redirect">توجيه — الضغط يفتح الوجهة</option>
-        </select>
-      </label>
-      <label>الكود<input name="code" dir="ltr" placeholder="SAVE20"></label>
-      <label>العنوان الرئيسي<input name="headline" required placeholder="خصم 20%"></label>
-      <label>العنوان الفرعي<input name="subtitle" placeholder="للطلبات المؤهلة"></label>
-      <label>الشارة العلوية<input name="badge_text" placeholder="عرض خاص وحصري ⭐"></label>
-      <label>الأيقونة
-        <select name="icon_type">
-          <option value="percent">نسبة خصم</option><option value="tag">قسيمة</option><option value="gift">هدية</option>
-          <option value="star">مميز</option><option value="truck">شحن وتوصيل</option><option value="shield">أمان</option>
-          <option value="zap">سريع وفوري</option>
-        </select>
-      </label>
-      <fieldset class="panel" style="padding:12px">
-        <legend>وجهة التوجيه</legend>
-        <label>نوع الوجهة
-          <select name="target_type">
-            <option value="">اختر عند استخدام التوجيه</option>
-            <option value="category">تصنيف</option><option value="product">منتج</option><option value="hashtag">هاشتاج</option><option value="url">رابط</option>
-          </select>
-        </label>
-        <label>العنصر المستهدف
-          <select name="target_id">
-            <option value="">اختر العنصر</option>
-            <optgroup label="التصنيفات">{% for x in categories %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</optgroup>
-            <optgroup label="المنتجات">{% for x in products %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</optgroup>
-            <optgroup label="الهاشتاجات">{% for x in hashtags %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</optgroup>
-          </select>
-        </label>
-        <label>الرابط المباشر عند اختيار «رابط»<input name="target_url" dir="ltr" placeholder="https://..."></label>
-      </fieldset>
-      <div class="form-grid">
-        <label>لون الخلفية<input name="background_color" value="#E2EFDA" dir="ltr"></label>
-        <label>لون النص<input name="text_color" value="#1B5E20" dir="ltr"></label>
-        <label>خلفية الشارة<input name="badge_background_color" value="#166534" dir="ltr"></label>
-        <label>لون نص الشارة<input name="badge_text_color" value="#ffffff" dir="ltr"></label>
-        <label>لون الإطار اختياري<input name="border_color" value="#B7D9A6" dir="ltr"></label>
+      <div style="display:grid;gap:12px">
+        <div class="coupon-step"><div class="coupon-step-num">1</div><div><h4>اختر الشاشة</h4><p>«كل الفئات» تجعل الشريط عامًا، أو اختر قسمًا رئيسيًا مثل نساء أو رجال لعرض قسائم خاصة به.</p></div></div>
+        <div class="coupon-step"><div class="coupon-step-num">2</div><div><h4>اضبط شكل الشريط</h4><p>اختر قسيمة واحدة أو قسيمتين، وحدد الارتفاع والحواف والمؤقت من قوائم سهلة بدل الاعتماد على التخمين.</p></div></div>
+        <div class="coupon-step"><div class="coupon-step-num">3</div><div><h4>أنشئ العرض</h4><p>اختر «كود» للنسخ، أو «توجيه» لفتح تصنيف أو منتج أو هاشتاج أو رابط خارجي.</p></div></div>
       </div>
-      <div class="form-grid">
-        <label>الترتيب<input name="sort_order" type="number" value="0"></label>
-        <label>مدة خاصة بالقسيمة<input name="duration" type="number" min="1" max="120" placeholder="افتراضي"></label>
-      </div>
-      <label class="check-row"><input type="checkbox" name="is_active" checked> مفعلة</label>
-      <button class="primary-button">إضافة القسيمة</button>
-    </form>
-  </article>
-</section>
-
-<section class="panel" style="padding:14px;margin-top:16px">
-  <div class="panel-heading">
-    <div><span class="eyebrow">البطاقات</span><h3>قسائم نطاق «{{ scopes|selectattr('key','equalto',selected_scope)|map(attribute='name')|first or 'كل الفئات' }}»</h3></div>
-    <span class="status-pill">{{ cards|length }}</span>
-  </div>
-  <div class="stack-list">
-    {% for row in cards %}
-    <details class="panel" style="padding:12px">
-      <summary><strong>{{ row.headline }}</strong><span class="muted"> · {% if row.display_type == 'code' %}كود: {{ row.code }}{% else %}توجيه{% endif %} · {{ row.name }}</span></summary>
-      <form method="post" class="form-stack" style="margin-top:12px">
-        <input type="hidden" name="action" value="update_card"><input type="hidden" name="id" value="{{ row.id }}"><input type="hidden" name="scope" value="{{ selected_scope }}">
-        <label>الاسم الداخلي<input name="name" value="{{ row.name }}" required></label>
-        <label>النوع<select name="display_type"><option value="code" {% if row.display_type=='code' %}selected{% endif %}>كود — نسخ</option><option value="redirect" {% if row.display_type=='redirect' %}selected{% endif %}>توجيه</option></select></label>
-        <label>الكود<input name="code" value="{{ row.code or '' }}" dir="ltr"></label>
-        <label>العنوان الرئيسي<input name="headline" value="{{ row.headline }}" required></label>
-        <label>العنوان الفرعي<input name="subtitle" value="{{ row.subtitle or '' }}"></label>
-        <label>الشارة<input name="badge_text" value="{{ row.badge_text or '' }}"></label>
-        <label>الأيقونة<select name="icon_type">{% for icon,label in [('percent','نسبة خصم'),('tag','قسيمة'),('gift','هدية'),('star','مميز'),('truck','شحن وتوصيل'),('shield','أمان'),('zap','سريع وفوري')] %}<option value="{{ icon }}" {% if row.icon_type==icon %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
-        <fieldset class="panel" style="padding:12px"><legend>الوجهة</legend>
-          <label>النوع<select name="target_type"><option value="">بدون</option>{% for t,l in [('category','تصنيف'),('product','منتج'),('hashtag','هاشتاج'),('url','رابط')] %}<option value="{{ t }}" {% if row.target_type==t %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
-          <label>العنصر<select name="target_id"><option value="">اختر</option>{% for x in categories %}<option value="{{ x.id }}" {% if row.target_id==x.id %}selected{% endif %}>تصنيف: {{ x.name }}</option>{% endfor %}{% for x in products %}<option value="{{ x.id }}" {% if row.target_id==x.id %}selected{% endif %}>منتج: {{ x.name }}</option>{% endfor %}{% for x in hashtags %}<option value="{{ x.id }}" {% if row.target_id==x.id %}selected{% endif %}>هاشتاج: {{ x.name }}</option>{% endfor %}</select></label>
-          <label>الرابط<input name="target_url" value="{{ row.target_url or '' }}" dir="ltr"></label>
-        </fieldset>
-        <div class="form-grid">
-          <label>الخلفية<input name="background_color" value="{{ row.background_color }}" dir="ltr"></label>
-          <label>لون النص<input name="text_color" value="{{ row.text_color }}" dir="ltr"></label>
-          <label>خلفية الشارة<input name="badge_background_color" value="{{ row.badge_background_color }}" dir="ltr"></label>
-          <label>لون نص الشارة<input name="badge_text_color" value="{{ row.badge_text_color }}" dir="ltr"></label>
-          <label>الإطار<input name="border_color" value="{{ row.border_color or '' }}" dir="ltr"></label>
-          <label>الترتيب<input name="sort_order" type="number" value="{{ row.sort_order }}"></label>
-          <label>مدة خاصة<input name="duration" type="number" min="1" max="120" value="{{ row.duration or '' }}"></label>
+    </div></article>
+    <article class="coupon-card"><div class="inner">
+      <span class="eyebrow">معاينة تقريبية</span>
+      <h3 style="margin:3px 0 10px">هكذا سيظهر الشريط</h3>
+      <div class="mini-preview" id="coupon-live-preview" style="background:#E2EFDA">
+        <div class="mini-coupon" style="border-color:#B7D9A6">
+          <div class="mini-icon"><span>٪</span></div>
+          <div class="mini-copy"><strong id="preview-title">خصم 20%</strong><span id="preview-subtitle">للطلبات المؤهلة</span></div>
+          <div class="mini-badge" id="preview-badge" style="background:#166534;color:#fff">SAVE20</div>
         </div>
-        <label class="check-row"><input type="checkbox" name="is_active" {% if row.is_active %}checked{% endif %}> مفعلة</label>
-        <button class="primary-button">حفظ القسيمة</button>
+      </div>
+      <div class="help-box" style="margin-top:10px">الألوان يتم اختيارها من نافذة الألوان مباشرة. لا تحتاج إلى معرفة رموز الألوان مثل <span dir="ltr">#E2EFDA</span>.</div>
+    </div></article>
+  </section>
+
+  <section class="coupon-card" style="margin-bottom:14px">
+    <div class="inner">
+      <div class="panel-heading">
+        <div><span class="eyebrow">النطاق</span><h3>أين تريد عرض القسائم؟</h3></div>
+      </div>
+      <div class="scope-chips">
+        {% for scope in scopes %}
+          <a class="scope-chip {% if selected_scope == scope.key %}is-current{% endif %}" href="/admin/promotions/coupons?scope={{ scope.key }}">{{ scope.name }}</a>
+        {% endfor %}
+      </div>
+      <div class="help-box" style="margin-top:9px">إعدادات كل قسم تحفظ بشكل مستقل. عند ترك قسم بلا إعداد خاص، يبدأ بنفس الإعدادات العامة حتى تغيّرها.</div>
+    </div>
+  </section>
+
+  <section class="two-panel">
+    <article class="panel">
+      <div class="panel-heading">
+        <div><span class="eyebrow">1 · شكل الشريط</span><h3>إعدادات العرض</h3></div>
+      </div>
+      <form method="post" class="form-stack" id="settings-form">
+        <input type="hidden" name="action" value="save_settings">
+        <input type="hidden" name="scope" value="{{ selected_scope }}">
+
+        <label class="check-row"><input type="checkbox" name="enabled" {% if settings.enabled %}checked{% endif %}> إظهار الشريط للعميل
+          <small class="field-help">أوقفه مؤقتًا دون حذف القسائم.</small>
+        </label>
+        <label class="check-row"><input type="checkbox" name="auto_flip" {% if settings.auto_flip %}checked{% endif %}> التقليب التلقائي
+          <small class="field-help">عند التفعيل ينتقل بين القسائم تلقائيًا.</small>
+        </label>
+
+        <div class="setting-grid">
+          <label>سرعة التقليب
+            <select name="flip_seconds">
+              {% for s in [2,3,4,5,6,8] %}<option value="{{ s }}" {% if settings.flip_seconds == s %}selected{% endif %}>كل {{ s }} ثوانٍ</option>{% endfor %}
+            </select>
+            <small class="field-help">القيمة الموصى بها 4 ثوانٍ.</small>
+          </label>
+          <label>عدد القسائم في الشاشة
+            <select name="cards_per_slide">
+              <option value="1" {% if settings.cards_per_slide == 1 %}selected{% endif %}>قسيمة واحدة بعرض كامل</option>
+              <option value="2" {% if settings.cards_per_slide == 2 %}selected{% endif %}>قسيمتان مقسمتان إلى نصفين</option>
+            </select>
+            <small class="field-help">مناسب لعرض مثالين معًا مثل «خصم» و«هدية».</small>
+          </label>
+          <label>ارتفاع الشريط
+            <select name="card_height">
+              {% for v,l in [(72,'صغير'),(96,'متوسط — الافتراضي'),(120,'كبير'),(150,'كبير جدًا')] %}
+                <option value="{{ v }}" {% if settings.card_height == v %}selected{% endif %}>{{ l }}</option>
+              {% endfor %}
+            </select>
+            <small class="field-help">يتم حفظ القياس المناسب تلقائيًا.</small>
+          </label>
+          <label>انحناء الحواف
+            <select name="card_radius">
+              {% for v,l in [(0,'مربع'),(10,'خفيف'),(18,'متوسط — الافتراضي'),(28,'ناعم'),(40,'دائري أكثر')] %}
+                <option value="{{ v }}" {% if settings.card_radius == v %}selected{% endif %}>{{ l }}</option>
+              {% endfor %}
+            </select>
+            <small class="field-help">كلما زادت القيمة أصبحت الحواف أكثر نعومة.</small>
+          </label>
+          <label>المسافة بين القسائم
+            <select name="card_spacing">
+              {% for v,l in [(0,'بدون مسافة'),(6,'صغيرة'),(8,'متوسطة — الافتراضي'),(14,'واضحة'),(20,'كبيرة')] %}
+                <option value="{{ v }}" {% if settings.card_spacing == v %}selected{% endif %}>{{ l }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>حجم العنوان الرئيسي
+            <select name="title_font_size">
+              {% for v,l in [(13,'صغير'),(16,'متوسط — الافتراضي'),(20,'كبير'),(24,'كبير جدًا')] %}
+                <option value="{{ v }}" {% if settings.title_font_size == v %}selected{% endif %}>{{ l }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>حجم العنوان الفرعي
+            <select name="subtitle_font_size">
+              {% for v,l in [(9,'صغير'),(11,'متوسط — الافتراضي'),(14,'كبير'),(17,'كبير جدًا')] %}
+                <option value="{{ v }}" {% if settings.subtitle_font_size == v %}selected{% endif %}>{{ l }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>حجم الشارة أو الكود
+            <select name="badge_font_size">
+              {% for v,l in [(8,'صغير'),(10,'متوسط — الافتراضي'),(12,'كبير'),(15,'كبير جدًا')] %}
+                <option value="{{ v }}" {% if settings.badge_font_size == v %}selected{% endif %}>{{ l }}</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+
+        <hr class="section-divider">
+        <div class="panel-heading"><div><span class="eyebrow">الألوان الافتراضية</span><h3>اخترها بصريًا</h3></div></div>
+        <div class="color-grid">
+          {% set color_fields = [
+            ('default_background_color','لون خلفية القسيمة','#E2EFDA'),
+            ('default_text_color','لون النص','#1B5E20'),
+            ('default_badge_background_color','لون خلفية الكود أو الشارة','#166534'),
+            ('default_badge_text_color','لون نص الكود أو الشارة','#FFFFFF')
+          ] %}
+          {% for field,label,default in color_fields %}
+            <label>
+              {{ label }}
+              <div class="color-line">
+                <input type="color" name="{{ field }}" value="{{ getattr(settings, field) or default }}">
+                <span class="color-label">اضغط على مربع اللون لاختيار لونك</span>
+              </div>
+              <div class="preset-row">
+                <button type="button" class="preset-chip" onclick="setColor('[name={{ field }}]','#E2EFDA')"><span class="preset-dot" style="background:#E2EFDA"></span>أخضر فاتح</button>
+                <button type="button" class="preset-chip" onclick="setColor('[name={{ field }}]','#FFF4E8')"><span class="preset-dot" style="background:#FFF4E8"></span>خوخي فاتح</button>
+                <button type="button" class="preset-chip" onclick="setColor('[name={{ field }}]','#F3F4F6')"><span class="preset-dot" style="background:#F3F4F6"></span>رمادي فاتح</button>
+                <button type="button" class="preset-chip" onclick="setColor('[name={{ field }}]','#111111')"><span class="preset-dot" style="background:#111"></span>أسود</button>
+              </div>
+            </label>
+          {% endfor %}
+        </div>
+
+        <div class="help-box">الإعدادات الافتراضية الموصى بها: <strong>تقليب 4 ثوانٍ · قسيمتان · ارتفاع متوسط · حواف متوسطة</strong>. يمكنك تعديلها متى شئت.</div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="primary-button" type="submit">حفظ إعدادات الشريط</button>
+        </div>
       </form>
-      <form method="post" style="margin-top:8px"><input type="hidden" name="action" value="archive_card"><input type="hidden" name="id" value="{{ row.id }}"><input type="hidden" name="scope" value="{{ selected_scope }}"><button class="ghost-button">أرشفة</button></form>
-    </details>
-    {% else %}<span class="muted">لا توجد قسائم في هذا النطاق.</span>{% endfor %}
-  </div>
-</section>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+        <form method="post">
+          <input type="hidden" name="action" value="reset_settings">
+          <input type="hidden" name="scope" value="{{ selected_scope }}">
+          <button class="ghost-button" type="submit">إعادة الإعدادات الموصى بها</button>
+        </form>
+        {% if selected_scope != 'all' %}
+        <form method="post">
+          <input type="hidden" name="action" value="copy_global_settings">
+          <input type="hidden" name="scope" value="{{ selected_scope }}">
+          <button class="ghost-button" type="submit">نسخ إعدادات «كل الفئات» إلى هذا القسم</button>
+        </form>
+        {% endif %}
+      </div>
+    </article>
+
+    <article class="panel">
+      <div class="panel-heading">
+        <div><span class="eyebrow">2 · أضف عرضًا</span><h3>قسيمة جديدة</h3></div>
+      </div>
+      <form method="post" class="form-stack coupon-card-form">
+        <input type="hidden" name="action" value="create_card">
+        <input type="hidden" name="scope" value="{{ selected_scope }}">
+
+        <label>اسم داخلي
+          <input name="name" required placeholder="خصم اليوم">
+          <small class="field-help">هذا الاسم يظهر في لوحة الإدارة فقط.</small>
+        </label>
+
+        <div class="choice-row">
+          <label class="choice"><input type="radio" name="display_type" value="code" checked> <strong>كود</strong><small class="field-help">عند الضغط ينسخ الكود تلقائيًا.</small></label>
+          <label class="choice"><input type="radio" name="display_type" value="redirect"> <strong>توجيه</strong><small class="field-help">عند الضغط يفتح تصنيفًا أو منتجًا أو هاشتاجًا أو رابطًا.</small></label>
+        </div>
+
+        <label class="field-code">الكود
+          <input name="code" dir="ltr" placeholder="SAVE20">
+          <small class="field-help">مثال: SAVE20 أو BONUS. لا تكتب مسافات.</small>
+        </label>
+
+        <label>العنوان الرئيسي
+          <input name="headline" required placeholder="خصم 20%">
+          <small class="field-help">الجملة الكبيرة التي يراها العميل.</small>
+        </label>
+
+        <label>العنوان الفرعي
+          <input name="subtitle" placeholder="للطلبات المؤهلة">
+          <small class="field-help">شرح قصير يوضح العرض.</small>
+        </label>
+
+        <label>الشارة
+          <input name="badge_text" placeholder="عرض خاص وحصري">
+        </label>
+
+        <label>نوع الأيقونة
+          <select name="icon_type">
+            <option value="percent">٪ خصم</option>
+            <option value="tag">🏷 قسيمة</option>
+            <option value="gift">🎁 هدية</option>
+            <option value="star">★ مميز</option>
+            <option value="truck">🚚 شحن</option>
+            <option value="shield">🛡 أمان</option>
+            <option value="zap">⚡ سريع</option>
+          </select>
+        </label>
+
+        <fieldset class="panel redirect-box" style="padding:12px">
+          <legend>عند اختيار «توجيه»</legend>
+          <label>إلى أين؟
+            <select name="target_type" class="target-type">
+              <option value="">اختر الوجهة</option>
+              <option value="category">تصنيف</option>
+              <option value="product">منتج</option>
+              <option value="hashtag">هاشتاج</option>
+              <option value="url">رابط خارجي</option>
+            </select>
+          </label>
+          <label class="target-id-wrap">العنصر
+            <select name="target_id" class="target-id">
+              <option value="">اختر العنصر</option>
+              {% for x in categories %}<option data-target-type="category" value="{{ x.id }}">تصنيف: {{ x.name }}</option>{% endfor %}
+              {% for x in products %}<option data-target-type="product" value="{{ x.id }}">منتج: {{ x.name }}</option>{% endfor %}
+              {% for x in hashtags %}<option data-target-type="hashtag" value="{{ x.id }}">هاشتاج: {{ x.name }}</option>{% endfor %}
+            </select>
+          </label>
+          <label class="target-url-wrap">الرابط الخارجي
+            <input name="target_url" class="target-url" dir="ltr" placeholder="https://example.com/...">
+          </label>
+          <small class="field-help">لا تحتاج إلى معرفة أرقام العناصر. اختر الاسم مباشرة من القائمة.</small>
+        </fieldset>
+
+        <div class="color-grid">
+          {% for field,label,default in [
+            ('background_color','خلفية القسيمة','#E2EFDA'),
+            ('text_color','لون النص','#1B5E20'),
+            ('badge_background_color','خلفية الشارة أو الكود','#166534'),
+            ('badge_text_color','لون نص الشارة أو الكود','#FFFFFF'),
+            ('border_color','لون الإطار','#B7D9A6')
+          ] %}
+          <label>{{ label }}
+            <div class="color-line"><input type="color" name="{{ field }}" value="{{ default }}"><span class="color-label">اختيار بصري</span></div>
+            <div class="swatch-toolbar">
+              <button type="button" class="swatch-btn" style="background:#E2EFDA" title="أخضر فاتح" onclick="setColor('[name={{ field }}]','#E2EFDA')"></button>
+              <button type="button" class="swatch-btn" style="background:#FFF4E8" title="خوخي فاتح" onclick="setColor('[name={{ field }}]','#FFF4E8')"></button>
+              <button type="button" class="swatch-btn" style="background:#FDECEC" title="وردي فاتح" onclick="setColor('[name={{ field }}]','#FDECEC')"></button>
+              <button type="button" class="swatch-btn" style="background:#111111" title="أسود" onclick="setColor('[name={{ field }}]','#111111')"></button>
+              <button type="button" class="swatch-btn" style="background:#FFFFFF" title="أبيض" onclick="setColor('[name={{ field }}]','#FFFFFF')"></button>
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+
+        <div class="form-grid-2">
+          <label>ترتيب العرض<input name="sort_order" type="number" value="10"><small class="field-help">الأصغر يظهر أولًا.</small></label>
+          <label>مدة خاصة لهذه القسيمة
+            <select name="duration">
+              <option value="">اتبع مؤقت الشريط</option>
+              {% for s in [2,3,4,5,6,8,10,15] %}<option value="{{ s }}">{{ s }} ثوانٍ لهذه القسيمة</option>{% endfor %}
+            </select>
+          </label>
+        </div>
+        <label class="check-row"><input type="checkbox" name="is_active" checked> مفعلة الآن</label>
+        <button class="primary-button" type="submit">إضافة القسيمة</button>
+      </form>
+    </article>
+  </section>
+
+  <section class="coupon-card" style="margin-top:14px">
+    <div class="inner">
+      <div class="panel-heading">
+        <div><span class="eyebrow">3 · القسائم الحالية</span><h3>قسائم «{% for x in scopes %}{% if x.key == selected_scope %}{{ x.name }}{% endif %}{% endfor %}»</h3></div>
+        <span class="status-pill">{{ cards|length }}</span>
+      </div>
+
+      {% if cards %}
+      <div class="card-list">
+        {% for row in cards %}
+        <details class="card-item">
+          <summary>
+            <div class="card-summary">
+              <div class="card-summary-main">
+                <strong>{{ row.headline }}</strong>
+                <span>{% if row.display_type == 'code' %}كود: {{ row.code }}{% else %}توجيه{% endif %} · {{ row.name }}</span>
+              </div>
+              <span class="type-pill">{% if row.display_type == 'code' %}ينسخ{% else %}يفتح وجهة{% endif %}</span>
+            </div>
+          </summary>
+          <div class="card-body">
+            <form method="post" class="form-stack coupon-card-form">
+              <input type="hidden" name="action" value="update_card">
+              <input type="hidden" name="id" value="{{ row.id }}">
+              <input type="hidden" name="scope" value="{{ selected_scope }}">
+
+              <label>الاسم الداخلي<input name="name" value="{{ row.name }}" required></label>
+              <div class="choice-row">
+                <label class="choice"><input type="radio" name="display_type" value="code" {% if row.display_type == 'code' %}checked{% endif %}> <strong>كود</strong><small class="field-help">ينسخ عند الضغط.</small></label>
+                <label class="choice"><input type="radio" name="display_type" value="redirect" {% if row.display_type == 'redirect' %}checked{% endif %}> <strong>توجيه</strong><small class="field-help">يفتح الوجهة.</small></label>
+              </div>
+              <label class="field-code">الكود<input name="code" value="{{ row.code or '' }}" dir="ltr"></label>
+              <label>العنوان الرئيسي<input name="headline" value="{{ row.headline }}" required></label>
+              <label>العنوان الفرعي<input name="subtitle" value="{{ row.subtitle or '' }}"></label>
+              <label>الشارة<input name="badge_text" value="{{ row.badge_text or '' }}"></label>
+
+              <label>نوع الأيقونة
+                <select name="icon_type">
+                  {% for icon,label in [('percent','٪ خصم'),('tag','🏷 قسيمة'),('gift','🎁 هدية'),('star','★ مميز'),('truck','🚚 شحن'),('shield','🛡 أمان'),('zap','⚡ سريع')] %}
+                  <option value="{{ icon }}" {% if row.icon_type == icon %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+
+              <fieldset class="panel redirect-box" style="padding:12px">
+                <legend>الوجهة</legend>
+                <label>نوع الوجهة<select name="target_type" class="target-type">
+                  <option value="">بدون وجهة</option>
+                  {% for t,l in [('category','تصنيف'),('product','منتج'),('hashtag','هاشتاج'),('url','رابط خارجي')] %}
+                  <option value="{{ t }}" {% if row.target_type == t %}selected{% endif %}>{{ l }}</option>
+                  {% endfor %}
+                </select></label>
+                <label class="target-id-wrap">العنصر
+                  <select name="target_id" class="target-id">
+                    <option value="">اختر العنصر</option>
+                    {% for x in categories %}<option data-target-type="category" value="{{ x.id }}" {% if row.target_type == 'category' and row.target_id == x.id %}selected{% endif %}>تصنيف: {{ x.name }}</option>{% endfor %}
+                    {% for x in products %}<option data-target-type="product" value="{{ x.id }}" {% if row.target_type == 'product' and row.target_id == x.id %}selected{% endif %}>منتج: {{ x.name }}</option>{% endfor %}
+                    {% for x in hashtags %}<option data-target-type="hashtag" value="{{ x.id }}" {% if row.target_type == 'hashtag' and row.target_id == x.id %}selected{% endif %}>هاشتاج: {{ x.name }}</option>{% endfor %}
+                  </select>
+                </label>
+                <label class="target-url-wrap">الرابط الخارجي<input name="target_url" class="target-url" value="{{ row.target_url or '' }}" dir="ltr"></label>
+              </fieldset>
+
+              <div class="color-grid">
+                {% for field,label,default in [
+                  ('background_color','الخلفية','#E2EFDA'),
+                  ('text_color','النص','#1B5E20'),
+                  ('badge_background_color','خلفية الشارة أو الكود','#166534'),
+                  ('badge_text_color','نص الشارة أو الكود','#FFFFFF'),
+                  ('border_color','الإطار','#B7D9A6')
+                ] %}
+                <label>{{ label }}
+                  <div class="color-line"><input type="color" name="{{ field }}" value="{{ getattr(row, field) or default }}"><span class="color-label">اختيار بصري</span></div>
+                  <div class="swatch-toolbar">
+                    <button type="button" class="swatch-btn" style="background:#E2EFDA" onclick="setColor('[name={{ field }}]','#E2EFDA')"></button>
+                    <button type="button" class="swatch-btn" style="background:#FFF4E8" onclick="setColor('[name={{ field }}]','#FFF4E8')"></button>
+                    <button type="button" class="swatch-btn" style="background:#FDECEC" onclick="setColor('[name={{ field }}]','#FDECEC')"></button>
+                    <button type="button" class="swatch-btn" style="background:#111111" onclick="setColor('[name={{ field }}]','#111111')"></button>
+                    <button type="button" class="swatch-btn" style="background:#FFFFFF" onclick="setColor('[name={{ field }}]','#FFFFFF')"></button>
+                  </div>
+                </label>
+                {% endfor %}
+              </div>
+
+              <div class="form-grid-2">
+                <label>الترتيب<input name="sort_order" type="number" value="{{ row.sort_order }}"><small class="field-help">الأصغر يظهر أولًا.</small></label>
+                <label>المدة<select name="duration"><option value="">اتبع مؤقت الشريط</option>{% for s in [2,3,4,5,6,8,10,15] %}<option value="{{ s }}" {% if row.duration == s %}selected{% endif %}>{{ s }} ثوانٍ</option>{% endfor %}</select></label>
+              </div>
+              <label class="check-row"><input type="checkbox" name="is_active" {% if row.is_active %}checked{% endif %}> مفعلة</label>
+              <button class="primary-button" type="submit">حفظ هذه القسيمة</button>
+            </form>
+            <form method="post" style="margin-top:8px">
+              <input type="hidden" name="action" value="archive_card">
+              <input type="hidden" name="id" value="{{ row.id }}">
+              <input type="hidden" name="scope" value="{{ selected_scope }}">
+              <button class="ghost-button" type="submit">أرشفة القسيمة</button>
+            </form>
+          </div>
+        </details>
+        {% endfor %}
+      </div>
+      {% else %}
+        <div class="help-box">
+          لا توجد قسائم خاصة بهذا القسم حتى الآن. استخدم النموذج أعلاه، أو اذهب إلى «كل الفئات» لاستخدام القسائم العامة.
+        </div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+
+<script>
+  function setColor(selector, value){
+    const input=document.querySelector(selector);
+    if(input){input.value=value; input.dispatchEvent(new Event('input',{bubbles:true})); input.dispatchEvent(new Event('change',{bubbles:true}));}
+  }
+  function syncTargetBox(form){
+    const type=form.querySelector('.target-type');
+    const idWrap=form.querySelector('.target-id-wrap');
+    const urlWrap=form.querySelector('.target-url-wrap');
+    const idSelect=form.querySelector('.target-id');
+    const codeField=form.querySelector('.field-code');
+    const displayType=form.querySelectorAll('input[name="display_type"]');
+    const selectedType=[...displayType].find(x=>x.checked)?.value || 'code';
+    const redirect=[...form.querySelectorAll('.redirect-box')][0];
+    if(codeField) codeField.style.display=selectedType==='code'?'block':'block';
+    if(redirect) redirect.style.opacity=selectedType==='redirect'?'1':'.55';
+    if(!type) return;
+    const v=type.value;
+    if(idWrap) idWrap.style.display=(selectedType==='redirect' && v && v!=='url')?'block':'none';
+    if(urlWrap) urlWrap.style.display=(selectedType==='redirect' && v==='url')?'block':'none';
+    if(idSelect){
+      [...idSelect.options].forEach(opt=>{
+        const allowed=!opt.dataset.targetType || opt.dataset.targetType===v;
+        opt.hidden=!allowed;
+        if(!allowed && opt.selected) opt.selected=false;
+      });
+    }
+  }
+  document.querySelectorAll('.coupon-card-form').forEach(form=>{
+    form.querySelectorAll('input[name="display_type"]').forEach(x=>x.addEventListener('change',()=>syncTargetBox(form)));
+    const type=form.querySelector('.target-type');
+    if(type) type.addEventListener('change',()=>syncTargetBox(form));
+    syncTargetBox(form);
+  });
+  const settingsForm=document.getElementById('settings-form');
+  if(settingsForm){
+    const title=settingsForm.querySelector('[name="title_font_size"]');
+    const bg=settingsForm.querySelector('[name="default_background_color"]');
+    const text=settingsForm.querySelector('[name="default_text_color"]');
+    const badgeBg=settingsForm.querySelector('[name="default_badge_background_color"]');
+    const badgeText=settingsForm.querySelector('[name="default_badge_text_color"]');
+    const preview=document.getElementById('coupon-live-preview');
+    const previewBadge=document.getElementById('preview-badge');
+    const previewTitle=document.getElementById('preview-title');
+    const previewSub=document.getElementById('preview-subtitle');
+    const updatePreview=()=>{
+      if(bg && preview) preview.style.background=bg.value;
+      if(badgeBg && previewBadge) previewBadge.style.background=badgeBg.value;
+      if(badgeText && previewBadge) previewBadge.style.color=badgeText.value;
+      if(text && previewTitle) previewTitle.style.color=text.value;
+      if(text && previewSub) previewSub.style.color=text.value;
+      if(title && previewTitle) previewTitle.style.fontSize=Math.max(13,Math.min(24,+title.value||16))+'px';
+    };
+    settingsForm.querySelectorAll('input[type=color],select').forEach(x=>x.addEventListener('input',updatePreview));
+    updatePreview();
+  }
+</script>
 {% endblock %}
