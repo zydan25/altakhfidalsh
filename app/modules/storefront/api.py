@@ -4,7 +4,7 @@ from flask import request
 from . import api_bp
 from ...security import admin_api_required
 from ...extensions import db
-from ...models import Banner, BannerTarget, Campaign, Category, Hashtag, Look, LookProduct, LookCircle, SideCategory, SideCategoryCircle, MediaAsset, Product, StorefrontPage, StorefrontSection, StorefrontSectionItem
+from ...models import Banner, BannerTarget, Campaign, Category, Hashtag, Look, LookTarget, LookProduct, LookCircle, SideCategory, SideCategoryCircle, MediaAsset, Product, StorefrontPage, StorefrontSection, StorefrontSectionItem
 from sqlalchemy import or_
 
 
@@ -299,46 +299,91 @@ def looks():
     rows = Look.query.filter(
         Look.is_active.is_(True),
         Look.status == "active",
+        Look.show_on_home.is_(True),
         or_(Look.starts_at.is_(None), Look.starts_at <= now),
         or_(Look.ends_at.is_(None), Look.ends_at >= now),
-    ).order_by(Look.sort_order, Look.id.desc()).all()
+    ).order_by(
+        Look.root_category_id,
+        Look.sort_order,
+        Look.id.desc(),
+    ).all()
     asset_ids = [x.cover_asset_id for x in rows if x.cover_asset_id]
     assets = MediaAsset.query.filter(MediaAsset.id.in_(asset_ids)).all() if asset_ids else []
     asset_urls = {x.id: x.url for x in assets}
-    return {
-        "items": [
-            {
-                "id": look.id,
-                "name": look.name,
-                "slug": look.slug,
-                "description": look.description,
-                "cover_url": asset_urls.get(look.cover_asset_id),
-                "starts_at": look.starts_at.isoformat() if look.starts_at else None,
-                "ends_at": look.ends_at.isoformat() if look.ends_at else None,
-                "products": [
-                    item.product_id
-                    for item in LookProduct.query.filter_by(look_id=look.id).order_by(LookProduct.sort_order, LookProduct.id).all()
-                ],
-                "circles": [
-                    {
-                        "id": circle.id,
-                        "name": circle.name,
-                        "slug": circle.slug,
-                        "side_category_id": circle.side_category_id,
-                        "sort_order": link.sort_order,
-                        "image_url": (
-                            MediaAsset.query.get(circle.image_asset_id).url
-                            if circle.image_asset_id else None
-                        ),
-                    }
-                    for link in LookCircle.query.filter_by(look_id=look.id).order_by(LookCircle.sort_order, LookCircle.id).all()
-                    for circle in [db.session.get(SideCategoryCircle, link.circle_id)]
-                    if circle is not None and circle.is_active
-                ],
+    items = []
+    for look in rows:
+        target_rows = LookTarget.query.filter_by(look_id=look.id).order_by(
+            LookTarget.priority.desc(), LookTarget.id
+        ).all()
+
+        targets = []
+        for target in target_rows:
+            item = {
+                "id": target.id,
+                "type": target.target_type,
+                "target_id": target.target_id,
+                "priority": target.priority,
             }
-            for look in rows
-        ]
-    }
+            if target.target_type == "circle":
+                circle = db.session.get(SideCategoryCircle, target.target_id)
+                if circle is not None and circle.is_active:
+                    item["name"] = circle.name
+                    item["image_url"] = (
+                        db.session.get(MediaAsset, circle.image_asset_id).url
+                        if circle.image_asset_id else None
+                    )
+                    targets.append(item)
+            elif target.target_type == "hashtag":
+                hashtag = db.session.get(Hashtag, target.target_id)
+                if hashtag is not None and hashtag.is_active:
+                    item["name"] = hashtag.display_name or hashtag.name
+                    item["slug"] = hashtag.slug
+                    targets.append(item)
+
+        items.append({
+            "id": look.id,
+            "name": look.name,
+            "slug": look.slug,
+            "description": look.description,
+            "root_category_id": look.root_category_id,
+            "show_on_home": bool(look.show_on_home),
+            "card_shape": look.card_shape,
+            "card_width": look.card_width,
+            "card_height": look.card_height,
+            "card_radius": look.card_radius,
+            "card_spacing": look.card_spacing,
+            "caption_background_color": look.caption_background_color,
+            "caption_text_color": look.caption_text_color,
+            "cover_url": asset_urls.get(look.cover_asset_id),
+            "starts_at": look.starts_at.isoformat() if look.starts_at else None,
+            "ends_at": look.ends_at.isoformat() if look.ends_at else None,
+            "products": [
+                item.product_id
+                for item in LookProduct.query.filter_by(look_id=look.id)
+                .order_by(LookProduct.sort_order, LookProduct.id)
+                .all()
+            ],
+            "circles": [
+                {
+                    "id": circle.id,
+                    "name": circle.name,
+                    "slug": circle.slug,
+                    "side_category_id": circle.side_category_id,
+                    "sort_order": link.sort_order,
+                    "image_url": (
+                        db.session.get(MediaAsset, circle.image_asset_id).url
+                        if circle.image_asset_id else None
+                    ),
+                }
+                for link in LookCircle.query.filter_by(look_id=look.id)
+                .order_by(LookCircle.sort_order, LookCircle.id)
+                .all()
+                for circle in [db.session.get(SideCategoryCircle, link.circle_id)]
+                if circle is not None and circle.is_active
+            ],
+            "targets": targets,
+        })
+    return {"items": items}
 
 
 @api_bp.post("/navigation-actions")
