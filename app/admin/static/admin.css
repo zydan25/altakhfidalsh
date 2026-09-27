@@ -1556,3 +1556,36 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .look-action-row { display:grid; grid-template-columns:1fr; }
   .look-details,.look-details.grow { min-width:0; }
 }
+
+
+/* Compact mobile-sized previews for admin studios only. */
+.banner-admin-card .banner-preview-shell {
+  justify-content: center;
+}
+.banner-admin-card .banner-preview-image {
+  width: min(100%, 360px);
+  max-height: 170px;
+  aspect-ratio: 16 / 8;
+}
+.look-card .look-cover {
+  width: min(100%, 230px);
+  aspect-ratio: 4 / 5;
+  min-height: 0;
+  margin-inline: auto;
+}
+.look-card .look-cover-caption {
+  inset-inline: 7px;
+  inset-block-end: 7px;
+}
+.look-card .look-cover-caption strong {
+  font-size: 17px;
+}
+@media (max-width: 559px) {
+  .banner-admin-card .banner-preview-image {
+    width: min(100%, 310px);
+    max-height: 155px;
+  }
+  .look-card .look-cover {
+    width: min(100%, 205px);
+  }
+}
