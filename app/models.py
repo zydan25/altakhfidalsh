@@ -340,6 +340,8 @@ class CategoryHomeDisplaySetting(TimestampMixin, db.Model):
     show_looks_strip = db.Column(Boolean, nullable=False, default=True)
     item_shape = db.Column(String(20), nullable=False, default="circle")
     item_size = db.Column(Integer, nullable=False, default=64)
+    item_width = db.Column(Integer, nullable=False, default=64)
+    item_height = db.Column(Integer, nullable=False, default=64)
     item_spacing = db.Column(Integer, nullable=False, default=6)
     item_corner_radius = db.Column(Integer, nullable=False, default=16)
     item_label_font_size = db.Column(Integer, nullable=False, default=9)
@@ -347,6 +349,8 @@ class CategoryHomeDisplaySetting(TimestampMixin, db.Model):
     __table_args__ = (
         CheckConstraint("grid_rows >= 1 AND grid_rows <= 6", name="ck_category_home_grid_rows"),
         CheckConstraint("item_size >= 42 AND item_size <= 110", name="ck_category_home_item_size"),
+        CheckConstraint("item_width >= 42 AND item_width <= 240", name="ck_category_home_item_width"),
+        CheckConstraint("item_height >= 42 AND item_height <= 240", name="ck_category_home_item_height"),
         CheckConstraint("item_spacing >= 0 AND item_spacing <= 24", name="ck_category_home_item_spacing"),
         CheckConstraint("item_shape IN ('circle','rounded','square')", name="ck_category_home_item_shape"),
         Index("ix_category_home_display_category", "category_id"),
@@ -885,8 +889,8 @@ class Look(TimestampMixin, ActiveMixin, db.Model):
     show_on_home = db.Column(Boolean, nullable=False, default=True)
     sort_order = db.Column(Integer, nullable=False, default=0)
     card_shape = db.Column(String(20), nullable=False, default="rounded")
-    card_width = db.Column(Integer, nullable=False, default=160)
-    card_height = db.Column(Integer, nullable=False, default=220)
+    card_width = db.Column(Integer, nullable=False, default=90)
+    card_height = db.Column(Integer, nullable=False, default=110)
     card_radius = db.Column(Integer, nullable=False, default=14)
     card_spacing = db.Column(Integer, nullable=False, default=8)
     caption_background_color = db.Column(String(20), nullable=False, default="#000000")
