@@ -3,7 +3,7 @@
 <section class="module-header">
   <span class="eyebrow">الواجهة الرئيسية · الفئات</span>
   <h2>إعدادات الفئات الدائرية</h2>
-  <p class="muted">تحكم بشكل ومساحة فئات الصفحة الرئيسية لكل فئة رئيسية، مع إعداد مستقل لـ«كل الفئات». الإعدادات لا تغيّر شجرة التصنيفات نفسها.</p>
+  <p class="muted">تحكم كامل بمقاس كل فئة وشكلها وانحنائها وخط اسمها لكل نطاق. عند الحفظ يبقى نفس النطاق مفتوحًا حتى لا تختلط إعداداته مع إعداد «كل الفئات».</p>
 </section>
 
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
@@ -22,7 +22,7 @@
   <div class="stack-list">
     {% for scope in scopes %}
     {% set s = scope.settings %}
-    <details class="panel" style="padding:14px" {% if loop.first %}open{% endif %}>
+    <details class="panel" style="padding:14px" {% if scope.key == selected_scope or (not selected_scope and loop.first) %}open{% endif %}>
       <summary>
         <strong>{{ scope.name }}</strong>
         <span class="muted"> · {{ s.grid_rows }} صفوف · {{ s.item_width }}×{{ s.item_height }}px · {{ s.item_spacing }}px</span>
@@ -99,7 +99,7 @@
           <strong>المعاينة المنطقية</strong>
           <div class="chip-row" style="margin-top:8px">
             <span class="banner-target-chip">الشكل: {{ "دائري" if s.item_shape=="circle" else ("منحني الحواف" if s.item_shape=="rounded" else "مربع") }}</span>
-            <span class="banner-target-chip">الحجم: {{ s.item_size }}px</span>
+            <span class="banner-target-chip">الحجم: {{ s.item_width }}×{{ s.item_height }}px</span>
             <span class="banner-target-chip">التباعد: {{ s.item_spacing }}px</span>
             <span class="banner-target-chip">الانحناء: {{ s.item_corner_radius }}px</span>
             <span class="banner-target-chip">خط: {{ s.item_label_font_size }}px / {{ "ثقيل" if s.item_label_bold else "عادي" }}</span>
