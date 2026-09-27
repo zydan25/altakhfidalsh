@@ -1010,12 +1010,13 @@ class _SxCouponStripState extends State<SxCouponStrip> {
   }
 
   int _secondsForPage(int index) {
-    final page = _pages.isEmpty ? const <Map<String, dynamic>>[] : _pages[index.clamp(0, _pages.length - 1)];
+    final pageIndex = index.clamp(0, _pages.length - 1).toInt();
+    final page = _pages.isEmpty ? const <Map<String, dynamic>>[] : _pages[pageIndex];
     for (final card in page) {
       final custom = sxInt(card['duration']);
-      if (custom > 0) return custom.clamp(1, 120);
+      if (custom > 0) return custom.clamp(1, 120).toInt();
     }
-    return sxInt(widget.settings['flip_seconds'], 4).clamp(1, 120);
+    return sxInt(widget.settings['flip_seconds'], 4).clamp(1, 120).toInt();
   }
 
   @override
