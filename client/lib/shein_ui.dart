@@ -402,7 +402,7 @@ class _HomeHeroState extends State<_HomeHero> {
       widget.banners.isNotEmpty ? widget.banners.first['size_spec'] : '',
     );
     final ratioMatch = RegExp(
-      r'(?:mobile\\s+)?(\\d+(?:\\.\\d+)?)\\s*[:x]\\s*(\\d+(?:\\.\\d+)?)',
+      r'(?:mobile\s+)?(\d+(?:\.\d+)?)\s*[:x]\s*(\d+(?:\.\d+)?)',
       caseSensitive: false,
     ).firstMatch(configuredSpec);
     final configuredRatio = ratioMatch == null
