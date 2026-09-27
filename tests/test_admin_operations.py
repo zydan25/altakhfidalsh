@@ -1,6 +1,6 @@
 from io import BytesIO
 from app.extensions import db
-from app.models import Badge, Color, Customer, CustomerAddress, Currency, MediaAsset, Product, ProductCategory, ProductMedia, StorefrontPage, StorefrontSection, StorefrontSectionItem
+from app.models import Badge, Category, Color, Customer, CustomerAddress, Currency, HomeCouponCard, MediaAsset, Product, ProductCategory, ProductMedia, StorefrontPage, StorefrontSection, StorefrontSectionItem
 
 
 def test_customer_admin_profile_and_address(client, app):
@@ -857,3 +857,47 @@ def test_side_category_reorder_and_circle_editor_preview_route(client, app):
     body = response.get_data(as_text=True)
     assert "إدارة الفئات الجانبية" in body
     assert "استبدال الصورة" in body
+
+
+def test_home_coupon_admin_and_customer_payload(client, app):
+    with client.session_transaction() as session:
+        session["admin_id"] = 1
+
+    response = client.get("/admin/promotions/coupons")
+    assert response.status_code == 200
+    page = response.get_data(as_text=True)
+    assert "خصم 20%" in page or "إضافة قسيمة" in page
+
+    response = client.post(
+        "/admin/promotions/coupons",
+        data={
+            "action": "create_card",
+            "scope": "all",
+            "name": "اختبار القسيمة",
+            "display_type": "code",
+            "code": "TEST20",
+            "headline": "خصم تجريبي",
+            "subtitle": "للاختبار",
+            "badge_text": "عرض",
+            "icon_type": "percent",
+            "background_color": "#E2EFDA",
+            "text_color": "#1B5E20",
+            "badge_background_color": "#166534",
+            "badge_text_color": "#FFFFFF",
+            "border_color": "#B7D9A6",
+            "sort_order": "1",
+            "is_active": "on",
+        },
+    )
+    assert response.status_code == 200
+
+    with app.app_context():
+        card = HomeCouponCard.query.filter_by(code="TEST20").first()
+        assert card is not None
+        assert card.root_category_id is None
+
+    response = client.get("/api/v1/storefront/home")
+    assert response.status_code == 200
+    payload = response.get_json()["coupon_strip"]
+    assert payload["all"]["enabled"] is True
+    assert any(x["code"] == "TEST20" for x in payload["cards"]["all"])
