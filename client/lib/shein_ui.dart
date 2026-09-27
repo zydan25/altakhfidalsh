@@ -1026,19 +1026,28 @@ class SxHomeLookCarousel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (looks.isEmpty) return const SizedBox.shrink();
+    final maxCardHeight = looks
+        .map((look) => sxDouble(look['card_height'], 220))
+        .fold<double>(140, (maxValue, value) =>
+            value > maxValue ? value : maxValue);
+    final sectionHeight = maxCardHeight.clamp(140.0, 360.0) + 24;
+
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(0, 7, 0, 8),
       child: SizedBox(
-        height: 244,
+        height: sectionHeight,
         child: ListView.separated(
           reverse: true,
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 7),
           itemCount: looks.length,
-          separatorBuilder: (_, __) {
-            final spacing = 8.0;
+          separatorBuilder: (_, index) {
+            final spacing = sxDouble(
+              looks[index]['card_spacing'],
+              8,
+            ).clamp(0.0, 30.0).toDouble();
             return SizedBox(width: spacing);
           },
           itemBuilder: (_, i) {
