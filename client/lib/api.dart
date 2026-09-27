@@ -54,6 +54,7 @@ class ApiService {
   Future<List<ProductModel>> feed({
     int? category,
     int? circleId,
+    int? hashtagId,
     String q='',
     List<int>? filterValueIds,
     String sort='recommended',
@@ -64,6 +65,7 @@ class ApiService {
     final qp=<String,String>{'limit':'100','sort':sort};
     if(category!=null)qp['category_id']=category.toString();
     if(circleId!=null)qp['circle_id']=circleId.toString();
+    if(hashtagId!=null)qp['hashtag_id']=hashtagId.toString();
     if(q.trim().isNotEmpty)qp['q']=q.trim();
     if(filterValueIds!=null&&filterValueIds.isNotEmpty)qp['filter_value_ids']=filterValueIds.join(',');
     if(minPrice!=null&&minPrice.trim().isNotEmpty)qp['min_price']=minPrice.trim();
