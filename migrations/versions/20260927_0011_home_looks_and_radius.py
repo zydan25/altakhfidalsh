@@ -99,6 +99,26 @@ def upgrade():
         )
 
 
+    # Preserve existing LookCircle assignments in the new generic target table.
+    if _has_table(bind, "look_circles"):
+        bind.execute(
+            sa.text(
+                """
+                INSERT INTO look_targets (look_id, target_type, target_id, priority)
+                SELECT lc.look_id, 'circle', lc.circle_id, lc.sort_order
+                FROM look_circles lc
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM look_targets lt
+                    WHERE lt.look_id = lc.look_id
+                      AND lt.target_type = 'circle'
+                      AND lt.target_id = lc.circle_id
+                )
+                """
+            )
+        )
+
+
 def downgrade():
     bind = op.get_bind()
     if _has_table(bind, "look_targets"):
