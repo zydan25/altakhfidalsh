@@ -1135,6 +1135,8 @@ class SxHomeCategoryGrid extends StatelessWidget {
   final double itemSize;
   final double itemSpacing;
   final double itemCornerRadius;
+  final double itemLabelFontSize;
+  final bool itemLabelBold;
   final ValueChanged<CategoryModel> onRootTap;
   final ValueChanged<CategoryModel> onCategoryTap;
 
@@ -1148,6 +1150,8 @@ class SxHomeCategoryGrid extends StatelessWidget {
     required this.itemSize,
     required this.itemSpacing,
     required this.itemCornerRadius,
+    required this.itemLabelFontSize,
+    required this.itemLabelBold,
     required this.onRootTap,
     required this.onCategoryTap,
   });
