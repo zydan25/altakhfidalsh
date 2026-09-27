@@ -46,6 +46,7 @@ def upgrade():
             sa.Column("item_shape", sa.String(length=20), nullable=False, server_default="circle"),
             sa.Column("item_size", sa.Integer(), nullable=False, server_default="64"),
             sa.Column("item_spacing", sa.Integer(), nullable=False, server_default="6"),
+            sa.Column("item_corner_radius", sa.Integer(), nullable=False, server_default="16"),
             sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
             sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
             sa.UniqueConstraint("scope_key", name="uq_category_home_display_scope"),
@@ -68,6 +69,22 @@ def upgrade():
 
     # The unique constraint is the canonical uniqueness mechanism for scope_key.
     # Do not create a duplicate unique index on the same column.
+    columns = {column["name"] for column in sa.inspect(bind).get_columns(TABLE)}
+    if "show_looks_strip" in columns:
+        bind.execute(
+            sa.text(
+                f"UPDATE {TABLE} SET show_looks_strip = TRUE "
+                "WHERE show_looks_strip IS NULL"
+            )
+        )
+    if "item_corner_radius" in columns:
+        bind.execute(
+            sa.text(
+                f"UPDATE {TABLE} SET item_corner_radius = 16 "
+                "WHERE item_corner_radius IS NULL"
+            )
+        )
+
     existing_scopes = bind.execute(
         sa.text(f"SELECT scope_key FROM {TABLE}")
     ).scalars().all()
@@ -82,8 +99,8 @@ def upgrade():
                 sa.text(
                     f"""
                     INSERT INTO {TABLE}
-                        (scope_key, category_id, grid_rows, show_coupon_strip, show_looks_strip, item_shape, item_size, item_spacing)
-                    VALUES ('all', NULL, 2, TRUE, TRUE, 'circle', 64, 6)
+                        (scope_key, category_id, grid_rows, show_coupon_strip, show_looks_strip, item_shape, item_size, item_spacing, item_corner_radius)
+                    VALUES ('all', NULL, 2, TRUE, TRUE, 'circle', 64, 6, 16)
                     """
                 )
             )
