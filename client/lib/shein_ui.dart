@@ -1010,7 +1010,7 @@ class SxHomeCategoryGrid extends StatelessWidget {
         : _descendantsOf(selectedRootId);
 
     const columns = 5;
-    final maxItems = (gridRows * columns).clamp(columns, 30);
+    final maxItems = (gridRows * columns).clamp(columns, 30).toInt();
 
     return _CategoryCircleGrid(
       categories: categories.take(maxItems).toList(),
@@ -1047,7 +1047,7 @@ class _CategoryCircleGrid extends StatelessWidget {
             14 -
             (itemSpacing * 4))
         / 5;
-    final effectiveSize = itemSize.clamp(42.0, maxSize);
+    final effectiveSize = itemSize.clamp(42.0, maxSize).toDouble();
     final radius = itemShape == 'circle'
         ? effectiveSize / 2
         : itemShape == 'rounded'
@@ -1060,7 +1060,7 @@ class _CategoryCircleGrid extends StatelessWidget {
         7,
         7,
         7,
-        itemSpacing.clamp(4.0, 12.0),
+        itemSpacing.clamp(4.0, 12.0).toDouble(),
       ),
       child: GridView.builder(
         shrinkWrap: true,
