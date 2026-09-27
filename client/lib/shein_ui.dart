@@ -1009,14 +1009,14 @@ class SxHomeCategoryGrid extends StatelessWidget {
                 : a.sortOrder.compareTo(b.sortOrder)))
         : _descendantsOf(selectedRootId);
 
-    const columns = 5;
-    final maxItems = (gridRows * columns).clamp(columns, 30).toInt();
-
     return _CategoryCircleGrid(
-      categories: categories.take(maxItems).toList(),
+      // Keep all available subcategories. The grid is horizontally scrollable
+      // whenever there are more columns than fit in the viewport.
+      categories: categories.toList(),
       itemShape: itemShape,
       itemSize: itemSize,
       itemSpacing: itemSpacing,
+      gridRows: gridRows,
       onTap: onCategoryTap,
     );
   }
