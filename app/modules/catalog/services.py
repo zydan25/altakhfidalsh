@@ -101,6 +101,7 @@ class CatalogService:
             "item_shape": "circle",
             "item_size": 64,
             "item_spacing": 6,
+            "item_corner_radius": 16,
         }
 
     @staticmethod
@@ -113,6 +114,7 @@ class CatalogService:
                 "item_shape": setting.item_shape,
                 "item_size": int(setting.item_size),
                 "item_spacing": int(setting.item_spacing),
+                "item_corner_radius": int(setting.item_corner_radius),
             })
         return values
 
@@ -165,6 +167,7 @@ class CatalogService:
         grid_rows = max(1, min(6, int(payload.get("grid_rows", 2))))
         item_size = max(42, min(110, int(payload.get("item_size", 64))))
         item_spacing = max(0, min(24, int(payload.get("item_spacing", 6))))
+        item_corner_radius = max(0, min(80, int(payload.get("item_corner_radius", 16))))
         item_shape = str(payload.get("item_shape", "circle")).strip().lower()
         if item_shape not in {"circle", "rounded", "square"}:
             raise ValueError("شكل الفئات غير صالح.")
@@ -184,6 +187,7 @@ class CatalogService:
         setting.item_shape = item_shape
         setting.item_size = item_size
         setting.item_spacing = item_spacing
+        setting.item_corner_radius = item_corner_radius
         db.session.commit()
         return CatalogService.serialize_home_category_display(setting)
 
