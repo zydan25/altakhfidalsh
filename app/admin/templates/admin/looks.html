@@ -26,8 +26,8 @@
             <label>الحالة<select name="status"><option value="draft">مسودة</option><option value="active">نشطة</option></select></label>
             <label>عدد/موضع العرض<input name="sort_order" type="number" value="0"></label>
             <label>شكل البطاقة<select name="card_shape"><option value="rounded" selected>منحني الحواف</option><option value="circle">دائري</option><option value="square">مربع</option></select></label>
-            <label>العرض<input name="card_width" type="number" min="100" max="260" value="160"></label>
-            <label>الارتفاع<input name="card_height" type="number" min="140" max="360" value="220"></label>
+            <label>العرض<input name="card_width" type="number" min="40" max="500" value="160"></label>
+            <label>الارتفاع<input name="card_height" type="number" min="40" max="500" value="220"></label>
             <label>انحناء الحواف<input name="card_radius" type="number" min="0" max="80" value="14"></label>
             <label>تباعد البطاقات<input name="card_spacing" type="number" min="0" max="30" value="8"></label>
             <label>خلفية اسم الإطلالة<input name="caption_background_color" type="color" value="#000000"></label>
@@ -147,8 +147,8 @@
             <label>الحالة<select name="status"><option value="draft" {% if look.status!="active" %}selected{% endif %}>مسودة</option><option value="active" {% if look.status=="active" %}selected{% endif %}>نشطة</option></select></label>
             <label>الترتيب<input name="sort_order" type="number" value="{{ look.sort_order }}"></label>
             <label>الشكل<select name="card_shape"><option value="rounded" {% if look.card_shape=="rounded" %}selected{% endif %}>منحني الحواف</option><option value="circle" {% if look.card_shape=="circle" %}selected{% endif %}>دائري</option><option value="square" {% if look.card_shape=="square" %}selected{% endif %}>مربع</option></select></label>
-            <label>العرض<input name="card_width" type="number" min="100" max="260" value="{{ look.card_width }}"></label>
-            <label>الارتفاع<input name="card_height" type="number" min="140" max="360" value="{{ look.card_height }}"></label>
+            <label>العرض<input name="card_width" type="number" min="40" max="500" value="{{ look.card_width }}"></label>
+            <label>الارتفاع<input name="card_height" type="number" min="40" max="500" value="{{ look.card_height }}"></label>
             <label>انحناء الحواف<input name="card_radius" type="number" min="0" max="80" value="{{ look.card_radius }}"></label>
             <label>تباعد البطاقات<input name="card_spacing" type="number" min="0" max="30" value="{{ look.card_spacing }}"></label>
             <label>خلفية اسم الإطلالة<input name="caption_background_color" type="color" value="{{ look.caption_background_color }}"></label>
