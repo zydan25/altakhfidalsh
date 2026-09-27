@@ -337,6 +337,7 @@ class CategoryHomeDisplaySetting(TimestampMixin, db.Model):
     category_id = db.Column(ForeignKey("categories.id", ondelete="CASCADE"))
     grid_rows = db.Column(Integer, nullable=False, default=2)
     show_coupon_strip = db.Column(Boolean, nullable=False, default=True)
+    show_looks_strip = db.Column(Boolean, nullable=False, default=True)
     item_shape = db.Column(String(20), nullable=False, default="circle")
     item_size = db.Column(Integer, nullable=False, default=64)
     item_spacing = db.Column(Integer, nullable=False, default=6)
