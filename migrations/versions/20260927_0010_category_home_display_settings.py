@@ -1,4 +1,4 @@
-"""Configurable customer-home category grid settings."""
+"""Configurable customer-home category display settings."""
 from alembic import op
 import sqlalchemy as sa
 
@@ -9,59 +9,80 @@ branch_labels = None
 depends_on = None
 
 
-def upgrade():
-    op.create_table(
-        "category_home_display_settings",
-        sa.Column("id", sa.Integer(), primary_key=True),
-        sa.Column("scope_key", sa.String(length=80), nullable=False),
-        sa.Column(
-            "category_id",
-            sa.Integer(),
-            sa.ForeignKey("categories.id", ondelete="CASCADE"),
-            nullable=True,
-        ),
-        sa.Column("grid_rows", sa.Integer(), nullable=False, server_default="2"),
-        sa.Column("show_coupon_strip", sa.Boolean(), nullable=False, server_default=sa.true()),
-        sa.Column("item_shape", sa.String(length=20), nullable=False, server_default="circle"),
-        sa.Column("item_size", sa.Integer(), nullable=False, server_default="64"),
-        sa.Column("item_spacing", sa.Integer(), nullable=False, server_default="6"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
-        sa.UniqueConstraint("scope_key", name="uq_category_home_display_scope"),
-        sa.CheckConstraint("grid_rows >= 1 AND grid_rows <= 6", name="ck_category_home_grid_rows"),
-        sa.CheckConstraint("item_size >= 42 AND item_size <= 110", name="ck_category_home_item_size"),
-        sa.CheckConstraint("item_spacing >= 0 AND item_spacing <= 24", name="ck_category_home_item_spacing"),
-        sa.CheckConstraint(
-            "item_shape IN ('circle','rounded','square')",
-            name="ck_category_home_item_shape",
-        ),
-    )
-    op.create_index(
-        "ix_category_home_display_category",
-        "category_home_display_settings",
-        ["category_id"],
-    )
-    op.create_index(
-        "ix_category_home_display_scope",
-        "category_home_display_settings",
-        ["scope_key"],
-        unique=True,
-    )
+TABLE = "category_home_display_settings"
 
-    # Global "all" configuration. Root categories fall back to this until
-    # their own scope is configured in the admin UI.
-    op.execute(
-        sa.text(
-            """
-            INSERT INTO category_home_display_settings
-                (scope_key, category_id, grid_rows, show_coupon_strip, item_shape, item_size, item_spacing)
-            VALUES ('all', NULL, 2, TRUE, 'circle', 64, 6)
-            """
+
+def _has_table(bind):
+    return sa.inspect(bind).has_table(TABLE)
+
+
+def _index_names(bind):
+    return {
+        index.get("name")
+        for index in sa.inspect(bind).get_indexes(TABLE)
+        if index.get("name")
+    }
+
+
+def upgrade():
+    bind = op.get_bind()
+
+    # This migration is intentionally idempotent. It protects CI/deployment
+    # runs where the same schema may already contain the table.
+    if not _has_table(bind):
+        op.create_table(
+            TABLE,
+            sa.Column("id", sa.Integer(), primary_key=True),
+            sa.Column("scope_key", sa.String(length=80), nullable=False),
+            sa.Column(
+                "category_id",
+                sa.Integer(),
+                sa.ForeignKey("categories.id", ondelete="CASCADE"),
+                nullable=True,
+            ),
+            sa.Column("grid_rows", sa.Integer(), nullable=False, server_default="2"),
+            sa.Column("show_coupon_strip", sa.Boolean(), nullable=False, server_default=sa.true()),
+            sa.Column("item_shape", sa.String(length=20), nullable=False, server_default="circle"),
+            sa.Column("item_size", sa.Integer(), nullable=False, server_default="64"),
+            sa.Column("item_spacing", sa.Integer(), nullable=False, server_default="6"),
+            sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+            sa.UniqueConstraint("scope_key", name="uq_category_home_display_scope"),
+            sa.CheckConstraint("grid_rows >= 1 AND grid_rows <= 6", name="ck_category_home_grid_rows"),
+            sa.CheckConstraint("item_size >= 42 AND item_size <= 110", name="ck_category_home_item_size"),
+            sa.CheckConstraint("item_spacing >= 0 AND item_spacing <= 24", name="ck_category_home_item_spacing"),
+            sa.CheckConstraint(
+                "item_shape IN ('circle','rounded','square')",
+                name="ck_category_home_item_shape",
+            ),
         )
-    )
+
+    existing_indexes = _index_names(bind)
+    if "ix_category_home_display_category" not in existing_indexes:
+        op.create_index(
+            "ix_category_home_display_category",
+            TABLE,
+            ["category_id"],
+        )
+
+    # The unique constraint is the canonical uniqueness mechanism for scope_key.
+    # Do not create a duplicate unique index on the same column.
+    existing_scopes = bind.execute(
+        sa.text(f"SELECT scope_key FROM {TABLE}")
+    ).scalars().all()
+
+    if "all" not in set(existing_scopes):
+        bind.execute(
+            sa.text(
+                f"""
+                INSERT INTO {TABLE}
+                    (scope_key, category_id, grid_rows, show_coupon_strip, item_shape, item_size, item_spacing)
+                VALUES ('all', NULL, 2, TRUE, 'circle', 64, 6)
+                """
+            )
+        )
 
 
 def downgrade():
-    op.drop_index("ix_category_home_display_scope", table_name="category_home_display_settings")
-    op.drop_index("ix_category_home_display_category", table_name="category_home_display_settings")
-    op.drop_table("category_home_display_settings")
+    if _has_table(op.get_bind()):
+        op.drop_table(TABLE)
