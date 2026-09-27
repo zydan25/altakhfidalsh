@@ -328,6 +328,27 @@ class Category(TimestampMixin, ActiveMixin, db.Model):
     )
 
 
+class CategoryHomeDisplaySetting(TimestampMixin, db.Model):
+    """Per-scope home category-circle layout. category_id=NULL is the global 'all' scope."""
+    __tablename__ = "category_home_display_settings"
+
+    id = db.Column(Integer, primary_key=True)
+    scope_key = db.Column(String(80), nullable=False, unique=True)
+    category_id = db.Column(ForeignKey("categories.id", ondelete="CASCADE"))
+    grid_rows = db.Column(Integer, nullable=False, default=2)
+    show_coupon_strip = db.Column(Boolean, nullable=False, default=True)
+    item_shape = db.Column(String(20), nullable=False, default="circle")
+    item_size = db.Column(Integer, nullable=False, default=64)
+    item_spacing = db.Column(Integer, nullable=False, default=6)
+    __table_args__ = (
+        CheckConstraint("grid_rows >= 1 AND grid_rows <= 6", name="ck_category_home_grid_rows"),
+        CheckConstraint("item_size >= 42 AND item_size <= 110", name="ck_category_home_item_size"),
+        CheckConstraint("item_spacing >= 0 AND item_spacing <= 24", name="ck_category_home_item_spacing"),
+        CheckConstraint("item_shape IN ('circle','rounded','square')", name="ck_category_home_item_shape"),
+        Index("ix_category_home_display_category", "category_id"),
+    )
+
+
 class CategoryNavigationItem(TimestampMixin, ActiveMixin, db.Model):
     __tablename__ = "category_navigation_items"
 
