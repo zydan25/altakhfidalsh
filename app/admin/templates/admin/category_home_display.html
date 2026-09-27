@@ -25,7 +25,7 @@
     <details class="panel" style="padding:14px" {% if loop.first %}open{% endif %}>
       <summary>
         <strong>{{ scope.name }}</strong>
-        <span class="muted"> · {{ s.grid_rows }} صفوف · {{ s.item_size }}px · {{ s.item_spacing }}px</span>
+        <span class="muted"> · {{ s.grid_rows }} صفوف · {{ s.item_width }}×{{ s.item_height }}px · {{ s.item_spacing }}px</span>
       </summary>
 
       <form method="post" class="form-stack compact-form-grid" style="margin-top:14px">
@@ -49,9 +49,14 @@
           </select>
         </label>
 
-        <label>حجم الفئة
-          <input name="item_size" type="number" min="42" max="110" value="{{ s.item_size }}" required>
-          <small class="field-help">بالبكسل. الحجم الافتراضي 64px قريب من حجم المرجع المرسل.</small>
+        <label>عرض الفئة
+          <input name="item_width" type="number" min="42" max="240" value="{{ s.item_width or s.item_size }}" required>
+          <small class="field-help">عرض الصورة بالـpx. يمكن زيادته أو تصغيره بحرية ضمن حدود الواجهة.</small>
+        </label>
+
+        <label>ارتفاع الفئة
+          <input name="item_height" type="number" min="42" max="240" value="{{ s.item_height or s.item_size }}" required>
+          <small class="field-help">ارتفاع الصورة بالـpx. عند الشكل الدائري سيُستخدم أصغر البعدين للحفاظ على دائرة حقيقية.</small>
         </label>
 
         <label>التباعد بين الفئات
@@ -60,13 +65,13 @@
         </label>
 
         <label>انحناء الحواف بالضبط
-          <input name="item_corner_radius" type="number" min="0" max="80" value="{{ s.item_corner_radius }}" required>
+          <input name="item_corner_radius" type="number" min="0" max="100" value="{{ s.item_corner_radius }}" required>
           <small class="field-help">بالبكسل. يُستخدم مع «منحني الحواف» و«مربع». الدائري يبقى دائرة كاملة مهما كانت القيمة.</small>
         </label>
 
         <label>حجم خط اسم الفئة
-          <input name="item_label_font_size" type="number" min="7" max="16" value="{{ s.item_label_font_size }}" required>
-          <small class="field-help">من 7 إلى 16px، ويُطبّق على أسماء الدوائر في الصفحة الرئيسية.</small>
+          <input name="item_label_font_size" type="number" min="7" max="24" value="{{ s.item_label_font_size }}" required>
+          <small class="field-help">من 7 إلى 24px، ويُطبّق مباشرة على أسماء الدوائر/الفئات في الصفحة الرئيسية.</small>
         </label>
 
         <label class="check-row">
