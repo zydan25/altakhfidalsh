@@ -1027,6 +1027,7 @@ class _CategoryCircleGrid extends StatelessWidget {
   final String itemShape;
   final double itemSize;
   final double itemSpacing;
+  final int gridRows;
   final ValueChanged<CategoryModel> onTap;
 
   const _CategoryCircleGrid({
@@ -1034,6 +1035,7 @@ class _CategoryCircleGrid extends StatelessWidget {
     required this.itemShape,
     required this.itemSize,
     required this.itemSpacing,
+    required this.gridRows,
     required this.onTap,
   });
 
@@ -1043,16 +1045,29 @@ class _CategoryCircleGrid extends StatelessWidget {
       return const SizedBox(height: 8);
     }
 
-    final maxSize = (MediaQuery.sizeOf(context).width -
-            14 -
-            (itemSpacing * 4))
-        / 5;
-    final effectiveSize = itemSize.clamp(42.0, maxSize).toDouble();
+    const horizontalPadding = 14.0;
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final cellWidth = ((viewportWidth -
+                horizontalPadding -
+                (itemSpacing * 4))
+            / 5)
+        .clamp(54.0, 140.0)
+        .toDouble();
+    final effectiveSize = itemSize
+        .clamp(42.0, cellWidth)
+        .toDouble();
     final radius = itemShape == 'circle'
         ? effectiveSize / 2
         : itemShape == 'rounded'
             ? 16.0
             : 7.0;
+    // The configured row count controls the grid vertically; additional
+    // columns become horizontally scrollable so no category is hidden. 
+    final rowCount = gridRows.clamp(1, 6).toInt();
+    final cellHeight = effectiveSize + 40;
+    final gridHeight = cellHeight * rowCount +
+        (rowCount - 1) * itemSpacing +
+        11;
 
     return Container(
       color: Colors.white,
@@ -1062,62 +1077,68 @@ class _CategoryCircleGrid extends StatelessWidget {
         7,
         itemSpacing.clamp(4.0, 12.0).toDouble(),
       ),
-      child: GridView.builder(
-        shrinkWrap: true,
-        primary: false,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: categories.length,
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 5,
-          mainAxisSpacing: itemSpacing,
-          crossAxisSpacing: itemSpacing,
-          mainAxisExtent: effectiveSize + 40,
-        ),
-        itemBuilder: (_, i) => InkWell(
-          onTap: () => onTap(categories[i]),
-          borderRadius: BorderRadius.circular(radius),
-          child: Column(
-            children: [
-              Container(
-                width: effectiveSize,
-                height: effectiveSize,
-                decoration: BoxDecoration(
-                  shape: itemShape == 'circle'
-                      ? BoxShape.circle
-                      : BoxShape.rectangle,
-                  color: const Color(0xFFF4F4F4),
-                  borderRadius: itemShape == 'circle'
-                      ? null
-                      : BorderRadius.circular(radius),
-                  border: Border.all(
-                    color: const Color(0xFFE0E0E0),
-                    width: .8,
+      child: SizedBox(
+        height: gridHeight,
+        child: GridView.builder(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          padding: EdgeInsets.zero,
+          itemCount: categories.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: rowCount,
+            mainAxisSpacing: itemSpacing,
+            crossAxisSpacing: itemSpacing,
+            mainAxisExtent: cellWidth,
+          ),
+          itemBuilder: (_, i) => InkWell(
+            onTap: () => onTap(categories[i]),
+            borderRadius: BorderRadius.circular(radius),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: effectiveSize,
+                  height: effectiveSize,
+                  decoration: BoxDecoration(
+                    shape: itemShape == 'circle'
+                        ? BoxShape.circle
+                        : BoxShape.rectangle,
+                    color: const Color(0xFFF4F4F4),
+                    borderRadius: itemShape == 'circle'
+                        ? null
+                        : BorderRadius.circular(radius),
+                    border: Border.all(
+                      color: const Color(0xFFE0E0E0),
+                      width: .8,
+                    ),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: SxImage(
+                    url: categories[i].iconUrl,
+                    fit: BoxFit.cover,
                   ),
                 ),
-                clipBehavior: Clip.antiAlias,
-                child: SxImage(
-                  url: categories[i].iconUrl,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 1),
-                  child: Text(
-                    categories[i].name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 8.2,
-                      height: 1.05,
-                      fontWeight: FontWeight.w700,
+                const SizedBox(height: 4),
+                SizedBox(
+                  width: cellWidth,
+                  height: 34,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 1),
+                    child: Text(
+                      categories[i].name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 8.2,
+                        height: 1.05,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
