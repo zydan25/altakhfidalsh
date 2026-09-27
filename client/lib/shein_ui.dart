@@ -1067,7 +1067,7 @@ class SxHomeLookCarousel extends StatelessWidget {
             final width = sxDouble(look['card_width'], 90)
                 .clamp(40.0, 500.0)
                 .toDouble();
-            final height = sxDouble(look['card_height'], 220)
+            final height = sxDouble(look['card_height'], 110)
                 .clamp(40.0, 500.0)
                 .toDouble();
             final radius = sxDouble(look['card_radius'], 14)
@@ -1214,6 +1214,8 @@ class SxHomeCategoryGrid extends StatelessWidget {
       categories: categories.toList(),
       itemShape: itemShape,
       itemSize: itemSize,
+      itemWidth: itemWidth,
+      itemHeight: itemHeight,
       itemSpacing: itemSpacing,
       itemCornerRadius: itemCornerRadius,
       itemLabelFontSize: itemLabelFontSize,
