@@ -441,8 +441,11 @@ def register_operation_routes(admin_bp):
                     look.card_shape = (request.form.get("card_shape") or "rounded").strip()
                     if look.card_shape not in {"circle", "rounded", "square"}:
                         raise ValueError("شكل الإطلالة غير صحيح.")
-                    look.card_width = max(100, min(260, request.form.get("card_width", 160, type=int)))
-                    look.card_height = max(140, min(360, request.form.get("card_height", 220, type=int)))
+                    # Do not impose the old 100/140px minimums. The admin
+                    # can make compact mobile cards while we still guard against
+                    # invalid zero/negative sizes.
+                    look.card_width = max(40, min(500, request.form.get("card_width", 160, type=int)))
+                    look.card_height = max(40, min(500, request.form.get("card_height", 220, type=int)))
                     look.card_radius = max(0, min(80, request.form.get("card_radius", 14, type=int)))
                     look.card_spacing = max(0, min(30, request.form.get("card_spacing", 8, type=int)))
                     look.caption_background_color = request.form.get("caption_background_color") or "#000000"
