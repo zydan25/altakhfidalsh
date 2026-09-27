@@ -72,6 +72,14 @@
           </span>
         </label>
 
+        <label class="check-row">
+          <input name="show_looks_strip" type="checkbox" {% if s.show_looks_strip %}checked{% endif %}>
+          <span>
+            <strong>إظهار شريط الإطلالات</strong>
+            <small class="field-help">عند التفعيل تظهر الإطلالات أسفل القسائم وفوق الفئات الدائرية.</small>
+          </span>
+        </label>
+
         <div class="panel" style="padding:10px;background:#fafafa;border:1px solid #ececec">
           <strong>المعاينة المنطقية</strong>
           <div class="chip-row" style="margin-top:8px">
@@ -81,6 +89,7 @@
             <span class="banner-target-chip">الانحناء: {{ s.item_corner_radius }}px</span>
             <span class="banner-target-chip">الصفوف: {{ s.grid_rows }}</span>
             <span class="banner-target-chip">{{ "القسائم ظاهرة" if s.show_coupon_strip else "القسائم مخفية" }}</span>
+            <span class="banner-target-chip">{{ "الإطلالات ظاهرة" if s.show_looks_strip else "الإطلالات مخفية" }}</span>
           </div>
         </div>
 
