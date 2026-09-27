@@ -291,8 +291,8 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       'auto_flip': true,
       'flip_seconds': 4,
       'cards_per_slide': 2,
-      'card_height': 96,
-      'card_radius': 18,
+      'card_height': 64,
+      'card_radius': 14,
       'card_spacing': 8,
       'title_font_size': 16,
       'subtitle_font_size': 11,
@@ -752,119 +752,188 @@ class _BannerSlide extends StatelessWidget {
     required this.onTap,
   });
 
+  Alignment _alignment(String value, [Alignment fallback = Alignment.center]) {
+    switch (value.toLowerCase()) {
+      case 'top_left':
+        return Alignment.topLeft;
+      case 'top_center':
+        return Alignment.topCenter;
+      case 'top_right':
+        return Alignment.topRight;
+      case 'center_left':
+        return Alignment.centerLeft;
+      case 'center':
+        return Alignment.center;
+      case 'center_right':
+        return Alignment.centerRight;
+      case 'bottom_left':
+        return Alignment.bottomLeft;
+      case 'bottom_center':
+        return Alignment.bottomCenter;
+      case 'bottom_right':
+        return Alignment.bottomRight;
+      default:
+        return fallback;
+    }
+  }
+
+  TextAlign _textAlign(String value) {
+    switch (value.toLowerCase()) {
+      case 'top_left':
+      case 'center_left':
+      case 'bottom_left':
+        return TextAlign.left;
+      case 'top_right':
+      case 'center_right':
+      case 'bottom_right':
+        return TextAlign.right;
+      default:
+        return TextAlign.center;
+    }
+  }
+
+  CrossAxisAlignment _crossAxis(String value) {
+    switch (value.toLowerCase()) {
+      case 'top_left':
+      case 'center_left':
+      case 'bottom_left':
+        return CrossAxisAlignment.start;
+      case 'top_right':
+      case 'center_right':
+      case 'bottom_right':
+        return CrossAxisAlignment.end;
+      default:
+        return CrossAxisAlignment.center;
+    }
+  }
+
+  Color _color(dynamic value, Color fallback) {
+    final raw = sxText(value);
+    if (!raw.startsWith('#') || raw.length != 7) return fallback;
+    return Color(int.tryParse('FF' + raw.substring(1), radix: 16) ?? fallback.value);
+  }
+
   @override
   Widget build(BuildContext context) {
     final overlay = sxText(banner['overlay_text']);
     final title = sxText(banner['title']);
     final description = sxText(banner['description']);
     final button = sxText(banner['button_label']);
-    final hasCopy = overlay.isNotEmpty || title.isNotEmpty || description.isNotEmpty || button.isNotEmpty;
-    final position = sxText(banner['position_text'], 'center').toLowerCase();
-    final contentAlignment = position.contains('top')
-        ? Alignment.topCenter
-        : position.contains('bottom')
-            ? Alignment.bottomCenter
-            : Alignment.center;
-    final overlayColor = _color(
-      banner['overlay_background_color'],
-      Colors.transparent,
-    );
-    final overlayOpacity = (sxDouble(banner['overlay_opacity'], 0)).clamp(0.0, 1.0);
-    final contentPositioned = Positioned.fill(
-      child: Align(
-        alignment: contentAlignment,
+    final hasText = overlay.isNotEmpty || title.isNotEmpty || description.isNotEmpty;
+    final textPosition = sxText(banner['position_text'], 'center').toLowerCase();
+    final configuredButtonPosition = sxText(banner['button_position'], 'same').toLowerCase();
+    final buttonPosition = configuredButtonPosition == 'same'
+        ? textPosition
+        : configuredButtonPosition;
+    final textAlign = _textAlign(textPosition);
+    final crossAxis = _crossAxis(textPosition);
+    final padding = sxDouble(banner['content_padding'], 18).clamp(0.0, 80.0).toDouble();
+    final overlaySize = sxDouble(banner['overlay_font_size'], 13).clamp(8.0, 36.0).toDouble();
+    final titleSize = sxDouble(banner['title_font_size'], 28).clamp(10.0, 60.0).toDouble();
+    final descriptionSize = sxDouble(banner['description_font_size'], 16).clamp(8.0, 40.0).toDouble();
+    final buttonSize = sxDouble(banner['button_font_size'], 11).clamp(8.0, 30.0).toDouble();
+    final buttonRadius = sxDouble(banner['button_radius'], 0).clamp(0.0, 40.0).toDouble();
+    final overlayColor = _color(banner['overlay_background_color'], Colors.transparent);
+    final overlayOpacity = sxDouble(banner['overlay_opacity'], 0).clamp(0.0, 1.0);
+
+    Widget textContent() {
+      if (!hasText) return const SizedBox.shrink();
+      return Align(
+        alignment: _alignment(textPosition),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 52, 18, 44),
+          padding: EdgeInsets.all(padding),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: crossAxis,
             children: [
-                  if (overlay.isNotEmpty)
-                    Text(
-                      overlay,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _color(banner['description_color'], Colors.white),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
+              if (overlay.isNotEmpty)
+                Text(
+                  overlay,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: textAlign,
+                  style: TextStyle(
+                    color: _color(banner['description_color'], Colors.white),
+                    fontSize: overlaySize,
+                    fontWeight: FontWeight.w800,
+                    height: 1.05,
+                  ),
+                ),
+              if (title.isNotEmpty)
+                Padding(
+                  padding: EdgeInsets.only(top: overlay.isNotEmpty ? 5 : 0),
+                  child: Text(
+                    title,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: textAlign,
+                    style: TextStyle(
+                      color: _color(banner['title_color'], Colors.white),
+                      fontSize: titleSize,
+                      height: 1.08,
+                      fontWeight: FontWeight.w900,
+                      shadows: const [
+                        Shadow(blurRadius: 2, offset: Offset(0, 1), color: Colors.black26),
+                      ],
                     ),
-                  if (title.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 5),
-                      child: Text(
-                        title,
-                        maxLines: 3,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: _color(banner['title_color'], Colors.white),
-                          fontSize: 28,
-                          height: 1.08,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
+                  ),
+                ),
+              if (description.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(
+                    description,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: textAlign,
+                    style: TextStyle(
+                      color: _color(banner['description_color'], Colors.white),
+                      fontSize: descriptionSize,
+                      height: 1.18,
+                      fontWeight: FontWeight.w700,
+                      shadows: const [
+                        Shadow(blurRadius: 2, offset: Offset(0, 1), color: Colors.black26),
+                      ],
                     ),
-                  if (description.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 5),
-                      child: Text(
-                        description,
-                        maxLines: 3,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: _color(banner['description_color'], Colors.white),
-                          fontSize: 16,
-                          height: 1.2,
-                          fontWeight: FontWeight.w700,
-                          shadows: const [
-                            Shadow(
-                              blurRadius: 2,
-                              offset: Offset(0, 1),
-                              color: Colors.black26,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  if (button.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10),
-                      child: ElevatedButton(
-                        onPressed: onTap,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _color(
-                            banner['button_background_color'],
-                            Colors.black,
-                          ),
-                          foregroundColor: _color(
-                            banner['button_text_color'],
-                            Colors.white,
-                          ),
-                          surfaceTintColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 9,
-                          ),
-                          shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.zero,
-                          ),
-                        ),
-                        child: Text(
-                          button,
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
+                  ),
+                ),
+            ],
           ),
         ),
-      ),
-    );
+      );
+    }
+
+    Widget buttonWidget() {
+      if (button.isEmpty) return const SizedBox.shrink();
+      return Align(
+        alignment: _alignment(buttonPosition),
+        child: Padding(
+          padding: EdgeInsets.all(padding),
+          child: ElevatedButton(
+            onPressed: onTap,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _color(banner['button_background_color'], Colors.black),
+              foregroundColor: _color(banner['button_text_color'], Colors.white),
+              surfaceTintColor: Colors.transparent,
+              shadowColor: Colors.transparent,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(buttonRadius)),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: Text(
+              button,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: buttonSize, fontWeight: FontWeight.w900),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final independentButton = button.isNotEmpty && configuredButtonPosition != 'same';
 
     return InkWell(
       onTap: onTap,
@@ -882,28 +951,44 @@ class _BannerSlide extends StatelessWidget {
                 child: Container(color: overlayColor.withOpacity(overlayOpacity)),
               ),
             ),
-          if (hasCopy)
-            contentPositioned
-          else
-            const Positioned(
-              left: 0,
-              right: 0,
-              bottom: 67,
-              child: Text(
-                'وفر أكثر مع التخفيض الصح',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 25,
-                  fontWeight: FontWeight.w900,
-                  height: 1.08,
-                  shadows: [
-                    Shadow(
-                      blurRadius: 3,
-                      offset: Offset(0, 1),
-                      color: Colors.black45,
-                    ),
-                  ],
+          if (hasText) textContent(),
+          if (button.isNotEmpty && independentButton)
+            Positioned.fill(child: buttonWidget()),
+          if (button.isNotEmpty && !independentButton)
+            Positioned.fill(
+              child: Align(
+                alignment: _alignment(textPosition),
+                child: Padding(
+                  padding: EdgeInsets.all(padding),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: crossAxis,
+                    children: [
+                      if (!hasText) const SizedBox.shrink(),
+                      if (hasText)
+                        const SizedBox(height: 0),
+                      ElevatedButton(
+                        onPressed: onTap,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _color(banner['button_background_color'], Colors.black),
+                          foregroundColor: _color(banner['button_text_color'], Colors.white),
+                          surfaceTintColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(buttonRadius)),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: Text(
+                          button,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: buttonSize, fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -911,14 +996,7 @@ class _BannerSlide extends StatelessWidget {
       ),
     );
   }
-
-  Color _color(dynamic value, Color fallback) {
-    final raw = sxText(value);
-    if (!raw.startsWith('#') || raw.length != 7) return fallback;
-    return Color(int.tryParse('FF' + raw.substring(1), radix: 16) ?? fallback.value);
-  }
 }
-
 
 class SxBannerLandingScreen extends StatefulWidget {
   final Map<String, dynamic> banner;
@@ -1002,16 +1080,15 @@ class _SxCouponStripState extends State<SxCouponStrip> {
   List<List<Map<String, dynamic>>> get _pages {
     final pages = <List<Map<String, dynamic>>>[];
     for (var i = 0; i < widget.coupons.length; i += _perSlide) {
-      pages.add(
-        widget.coupons.skip(i).take(_perSlide).toList(),
-      );
+      pages.add(widget.coupons.skip(i).take(_perSlide).toList());
     }
     return pages;
   }
 
   int _secondsForPage(int index) {
+    if (_pages.isEmpty) return 4;
     final pageIndex = index.clamp(0, _pages.length - 1).toInt();
-    final page = _pages.isEmpty ? const <Map<String, dynamic>>[] : _pages[pageIndex];
+    final page = _pages[pageIndex];
     for (final card in page) {
       final custom = sxInt(card['duration']);
       if (custom > 0) return custom.clamp(1, 120).toInt();
@@ -1031,7 +1108,8 @@ class _SxCouponStripState extends State<SxCouponStrip> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.coupons.length != widget.coupons.length ||
         oldWidget.settings['flip_seconds'] != widget.settings['flip_seconds'] ||
-        oldWidget.settings['cards_per_slide'] != widget.settings['cards_per_slide']) {
+        oldWidget.settings['cards_per_slide'] != widget.settings['cards_per_slide'] ||
+        oldWidget.settings['card_height'] != widget.settings['card_height']) {
       _page = 0;
       _schedule();
     }
@@ -1046,9 +1124,7 @@ class _SxCouponStripState extends State<SxCouponStrip> {
 
   void _schedule() {
     _timer?.cancel();
-    if (!mounted || widget.settings['auto_flip'] != true || _pages.length <= 1) {
-      return;
-    }
+    if (!mounted || widget.settings['auto_flip'] != true || _pages.length <= 1) return;
     final seconds = _secondsForPage(_page);
     _timer = Timer(Duration(seconds: seconds), () {
       if (!mounted || _controller == null || !_controller!.hasClients) return;
@@ -1070,9 +1146,7 @@ class _SxCouponStripState extends State<SxCouponStrip> {
   Color _color(dynamic value, Color fallback) {
     final raw = sxText(value);
     if (!RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(raw)) return fallback;
-    return Color(
-      int.tryParse('FF' + raw.substring(1), radix: 16) ?? fallback.value,
-    );
+    return Color(int.tryParse('FF' + raw.substring(1), radix: 16) ?? fallback.value);
   }
 
   IconData _icon(String type) {
@@ -1127,29 +1201,19 @@ class _SxCouponStripState extends State<SxCouponStrip> {
     if ((targetType == 'category' || targetType == 'product' || targetType == 'hashtag') && id <= 0) return;
 
     if (targetType == 'product') {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => SxProductScreen(id: id)),
-      );
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(id: id)));
     } else if (targetType == 'category') {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => SxResults(
-          title: sxText(target['name'], 'العروض'),
-          categoryId: id,
-        )),
-      );
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => SxResults(
+        title: sxText(target['name'], 'العروض'),
+        categoryId: id,
+      )));
     } else if (targetType == 'hashtag') {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => SxResults(
-          title: sxText(target['name'], 'العروض'),
-          hashtagId: id,
-        )),
-      );
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => SxResults(
+        title: sxText(target['name'], 'العروض'),
+        hashtagId: id,
+      )));
     } else if (targetType == 'url') {
-      final raw = sxText(target['url']);
-      final uri = Uri.tryParse(raw);
+      final uri = Uri.tryParse(sxText(target['url']));
       if (uri != null && await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else if (mounted) {
@@ -1160,33 +1224,56 @@ class _SxCouponStripState extends State<SxCouponStrip> {
     }
   }
 
-  Widget _card(BuildContext context, Map<String, dynamic> coupon, double width) {
+  Widget _card(BuildContext context, Map<String, dynamic> coupon, double width, double height) {
     final bg = _color(coupon['background_color'], Colors.white);
     final text = _color(coupon['text_color'], Colors.black87);
     final badgeBg = _color(coupon['badge_background_color'], Colors.black);
     final badgeText = _color(coupon['badge_text_color'], Colors.white);
-    final border = coupon['border_color'].toString().isEmpty
-        ? bg
-        : _color(coupon['border_color'], bg);
-    final radius = sxDouble(widget.settings['card_radius'], 18)
-        .clamp(0.0, 100.0)
-        .toDouble();
-    final height = sxDouble(widget.settings['card_height'], 96)
-        .clamp(40.0, 300.0)
-        .toDouble();
-    final titleSize = sxDouble(widget.settings['title_font_size'], 16)
-        .clamp(8.0, 32.0)
-        .toDouble();
-    final subtitleSize = sxDouble(widget.settings['subtitle_font_size'], 11)
-        .clamp(7.0, 24.0)
-        .toDouble();
-    final badgeSize = sxDouble(widget.settings['badge_font_size'], 10)
-        .clamp(7.0, 22.0)
-        .toDouble();
+    final borderRaw = sxText(coupon['border_color']);
+    final border = borderRaw.isEmpty ? bg : _color(borderRaw, bg);
+    final compact = height <= 66;
+    final iconSize = compact ? 30.0 : 38.0;
+    final iconGlyph = compact ? 16.0 : 19.0;
+    final innerHorizontal = compact ? 7.0 : 10.0;
+    final innerVertical = compact ? 5.0 : 8.0;
+    final radius = sxDouble(widget.settings['card_radius'], 14).clamp(0.0, 100.0).toDouble();
+    final titleSize = sxDouble(widget.settings['title_font_size'], compact ? 13 : 16).clamp(8.0, 32.0).toDouble();
+    final subtitleSize = sxDouble(widget.settings['subtitle_font_size'], compact ? 9 : 11).clamp(7.0, 24.0).toDouble();
+    final badgeSize = sxDouble(widget.settings['badge_font_size'], compact ? 8 : 10).clamp(7.0, 22.0).toDouble();
     final badge = sxText(
       coupon['badge_text'],
       sxText(coupon['display_type']) == 'code' ? sxText(coupon['code']) : 'عرض',
     );
+    final actionIcon = sxText(coupon['display_type']) == 'code'
+        ? Icons.content_copy_outlined
+        : Icons.arrow_back_ios_new;
+    final showAction = width >= 150;
+
+    final title = Text(
+      sxText(coupon['headline'], 'عرض خاص'),
+      maxLines: compact ? 1 : 2,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: text,
+        fontSize: titleSize,
+        height: 1.02,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+
+    final subtitle = sxText(coupon['subtitle']).isEmpty
+        ? const SizedBox.shrink()
+        : Text(
+            sxText(coupon['subtitle']),
+            maxLines: compact ? 1 : 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: text.withOpacity(.78),
+              fontSize: subtitleSize,
+              height: 1.0,
+              fontWeight: FontWeight.w600,
+            ),
+          );
 
     return SizedBox(
       width: width,
@@ -1198,7 +1285,7 @@ class _SxCouponStripState extends State<SxCouponStrip> {
           borderRadius: BorderRadius.circular(radius),
           onTap: () => _openCoupon(context, coupon),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            padding: EdgeInsets.symmetric(horizontal: innerHorizontal, vertical: innerVertical),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(radius),
               border: Border.all(color: border, width: .8),
@@ -1207,74 +1294,59 @@ class _SxCouponStripState extends State<SxCouponStrip> {
               textDirection: TextDirection.rtl,
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: iconSize,
+                  height: iconSize,
                   decoration: BoxDecoration(
                     color: badgeBg,
                     borderRadius: BorderRadius.circular(radius * .55),
                   ),
-                  child: Icon(_icon(sxText(coupon['icon_type'])), size: 20, color: badgeText),
+                  child: Icon(_icon(sxText(coupon['icon_type'])), size: iconGlyph, color: badgeText),
                 ),
-                const SizedBox(width: 9),
+                SizedBox(width: compact ? 6 : 8),
                 Expanded(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (badge.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: badgeBg,
-                            borderRadius: BorderRadius.circular(7),
-                          ),
-                          child: Text(
-                            badge,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: badgeText,
-                              fontSize: badgeSize,
-                              fontWeight: FontWeight.w900,
+                      Row(
+                        textDirection: TextDirection.rtl,
+                        children: [
+                          if (badge.isNotEmpty && width >= 135)
+                            Flexible(
+                              child: Container(
+                                margin: const EdgeInsets.only(left: 5),
+                                padding: EdgeInsets.symmetric(horizontal: compact ? 5 : 6, vertical: compact ? 2 : 3),
+                                decoration: BoxDecoration(
+                                  color: badgeBg,
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  badge,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: badgeText,
+                                    fontSize: badgeSize,
+                                    fontWeight: FontWeight.w900,
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                      Text(
-                        sxText(coupon['headline'], 'عرض خاص'),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: text,
-                          fontSize: titleSize,
-                          height: 1.05,
-                          fontWeight: FontWeight.w900,
-                        ),
+                          Expanded(child: title),
+                        ],
                       ),
-                      if (sxText(coupon['subtitle']).isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 3),
-                          child: Text(
-                            sxText(coupon['subtitle']),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: text.withOpacity(.78),
-                              fontSize: subtitleSize,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
+                      if (!compact && subtitle is! SizedBox) const SizedBox(height: 3),
+                      if (compact && subtitle is! SizedBox) const SizedBox(height: 2),
+                      subtitle,
                     ],
                   ),
                 ),
-                const SizedBox(width: 6),
-                Icon(
-                  sxText(coupon['display_type']) == 'code'
-                      ? Icons.content_copy_outlined
-                      : Icons.arrow_back_ios_new,
-                  size: 15,
-                  color: text.withOpacity(.6),
-                ),
+                if (showAction) ...[
+                  SizedBox(width: compact ? 3 : 6),
+                  Icon(actionIcon, size: compact ? 12 : 15, color: text.withOpacity(.58)),
+                ],
               ],
             ),
           ),
@@ -1287,15 +1359,11 @@ class _SxCouponStripState extends State<SxCouponStrip> {
   Widget build(BuildContext context) {
     if (widget.coupons.isEmpty) return const SizedBox.shrink();
     final pages = _pages;
-    final height = sxDouble(widget.settings['card_height'], 96)
-        .clamp(40.0, 300.0)
-        .toDouble();
-    final spacing = sxDouble(widget.settings['card_spacing'], 8)
-        .clamp(0.0, 40.0)
-        .toDouble();
+    final height = sxDouble(widget.settings['card_height'], 64).clamp(48.0, 300.0).toDouble();
+    final spacing = sxDouble(widget.settings['card_spacing'], 6).clamp(0.0, 40.0).toDouble();
     return Container(
       color: Colors.white,
-      padding: EdgeInsets.fromLTRB(7, 5, 7, spacing > 8 ? 8 : 5),
+      padding: EdgeInsets.fromLTRB(7, 4, 7, pages.length > 1 ? 5 : 4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1308,34 +1376,37 @@ class _SxCouponStripState extends State<SxCouponStrip> {
               itemBuilder: (_, index) {
                 final pair = pages[index];
                 if (_perSlide == 1 || pair.length == 1) {
-                  return _card(context, pair.first, double.infinity);
+                  return _card(context, pair.first, MediaQuery.of(context).size.width - 14, height);
                 }
                 final usable = MediaQuery.of(context).size.width - 14;
                 final cardWidth = (usable - spacing) / 2;
                 return Row(
                   textDirection: TextDirection.rtl,
                   children: [
-                    _card(context, pair[0], cardWidth),
+                    _card(context, pair[0], cardWidth, height),
                     SizedBox(width: spacing),
-                    _card(context, pair[1], cardWidth),
+                    _card(context, pair[1], cardWidth, height),
                   ],
                 );
               },
             ),
           ),
           if (pages.length > 1)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(
-                pages.length,
-                (i) => AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  width: i == _page ? 15 : 4,
-                  height: 3,
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  decoration: BoxDecoration(
-                    color: i == _page ? Colors.black : const Color(0xFFBDBDBD),
-                    borderRadius: BorderRadius.circular(10),
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  pages.length,
+                  (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    width: i == _page ? 15 : 4,
+                    height: 3,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      color: i == _page ? Colors.black : const Color(0xFFBDBDBD),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
