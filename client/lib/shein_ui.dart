@@ -247,8 +247,37 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
     }
     if (mounted) setState(() => loading = false);
   }
+  Map<String, dynamic> _categoryDisplaySettings() {
+    final payload = home['category_display'];
+    if (payload is! Map) {
+      return const {
+        'grid_rows': 2,
+        'show_coupon_strip': true,
+        'item_shape': 'circle',
+        'item_size': 64,
+        'item_spacing': 6,
+      };
+    }
+    final global = sxMaps([payload['all']]).isNotEmpty
+        ? Map<String, dynamic>.from(payload['all'] as Map)
+        : <String, dynamic>{};
+    if (selected < 0) return global;
+    final categories = payload['categories'];
+    if (categories is Map) {
+      final scoped = categories[selected.toString()];
+      if (scoped is Map) {
+        return {
+          ...global,
+          ...Map<String, dynamic>.from(scoped),
+        };
+      }
+    }
+    return global;
+  }
+
   @override Widget build(BuildContext context) {
     final banners = sxMaps(home['banners']);
+    final categoryDisplay = _categoryDisplaySettings();
     return Scaffold(
       backgroundColor: Colors.white,
       body: RefreshIndicator(
@@ -264,13 +293,19 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               onWishlist: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxWishlistScreen())),
               onNotifications: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen())),
             )),
-            const SliverToBoxAdapter(child: SxCouponStrip()),
+            if (categoryDisplay['show_coupon_strip'] == true)
+              const SliverToBoxAdapter(child: SxCouponStrip()),
             if (!loading)
               SliverToBoxAdapter(
                 child: SxHomeCategoryGrid(
                   rootCategories: roots.take(10).toList(),
                   allCategories: allCategories,
                   selectedRootId: selected,
+                  gridRows: sxInt(categoryDisplay['grid_rows'], 2).clamp(1, 6),
+                  itemShape: sxText(categoryDisplay['item_shape'], 'circle'),
+                  itemSize: sxDouble(categoryDisplay['item_size'], 64),
+                  itemSpacing: sxDouble(categoryDisplay['item_spacing'], 6),
+
                   onRootTap: (category) async {
                     setState(() => selected = category.id);
                     await load();
@@ -910,6 +945,10 @@ class SxHomeCategoryGrid extends StatelessWidget {
   final List<CategoryModel> rootCategories;
   final List<CategoryModel> allCategories;
   final int selectedRootId;
+  final int gridRows;
+  final String itemShape;
+  final double itemSize;
+  final double itemSpacing;
   final ValueChanged<CategoryModel> onRootTap;
   final ValueChanged<CategoryModel> onCategoryTap;
 
@@ -918,6 +957,10 @@ class SxHomeCategoryGrid extends StatelessWidget {
     required this.rootCategories,
     required this.allCategories,
     required this.selectedRootId,
+    required this.gridRows,
+    required this.itemShape,
+    required this.itemSize,
+    required this.itemSpacing,
     required this.onRootTap,
     required this.onCategoryTap,
   });
@@ -952,8 +995,9 @@ class SxHomeCategoryGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final rootIds = rootCategories.map((category) => category.id).toSet();
 
-    // The circle area is always for subcategories, never for the parent/root
-    // categories that are already represented by the top horizontal tabs.
+    // The root tabs already represent parent categories. The circle grid
+    // therefore starts at their children; when a root is selected, every
+    // descendant can be shown according to the configured row count.
     final categories = selectedRootId < 0
         ? (allCategories
               .where((category) =>
@@ -965,8 +1009,14 @@ class SxHomeCategoryGrid extends StatelessWidget {
                 : a.sortOrder.compareTo(b.sortOrder)))
         : _descendantsOf(selectedRootId);
 
+    const columns = 5;
+    final maxItems = (gridRows * columns).clamp(columns, 30);
+
     return _CategoryCircleGrid(
-      categories: categories.take(15).toList(),
+      categories: categories.take(maxItems).toList(),
+      itemShape: itemShape,
+      itemSize: itemSize,
+      itemSpacing: itemSpacing,
       onTap: onCategoryTap,
     );
   }
@@ -974,10 +1024,16 @@ class SxHomeCategoryGrid extends StatelessWidget {
 
 class _CategoryCircleGrid extends StatelessWidget {
   final List<CategoryModel> categories;
+  final String itemShape;
+  final double itemSize;
+  final double itemSpacing;
   final ValueChanged<CategoryModel> onTap;
 
   const _CategoryCircleGrid({
     required this.categories,
+    required this.itemShape,
+    required this.itemSize,
+    required this.itemSpacing,
     required this.onTap,
   });
 
@@ -987,33 +1043,55 @@ class _CategoryCircleGrid extends StatelessWidget {
       return const SizedBox(height: 8);
     }
 
+    final maxSize = (MediaQuery.sizeOf(context).width -
+            14 -
+            (itemSpacing * 4))
+        / 5;
+    final effectiveSize = itemSize.clamp(42.0, maxSize);
+    final radius = itemShape == 'circle'
+        ? effectiveSize / 2
+        : itemShape == 'rounded'
+            ? 16.0
+            : 7.0;
+
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(7, 7, 7, 4),
+      padding: EdgeInsets.fromLTRB(
+        7,
+        7,
+        7,
+        itemSpacing.clamp(4.0, 12.0),
+      ),
       child: GridView.builder(
         shrinkWrap: true,
         primary: false,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: categories.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 5,
-          mainAxisSpacing: 5,
-          crossAxisSpacing: 3,
-          childAspectRatio: .84,
+          mainAxisSpacing: itemSpacing,
+          crossAxisSpacing: itemSpacing,
+          mainAxisExtent: effectiveSize + 40,
         ),
         itemBuilder: (_, i) => InkWell(
           onTap: () => onTap(categories[i]),
-          borderRadius: BorderRadius.circular(50),
+          borderRadius: BorderRadius.circular(radius),
           child: Column(
             children: [
               Container(
-                width: 58,
-                height: 58,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFFF4F4F4),
-                  border: Border.fromBorderSide(
-                    BorderSide(color: Color(0xFFE0E0E0), width: .8),
+                width: effectiveSize,
+                height: effectiveSize,
+                decoration: BoxDecoration(
+                  shape: itemShape == 'circle'
+                      ? BoxShape.circle
+                      : BoxShape.rectangle,
+                  color: const Color(0xFFF4F4F4),
+                  borderRadius: itemShape == 'circle'
+                      ? null
+                      : BorderRadius.circular(radius),
+                  border: Border.all(
+                    color: const Color(0xFFE0E0E0),
+                    width: .8,
                   ),
                 ),
                 clipBehavior: Clip.antiAlias,
@@ -1023,17 +1101,19 @@ class _CategoryCircleGrid extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1),
-                child: Text(
-                  categories[i].name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 8.2,
-                    height: 1.05,
-                    fontWeight: FontWeight.w700,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 1),
+                  child: Text(
+                    categories[i].name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 8.2,
+                      height: 1.05,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -1044,7 +1124,6 @@ class _CategoryCircleGrid extends StatelessWidget {
     );
   }
 }
-
 
 class SxDiscoveryTabs extends StatelessWidget {
   final int selected;
