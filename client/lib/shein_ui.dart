@@ -1035,7 +1035,7 @@ class SxHomeLookCarousel extends StatelessWidget {
     if (looks.isEmpty) return const SizedBox.shrink();
     final maxCardHeight = looks
         .map((look) => sxDouble(look['card_height'], 220))
-        .fold<double>(140, (maxValue, value) =>
+        .fold<double>(40, (maxValue, value) =>
             value > maxValue ? value : maxValue);
     final sectionHeight = maxCardHeight.clamp(40.0, 500.0) + 24;
 
