@@ -819,12 +819,9 @@ class _BannerSlide extends StatelessWidget {
     final title = sxText(banner['title']);
     final description = sxText(banner['description']);
     final button = sxText(banner['button_label']);
-    final hasText = overlay.isNotEmpty || title.isNotEmpty || description.isNotEmpty;
     final textPosition = sxText(banner['position_text'], 'center').toLowerCase();
     final configuredButtonPosition = sxText(banner['button_position'], 'same').toLowerCase();
-    final buttonPosition = configuredButtonPosition == 'same'
-        ? textPosition
-        : configuredButtonPosition;
+    final buttonPosition = configuredButtonPosition == 'same' ? textPosition : configuredButtonPosition;
     final textAlign = _textAlign(textPosition);
     final crossAxis = _crossAxis(textPosition);
     final padding = sxDouble(banner['content_padding'], 18).clamp(0.0, 80.0).toDouble();
@@ -836,103 +833,91 @@ class _BannerSlide extends StatelessWidget {
     final overlayColor = _color(banner['overlay_background_color'], Colors.transparent);
     final overlayOpacity = sxDouble(banner['overlay_opacity'], 0).clamp(0.0, 1.0);
 
-    Widget textContent() {
-      if (!hasText) return const SizedBox.shrink();
-      return Align(
-        alignment: _alignment(textPosition),
-        child: Padding(
-          padding: EdgeInsets.all(padding),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: crossAxis,
-            children: [
-              if (overlay.isNotEmpty)
-                Text(
-                  overlay,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: textAlign,
-                  style: TextStyle(
-                    color: _color(banner['description_color'], Colors.white),
-                    fontSize: overlaySize,
-                    fontWeight: FontWeight.w800,
-                    height: 1.05,
-                  ),
-                ),
-              if (title.isNotEmpty)
-                Padding(
-                  padding: EdgeInsets.only(top: overlay.isNotEmpty ? 5 : 0),
-                  child: Text(
-                    title,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: textAlign,
-                    style: TextStyle(
-                      color: _color(banner['title_color'], Colors.white),
-                      fontSize: titleSize,
-                      height: 1.08,
-                      fontWeight: FontWeight.w900,
-                      shadows: const [
-                        Shadow(blurRadius: 2, offset: Offset(0, 1), color: Colors.black26),
-                      ],
-                    ),
-                  ),
-                ),
-              if (description.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 5),
-                  child: Text(
-                    description,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: textAlign,
-                    style: TextStyle(
-                      color: _color(banner['description_color'], Colors.white),
-                      fontSize: descriptionSize,
-                      height: 1.18,
-                      fontWeight: FontWeight.w700,
-                      shadows: const [
-                        Shadow(blurRadius: 2, offset: Offset(0, 1), color: Colors.black26),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      );
-    }
+    Widget buttonWidget() => ElevatedButton(
+      onPressed: onTap,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _color(banner['button_background_color'], Colors.black),
+        foregroundColor: _color(banner['button_text_color'], Colors.white),
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        elevation: 0,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(buttonRadius)),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      child: Text(
+        button,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: buttonSize, fontWeight: FontWeight.w900),
+      ),
+    );
 
-    Widget buttonWidget() {
-      if (button.isEmpty) return const SizedBox.shrink();
-      return Align(
-        alignment: _alignment(buttonPosition),
-        child: Padding(
-          padding: EdgeInsets.all(padding),
-          child: ElevatedButton(
-            onPressed: onTap,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _color(banner['button_background_color'], Colors.black),
-              foregroundColor: _color(banner['button_text_color'], Colors.white),
-              surfaceTintColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(buttonRadius)),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    Widget textColumn({bool includeButton = false}) => Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: crossAxis,
+      children: [
+        if (overlay.isNotEmpty)
+          Text(
+            overlay,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: textAlign,
+            style: TextStyle(
+              color: _color(banner['description_color'], Colors.white),
+              fontSize: overlaySize,
+              fontWeight: FontWeight.w800,
+              height: 1.05,
             ),
+          ),
+        if (title.isNotEmpty)
+          Padding(
+            padding: EdgeInsets.only(top: overlay.isNotEmpty ? 5 : 0),
             child: Text(
-              button,
-              maxLines: 1,
+              title,
+              maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: buttonSize, fontWeight: FontWeight.w900),
+              textAlign: textAlign,
+              style: TextStyle(
+                color: _color(banner['title_color'], Colors.white),
+                fontSize: titleSize,
+                height: 1.08,
+                fontWeight: FontWeight.w900,
+                shadows: const [
+                  Shadow(blurRadius: 2, offset: Offset(0, 1), color: Colors.black26),
+                ],
+              ),
             ),
           ),
-        ),
-      );
-    }
+        if (description.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 5),
+            child: Text(
+              description,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              textAlign: textAlign,
+              style: TextStyle(
+                color: _color(banner['description_color'], Colors.white),
+                fontSize: descriptionSize,
+                height: 1.18,
+                fontWeight: FontWeight.w700,
+                shadows: const [
+                  Shadow(blurRadius: 2, offset: Offset(0, 1), color: Colors.black26),
+                ],
+              ),
+            ),
+          ),
+        if (includeButton && button.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: buttonWidget(),
+          ),
+      ],
+    );
 
+    final hasText = overlay.isNotEmpty || title.isNotEmpty || description.isNotEmpty;
     final independentButton = button.isNotEmpty && configuredButtonPosition != 'same';
 
     return InkWell(
@@ -951,44 +936,23 @@ class _BannerSlide extends StatelessWidget {
                 child: Container(color: overlayColor.withOpacity(overlayOpacity)),
               ),
             ),
-          if (hasText) textContent(),
-          if (button.isNotEmpty && independentButton)
-            Positioned.fill(child: buttonWidget()),
-          if (button.isNotEmpty && !independentButton)
+          if (hasText || (button.isNotEmpty && !independentButton))
             Positioned.fill(
               child: Align(
                 alignment: _alignment(textPosition),
                 child: Padding(
                   padding: EdgeInsets.all(padding),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: crossAxis,
-                    children: [
-                      if (!hasText) const SizedBox.shrink(),
-                      if (hasText)
-                        const SizedBox(height: 0),
-                      ElevatedButton(
-                        onPressed: onTap,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _color(banner['button_background_color'], Colors.black),
-                          foregroundColor: _color(banner['button_text_color'], Colors.white),
-                          surfaceTintColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(buttonRadius)),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        child: Text(
-                          button,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: buttonSize, fontWeight: FontWeight.w900),
-                        ),
-                      ),
-                    ],
-                  ),
+                  child: textColumn(includeButton: !independentButton),
+                ),
+              ),
+            ),
+          if (independentButton)
+            Positioned.fill(
+              child: Align(
+                alignment: _alignment(buttonPosition),
+                child: Padding(
+                  padding: EdgeInsets.all(padding),
+                  child: buttonWidget(),
                 ),
               ),
             ),
