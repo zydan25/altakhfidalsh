@@ -29,11 +29,193 @@ from ..models import (
     LookCircle,
     SideCategory,
     SideCategoryCircle,
+    HomeCouponDisplaySetting,
+    HomeCouponCard,
 )
 from ..services.pricing import PricingRule, calculate_customer_price
 from .context import build_admin_context
 from ..modules.catalog.services import MediaService
 
+
+    @admin_bp.route("/promotions/coupons", methods=["GET", "POST"])
+    def home_coupons():
+        context = _ctx()
+        error = None
+        success = None
+        selected_scope = request.args.get("scope") or "all"
+
+        def hex_color(value, default):
+            import re
+            value = (value or default).strip()
+            if not re.fullmatch(r"#[0-9a-fA-F]{6}", value):
+                raise ValueError("اللون يجب أن يكون بصيغة HEX مثل #E2EFDA.")
+            return value
+
+        try:
+            if request.method == "POST":
+                action = (request.form.get("action") or "").strip()
+                selected_scope = request.form.get("scope") or "all"
+
+                if action == "save_settings":
+                    scope = selected_scope
+                    root_id = None if scope == "all" else int(scope)
+                    root = db.session.get(Category, root_id) if root_id else None
+                    if root_id and (root is None or root.parent_id is not None or not root.is_active):
+                        raise ValueError("نطاق القسائم يجب أن يكون فئة رئيسية نشطة.")
+                    key = "all" if root_id is None else f"category:{root_id}"
+                    row = HomeCouponDisplaySetting.query.filter_by(scope_key=key).first()
+                    if row is None:
+                        row = HomeCouponDisplaySetting(scope_key=key, root_category_id=root_id)
+                        db.session.add(row)
+                    row.root_category_id = root_id
+                    row.enabled = request.form.get("enabled") == "on"
+                    row.auto_flip = request.form.get("auto_flip") == "on"
+                    row.flip_seconds = max(1, min(120, request.form.get("flip_seconds", 4, type=int)))
+                    row.cards_per_slide = 2 if request.form.get("cards_per_slide") == "2" else 1
+                    row.card_height = max(40, min(300, request.form.get("card_height", 96, type=int)))
+                    row.card_radius = max(0, min(100, request.form.get("card_radius", 18, type=int)))
+                    row.card_spacing = max(0, min(40, request.form.get("card_spacing", 8, type=int)))
+                    row.title_font_size = max(8, min(32, request.form.get("title_font_size", 16, type=int)))
+                    row.subtitle_font_size = max(7, min(24, request.form.get("subtitle_font_size", 11, type=int)))
+                    row.badge_font_size = max(7, min(22, request.form.get("badge_font_size", 10, type=int)))
+                    row.default_background_color = hex_color(request.form.get("default_background_color"), "#E2EFDA")
+                    row.default_text_color = hex_color(request.form.get("default_text_color"), "#1B5E20")
+                    row.default_badge_background_color = hex_color(request.form.get("default_badge_background_color"), "#166534")
+                    row.default_badge_text_color = hex_color(request.form.get("default_badge_text_color"), "#ffffff")
+                    db.session.commit()
+                    success = "تم حفظ إعدادات شريط القسائم."
+
+                elif action in {"create_card", "update_card"}:
+                    card_id = request.form.get("id", type=int)
+                    row = db.session.get(HomeCouponCard, card_id) if card_id else None
+                    if action == "update_card" and row is None:
+                        raise ValueError("القسيمة غير موجودة.")
+                    scope = selected_scope
+                    root_id = None if scope == "all" else int(scope)
+                    root = db.session.get(Category, root_id) if root_id else None
+                    if root_id and (root is None or root.parent_id is not None or not root.is_active):
+                        raise ValueError("نطاق القسيمة يجب أن يكون فئة رئيسية نشطة.")
+                    display_type = request.form.get("display_type") or "code"
+                    if display_type not in {"code", "redirect"}:
+                        raise ValueError("نوع القسيمة غير صحيح.")
+                    code = (request.form.get("code") or "").strip() or None
+                    target_type = (request.form.get("target_type") or "").strip() or None
+                    target_id = request.form.get("target_id", type=int)
+                    target_url = (request.form.get("target_url") or "").strip() or None
+                    if display_type == "code":
+                        if not code:
+                            raise ValueError("أدخل كود القسيمة.")
+                        target_type = target_id = target_url = None
+                    else:
+                        if target_type not in {"category", "product", "hashtag", "url"}:
+                            raise ValueError("اختر وجهة صحيحة للقسيمة.")
+                        if target_type == "url":
+                            if not target_url:
+                                raise ValueError("أدخل رابط الوجهة.")
+                            target_id = None
+                        else:
+                            if not target_id:
+                                raise ValueError("اختر العنصر المستهدف.")
+                            mapping = {"category": Category, "product": Product, "hashtag": Hashtag}
+                            if db.session.get(mapping[target_type], target_id) is None:
+                                raise ValueError("الوجهة غير موجودة.")
+                            target_url = None
+                        code = None
+                    name = (request.form.get("name") or "").strip()
+                    headline = (request.form.get("headline") or "").strip()
+                    if not name or not headline:
+                        raise ValueError("اسم القسيمة والعنوان الرئيسي مطلوبان.")
+                    values = {
+                        "name": name,
+                        "root_category_id": root_id,
+                        "display_type": display_type,
+                        "code": code,
+                        "headline": headline,
+                        "subtitle": (request.form.get("subtitle") or "").strip() or None,
+                        "badge_text": (request.form.get("badge_text") or "").strip() or None,
+                        "icon_type": (request.form.get("icon_type") or "percent").strip(),
+                        "target_type": target_type,
+                        "target_id": target_id,
+                        "target_url": target_url,
+                        "background_color": hex_color(request.form.get("background_color"), "#E2EFDA"),
+                        "text_color": hex_color(request.form.get("text_color"), "#1B5E20"),
+                        "badge_background_color": hex_color(request.form.get("badge_background_color"), "#166534"),
+                        "badge_text_color": hex_color(request.form.get("badge_text_color"), "#ffffff"),
+                        "border_color": hex_color(request.form.get("border_color"), "#B7D9A6") if (request.form.get("border_color") or "").strip() else None,
+                        "sort_order": request.form.get("sort_order", 0, type=int),
+                        "duration": request.form.get("duration", type=int) or None,
+                        "starts_at": None,
+                        "ends_at": None,
+                        "is_active": request.form.get("is_active", "on") == "on",
+                    }
+                    from datetime import datetime, timezone
+                    for field in ("starts_at", "ends_at"):
+                        raw = (request.form.get(field) or "").strip()
+                        if raw:
+                            dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                            values[field] = dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+                    if values["starts_at"] and values["ends_at"] and values["ends_at"] < values["starts_at"]:
+                        raise ValueError("نهاية الجدولة يجب أن تكون بعد البداية.")
+                    if row is None:
+                        row = HomeCouponCard(**values)
+                        db.session.add(row)
+                        success = "تمت إضافة القسيمة."
+                    else:
+                        for key, value in values.items():
+                            setattr(row, key, value)
+                        success = "تم تحديث القسيمة."
+                    db.session.commit()
+
+                elif action == "archive_card":
+                    row = db.session.get(HomeCouponCard, request.form.get("id", type=int))
+                    if row is None:
+                        raise ValueError("القسيمة غير موجودة.")
+                    row.is_active = False
+                    db.session.commit()
+                    success = "تمت أرشفة القسيمة."
+                else:
+                    raise ValueError("إجراء القسائم غير معروف.")
+
+        except (ValueError, TypeError, OSError) as exc:
+            db.session.rollback()
+            error = str(exc)
+
+        roots = Category.query.filter(
+            Category.is_active.is_(True), Category.parent_id.is_(None)
+        ).order_by(Category.sort_order, Category.name).all()
+
+        scopes = [{"key": "all", "name": "كل الفئات", "root_id": None}]
+        scopes += [{"key": str(x.id), "name": x.name, "root_id": x.id} for x in roots]
+
+        key = "all" if selected_scope == "all" else f"category:{int(selected_scope)}"
+        settings = HomeCouponDisplaySetting.query.filter_by(scope_key=key).first()
+        if settings is None:
+            settings = HomeCouponDisplaySetting(scope_key=key)
+        cards_query = HomeCouponCard.query.filter_by(is_active=True)
+        if selected_scope == "all":
+            cards_query = cards_query.filter(HomeCouponCard.root_category_id.is_(None))
+        else:
+            cards_query = cards_query.filter(HomeCouponCard.root_category_id == int(selected_scope))
+        cards = cards_query.order_by(HomeCouponCard.sort_order, HomeCouponCard.id.desc()).all()
+
+        categories = Category.query.filter_by(is_active=True).order_by(Category.name).all()
+        products = Product.query.filter_by(is_active=True).order_by(Product.name).limit(300).all()
+        hashtags = Hashtag.query.filter_by(is_active=True).order_by(Hashtag.name).all()
+
+        return render_template(
+            "admin/coupons.html",
+            title="شريط القسائم",
+            scopes=scopes,
+            selected_scope=selected_scope,
+            settings=settings,
+            cards=cards,
+            categories=categories,
+            products=products,
+            hashtags=hashtags,
+            success=success,
+            error=error,
+            **context,
+        )
 
 def register_operation_routes(admin_bp):
     @admin_bp.route("/catalog/policies", methods=["GET", "POST"])
