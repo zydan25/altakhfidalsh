@@ -260,6 +260,8 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         'item_size': 64,
         'item_spacing': 6,
         'item_corner_radius': 16,
+        'item_label_font_size': 9,
+        'item_label_bold': true,
       };
     }
     final global = sxMaps([payload['all']]).isNotEmpty
@@ -369,6 +371,11 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                     categoryDisplay['item_corner_radius'],
                     16,
                   ),
+                  itemLabelFontSize: sxDouble(
+                    categoryDisplay['item_label_font_size'],
+                    9,
+                  ),
+                  itemLabelBold: categoryDisplay['item_label_bold'] != false,
 
                   onRootTap: (category) async {
                     setState(() => selected = category.id);
@@ -1030,16 +1037,17 @@ class SxHomeLookCarousel extends StatelessWidget {
         .map((look) => sxDouble(look['card_height'], 220))
         .fold<double>(140, (maxValue, value) =>
             value > maxValue ? value : maxValue);
-    final sectionHeight = maxCardHeight.clamp(140.0, 360.0) + 24;
+    final sectionHeight = maxCardHeight.clamp(40.0, 500.0) + 24;
 
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(0, 7, 0, 8),
       child: SizedBox(
         height: sectionHeight,
-        child: ListView.separated(
-          reverse: true,
-          scrollDirection: Axis.horizontal,
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(horizontal: 7),
           itemCount: looks.length,
@@ -1053,10 +1061,10 @@ class SxHomeLookCarousel extends StatelessWidget {
           itemBuilder: (_, i) {
             final look = looks[i];
             final width = sxDouble(look['card_width'], 160)
-                .clamp(100.0, 260.0)
+                .clamp(40.0, 500.0)
                 .toDouble();
             final height = sxDouble(look['card_height'], 220)
-                .clamp(140.0, 360.0)
+                .clamp(40.0, 500.0)
                 .toDouble();
             final radius = sxDouble(look['card_radius'], 14)
                 .clamp(0.0, 80.0)
@@ -1111,6 +1119,7 @@ class SxHomeLookCarousel extends StatelessWidget {
               ),
             );
           },
+          ),
         ),
       ),
     );
@@ -1195,6 +1204,8 @@ class SxHomeCategoryGrid extends StatelessWidget {
       itemSize: itemSize,
       itemSpacing: itemSpacing,
       itemCornerRadius: itemCornerRadius,
+      itemLabelFontSize: itemLabelFontSize,
+      itemLabelBold: itemLabelBold,
       gridRows: gridRows,
       onTap: onCategoryTap,
     );
@@ -1207,6 +1218,8 @@ class _CategoryCircleGrid extends StatelessWidget {
   final double itemSize;
   final double itemSpacing;
   final double itemCornerRadius;
+  final double itemLabelFontSize;
+  final bool itemLabelBold;
   final int gridRows;
   final ValueChanged<CategoryModel> onTap;
 
@@ -1216,6 +1229,8 @@ class _CategoryCircleGrid extends StatelessWidget {
     required this.itemSize,
     required this.itemSpacing,
     required this.itemCornerRadius,
+    required this.itemLabelFontSize,
+    required this.itemLabelBold,
     required this.gridRows,
     required this.onTap,
   });
