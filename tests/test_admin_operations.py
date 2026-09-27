@@ -959,6 +959,13 @@ def test_category_home_display_get_and_banner_settings_persist(client, app):
             "overlay_text": "خصم اليوم",
             "button_label": "تسوق الآن",
             "position_text": "bottom_center",
+            "button_position": "top_right",
+            "overlay_font_size": "15",
+            "title_font_size": "34",
+            "description_font_size": "18",
+            "button_font_size": "12",
+            "button_radius": "12",
+            "content_padding": "20",
             "duration": "8",
             "sort_order": "3",
             "status": "active",
@@ -980,6 +987,13 @@ def test_category_home_display_get_and_banner_settings_persist(client, app):
         assert row.description == "وصف جديد"
         assert row.overlay_text == "خصم اليوم"
         assert row.position_text == "bottom_center"
+        assert row.button_position == "top_right"
+        assert row.overlay_font_size == 15
+        assert row.title_font_size == 34
+        assert row.description_font_size == 18
+        assert row.button_font_size == 12
+        assert row.button_radius == 12
+        assert row.content_padding == 20
         assert row.duration == 8
         assert row.sort_order == 3
         assert row.status == "active"
