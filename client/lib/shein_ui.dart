@@ -398,11 +398,25 @@ class _HomeHeroState extends State<_HomeHero> {
     const actionToTabsGap = 3.0;
     final categoryTabsTop = actionTop + actionHeight + actionToTabsGap;
 
-    final heroHeight = viewportWidth < 360
+    final configuredSpec = sxText(
+      widget.banners.isNotEmpty ? widget.banners.first['size_spec'] : '',
+    );
+    final ratioMatch = RegExp(
+      r'(?:mobile\\s+)?(\\d+(?:\\.\\d+)?)\\s*[:x]\\s*(\\d+(?:\\.\\d+)?)',
+      caseSensitive: false,
+    ).firstMatch(configuredSpec);
+    final configuredRatio = ratioMatch == null
+        ? null
+        : double.tryParse(ratioMatch.group(1)!)! /
+            double.tryParse(ratioMatch.group(2)!)!;
+    final fallbackHeroHeight = viewportWidth < 360
         ? viewportWidth * .75
         : viewportWidth > 430
             ? 320.0
             : viewportWidth * .68;
+    final heroHeight = configuredRatio != null && configuredRatio > 0
+        ? (viewportWidth / configuredRatio).clamp(190.0, 340.0)
+        : fallbackHeroHeight;
 
     return SizedBox(
       height: heroHeight,
