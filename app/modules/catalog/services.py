@@ -98,6 +98,7 @@ class CatalogService:
         return {
             "grid_rows": 2,
             "show_coupon_strip": True,
+            "show_looks_strip": True,
             "item_shape": "circle",
             "item_size": 64,
             "item_spacing": 6,
@@ -111,6 +112,7 @@ class CatalogService:
             values.update({
                 "grid_rows": int(setting.grid_rows),
                 "show_coupon_strip": bool(setting.show_coupon_strip),
+                "show_looks_strip": bool(setting.show_looks_strip),
                 "item_shape": setting.item_shape,
                 "item_size": int(setting.item_size),
                 "item_spacing": int(setting.item_spacing),
@@ -184,6 +186,7 @@ class CatalogService:
 
         setting.grid_rows = grid_rows
         setting.show_coupon_strip = show_coupon_strip
+        setting.show_looks_strip = show_looks_strip
         setting.item_shape = item_shape
         setting.item_size = item_size
         setting.item_spacing = item_spacing
