@@ -217,6 +217,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   List<ProductModel> products = [];
   List<CategoryModel> roots = [];
   int selected = -1;
+  int discoveryTab = 0;
   bool loading = true;
   @override void initState() { super.initState(); load(); }
   Future<void> load() async {
@@ -225,7 +226,11 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       final h = await api.home();
       home = h;
       roots = sxMaps(h['categories']).map(CategoryModel.fromJson).where((x) => x.parentId == null).toList();
-      products = await api.feed(category: selected < 0 ? null : selected, currencyId: state.currencyId);
+      products = await api.feed(
+        category: selected < 0 ? null : selected,
+        sort: discoveryTab == 1 ? 'newest' : 'recommended',
+        currencyId: state.currencyId,
+      );
       try {
         final c = await api.cart(currencyId: state.currencyId);
         _CartBadge.value.value = sxMaps(c['item']?['items']).length;
@@ -255,19 +260,49 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               onWishlist: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxWishlistScreen())),
               onNotifications: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen())),
             )),
-            if (!loading) const SliverToBoxAdapter(child: SxDeals()),
-            if (!loading && looks.isNotEmpty) SliverToBoxAdapter(child: SxFeatureTiles(rows: looks.take(4).toList())),
-            if (!loading && side.isNotEmpty) SliverToBoxAdapter(child: SxCircleRail(
-              title: 'مختارات من أجلك',
-              rows: side.expand((e) => sxMaps(e['circles'])).take(14).toList(),
-              onTap: (c) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxResults(title: sxText(c['name']), circleId: sxInt(c['id'])))),
-            )),
-            if (!loading && trends.isNotEmpty) SliverToBoxAdapter(child: SxTrendRail(trends: trends)),
-            const SliverToBoxAdapter(child: SxSectionTitle(title: 'من أجلك')),
+            const SliverToBoxAdapter(child: SxCouponStrip()),
+            if (!loading) SliverToBoxAdapter(
+              child: SxRootCategoryGrid(
+                categories: roots.take(10).toList(),
+                onTap: (category) async {
+                  setState(() => selected = category.id);
+                  await load();
+                },
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: SxDiscoveryTabs(
+                selected: discoveryTab,
+                onChanged: (tab) async {
+                  setState(() => discoveryTab = tab);
+                  await load();
+                },
+              ),
+            ),
             if (loading)
               const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
-            else
-              SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(7, 0, 7, 18), child: SxProductGrid(products: products))),
+            else ...[
+              const SliverToBoxAdapter(child: SxSectionTitle(title: 'لك')),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(7, 0, 7, 18),
+                  child: SxProductGrid(products: products),
+                ),
+              ),
+              if (looks.isNotEmpty)
+                SliverToBoxAdapter(child: SxFeatureTiles(rows: looks.take(4).toList())),
+              if (side.isNotEmpty)
+                SliverToBoxAdapter(child: SxCircleRail(
+                  title: 'مختارات من أجلك',
+                  rows: side.expand((e) => sxMaps(e['circles'])).take(14).toList(),
+                  onTap: (item) => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => SxResults(title: sxText(item['name']), circleId: sxInt(item['id']))),
+                  ),
+                )),
+              if (trends.isNotEmpty)
+                SliverToBoxAdapter(child: SxTrendRail(trends: trends)),
+            ],
           ],
         ),
       ),
@@ -281,60 +316,323 @@ class _HomeHero extends StatefulWidget {
   final int selected;
   final ValueChanged<int> onSelected;
   final VoidCallback onSearch, onWishlist, onNotifications;
-  const _HomeHero({required this.banners, required this.roots, required this.selected, required this.onSelected, required this.onSearch, required this.onWishlist, required this.onNotifications});
-  @override State<_HomeHero> createState() => _HomeHeroState();
+
+  const _HomeHero({
+    required this.banners,
+    required this.roots,
+    required this.selected,
+    required this.onSelected,
+    required this.onSearch,
+    required this.onWishlist,
+    required this.onNotifications,
+  });
+
+  @override
+  State<_HomeHero> createState() => _HomeHeroState();
 }
 
 class _HomeHeroState extends State<_HomeHero> {
   int page = 0;
-  @override Widget build(BuildContext context) {
-    final tabs = [const CategoryModel(id: -1, name: 'كل'), ...widget.roots];
+
+  @override
+  Widget build(BuildContext context) {
+    final tabs = <CategoryModel>[
+      ...widget.roots,
+      const CategoryModel(id: -1, name: 'الكل'),
+    ];
+
     return SizedBox(
-      height: 378,
-      child: Stack(children: [
-        PageView.builder(
-          itemCount: widget.banners.length,
-          onPageChanged: (v) => setState(() => page = v),
-          itemBuilder: (_, i) => InkWell(
-            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SxBannerLandingScreen(banner: widget.banners[i]))),
-            child: SxImage(url: widget.banners[i]['mobile_image_url'] ?? widget.banners[i]['image_url'], width: double.infinity, height: 378),
+      height: 445,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (widget.banners.isEmpty)
+            const ColoredBox(color: ClientTheme.soft)
+          else
+            PageView.builder(
+              itemCount: widget.banners.length,
+              onPageChanged: (v) => setState(() => page = v),
+              itemBuilder: (_, i) => _BannerSlide(
+                banner: widget.banners[i],
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SxBannerLandingScreen(banner: widget.banners[i]),
+                  ),
+                ),
+              ),
+            ),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.center,
+                    colors: [
+                      Colors.black.withOpacity(.23),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
-        if (widget.banners.isEmpty) const Positioned.fill(child: ColoredBox(color: ClientTheme.soft)),
-        Positioned.fill(child: IgnorePointer(child: DecoratedBox(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.center, colors: [Colors.black.withOpacity(.28), Colors.transparent]))))),
-        Positioned(top: 10, left: 8, right: 8, child: SafeArea(bottom: false, child: Row(children: [
-          SxCircleIcon(icon: Icons.favorite_border, onTap: widget.onWishlist),
-          const SizedBox(width: 5),
-          Expanded(child: GestureDetector(onTap: widget.onSearch, child: const SxSearchBar())),
-          const SizedBox(width: 5),
-          SxCircleIcon(icon: Icons.notifications_none, onTap: widget.onNotifications, dot: true),
-          SxCircleIcon(icon: Icons.mail_outline, onTap: widget.onNotifications),
-        ]))),
-        Positioned(left: 0, right: 0, bottom: 37, child: SizedBox(
-          height: 45,
-          child: ListView(
-            reverse: true, scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 8),
-            children: tabs.map((t) {
-              final active = widget.selected == t.id;
-              return InkWell(
-                onTap: () => widget.onSelected(t.id),
-                child: Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Column(mainAxisAlignment: MainAxisAlignment.end, children: [
-                  Text(t.name, style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: active ? FontWeight.w900 : FontWeight.w600)),
-                  const SizedBox(height: 6),
-                  AnimatedContainer(duration: const Duration(milliseconds: 160), width: active ? 31 : 0, height: 2, color: Colors.white),
-                ])),
-              );
-            }).toList(),
+          Positioned(
+            top: 7,
+            left: 10,
+            right: 10,
+            child: SafeArea(
+              bottom: false,
+              child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: Row(
+                  children: [
+                    SxCircleIcon(
+                      icon: Icons.favorite_border,
+                      onTap: widget.onWishlist,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: widget.onSearch,
+                        child: const SxSearchBar(),
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    SxCircleIcon(
+                      icon: Icons.calendar_today_outlined,
+                      onTap: widget.onNotifications,
+                      dot: true,
+                    ),
+                    const SizedBox(width: 2),
+                    SxCircleIcon(
+                      icon: Icons.mail_outline,
+                      onTap: widget.onNotifications,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        )),
-        Positioned(left: 0, right: 0, bottom: 10, child: Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(
-          widget.banners.length,
-          (i) => AnimatedContainer(duration: const Duration(milliseconds: 150), margin: const EdgeInsets.symmetric(horizontal: 2), width: i == page ? 18 : 4, height: 3, decoration: BoxDecoration(color: i == page ? Colors.white : Colors.white54, borderRadius: BorderRadius.circular(5))),
-        ))),
-      ]),
+          Positioned(
+            top: 98,
+            left: 0,
+            right: 0,
+            child: Directionality(
+              textDirection: TextDirection.ltr,
+              child: SizedBox(
+                height: 47,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  children: tabs.map((t) {
+                    final active = widget.selected == t.id;
+                    return InkWell(
+                      onTap: () => widget.onSelected(t.id),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 11),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              t.name,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: active ? FontWeight.w900 : FontWeight.w700,
+                                shadows: const [
+                                  Shadow(
+                                    blurRadius: 2,
+                                    offset: Offset(0, 1),
+                                    color: Colors.black26,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 7),
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              width: active ? 35 : 0,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 10,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                widget.banners.length,
+                (i) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  width: i == page ? 18 : 5,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: i == page ? Colors.white : Colors.white54,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
+
+class _BannerSlide extends StatelessWidget {
+  final Map<String, dynamic> banner;
+  final VoidCallback onTap;
+
+  const _BannerSlide({
+    required this.banner,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final overlay = sxText(banner['overlay_text']);
+    final title = sxText(banner['title']);
+    final description = sxText(banner['description']);
+    final button = sxText(banner['button_label']);
+    final hasCopy = overlay.isNotEmpty || title.isNotEmpty || description.isNotEmpty || button.isNotEmpty;
+
+    return InkWell(
+      onTap: onTap,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          SxImage(
+            url: banner['mobile_image_url'] ?? banner['image_url'],
+            width: double.infinity,
+            height: double.infinity,
+          ),
+          if (hasCopy)
+            Positioned(
+              left: 18,
+              right: 18,
+              bottom: 45,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (overlay.isNotEmpty)
+                    Text(
+                      overlay,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _color(banner['description_color'], Colors.white),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  if (title.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Text(
+                        title,
+                        maxLines: 3,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _color(banner['title_color'], Colors.white),
+                          fontSize: 27,
+                          height: 1.08,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  if (description.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 5),
+                      child: Text(
+                        description,
+                        maxLines: 3,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _color(banner['description_color'], Colors.white),
+                          fontSize: 14,
+                          height: 1.2,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  if (button.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: OutlinedButton(
+                        onPressed: onTap,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: _color(banner['button_text_color'], Colors.white),
+                          side: BorderSide(
+                            color: _color(banner['button_text_color'], Colors.white),
+                            width: 1,
+                          ),
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.zero,
+                          ),
+                        ),
+                        child: Text(
+                          button,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            )
+          else
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 67,
+              child: Text(
+                'وفر أكثر مع التخفيض الصح',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w900,
+                  height: 1.08,
+                  shadows: [
+                    Shadow(
+                      blurRadius: 3,
+                      offset: Offset(0, 1),
+                      color: Colors.black45,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Color _color(dynamic value, Color fallback) {
+    final raw = sxText(value);
+    if (!raw.startsWith('#') || raw.length != 7) return fallback;
+    return Color(int.tryParse('FF' + raw.substring(1), radix: 16) ?? fallback.value);
+  }
+}
+
 
 class SxBannerLandingScreen extends StatefulWidget {
   final Map<String, dynamic> banner;
@@ -391,21 +689,254 @@ class _SxBannerLandingScreenState extends State<SxBannerLandingScreen> {
   );
 }
 
-class SxDeals extends StatelessWidget {
-  const SxDeals({super.key});
-  @override Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-    padding: const EdgeInsets.all(6),
-    decoration: BoxDecoration(color: const Color(0xFFFFF8F4), border: Border.all(color: const Color(0xFFF0D8CC)), borderRadius: BorderRadius.circular(21)),
-    child: const Row(children: [
-      Expanded(child: _Deal(title: 'خصم 30%', sub: 'أكثر من 149 ر.س')),
-      SizedBox(width: 6),
-      Expanded(child: _Deal(title: 'خصم 25%', sub: 'أكثر من 379 ر.س')),
-      SizedBox(width: 6),
-      Expanded(child: _Deal(title: 'للمستخدم الجديد فقط', sub: 'عروض جيدة', active: true)),
-    ]),
-  );
+class SxCouponStrip extends StatelessWidget {
+  const SxCouponStrip({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(0, 1, 0, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(14),
+          bottom: Radius.circular(5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 8,
+            color: Color(0x11000000),
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Container(
+        height: 82,
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFAF0),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          textDirection: TextDirection.ltr,
+          children: [
+            const Expanded(
+              child: _Coupon(
+                icon: Icons.assignment_return_outlined,
+                title: 'إرجاع سهل',
+                sub: 'عرض التفاصيل',
+              ),
+            ),
+            Container(
+              width: 1,
+              height: 48,
+              color: const Color(0xFFD5CDBD),
+            ),
+            const Expanded(
+              child: _Coupon(
+                icon: Icons.local_shipping_outlined,
+                title: 'شحن مجاني',
+                sub: 'اطلب بأكثر من 149 ر.س',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+class _Coupon extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String sub;
+
+  const _Coupon({
+    required this.icon,
+    required this.title,
+    required this.sub,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(width: 5),
+            Icon(icon, size: 17),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          sub,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontSize: 10,
+            color: Color(0xFF4E4E4E),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class SxRootCategoryGrid extends StatelessWidget {
+  final List<CategoryModel> categories;
+  final ValueChanged<CategoryModel> onTap;
+
+  const SxRootCategoryGrid({
+    super.key,
+    required this.categories,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (categories.isEmpty) return const SizedBox(height: 10);
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(9, 10, 9, 7),
+      child: GridView.builder(
+        shrinkWrap: true,
+        primary: false,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: categories.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 5,
+          mainAxisSpacing: 9,
+          crossAxisSpacing: 5,
+          childAspectRatio: .82,
+        ),
+        itemBuilder: (_, i) => InkWell(
+          onTap: () => onTap(categories[i]),
+          borderRadius: BorderRadius.circular(50),
+          child: Column(
+            children: [
+              Container(
+                width: 74,
+                height: 74,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFF4F4F4),
+                  border: Border.fromBorderSide(
+                    BorderSide(color: Color(0xFFE0E0E0), width: .8),
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: SxImage(
+                  url: categories[i].iconUrl,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1),
+                child: Text(
+                  categories[i].name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    height: 1.05,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SxDiscoveryTabs extends StatelessWidget {
+  final int selected;
+  final ValueChanged<int> onChanged;
+
+  const SxDiscoveryTabs({
+    super.key,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const labels = [
+      ('العروض', Icons.local_offer_outlined),
+      ('جديد', Icons.auto_awesome_outlined),
+      ('لك', Icons.favorite_border),
+    ];
+
+    return Container(
+      margin: const EdgeInsets.only(top: 2),
+      padding: const EdgeInsets.fromLTRB(9, 7, 9, 7),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8F8F8),
+        border: Border(
+          top: BorderSide(color: Color(0xFFE9E9E9), width: .7),
+          bottom: BorderSide(color: Color(0xFFE9E9E9), width: .7),
+        ),
+      ),
+      child: Row(
+        textDirection: TextDirection.ltr,
+        children: List.generate(labels.length, (i) {
+          final active = i == selected;
+          return Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: InkWell(
+                onTap: () => onChanged(i),
+                borderRadius: BorderRadius.circular(3),
+                child: Container(
+                  height: 43,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: active ? Colors.black : Colors.white,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        labels[i].$1,
+                        style: TextStyle(
+                          color: active ? Colors.white : Colors.black,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Icon(
+                        labels[i].$2,
+                        size: 16,
+                        color: active ? Colors.white : Colors.black,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
 
 class _Deal extends StatelessWidget {
   final String title, sub; final bool active;
