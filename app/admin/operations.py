@@ -37,6 +37,15 @@ from .context import build_admin_context
 from ..modules.catalog.services import MediaService
 
 
+def _decimal(value, default="0"):
+    """Parse a decimal form value with a stable, user-facing validation error."""
+    raw = default if value is None or str(value).strip() == "" else value
+    try:
+        return Decimal(str(raw).strip())
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise ValueError("القيمة العشرية غير صحيحة.") from exc
+
+
 def register_operation_routes(admin_bp):
     @admin_bp.route("/promotions/coupons", methods=["GET", "POST"])
     def home_coupons():
