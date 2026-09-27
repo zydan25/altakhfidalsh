@@ -180,6 +180,7 @@ class CatalogService:
         if item_shape not in {"circle", "rounded", "square"}:
             raise ValueError("شكل الفئات غير صالح.")
         show_coupon_strip = bool(payload.get("show_coupon_strip", True))
+        show_looks_strip = bool(payload.get("show_looks_strip", True))
 
         scope_key = "all" if normalized_category_id is None else f"category:{normalized_category_id}"
         setting = CategoryHomeDisplaySetting.query.filter_by(scope_key=scope_key).first()
