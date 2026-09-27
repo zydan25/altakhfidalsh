@@ -93,6 +93,28 @@ class CatalogService:
         return [CatalogService._serialize_category(row) for row in rows]
 
     @staticmethod
+    def category_descendant_ids(category_id):
+        """Return a safe, cycle-resistant list containing a category and all descendants."""
+        root_id = int(category_id)
+        rows = Category.query.filter(Category.is_active.is_(True)).all()
+        children = {}
+        for row in rows:
+            if row.parent_id is not None:
+                children.setdefault(int(row.parent_id), []).append(int(row.id))
+
+        result = []
+        queue = [root_id]
+        visited = set()
+        while queue:
+            current = queue.pop(0)
+            if current in visited:
+                continue
+            visited.add(current)
+            result.append(current)
+            queue.extend(children.get(current, []))
+        return result
+
+    @staticmethod
     def _require_top_level_category(category_id):
         category = db.session.get(Category, int(category_id))
         if category is None or not category.is_active:
