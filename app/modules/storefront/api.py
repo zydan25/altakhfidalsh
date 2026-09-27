@@ -227,6 +227,7 @@ def home():
     return {
         "page": page_payload,
         "categories": CatalogService.list_categories(),
+        "category_display": CatalogService.list_home_category_display(),
         "side_categories": CatalogService.list_side_categories(include_archived=False),
         "trends": CatalogService.list_public_trends(limit=20),
         "looks": look_payload,
