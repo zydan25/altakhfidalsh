@@ -216,6 +216,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   Map<String, dynamic> home = {};
   List<ProductModel> products = [];
   List<CategoryModel> roots = [];
+  List<Map<String, dynamic>> sideCategories = [];
   int selected = -1;
   int discoveryTab = 2;
   bool loading = true;
@@ -226,6 +227,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       final h = await api.home();
       home = h;
       roots = sxMaps(h['categories']).map(CategoryModel.fromJson).where((x) => x.parentId == null).toList();
+      sideCategories = sxMaps(h['side_categories']);
       products = await api.feed(
         category: selected < 0 ? null : selected,
         sort: discoveryTab == 1 ? 'newest' : 'recommended',
@@ -258,15 +260,36 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               onNotifications: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen())),
             )),
             const SliverToBoxAdapter(child: SxCouponStrip()),
-            if (!loading) SliverToBoxAdapter(
-              child: SxRootCategoryGrid(
-                categories: roots.take(10).toList(),
-                onTap: (category) async {
-                  setState(() => selected = category.id);
-                  await load();
-                },
+            if (!loading)
+              SliverToBoxAdapter(
+                child: SxHomeCategoryGrid(
+                  rootCategories: roots.take(10).toList(),
+                  sideCategories: sideCategories,
+                  selectedRootId: selected,
+                  onRootTap: (category) async {
+                    setState(() => selected = category.id);
+                    await load();
+                  },
+                  onCircleTap: (circleId) async {
+                    try {
+                      final filtered = await api.feed(
+                        circleId: circleId,
+                        currencyId: state.currencyId,
+                      );
+                      if (!mounted) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SxResults(
+                            title: 'الفئة',
+                            circleId: circleId,
+                          ),
+                        ),
+                      );
+                    } catch (_) {}
+                  },
+                ),
               ),
-            ),
             SliverToBoxAdapter(
               child: SxDiscoveryTabs(
                 selected: discoveryTab,
@@ -368,7 +391,7 @@ class _HomeHeroState extends State<_HomeHero> {
             ),
           ),
           Positioned(
-            top: 3,
+            top: 7,
             left: 10,
             right: 10,
             child: SafeArea(
@@ -405,7 +428,7 @@ class _HomeHeroState extends State<_HomeHero> {
             ),
           ),
           Positioned(
-            top: 98,
+            top: 90,
             left: 0,
             right: 0,
             child: Directionality(
@@ -780,23 +803,63 @@ class _Coupon extends StatelessWidget {
   }
 }
 
-class SxRootCategoryGrid extends StatelessWidget {
+class SxHomeCategoryGrid extends StatelessWidget {
+  final List<CategoryModel> rootCategories;
+  final List<Map<String, dynamic>> sideCategories;
+  final int selectedRootId;
+  final ValueChanged<CategoryModel> onRootTap;
+  final ValueChanged<int> onCircleTap;
+
+  const SxHomeCategoryGrid({
+    super.key,
+    required this.rootCategories,
+    required this.sideCategories,
+    required this.selectedRootId,
+    required this.onRootTap,
+    required this.onCircleTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final circles = sideCategories
+        .where(
+          (row) =>
+              sxInt(row['root_category_id']) == selectedRootId &&
+              sxMaps(row['circles']).isNotEmpty,
+        )
+        .expand((row) => sxMaps(row['circles']))
+        .toList();
+
+    if (selectedRootId >= 0 && circles.isNotEmpty) {
+      return _CircleGrid(
+        rows: circles.take(15).toList(),
+        onTap: onCircleTap,
+      );
+    }
+
+    return _RootGrid(
+      categories: rootCategories,
+      onTap: onRootTap,
+    );
+  }
+}
+
+class _RootGrid extends StatelessWidget {
   final List<CategoryModel> categories;
   final ValueChanged<CategoryModel> onTap;
 
-  const SxRootCategoryGrid({
-    super.key,
+  const _RootGrid({
     required this.categories,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (categories.isEmpty) return const SizedBox(height: 10);
+    if (categories.isEmpty) return const SizedBox(height: 8);
 
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(7, 8, 7, 5),
+      padding: const EdgeInsets.fromLTRB(7, 7, 7, 4),
       child: GridView.builder(
         shrinkWrap: true,
         primary: false,
@@ -806,7 +869,7 @@ class SxRootCategoryGrid extends StatelessWidget {
           crossAxisCount: 5,
           mainAxisSpacing: 5,
           crossAxisSpacing: 3,
-          childAspectRatio: .83,
+          childAspectRatio: .84,
         ),
         itemBuilder: (_, i) => InkWell(
           onTap: () => onTap(categories[i]),
@@ -829,7 +892,7 @@ class SxRootCategoryGrid extends StatelessWidget {
                   fit: BoxFit.cover,
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 4),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 1),
                 child: Text(
@@ -851,6 +914,78 @@ class SxRootCategoryGrid extends StatelessWidget {
     );
   }
 }
+
+class _CircleGrid extends StatelessWidget {
+  final List<Map<String, dynamic>> rows;
+  final ValueChanged<int> onTap;
+
+  const _CircleGrid({
+    required this.rows,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (rows.isEmpty) return const SizedBox(height: 8);
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(7, 7, 7, 4),
+      child: GridView.builder(
+        shrinkWrap: true,
+        primary: false,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: rows.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 5,
+          mainAxisSpacing: 5,
+          crossAxisSpacing: 3,
+          childAspectRatio: .84,
+        ),
+        itemBuilder: (_, i) => InkWell(
+          onTap: () => onTap(sxInt(rows[i]['id'])),
+          borderRadius: BorderRadius.circular(50),
+          child: Column(
+            children: [
+              Container(
+                width: 58,
+                height: 58,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Color(0xFFF4F4F4),
+                  border: Border.fromBorderSide(
+                    BorderSide(color: Color(0xFFE0E0E0), width: .8),
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: SxImage(
+                  url: rows[i]['image_url'],
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 1),
+                child: Text(
+                  sxText(rows[i]['name']),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 8.2,
+                    height: 1.05,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class SxDiscoveryTabs extends StatelessWidget {
   final int selected;
