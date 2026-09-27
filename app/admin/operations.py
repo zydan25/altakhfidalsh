@@ -49,15 +49,75 @@ def register_operation_routes(admin_bp):
             import re
             value = (value or default).strip()
             if not re.fullmatch(r"#[0-9a-fA-F]{6}", value):
-                raise ValueError("اللون يجب أن يكون بصيغة HEX مثل #E2EFDA.")
-            return value
+                raise ValueError("اختر لونًا من لوحة الألوان الظاهرة، أو استخدم قيمة HEX صحيحة.")
+            return value.upper()
+
+        def default_settings_values():
+            return {
+                "enabled": True,
+                "auto_flip": True,
+                "flip_seconds": 4,
+                "cards_per_slide": 2,
+                "card_height": 96,
+                "card_radius": 18,
+                "card_spacing": 8,
+                "title_font_size": 16,
+                "subtitle_font_size": 11,
+                "badge_font_size": 10,
+                "default_background_color": "#E2EFDA",
+                "default_text_color": "#1B5E20",
+                "default_badge_background_color": "#166534",
+                "default_badge_text_color": "#FFFFFF",
+            }
 
         try:
             if request.method == "POST":
                 action = (request.form.get("action") or "").strip()
                 selected_scope = request.form.get("scope") or "all"
 
-                if action == "save_settings":
+                if action == "reset_settings":
+                    scope = selected_scope
+                    root_id = None if scope == "all" else int(scope)
+                    root = db.session.get(Category, root_id) if root_id else None
+                    if root_id and (root is None or root.parent_id is not None or not root.is_active):
+                        raise ValueError("نطاق القسائم يجب أن يكون فئة رئيسية نشطة.")
+                    key = "all" if root_id is None else f"category:{root_id}"
+                    row = HomeCouponDisplaySetting.query.filter_by(scope_key=key).first()
+                    if row is None:
+                        row = HomeCouponDisplaySetting(scope_key=key, root_category_id=root_id)
+                        db.session.add(row)
+                    for field, value in default_settings_values().items():
+                        setattr(row, field, value)
+                    db.session.commit()
+                    success = "تمت إعادة إعدادات الشريط إلى الإعدادات الموصى بها."
+
+                elif action == "copy_global_settings":
+                    if selected_scope == "all":
+                        raise ValueError("اختر قسمًا رئيسيًا أولًا لنسخ إعدادات كل الفئات إليه.")
+                    root_id = int(selected_scope)
+                    root = db.session.get(Category, root_id)
+                    if root is None or root.parent_id is not None or not root.is_active:
+                        raise ValueError("القسم الرئيسي غير صالح.")
+                    global_row = HomeCouponDisplaySetting.query.filter_by(scope_key="all").first()
+                    if global_row is None:
+                        global_values = default_settings_values()
+                    else:
+                        global_values = {
+                            field: getattr(global_row, field)
+                            for field in default_settings_values()
+                        }
+                    key = f"category:{root_id}"
+                    row = HomeCouponDisplaySetting.query.filter_by(scope_key=key).first()
+                    if row is None:
+                        row = HomeCouponDisplaySetting(scope_key=key, root_category_id=root_id)
+                        db.session.add(row)
+                    row.root_category_id = root_id
+                    for field, value in global_values.items():
+                        setattr(row, field, value)
+                    db.session.commit()
+                    success = "تم نسخ إعدادات كل الفئات إلى هذا القسم."
+
+                elif action == "save_settings":
                     scope = selected_scope
                     root_id = None if scope == "all" else int(scope)
                     root = db.session.get(Category, root_id) if root_id else None
@@ -192,6 +252,9 @@ def register_operation_routes(admin_bp):
         settings = HomeCouponDisplaySetting.query.filter_by(scope_key=key).first()
         if settings is None:
             settings = HomeCouponDisplaySetting(scope_key=key)
+            global_settings = HomeCouponDisplaySetting.query.filter_by(scope_key="all").first()
+            for field, value in default_settings_values().items():
+                setattr(settings, field, getattr(global_settings, field) if global_settings is not None else value)
         cards_query = HomeCouponCard.query.filter_by(is_active=True)
         if selected_scope == "all":
             cards_query = cards_query.filter(HomeCouponCard.root_category_id.is_(None))
