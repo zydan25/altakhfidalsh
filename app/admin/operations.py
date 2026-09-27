@@ -474,6 +474,10 @@ def register_operation_routes(admin_bp):
                         target = db.session.get(SideCategoryCircle, target_id)
                         if target is None or not target.is_active:
                             raise ValueError("الفئة الدائرية غير موجودة أو مؤرشفة.")
+                        if look.root_category_id is not None:
+                            side = db.session.get(SideCategory, target.side_category_id)
+                            if side is None or side.root_category_id != look.root_category_id:
+                                raise ValueError("الفئة الدائرية يجب أن تكون تابعة للفئة الرئيسية المرتبطة بالإطلالة.")
                     else:
                         target = db.session.get(Hashtag, target_id)
                         if target is None or not target.is_active:
@@ -490,12 +494,28 @@ def register_operation_routes(admin_bp):
                             target_id=target_id,
                             priority=request.form.get("priority", 0, type=int) or 0,
                         ))
+                        if target_type == "circle" and not LookCircle.query.filter_by(
+                            look_id=look_id,
+                            circle_id=target_id,
+                        ).first():
+                            db.session.add(LookCircle(
+                                look_id=look_id,
+                                circle_id=target_id,
+                                sort_order=request.form.get("priority", 0, type=int) or 0,
+                            ))
                     success = "تمت إضافة وجهة الإطلالة."
                 elif action == "look_remove_target":
                     target_id = request.form.get("target_record_id", type=int)
                     target = db.session.get(LookTarget, target_id)
                     if target is None:
                         raise ValueError("وجهة الإطلالة غير موجودة.")
+                    if target.target_type == "circle":
+                        legacy_circle = LookCircle.query.filter_by(
+                            look_id=target.look_id,
+                            circle_id=target.target_id,
+                        ).first()
+                        if legacy_circle is not None:
+                            db.session.delete(legacy_circle)
                     db.session.delete(target)
                     success = "تمت إزالة وجهة الإطلالة."
                 elif action == "look_archive":
