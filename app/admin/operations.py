@@ -401,7 +401,10 @@ def register_operation_routes(admin_bp):
         if request.method == "POST":
             try:
                 action = (request.form.get("action") or "look_create").strip()
-                look = db.session.get(Look, request.form.get("id", type=int))
+                look_record_id = request.form.get("id", type=int)
+                if look_record_id is None:
+                    look_record_id = request.form.get("look_id", type=int)
+                look = db.session.get(Look, look_record_id)
                 if action in {"look_create", "look_update"}:
                     from .entity_views import _unique_slug
                     name = (request.form.get("name") or "").strip()
