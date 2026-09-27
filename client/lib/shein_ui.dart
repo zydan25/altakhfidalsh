@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -217,7 +219,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   List<ProductModel> products = [];
   List<CategoryModel> roots = [];
   List<CategoryModel> allCategories = [];
-  List<Map<String, dynamic>> sideCategories = [];
   int selected = -1;
   int discoveryTab = 2;
   bool loading = true;
@@ -229,7 +230,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       home = h;
       allCategories = sxMaps(h['categories']).map(CategoryModel.fromJson).toList();
       roots = allCategories.where((x) => x.parentId == null).toList();
-      sideCategories = sxMaps(h['side_categories']);
       products = await api.feed(
         category: selected < 0 ? null : selected,
         sort: discoveryTab == 1 ? 'newest' : 'recommended',
@@ -267,19 +267,18 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                 child: SxHomeCategoryGrid(
                   rootCategories: roots.take(10).toList(),
                   allCategories: allCategories,
-                  sideCategories: sideCategories,
                   selectedRootId: selected,
                   onRootTap: (category) async {
                     setState(() => selected = category.id);
                     await load();
                   },
-                  onCircleTap: (circleId) {
+                  onCategoryTap: (category) {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => SxResults(
-                          title: 'الفئة',
-                          circleId: circleId,
+                          title: category.name,
+                          categoryId: category.id,
                         ),
                       ),
                     );
@@ -334,6 +333,52 @@ class _HomeHero extends StatefulWidget {
 
 class _HomeHeroState extends State<_HomeHero> {
   int page = 0;
+  Timer? _timer;
+  late final PageController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+    _scheduleNext();
+  }
+
+  @override
+  void didUpdateWidget(covariant _HomeHero oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.banners.length != widget.banners.length) {
+      _scheduleNext();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _pageChanged(int value) {
+    if (!mounted) return;
+    setState(() => page = value);
+    _scheduleNext();
+  }
+
+  void _scheduleNext() {
+    _timer?.cancel();
+    if (widget.banners.length <= 1) return;
+    final index = page.clamp(0, widget.banners.length - 1);
+    final seconds = (sxInt(widget.banners[index]['duration'], 6)).clamp(1, 120);
+    _timer = Timer(Duration(seconds: seconds), () {
+      if (!mounted || !_controller.hasClients) return;
+      final next = (page + 1) % widget.banners.length;
+      _controller.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -347,7 +392,7 @@ class _HomeHeroState extends State<_HomeHero> {
         ? viewportWidth * .75
         : viewportWidth > 430
             ? 320.0
-            : viewportWidth * .70;
+            : viewportWidth * .68;
 
     return SizedBox(
       height: heroHeight,
@@ -358,8 +403,9 @@ class _HomeHeroState extends State<_HomeHero> {
             const ColoredBox(color: ClientTheme.soft)
           else
             PageView.builder(
+              controller: _controller,
               itemCount: widget.banners.length,
-              onPageChanged: (v) => setState(() => page = v),
+              onPageChanged: _pageChanged,
               itemBuilder: (_, i) => _BannerSlide(
                 banner: widget.banners[i],
                 onTap: () => Navigator.push(
@@ -387,7 +433,7 @@ class _HomeHeroState extends State<_HomeHero> {
             ),
           ),
           Positioned(
-            top: 7,
+            top: 9,
             left: 10,
             right: 10,
             child: SafeArea(
@@ -424,7 +470,7 @@ class _HomeHeroState extends State<_HomeHero> {
             ),
           ),
           Positioned(
-            top: 90,
+            top: 79,
             left: 0,
             right: 0,
             child: Directionality(
@@ -520,25 +566,26 @@ class _BannerSlide extends StatelessWidget {
     final description = sxText(banner['description']);
     final button = sxText(banner['button_label']);
     final hasCopy = overlay.isNotEmpty || title.isNotEmpty || description.isNotEmpty || button.isNotEmpty;
-
-    return InkWell(
-      onTap: onTap,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          SxImage(
-            url: banner['mobile_image_url'] ?? banner['image_url'],
-            width: double.infinity,
-            height: double.infinity,
-          ),
-          if (hasCopy)
-            Positioned(
-              left: 18,
-              right: 18,
-              bottom: 45,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
+    final position = sxText(banner['position_text'], 'center').toLowerCase();
+    final contentAlignment = position.contains('top')
+        ? Alignment.topCenter
+        : position.contains('bottom')
+            ? Alignment.bottomCenter
+            : Alignment.center;
+    final overlayColor = _color(
+      banner['overlay_background_color'],
+      Colors.transparent,
+    );
+    final overlayOpacity = (sxDouble(banner['overlay_opacity'], 0)).clamp(0.0, 1.0);
+    final contentPositioned = Positioned.fill(
+      child: Align(
+        alignment: contentAlignment,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 52, 18, 44),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
                   if (overlay.isNotEmpty)
                     Text(
                       overlay,
@@ -604,8 +651,29 @@ class _BannerSlide extends StatelessWidget {
                       ),
                     ),
                 ],
+          ),
+        ),
+      ),
+    );
+
+    return InkWell(
+      onTap: onTap,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          SxImage(
+            url: banner['mobile_image_url'] ?? banner['image_url'],
+            width: double.infinity,
+            height: double.infinity,
+          ),
+          if (overlayOpacity > 0)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(color: overlayColor.withOpacity(overlayOpacity)),
               ),
-            )
+            ),
+          if (hasCopy)
+            contentPositioned
           else
             const Positioned(
               left: 0,
@@ -802,70 +870,70 @@ class _Coupon extends StatelessWidget {
 class SxHomeCategoryGrid extends StatelessWidget {
   final List<CategoryModel> rootCategories;
   final List<CategoryModel> allCategories;
-  final List<Map<String, dynamic>> sideCategories;
   final int selectedRootId;
   final ValueChanged<CategoryModel> onRootTap;
-  final ValueChanged<int> onCircleTap;
+  final ValueChanged<CategoryModel> onCategoryTap;
 
   const SxHomeCategoryGrid({
     super.key,
     required this.rootCategories,
     required this.allCategories,
-    required this.sideCategories,
     required this.selectedRootId,
     required this.onRootTap,
-    required this.onCircleTap,
+    required this.onCategoryTap,
   });
+
+  List<CategoryModel> _childrenOf(int parentId) {
+    return allCategories
+        .where((category) => category.parentId == parentId)
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+  }
+
+  List<CategoryModel> _descendantsOf(int rootId) {
+    final result = <CategoryModel>[];
+    final queue = <int>[rootId];
+    final visited = <int>{rootId};
+
+    while (queue.isNotEmpty) {
+      final parent = queue.removeAt(0);
+      for (final child in _childrenOf(parent)) {
+        if (visited.add(child.id)) {
+          result.add(child);
+          queue.add(child.id);
+        }
+      }
+    }
+    return result;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final circles = sideCategories
-        .where(
-          (row) =>
-              sxInt(row['root_category_id']) == selectedRootId &&
-              sxMaps(row['circles']).isNotEmpty,
-        )
-        .expand((row) => sxMaps(row['circles']))
-        .toList();
+    final categories = selectedRootId < 0
+        ? rootCategories
+        : _descendantsOf(selectedRootId);
 
-    if (selectedRootId >= 0) {
-      if (circles.isNotEmpty) {
-        return _CircleGrid(
-          rows: circles.take(15).toList(),
-          onTap: onCircleTap,
-        );
-      }
-
-      final children = allCategories
-          .where((category) => category.parentId == selectedRootId)
-          .toList();
-      if (children.isNotEmpty) {
-        return _RootGrid(
-          categories: children,
-          onTap: onRootTap,
-        );
-      }
-    }
-
-    return _RootGrid(
-      categories: rootCategories,
-      onTap: onRootTap,
+    return _CategoryCircleGrid(
+      categories: categories.take(15).toList(),
+      onTap: selectedRootId < 0 ? onRootTap : onCategoryTap,
     );
   }
 }
 
-class _RootGrid extends StatelessWidget {
+class _CategoryCircleGrid extends StatelessWidget {
   final List<CategoryModel> categories;
   final ValueChanged<CategoryModel> onTap;
 
-  const _RootGrid({
+  const _CategoryCircleGrid({
     required this.categories,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (categories.isEmpty) return const SizedBox(height: 8);
+    if (categories.isEmpty) {
+      return const SizedBox(height: 8);
+    }
 
     return Container(
       color: Colors.white,
@@ -907,77 +975,6 @@ class _RootGrid extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 1),
                 child: Text(
                   categories[i].name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 8.2,
-                    height: 1.05,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CircleGrid extends StatelessWidget {
-  final List<Map<String, dynamic>> rows;
-  final ValueChanged<int> onTap;
-
-  const _CircleGrid({
-    required this.rows,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (rows.isEmpty) return const SizedBox(height: 8);
-
-    return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(7, 7, 7, 4),
-      child: GridView.builder(
-        shrinkWrap: true,
-        primary: false,
-        physics: const NeverScrollableScrollPhysics(),
-        itemCount: rows.length,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 5,
-          mainAxisSpacing: 5,
-          crossAxisSpacing: 3,
-          childAspectRatio: .84,
-        ),
-        itemBuilder: (_, i) => InkWell(
-          onTap: () => onTap(sxInt(rows[i]['id'])),
-          borderRadius: BorderRadius.circular(50),
-          child: Column(
-            children: [
-              Container(
-                width: 58,
-                height: 58,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFFF4F4F4),
-                  border: Border.fromBorderSide(
-                    BorderSide(color: Color(0xFFE0E0E0), width: .8),
-                  ),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: SxImage(
-                  url: rows[i]['image_url'],
-                  fit: BoxFit.cover,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 1),
-                child: Text(
-                  sxText(rows[i]['name']),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
