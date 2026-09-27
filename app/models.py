@@ -340,6 +340,7 @@ class CategoryHomeDisplaySetting(TimestampMixin, db.Model):
     item_shape = db.Column(String(20), nullable=False, default="circle")
     item_size = db.Column(Integer, nullable=False, default=64)
     item_spacing = db.Column(Integer, nullable=False, default=6)
+    item_corner_radius = db.Column(Integer, nullable=False, default=16)
     __table_args__ = (
         CheckConstraint("grid_rows >= 1 AND grid_rows <= 6", name="ck_category_home_grid_rows"),
         CheckConstraint("item_size >= 42 AND item_size <= 110", name="ck_category_home_item_size"),
@@ -868,20 +869,51 @@ class TrendProduct(TimestampMixin, db.Model):
 
 
 class Look(TimestampMixin, ActiveMixin, db.Model):
-    """Client-facing outfit/style collection used by the Style tab."""
+    """Client-facing outfit/style collection used by the customer home."""
     __tablename__ = "looks"
 
     id = db.Column(Integer, primary_key=True)
     name = db.Column(String(180), nullable=False)
     slug = db.Column(String(200), nullable=False, unique=True)
     cover_asset_id = db.Column(ForeignKey("media_assets.id", ondelete="SET NULL"))
+    root_category_id = db.Column(ForeignKey("categories.id", ondelete="SET NULL"))
     description = db.Column(Text)
     status = db.Column(String(40), nullable=False, default="draft")
+    show_on_home = db.Column(Boolean, nullable=False, default=True)
     sort_order = db.Column(Integer, nullable=False, default=0)
+    card_shape = db.Column(String(20), nullable=False, default="rounded")
+    card_width = db.Column(Integer, nullable=False, default=160)
+    card_height = db.Column(Integer, nullable=False, default=220)
+    card_radius = db.Column(Integer, nullable=False, default=14)
+    card_spacing = db.Column(Integer, nullable=False, default=8)
+    caption_background_color = db.Column(String(20), nullable=False, default="#000000")
+    caption_text_color = db.Column(String(20), nullable=False, default="#ffffff")
     starts_at = db.Column(db.DateTime(timezone=True))
     ends_at = db.Column(db.DateTime(timezone=True))
     __table_args__ = (
+        CheckConstraint("card_shape IN ('circle','rounded','square')", name="ck_look_card_shape"),
+        CheckConstraint("card_width >= 100 AND card_width <= 260", name="ck_look_card_width"),
+        CheckConstraint("card_height >= 140 AND card_height <= 360", name="ck_look_card_height"),
+        CheckConstraint("card_radius >= 0 AND card_radius <= 80", name="ck_look_card_radius"),
+        CheckConstraint("card_spacing >= 0 AND card_spacing <= 30", name="ck_look_card_spacing"),
         Index("ix_look_active_sort", "is_active", "status", "sort_order", "starts_at", "ends_at"),
+        Index("ix_look_home_scope", "root_category_id", "show_on_home", "sort_order"),
+    )
+
+
+class LookTarget(TimestampMixin, db.Model):
+    """Optional navigation targets for a look, similar to banner targets."""
+    __tablename__ = "look_targets"
+
+    id = db.Column(Integer, primary_key=True)
+    look_id = db.Column(ForeignKey("looks.id", ondelete="CASCADE"), nullable=False)
+    target_type = db.Column(String(30), nullable=False)
+    target_id = db.Column(Integer, nullable=False)
+    priority = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("look_id", "target_type", "target_id", name="uq_look_target"),
+        CheckConstraint("target_type IN ('circle','hashtag')", name="ck_look_target_type"),
+        Index("ix_look_target_look_priority", "look_id", "priority", "id"),
     )
 
 
