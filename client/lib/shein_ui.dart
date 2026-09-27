@@ -182,53 +182,6 @@ class SxImage extends StatelessWidget {
   final double? width;
   final double? height;
   const SxImage({super.key, this.url, this.fit = BoxFit.cover, this.width, this.height});
-  List<Map<String, dynamic>> _homeLooks() {
-    return looks.where((look) {
-      final rootId = look['root_category_id'];
-      final scopedRoot = rootId == null ? null : sxInt(rootId);
-      return selected < 0 ? scopedRoot == null : scopedRoot == selected;
-    }).toList()
-      ..sort((a, b) {
-        final ao = sxInt(a['sort_order']);
-        final bo = sxInt(b['sort_order']);
-        return ao == bo
-            ? sxInt(a['id']).compareTo(sxInt(b['id']))
-            : ao.compareTo(bo);
-      });
-  }
-
-  void _openHomeLook(BuildContext context, Map<String, dynamic> look) {
-    final targets = sxMaps(look['targets']);
-    if (targets.isNotEmpty) {
-      final target = targets.first;
-      final type = sxText(target['type']);
-      final targetId = sxInt(target['target_id']);
-      final title = sxText(target['name'], sxText(look['name'], 'الإطلالة'));
-      if (type == 'circle' && targetId > 0) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => SxResults(title: title, circleId: targetId),
-          ),
-        );
-        return;
-      }
-      if (type == 'hashtag' && targetId > 0) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => SxResults(title: title, hashtagId: targetId),
-          ),
-        );
-        return;
-      }
-    }
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => SxLookDetail(look: look)),
-    );
-  }
-
   @override Widget build(BuildContext context) {
     final value = sxImage(url);
     if (value.isEmpty) return Container(width: width, height: height, color: ClientTheme.soft, child: const Icon(Icons.image_outlined, color: Color(0xFF9AA0A6)));
@@ -324,6 +277,53 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       }
     }
     return global;
+  }
+
+  List<Map<String, dynamic>> _homeLooks() {
+    return looks.where((look) {
+      final rootId = look['root_category_id'];
+      final scopedRoot = rootId == null ? null : sxInt(rootId);
+      return selected < 0 ? scopedRoot == null : scopedRoot == selected;
+    }).toList()
+      ..sort((a, b) {
+        final ao = sxInt(a['sort_order']);
+        final bo = sxInt(b['sort_order']);
+        return ao == bo
+            ? sxInt(a['id']).compareTo(sxInt(b['id']))
+            : ao.compareTo(bo);
+      });
+  }
+
+  void _openHomeLook(BuildContext context, Map<String, dynamic> look) {
+    final targets = sxMaps(look['targets']);
+    if (targets.isNotEmpty) {
+      final target = targets.first;
+      final type = sxText(target['type']);
+      final targetId = sxInt(target['target_id']);
+      final title = sxText(target['name'], sxText(look['name'], 'الإطلالة'));
+      if (type == 'circle' && targetId > 0) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SxResults(title: title, circleId: targetId),
+          ),
+        );
+        return;
+      }
+      if (type == 'hashtag' && targetId > 0) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SxResults(title: title, hashtagId: targetId),
+          ),
+        );
+        return;
+      }
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SxLookDetail(look: look)),
+    );
   }
 
   @override Widget build(BuildContext context) {
