@@ -390,7 +390,14 @@ class _HomeHeroState extends State<_HomeHero> {
       ...widget.roots,
     ];
 
-    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final media = MediaQuery.of(context);
+    final viewportWidth = media.size.width;
+    final topInset = media.padding.top;
+    final actionTop = topInset + 2;
+    const actionHeight = 43.0;
+    const actionToTabsGap = 3.0;
+    final categoryTabsTop = actionTop + actionHeight + actionToTabsGap;
+
     final heroHeight = viewportWidth < 360
         ? viewportWidth * .75
         : viewportWidth > 430
@@ -436,12 +443,10 @@ class _HomeHeroState extends State<_HomeHero> {
             ),
           ),
           Positioned(
-            top: 9,
+            top: actionTop,
             left: 10,
             right: 10,
-            child: SafeArea(
-              bottom: false,
-              child: Directionality(
+            child: Directionality(
                 textDirection: TextDirection.rtl,
                 child: Row(
                   children: [
@@ -470,12 +475,10 @@ class _HomeHeroState extends State<_HomeHero> {
                   ],
                 ),
               ),
-            ),
           ),
           Positioned(
-            // Keep the category tabs visually close to the search/actions row
-            // without touching it on phones with a status-bar inset.
-            top: 75,
+            // Keep the category tabs immediately below the search/actions row.
+            top: categoryTabsTop,
             left: 0,
             right: 0,
             child: Directionality(
@@ -610,7 +613,7 @@ class _BannerSlide extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: _color(banner['title_color'], Colors.white),
-                          fontSize: 27,
+                          fontSize: 28,
                           height: 1.08,
                           fontWeight: FontWeight.w900,
                         ),
@@ -625,7 +628,7 @@ class _BannerSlide extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: _color(banner['description_color'], Colors.white),
-                          fontSize: 15,
+                          fontSize: 16,
                           height: 1.2,
                           fontWeight: FontWeight.w700,
                           shadows: const [
@@ -938,10 +941,14 @@ class SxHomeCategoryGrid extends StatelessWidget {
     // The circle area is always for subcategories, never for the parent/root
     // categories that are already represented by the top horizontal tabs.
     final categories = selectedRootId < 0
-        ? allCategories.where((category) => category.parentId != null && rootIds.contains(category.parentId)).toList()
-          ..sort((a, b) => a.sortOrder == b.sortOrder
-              ? a.id.compareTo(b.id)
-              : a.sortOrder.compareTo(b.sortOrder))
+        ? (allCategories
+              .where((category) =>
+                  category.parentId != null &&
+                  rootIds.contains(category.parentId))
+              .toList()
+            ..sort((a, b) => a.sortOrder == b.sortOrder
+                ? a.id.compareTo(b.id)
+                : a.sortOrder.compareTo(b.sortOrder)))
         : _descendantsOf(selectedRootId);
 
     return _CategoryCircleGrid(
