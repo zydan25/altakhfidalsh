@@ -995,6 +995,10 @@ def test_category_home_display_get_and_banner_settings_persist(client, app):
         assert row.button_radius == 12
         assert row.content_padding == 20
         assert row.duration == 8
+        assert row.sort_order == 3
+        assert row.status == "active"
+        assert str(row.overlay_opacity) in {"0.35", "0.350"}
+        assert row.title_color == "#FF0000"
 
     response = client.get("/api/v1/storefront/banners")
     assert response.status_code == 200
@@ -1004,7 +1008,3 @@ def test_category_home_display_get_and_banner_settings_persist(client, app):
     assert saved["title_font_size"] == 34
     assert saved["description_font_size"] == 18
     assert saved["button_radius"] == 12
-        assert row.sort_order == 3
-        assert row.status == "active"
-        assert str(row.overlay_opacity) in {"0.35", "0.350"}
-        assert row.title_color == "#FF0000"
