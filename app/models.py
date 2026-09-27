@@ -342,6 +342,8 @@ class CategoryHomeDisplaySetting(TimestampMixin, db.Model):
     item_size = db.Column(Integer, nullable=False, default=64)
     item_spacing = db.Column(Integer, nullable=False, default=6)
     item_corner_radius = db.Column(Integer, nullable=False, default=16)
+    item_label_font_size = db.Column(Integer, nullable=False, default=9)
+    item_label_bold = db.Column(Boolean, nullable=False, default=True)
     __table_args__ = (
         CheckConstraint("grid_rows >= 1 AND grid_rows <= 6", name="ck_category_home_grid_rows"),
         CheckConstraint("item_size >= 42 AND item_size <= 110", name="ck_category_home_item_size"),
