@@ -181,7 +181,7 @@ class CatalogService:
         item_size = min(110, item_width, item_height)
         item_spacing = max(0, min(24, int(payload.get("item_spacing", 6))))
         item_corner_radius = max(0, min(100, int(payload.get("item_corner_radius", 16))))
-        item_label_font_size = max(7, min(16, int(payload.get("item_label_font_size", 9))))
+        item_label_font_size = max(7, min(24, int(payload.get("item_label_font_size", 9))))
         item_label_bold = bool(payload.get("item_label_bold", True))
         item_shape = str(payload.get("item_shape", "circle")).strip().lower()
         if item_shape not in {"circle", "rounded", "square"}:
