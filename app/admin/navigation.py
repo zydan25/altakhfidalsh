@@ -28,6 +28,7 @@ NAVIGATION = [
         NavItem("إضافة منتج", "/admin/products/new", "+"),
         NavItem("المسودات", "/admin/products/drafts", "D"),
         NavItem("التصنيفات", "/admin/categories", "▤"),
+        NavItem("إعدادات فئات الرئيسية", "/admin/category-home-display", "◌"),
         NavItem("شريط الأقسام", "/admin/category-strip", "≡"),
         NavItem("العلامات التجارية", "/admin/brands", "T"),
         NavItem("الألوان والمقاسات", "/admin/options", "●"),
