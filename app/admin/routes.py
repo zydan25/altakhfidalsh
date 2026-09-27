@@ -124,6 +124,7 @@ def register_admin_routes(admin_bp):
         context = _navigation_context()
         error = None
         success = None
+        selected_scope = request.args.get("scope") or "all"
 
         if request.method == "POST":
             action = (request.form.get("action") or "create").strip()
@@ -259,6 +260,7 @@ def register_admin_routes(admin_bp):
         if request.method == "POST":
             try:
                 scope = request.form.get("scope") or "all"
+                selected_scope = scope
                 category_id = None if scope == "all" else int(scope)
                 CatalogService.save_home_category_display(category_id, {
                     "grid_rows": request.form.get("grid_rows", 2, type=int),
@@ -313,6 +315,7 @@ def register_admin_routes(admin_bp):
             "admin/category_home_display.html",
             title="إعدادات فئات الصفحة الرئيسية",
             scopes=scopes,
+            selected_scope=selected_scope,
             success=success,
             error=error,
             **context,
