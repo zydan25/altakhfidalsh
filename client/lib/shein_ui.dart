@@ -273,23 +273,16 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                     setState(() => selected = category.id);
                     await load();
                   },
-                  onCircleTap: (circleId) async {
-                    try {
-                      final filtered = await api.feed(
-                        circleId: circleId,
-                        currencyId: state.currencyId,
-                      );
-                      if (!mounted) return;
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => SxResults(
-                            title: 'الفئة',
-                            circleId: circleId,
-                          ),
+                  onCircleTap: (circleId) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SxResults(
+                          title: 'الفئة',
+                          circleId: circleId,
                         ),
-                      );
-                    } catch (_) {}
+                      ),
+                    );
                   },
                 ),
               ),
