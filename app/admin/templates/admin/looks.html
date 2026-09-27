@@ -98,20 +98,23 @@
 
       <details class="look-details">
         <summary class="ghost-button">＋ إضافة وجهة</summary>
-        <form method="post" class="form-grid" style="margin-top:10px">
+        <form method="post" class="form-grid look-target-form" style="margin-top:10px">
           <input type="hidden" name="action" value="look_add_target">
           <input type="hidden" name="look_id" value="{{ look.id }}">
-          <select name="target_type">
+          <select name="target_type" class="look-target-type">
             <option value="circle">فئة دائرية</option>
             <option value="hashtag">هاشتاج</option>
           </select>
-          <select name="target_id">
-            {% for circle in circle_rows %}<option value="{{ circle.id }}">{{ circle.name }} · {{ circle_side_map.get(circle.side_category_id).name if circle_side_map.get(circle.side_category_id) else "فئة" }}</option>{% endfor %}
+          <select name="target_id" class="look-target-circle">
+            {% for circle in circle_rows %}<option value="{{ circle.id }}">{{ circle.name }} · {{ circle_side_map.get(circle.side_category_id).name if circle_side_map.get(circle.side_category_id) else "فئة" }}</option>{% else %}<option value="">لا توجد دوائر</option>{% endfor %}
+          </select>
+          <select name="target_id" class="look-target-hashtag" hidden disabled>
+            {% for tag in hashtags %}<option value="{{ tag.id }}">{{ tag.display_name or tag.name }}</option>{% else %}<option value="">لا توجد هاشتاجات</option>{% endfor %}
           </select>
           <input name="priority" type="number" value="0" placeholder="الأولوية">
           <button class="primary-button">حفظ الوجهة</button>
         </form>
-        <small class="field-help">عند اختيار هاشتاج استخدم قائمة الهاشتاجات من نفس الصفحة أو بدّل النوع ثم اختر القيمة المناسبة. يمكن للإطلالة حمل أكثر من وجهة، والأولوية الأعلى تُستخدم أولًا.</small>
+        <small class="field-help">يمكن للإطلالة حمل أكثر من وجهة. عند الضغط يستخدم التطبيق الوجهة الأعلى أولوية؛ الفئة الدائرية والهاشتاج كلاهما مدعوم.</small>
       </details>
 
       <div class="look-subheading"><strong>المنتجات</strong><small class="muted">اختياري لصفحة تفاصيل الإطلالة.</small></div>
@@ -166,4 +169,19 @@
   <div class="empty-state panel"><h3>لا توجد إطلالات</h3><p class="muted">أنشئ أول إطلالة من الأعلى.</p></div>
 {% endfor %}
 </section>
+<script>
+(function(){
+  document.querySelectorAll(".look-target-form").forEach(function(form){
+    const type=form.querySelector(".look-target-type");
+    const circle=form.querySelector(".look-target-circle");
+    const hashtag=form.querySelector(".look-target-hashtag");
+    function sync(){
+      const isCircle=type.value==="circle";
+      circle.hidden=!isCircle; circle.disabled=!isCircle;
+      hashtag.hidden=isCircle; hashtag.disabled=isCircle;
+    }
+    type.addEventListener("change",sync); sync();
+  });
+})();
+</script>
 {% endblock %}
