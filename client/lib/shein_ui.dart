@@ -242,9 +242,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   }
   @override Widget build(BuildContext context) {
     final banners = sxMaps(home['banners']);
-    final looks = sxMaps(home['looks']);
-    final side = sxMaps(home['side_categories']);
-    final trends = sxMaps(home['trends']);
     return Scaffold(
       backgroundColor: Colors.white,
       body: RefreshIndicator(
@@ -337,12 +334,12 @@ class _HomeHeroState extends State<_HomeHero> {
   @override
   Widget build(BuildContext context) {
     final tabs = <CategoryModel>[
-      ...widget.roots,
       const CategoryModel(id: -1, name: 'الكل'),
+      ...widget.roots,
     ];
 
     return SizedBox(
-      height: 445,
+      height: 412,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -385,12 +382,18 @@ class _HomeHeroState extends State<_HomeHero> {
             child: SafeArea(
               bottom: false,
               child: Directionality(
-                textDirection: TextDirection.ltr,
+                textDirection: TextDirection.rtl,
                 child: Row(
                   children: [
                     SxCircleIcon(
-                      icon: Icons.favorite_border,
-                      onTap: widget.onWishlist,
+                      icon: Icons.calendar_today_outlined,
+                      onTap: widget.onNotifications,
+                      dot: true,
+                    ),
+                    const SizedBox(width: 2),
+                    SxCircleIcon(
+                      icon: Icons.mail_outline,
+                      onTap: widget.onNotifications,
                     ),
                     const SizedBox(width: 7),
                     Expanded(
@@ -401,14 +404,8 @@ class _HomeHeroState extends State<_HomeHero> {
                     ),
                     const SizedBox(width: 7),
                     SxCircleIcon(
-                      icon: Icons.calendar_today_outlined,
-                      onTap: widget.onNotifications,
-                      dot: true,
-                    ),
-                    const SizedBox(width: 2),
-                    SxCircleIcon(
-                      icon: Icons.mail_outline,
-                      onTap: widget.onNotifications,
+                      icon: Icons.favorite_border,
+                      onTap: widget.onWishlist,
                     ),
                   ],
                 ),
@@ -420,7 +417,7 @@ class _HomeHeroState extends State<_HomeHero> {
             left: 0,
             right: 0,
             child: Directionality(
-              textDirection: TextDirection.ltr,
+              textDirection: TextDirection.rtl,
               child: SizedBox(
                 height: 47,
                 child: ListView(
@@ -712,7 +709,7 @@ class SxCouponStrip extends StatelessWidget {
         ],
       ),
       child: Container(
-        height: 82,
+        height: 68,
         decoration: BoxDecoration(
           color: const Color(0xFFFFFAF0),
           borderRadius: BorderRadius.circular(6),
@@ -729,7 +726,7 @@ class SxCouponStrip extends StatelessWidget {
             ),
             Container(
               width: 1,
-              height: 48,
+              height: 40,
               color: const Color(0xFFD5CDBD),
             ),
             const Expanded(
@@ -768,7 +765,7 @@ class _Coupon extends StatelessWidget {
             Text(
               title,
               style: const TextStyle(
-                fontSize: 12.5,
+                fontSize: 11.5,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -815,9 +812,9 @@ class SxRootCategoryGrid extends StatelessWidget {
         itemCount: categories.length,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 5,
-          mainAxisSpacing: 9,
-          crossAxisSpacing: 5,
-          childAspectRatio: .82,
+          mainAxisSpacing: 7,
+          crossAxisSpacing: 4,
+          childAspectRatio: .83,
         ),
         itemBuilder: (_, i) => InkWell(
           onTap: () => onTap(categories[i]),
@@ -825,8 +822,8 @@ class SxRootCategoryGrid extends StatelessWidget {
           child: Column(
             children: [
               Container(
-                width: 74,
-                height: 74,
+                width: 60,
+                height: 60,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: Color(0xFFF4F4F4),
@@ -849,7 +846,7 @@ class SxRootCategoryGrid extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                    fontSize: 9.5,
+                    fontSize: 8.5,
                     height: 1.05,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1020,7 +1017,7 @@ class SxProductGrid extends StatelessWidget {
     : GridView.builder(
       primary: false, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
       itemCount: products.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 5, mainAxisSpacing: 8, childAspectRatio: .60),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 5, mainAxisSpacing: 7, childAspectRatio: .69),
       itemBuilder: (_, i) => SxProductCard(product: products[i]),
     );
 }
