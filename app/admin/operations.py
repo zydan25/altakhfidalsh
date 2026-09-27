@@ -621,6 +621,8 @@ def register_operation_routes(admin_bp):
             .order_by(Hashtag.sort_order, Hashtag.name, Hashtag.id)
             .all()
         )
+        category_map = {x.id: x.name for x in root_categories}
+        hashtag_map = {x.id: x for x in hashtags}
         look_target_rows = (
             LookTarget.query
             .filter(LookTarget.look_id.in_([x.id for x in looks_rows]))
@@ -647,7 +649,9 @@ def register_operation_routes(admin_bp):
             circle_side_map=circle_side_map,
             circles_by_look=circles_by_look,
             root_categories=root_categories,
+            category_map=category_map,
             hashtags=hashtags,
+            hashtag_map=hashtag_map,
             targets_by_look=targets_by_look,
             success=success,
             error=error,
