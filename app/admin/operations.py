@@ -37,6 +37,7 @@ from .context import build_admin_context
 from ..modules.catalog.services import MediaService
 
 
+def register_operation_routes(admin_bp):
     @admin_bp.route("/promotions/coupons", methods=["GET", "POST"])
     def home_coupons():
         context = _ctx()
@@ -217,7 +218,6 @@ from ..modules.catalog.services import MediaService
             **context,
         )
 
-def register_operation_routes(admin_bp):
     @admin_bp.route("/catalog/policies", methods=["GET", "POST"])
     def catalog_policies():
         error = None
