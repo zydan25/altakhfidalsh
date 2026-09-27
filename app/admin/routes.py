@@ -8,6 +8,7 @@ from ..modules.catalog.services import CatalogService, MediaService
 from ..extensions import db
 from ..models import (
     Category,
+    CategoryHomeDisplaySetting,
     Conversation,
     Currency,
     Customer,
@@ -244,6 +245,68 @@ def register_admin_routes(admin_bp):
             rows=rows,
             parents=parents,
             badges=badges,
+            success=success,
+            error=error,
+            **context,
+        )
+
+    @admin_bp.route("/category-home-display", methods=["GET", "POST"])
+    def category_home_display():
+        context = _navigation_context()
+        error = None
+        success = None
+
+        if request.method == "POST":
+            try:
+                scope = request.form.get("scope") or "all"
+                category_id = None if scope == "all" else int(scope)
+                CatalogService.save_home_category_display(category_id, {
+                    "grid_rows": request.form.get("grid_rows", 2, type=int),
+                    "show_coupon_strip": request.form.get("show_coupon_strip") == "on",
+                    "item_shape": request.form.get("item_shape") or "circle",
+                    "item_size": request.form.get("item_size", 64, type=int),
+                    "item_spacing": request.form.get("item_spacing", 6, type=int),
+                })
+                success = "تم حفظ إعدادات فئات الصفحة الرئيسية."
+            except (ValueError, TypeError, OSError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+        try:
+            roots = (
+                Category.query
+                .filter(Category.is_active.is_(True), Category.parent_id.is_(None))
+                .order_by(Category.sort_order, Category.name, Category.id)
+                .all()
+            )
+            saved = CatalogService.list_home_category_display()
+        except Exception:
+            db.session.rollback()
+            roots = []
+            saved = {"all": CatalogService.default_home_category_display(), "categories": {}}
+            error = error or "تعذر تحميل إعدادات الصفحة الرئيسية."
+
+        scopes = [{
+            "key": "all",
+            "category_id": None,
+            "name": "كل الفئات",
+            "settings": saved.get("all") or CatalogService.default_home_category_display(),
+        }]
+        for root in roots:
+            scopes.append({
+                "key": str(root.id),
+                "category_id": root.id,
+                "name": root.name,
+                "settings": saved.get("categories", {}).get(
+                    str(root.id),
+                    saved.get("all") or CatalogService.default_home_category_display(),
+                ),
+            })
+
+        return render_template(
+            "admin/category_home_display.html",
+            title="إعدادات فئات الصفحة الرئيسية",
+            scopes=scopes,
             success=success,
             error=error,
             **context,
