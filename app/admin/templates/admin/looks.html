@@ -5,7 +5,7 @@
     <div class="module-heading-copy">
       <span class="eyebrow">المحتوى والمتجر · Style</span>
       <h2>استديو الإطلالات</h2>
-      <p class="muted">أنشئ إطلالة بصورة غلاف، حدّد الفئات الدائرية التي تقود إليها، وأضف منتجات مساندة مع جدولة وترتيب واضح.</p>
+      <p class="muted">إطلالات أفقية للهاتف تحت القسائم، مرتبطة بالفئة «كل الفئات» أو بفئة رئيسية، مع وجهة إلى فئة دائرية أو هاشتاج وتحكم كامل بالشكل والحجم والانحناء والألوان.</p>
     </div>
     <div class="module-toolbar-actions">
       <span class="status-pill">{{ looks|length }} إطلالة</span>
@@ -14,14 +14,29 @@
         <form method="post" enctype="multipart/form-data" class="form-stack look-editor-form">
           <input type="hidden" name="action" value="look_create">
           <div class="compact-form-grid">
-            <label>اسم الإطلالة<input name="name" required placeholder="إطلالة الخريف"></label>
-            <label>Slug<input name="slug" dir="ltr" placeholder="autumn-look"></label>
-            <label class="form-field-wide">الوصف<textarea name="description" rows="3" placeholder="وصف مختصر يظهر للعميل"></textarea></label>
+            <label>اسم الإطلالة<input name="name" required placeholder="Party / Work / Everyday"></label>
+            <label>Slug<input name="slug" dir="ltr" placeholder="party-look"></label>
+            <label>الفئة الرئيسية
+              <select name="root_category_id">
+                <option value="">كل الفئات</option>
+                {% for x in root_categories %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}
+              </select>
+              <small class="field-help">كل الفئات = تظهر في نطاق «الكل» فقط. الفئة الرئيسية = تظهر عند اختيارها في الشريط العلوي.</small>
+            </label>
             <label>الحالة<select name="status"><option value="draft">مسودة</option><option value="active">نشطة</option></select></label>
-            <label>الترتيب<input name="sort_order" type="number" value="0"></label>
+            <label>عدد/موضع العرض<input name="sort_order" type="number" value="0"></label>
+            <label>شكل البطاقة<select name="card_shape"><option value="rounded" selected>منحني الحواف</option><option value="circle">دائري</option><option value="square">مربع</option></select></label>
+            <label>العرض<input name="card_width" type="number" min="100" max="260" value="160"></label>
+            <label>الارتفاع<input name="card_height" type="number" min="140" max="360" value="220"></label>
+            <label>انحناء الحواف<input name="card_radius" type="number" min="0" max="80" value="14"></label>
+            <label>تباعد البطاقات<input name="card_spacing" type="number" min="0" max="30" value="8"></label>
+            <label>خلفية اسم الإطلالة<input name="caption_background_color" type="color" value="#000000"></label>
+            <label>لون اسم الإطلالة<input name="caption_text_color" type="color" value="#ffffff"></label>
             <label>تبدأ من<input name="starts_at" type="datetime-local"></label>
             <label>تنتهي في<input name="ends_at" type="datetime-local"></label>
+            <label class="form-field-wide">الوصف<textarea name="description" rows="2" placeholder="وصف اختياري"></textarea></label>
             <label class="form-field-wide">صورة الغلاف<input name="cover_image" type="file" accept="image/*"></label>
+            <label class="check-row form-field-wide"><input name="show_on_home" type="checkbox" checked><span><strong>إظهارها في الرئيسية</strong></span></label>
           </div>
           <button class="primary-button">حفظ الإطلالة</button>
         </form>
@@ -34,65 +49,72 @@
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
 <section class="look-legend">
-  <span>○ الفئات الدائرية هي الوجهات الأساسية للإطلالة</span>
-  <span>↗ يمكن للإطلالة أن تقود إلى عدة دوائر</span>
-  <span>◷ الجدولة تمنع الظهور خارج الفترة المحددة</span>
+  <span>أفقية قابلة للتمرير</span>
+  <span>كل الفئات أو فئة رئيسية</span>
+  <span>الوجهة: فئة دائرية أو هاشتاج</span>
 </section>
 
 <section class="look-grid">
 {% for look in looks %}
   {% set asset=asset_map.get(look.cover_asset_id) %}
-  {% set selected_circles=circles_by_look.get(look.id,[]) %}
+  {% set targets=targets_by_look.get(look.id,[]) %}
   <article class="panel look-card">
-    <div class="look-cover" style="background-image:url('{{ asset.url if asset else "" }}')">
+    <div class="look-cover" style="background-image:url('{{ asset.url if asset else "" }}');border-radius:{{ look.card_radius }}px">
       <div class="look-cover-shade"></div>
       <div class="look-cover-top"><span class="status-pill">{{ "نشطة" if look.status=="active" else "مسودة" }}</span><span class="look-order">#{{ look.sort_order }}</span></div>
-      <div class="look-cover-caption"><strong>{{ look.name }}</strong><small dir="ltr">{{ look.slug }}</small></div>
+      <div class="look-cover-caption" style="background:{{ look.caption_background_color }};color:{{ look.caption_text_color }}"><strong>{{ look.name }}</strong><small dir="ltr">{{ look.slug }}</small></div>
     </div>
 
     <div class="look-card-body">
       <div class="look-card-head">
-        <div><h3>{{ look.name }}</h3><small class="muted">{{ look.description or "بدون وصف" }}</small></div>
-        <div class="look-stats"><span>{{ selected_circles|length }} دوائر</span><span>{{ products_by_look.get(look.id,[])|length }} منتجات</span></div>
+        <div>
+          <h3>{{ look.name }}</h3>
+          <small class="muted">{{ look.description or "بدون وصف" }}</small>
+        </div>
+        <div class="look-stats"><span>{{ targets|length }} وجهات</span><span>{{ products_by_look.get(look.id,[])|length }} منتجات</span></div>
       </div>
 
-      {% if look.starts_at or look.ends_at %}
-      <div class="look-schedule"><span>◷</span><span>{{ look.starts_at or "بلا بداية" }}</span><span>→</span><span>{{ look.ends_at or "بلا نهاية" }}</span></div>
-      {% endif %}
+      <div class="look-subheading"><strong>النطاق</strong><small class="muted">{{ category_map.get(look.root_category_id, "كل الفئات") if look.root_category_id else "كل الفئات" }} · {{ "ظاهر في الرئيسية" if look.show_on_home else "مخفي في الرئيسية" }}</small></div>
 
-      <div class="look-subheading"><strong>الفئات الدائرية</strong><small class="muted">هذه هي الوجهات التي يفتحها العميل من الإطلالة.</small></div>
       <div class="chip-row look-chip-list">
-        {% for lc in selected_circles %}
-          {% set circle=circle_map.get(lc.circle_id) %}
-          {% set side=circle_side_map.get(circle.side_category_id) if circle else None %}
+        {% for target in targets %}
+          {% set label = "" %}
+          {% if target.target_type == "circle" %}
+            {% set label = "دائرة · " ~ (circle_map.get(target.target_id).name if circle_map.get(target.target_id) else target.target_id) %}
+          {% else %}
+            {% set h = hashtag_map.get(target.target_id) %}
+            {% set label = "# · " ~ (h.display_name or h.name if h else target.target_id) %}
+          {% endif %}
           <span class="banner-target-chip">
-            {{ circle.name if circle else lc.circle_id }}{% if side %} · {{ side.name }}{% endif %}
-            <form method="post"><input type="hidden" name="action" value="look_remove_circle"><input type="hidden" name="look_id" value="{{ look.id }}"><input type="hidden" name="circle_id" value="{{ lc.circle_id }}"><button class="chip-delete" title="إزالة">×</button></form>
+            {{ label }}
+            <form method="post">
+              <input type="hidden" name="action" value="look_remove_target">
+              <input type="hidden" name="target_record_id" value="{{ target.id }}">
+              <button class="chip-delete" title="إزالة">×</button>
+            </form>
           </span>
-        {% else %}<span class="muted compact-empty">لم تُحدد دوائر بعد.</span>{% endfor %}
+        {% else %}<span class="muted compact-empty">لم تُحدد وجهة بعد.</span>{% endfor %}
       </div>
 
       <details class="look-details">
-        <summary class="ghost-button">＋ ربط فئات دائرية</summary>
-        <form method="post" class="form-stack look-circle-form" style="margin-top:10px">
-          <input type="hidden" name="action" value="look_add_circles">
+        <summary class="ghost-button">＋ إضافة وجهة</summary>
+        <form method="post" class="form-grid" style="margin-top:10px">
+          <input type="hidden" name="action" value="look_add_target">
           <input type="hidden" name="look_id" value="{{ look.id }}">
-          <div class="look-circle-picker">
-            {% for circle in circle_rows %}
-              {% set side=circle_side_map.get(circle.side_category_id) %}
-              {% set checked = selected_circles|selectattr("circle_id","equalto",circle.id)|list|length > 0 %}
-              <label class="look-circle-option {% if checked %}is-selected{% endif %}">
-                <input type="checkbox" name="circle_id" value="{{ circle.id }}" {% if checked %}checked{% endif %}>
-                <span class="look-circle-dot" style="background-image:url('{{ (circle.image_asset_id and circle_asset_map.get(circle.image_asset_id).url) if circle.image_asset_id and asset_map.get(circle.image_asset_id) else "" }}')"></span>
-                <span><strong>{{ circle.name }}</strong><small>{{ side.name if side else "فئة دائرية" }}</small></span>
-              </label>
-            {% else %}<p class="muted compact-empty">أنشئ الفئات الدائرية أولًا من وحدة دوائر الفئات.</p>{% endfor %}
-          </div>
-          <button class="primary-button">حفظ الدوائر المحددة</button>
+          <select name="target_type">
+            <option value="circle">فئة دائرية</option>
+            <option value="hashtag">هاشتاج</option>
+          </select>
+          <select name="target_id">
+            {% for circle in circle_rows %}<option value="{{ circle.id }}">{{ circle.name }} · {{ circle_side_map.get(circle.side_category_id).name if circle_side_map.get(circle.side_category_id) else "فئة" }}</option>{% endfor %}
+          </select>
+          <input name="priority" type="number" value="0" placeholder="الأولوية">
+          <button class="primary-button">حفظ الوجهة</button>
         </form>
+        <small class="field-help">عند اختيار هاشتاج استخدم قائمة الهاشتاجات من نفس الصفحة أو بدّل النوع ثم اختر القيمة المناسبة. يمكن للإطلالة حمل أكثر من وجهة، والأولوية الأعلى تُستخدم أولًا.</small>
       </details>
 
-      <div class="look-subheading"><strong>المنتجات</strong><small class="muted">اختياري، لعرض منتجات مباشرة ضمن صفحة الإطلالة.</small></div>
+      <div class="look-subheading"><strong>المنتجات</strong><small class="muted">اختياري لصفحة تفاصيل الإطلالة.</small></div>
       <div class="chip-row look-chip-list">
         {% for lp in products_by_look.get(look.id,[]) %}
           <span class="banner-target-chip">{{ product_map.get(lp.product_id).name if product_map.get(lp.product_id) else lp.product_id }}
@@ -113,27 +135,35 @@
         </details>
 
         <details class="look-details grow">
-          <summary class="ghost-button">✎ تعديل</summary>
+          <summary class="ghost-button">✎ تعديل الإطلالة</summary>
           <form method="post" enctype="multipart/form-data" class="form-stack compact-form-grid" style="margin-top:8px">
             <input type="hidden" name="action" value="look_update"><input type="hidden" name="id" value="{{ look.id }}">
             <label>الاسم<input name="name" value="{{ look.name }}" required></label>
             <label>Slug<input name="slug" value="{{ look.slug }}" dir="ltr"></label>
-            <label class="form-field-wide">الوصف<textarea name="description" rows="2">{{ look.description or "" }}</textarea></label>
+            <label>الفئة الرئيسية<select name="root_category_id"><option value="">كل الفئات</option>{% for x in root_categories %}<option value="{{ x.id }}" {% if x.id == look.root_category_id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label>
             <label>الحالة<select name="status"><option value="draft" {% if look.status!="active" %}selected{% endif %}>مسودة</option><option value="active" {% if look.status=="active" %}selected{% endif %}>نشطة</option></select></label>
             <label>الترتيب<input name="sort_order" type="number" value="{{ look.sort_order }}"></label>
+            <label>الشكل<select name="card_shape"><option value="rounded" {% if look.card_shape=="rounded" %}selected{% endif %}>منحني الحواف</option><option value="circle" {% if look.card_shape=="circle" %}selected{% endif %}>دائري</option><option value="square" {% if look.card_shape=="square" %}selected{% endif %}>مربع</option></select></label>
+            <label>العرض<input name="card_width" type="number" min="100" max="260" value="{{ look.card_width }}"></label>
+            <label>الارتفاع<input name="card_height" type="number" min="140" max="360" value="{{ look.card_height }}"></label>
+            <label>انحناء الحواف<input name="card_radius" type="number" min="0" max="80" value="{{ look.card_radius }}"></label>
+            <label>تباعد البطاقات<input name="card_spacing" type="number" min="0" max="30" value="{{ look.card_spacing }}"></label>
+            <label>خلفية اسم الإطلالة<input name="caption_background_color" type="color" value="{{ look.caption_background_color }}"></label>
+            <label>لون اسم الإطلالة<input name="caption_text_color" type="color" value="{{ look.caption_text_color }}"></label>
             <label>تبدأ من<input name="starts_at" type="datetime-local" value="{{ look.starts_at.strftime('%Y-%m-%dT%H:%M') if look.starts_at else '' }}"></label>
             <label>تنتهي في<input name="ends_at" type="datetime-local" value="{{ look.ends_at.strftime('%Y-%m-%dT%H:%M') if look.ends_at else '' }}"></label>
+            <label class="form-field-wide">الوصف<textarea name="description" rows="2">{{ look.description or "" }}</textarea></label>
             <label class="form-field-wide">الغلاف<input name="cover_image" type="file" accept="image/*"></label>
+            <label class="check-row form-field-wide"><input name="show_on_home" type="checkbox" {% if look.show_on_home %}checked{% endif %}><span><strong>إظهارها في الرئيسية</strong></span></label>
             <button class="primary-button form-field-wide">حفظ التعديلات</button>
           </form>
         </details>
-
         <form method="post"><input type="hidden" name="action" value="look_archive"><input type="hidden" name="id" value="{{ look.id }}"><button class="ghost-button danger-button">أرشفة</button></form>
       </div>
     </div>
   </article>
 {% else %}
-  <div class="empty-state panel"><h3>لا توجد إطلالات</h3><p class="muted">أنشئ أول إطلالة ثم اربطها بالفئات الدائرية من هنا.</p></div>
+  <div class="empty-state panel"><h3>لا توجد إطلالات</h3><p class="muted">أنشئ أول إطلالة من الأعلى.</p></div>
 {% endfor %}
 </section>
 {% endblock %}
