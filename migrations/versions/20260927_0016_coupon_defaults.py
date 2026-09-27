@@ -29,7 +29,7 @@ def upgrade():
                  default_badge_background_color, default_badge_text_color)
             SELECT
                 'all', NULL, TRUE, TRUE, 4,
-                2, 96, 18, 8,
+                2, 64, 14, 6,
                 16, 11, 10,
                 '#E2EFDA', '#1B5E20', '#166534', '#FFFFFF'
             WHERE NOT EXISTS (
@@ -87,8 +87,8 @@ def downgrade():
             "DELETE FROM home_coupon_display_settings "
             "WHERE scope_key = 'all' "
             "AND enabled = TRUE AND auto_flip = TRUE AND flip_seconds = 4 "
-            "AND cards_per_slide = 2 AND card_height = 96 AND card_radius = 18 "
-            "AND card_spacing = 8 AND title_font_size = 16 AND subtitle_font_size = 11 "
+            "AND cards_per_slide = 2 AND card_height = 64 AND card_radius = 14 "
+            "AND card_spacing = 6 AND title_font_size = 16 AND subtitle_font_size = 11 "
             "AND badge_font_size = 10 AND default_background_color = '#E2EFDA' "
             "AND default_text_color = '#1B5E20'"
         )
