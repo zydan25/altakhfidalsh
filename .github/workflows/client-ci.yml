@@ -28,6 +28,29 @@ jobs:
         working-directory: client
         run: flutter create --platforms=android .
 
+      - name: Enable Android Internet access
+        working-directory: client
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("android/app/src/main/AndroidManifest.xml")
+          text = path.read_text(encoding="utf-8")
+          permission = '<uses-permission android:name="android.permission.INTERNET" />'
+
+          if permission not in text:
+              marker = '<application'
+              if marker not in text:
+                  raise SystemExit("AndroidManifest.xml: <application> not found")
+              text = text.replace(marker, permission + "\n    " + marker, 1)
+              path.write_text(text, encoding="utf-8")
+
+          print("Verified Android INTERNET permission:")
+          for line in path.read_text(encoding="utf-8").splitlines():
+              if "android.permission.INTERNET" in line:
+                  print(line)
+          PY
+
       - name: Dependencies
         working-directory: client
         run: flutter pub get
