@@ -101,6 +101,8 @@ class CatalogService:
             "show_looks_strip": True,
             "item_shape": "circle",
             "item_size": 64,
+            "item_width": 64,
+            "item_height": 64,
             "item_spacing": 6,
             "item_corner_radius": 16,
             "item_label_font_size": 9,
@@ -117,6 +119,8 @@ class CatalogService:
                 "show_looks_strip": bool(setting.show_looks_strip),
                 "item_shape": setting.item_shape,
                 "item_size": int(setting.item_size),
+                "item_width": int(getattr(setting, "item_width", setting.item_size)),
+                "item_height": int(getattr(setting, "item_height", setting.item_size)),
                 "item_spacing": int(setting.item_spacing),
                 "item_corner_radius": int(setting.item_corner_radius),
                 "item_label_font_size": int(setting.item_label_font_size),
@@ -171,7 +175,10 @@ class CatalogService:
             raise ValueError("إعدادات الدوائر يجب أن ترتبط بفئة رئيسية نشطة.")
 
         grid_rows = max(1, min(6, int(payload.get("grid_rows", 2))))
-        item_size = max(42, min(110, int(payload.get("item_size", 64))))
+        legacy_size = max(42, min(110, int(payload.get("item_size", 64))))
+        item_width = max(42, min(240, int(payload.get("item_width", legacy_size))))
+        item_height = max(42, min(240, int(payload.get("item_height", legacy_size))))
+        item_size = min(110, item_width, item_height)
         item_spacing = max(0, min(24, int(payload.get("item_spacing", 6))))
         item_corner_radius = max(0, min(80, int(payload.get("item_corner_radius", 16))))
         item_label_font_size = max(7, min(16, int(payload.get("item_label_font_size", 9))))
@@ -196,6 +203,8 @@ class CatalogService:
         setting.show_looks_strip = show_looks_strip
         setting.item_shape = item_shape
         setting.item_size = item_size
+        setting.item_width = item_width
+        setting.item_height = item_height
         setting.item_spacing = item_spacing
         setting.item_corner_radius = item_corner_radius
         setting.item_label_font_size = item_label_font_size
