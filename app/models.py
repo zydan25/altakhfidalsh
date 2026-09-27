@@ -893,8 +893,6 @@ class Look(TimestampMixin, ActiveMixin, db.Model):
     ends_at = db.Column(db.DateTime(timezone=True))
     __table_args__ = (
         CheckConstraint("card_shape IN ('circle','rounded','square')", name="ck_look_card_shape"),
-        CheckConstraint("card_width >= 100 AND card_width <= 260", name="ck_look_card_width"),
-        CheckConstraint("card_height >= 140 AND card_height <= 360", name="ck_look_card_height"),
         CheckConstraint("card_radius >= 0 AND card_radius <= 80", name="ck_look_card_radius"),
         CheckConstraint("card_spacing >= 0 AND card_spacing <= 30", name="ck_look_card_spacing"),
         Index("ix_look_active_sort", "is_active", "status", "sort_order", "starts_at", "ends_at"),
