@@ -263,6 +263,7 @@ def register_admin_routes(admin_bp):
                 CatalogService.save_home_category_display(category_id, {
                     "grid_rows": request.form.get("grid_rows", 2, type=int),
                     "show_coupon_strip": request.form.get("show_coupon_strip") == "on",
+                    "show_looks_strip": request.form.get("show_looks_strip") == "on",
                     "item_shape": request.form.get("item_shape") or "circle",
                     "item_size": request.form.get("item_size", 64, type=int),
                     "item_spacing": request.form.get("item_spacing", 6, type=int),
