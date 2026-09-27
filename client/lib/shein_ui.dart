@@ -182,6 +182,53 @@ class SxImage extends StatelessWidget {
   final double? width;
   final double? height;
   const SxImage({super.key, this.url, this.fit = BoxFit.cover, this.width, this.height});
+  List<Map<String, dynamic>> _homeLooks() {
+    return looks.where((look) {
+      final rootId = look['root_category_id'];
+      final scopedRoot = rootId == null ? null : sxInt(rootId);
+      return selected < 0 ? scopedRoot == null : scopedRoot == selected;
+    }).toList()
+      ..sort((a, b) {
+        final ao = sxInt(a['sort_order']);
+        final bo = sxInt(b['sort_order']);
+        return ao == bo
+            ? sxInt(a['id']).compareTo(sxInt(b['id']))
+            : ao.compareTo(bo);
+      });
+  }
+
+  void _openHomeLook(BuildContext context, Map<String, dynamic> look) {
+    final targets = sxMaps(look['targets']);
+    if (targets.isNotEmpty) {
+      final target = targets.first;
+      final type = sxText(target['type']);
+      final targetId = sxInt(target['target_id']);
+      final title = sxText(target['name'], sxText(look['name'], 'الإطلالة'));
+      if (type == 'circle' && targetId > 0) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SxResults(title: title, circleId: targetId),
+          ),
+        );
+        return;
+      }
+      if (type == 'hashtag' && targetId > 0) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SxResults(title: title, hashtagId: targetId),
+          ),
+        );
+        return;
+      }
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SxLookDetail(look: look)),
+    );
+  }
+
   @override Widget build(BuildContext context) {
     final value = sxImage(url);
     if (value.isEmpty) return Container(width: width, height: height, color: ClientTheme.soft, child: const Icon(Icons.image_outlined, color: Color(0xFF9AA0A6)));
@@ -219,6 +266,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   List<ProductModel> products = [];
   List<CategoryModel> roots = [];
   List<CategoryModel> allCategories = [];
+  List<Map<String, dynamic>> looks = [];
   int selected = -1;
   int discoveryTab = 2;
   bool loading = true;
@@ -228,6 +276,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
     try {
       final h = await api.home();
       home = h;
+      looks = sxMaps(h['looks']);
       allCategories = sxMaps(h['categories']).map(CategoryModel.fromJson).toList();
       roots = allCategories.where((x) => x.parentId == null).toList()
         ..sort((a, b) => a.sortOrder == b.sortOrder
@@ -256,6 +305,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         'item_shape': 'circle',
         'item_size': 64,
         'item_spacing': 6,
+        'item_corner_radius': 16,
       };
     }
     final global = sxMaps([payload['all']]).isNotEmpty
@@ -295,6 +345,13 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
             )),
             if (categoryDisplay['show_coupon_strip'] == true)
               const SliverToBoxAdapter(child: SxCouponStrip()),
+            if (!loading && _homeLooks().isNotEmpty)
+              SliverToBoxAdapter(
+                child: SxHomeLookCarousel(
+                  looks: _homeLooks(),
+                  onTap: (look) => _openHomeLook(context, look),
+                ),
+              ),
             if (!loading)
               SliverToBoxAdapter(
                 child: SxHomeCategoryGrid(
@@ -305,6 +362,10 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                   itemShape: sxText(categoryDisplay['item_shape'], 'circle'),
                   itemSize: sxDouble(categoryDisplay['item_size'], 64),
                   itemSpacing: sxDouble(categoryDisplay['item_spacing'], 6),
+                  itemCornerRadius: sxDouble(
+                    categoryDisplay['item_corner_radius'],
+                    16,
+                  ),
 
                   onRootTap: (category) async {
                     setState(() => selected = category.id);
@@ -941,6 +1002,109 @@ class _Coupon extends StatelessWidget {
   }
 }
 
+class SxHomeLookCarousel extends StatelessWidget {
+  final List<Map<String, dynamic>> looks;
+  final ValueChanged<Map<String, dynamic>> onTap;
+
+  const SxHomeLookCarousel({
+    super.key,
+    required this.looks,
+    required this.onTap,
+  });
+
+  Color _color(dynamic value, Color fallback) {
+    final raw = sxText(value);
+    if (!raw.startsWith('#') || raw.length != 7) return fallback;
+    return Color(
+      int.tryParse('FF' + raw.substring(1), radix: 16) ?? fallback.value,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (looks.isEmpty) return const SizedBox.shrink();
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(0, 7, 0, 8),
+      child: SizedBox(
+        height: 244,
+        child: ListView.separated(
+          reverse: true,
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 7),
+          itemCount: looks.length,
+          separatorBuilder: (_, __) {
+            final spacing = 8.0;
+            return SizedBox(width: spacing);
+          },
+          itemBuilder: (_, i) {
+            final look = looks[i];
+            final width = sxDouble(look['card_width'], 160)
+                .clamp(100.0, 260.0)
+                .toDouble();
+            final height = sxDouble(look['card_height'], 220)
+                .clamp(140.0, 360.0)
+                .toDouble();
+            final radius = sxDouble(look['card_radius'], 14)
+                .clamp(0.0, 80.0)
+                .toDouble();
+            final shape = sxText(look['card_shape'], 'rounded');
+            final clipRadius = shape == 'circle' ? width / 2 : radius;
+            final captionBg = _color(
+              look['caption_background_color'],
+              Colors.black,
+            );
+            final captionText = _color(
+              look['caption_text_color'],
+              Colors.white,
+            );
+            return InkWell(
+              onTap: () => onTap(look),
+              borderRadius: BorderRadius.circular(clipRadius),
+              child: SizedBox(
+                width: width,
+                height: height,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(clipRadius),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      SxImage(url: look['cover_url'], fit: BoxFit.cover),
+                      Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 8,
+                          ),
+                          color: captionBg,
+                          child: Text(
+                            sxText(look['name'], 'إطلالة'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: captionText,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class SxHomeCategoryGrid extends StatelessWidget {
   final List<CategoryModel> rootCategories;
   final List<CategoryModel> allCategories;
@@ -949,6 +1113,7 @@ class SxHomeCategoryGrid extends StatelessWidget {
   final String itemShape;
   final double itemSize;
   final double itemSpacing;
+  final double itemCornerRadius;
   final ValueChanged<CategoryModel> onRootTap;
   final ValueChanged<CategoryModel> onCategoryTap;
 
@@ -961,6 +1126,7 @@ class SxHomeCategoryGrid extends StatelessWidget {
     required this.itemShape,
     required this.itemSize,
     required this.itemSpacing,
+    required this.itemCornerRadius,
     required this.onRootTap,
     required this.onCategoryTap,
   });
@@ -1016,6 +1182,7 @@ class SxHomeCategoryGrid extends StatelessWidget {
       itemShape: itemShape,
       itemSize: itemSize,
       itemSpacing: itemSpacing,
+      itemCornerRadius: itemCornerRadius,
       gridRows: gridRows,
       onTap: onCategoryTap,
     );
@@ -1027,6 +1194,7 @@ class _CategoryCircleGrid extends StatelessWidget {
   final String itemShape;
   final double itemSize;
   final double itemSpacing;
+  final double itemCornerRadius;
   final int gridRows;
   final ValueChanged<CategoryModel> onTap;
 
@@ -1035,6 +1203,7 @@ class _CategoryCircleGrid extends StatelessWidget {
     required this.itemShape,
     required this.itemSize,
     required this.itemSpacing,
+    required this.itemCornerRadius,
     required this.gridRows,
     required this.onTap,
   });
@@ -1058,9 +1227,7 @@ class _CategoryCircleGrid extends StatelessWidget {
         .toDouble();
     final radius = itemShape == 'circle'
         ? effectiveSize / 2
-        : itemShape == 'rounded'
-            ? 16.0
-            : 7.0;
+        : itemCornerRadius.clamp(0.0, 80.0).toDouble();
     // The configured row count controls the grid vertically; additional
     // columns become horizontally scrollable so no category is hidden. 
     final rowCount = gridRows.clamp(1, 6).toInt();
@@ -1464,8 +1631,15 @@ class _FallbackCats extends StatelessWidget {
 }
 
 class SxResults extends StatefulWidget {
-  final String title; final int? categoryId, circleId;
-  const SxResults({super.key, required this.title, this.categoryId, this.circleId});
+  final String title;
+  final int? categoryId, circleId, hashtagId;
+  const SxResults({
+    super.key,
+    required this.title,
+    this.categoryId,
+    this.circleId,
+    this.hashtagId,
+  });
   @override State<SxResults> createState() => _SxResultsState();
 }
 
@@ -1476,7 +1650,16 @@ class _SxResultsState extends State<SxResults> {
   Future<void> load() async {
     setState(() => loading = true);
     try {
-      products = await api.feed(category: widget.categoryId, circleId: widget.circleId, filterValueIds: values.toList(), sort: sort, minPrice: minPrice, maxPrice: maxPrice, currencyId: state.currencyId);
+      products = await api.feed(
+        category: widget.categoryId,
+        circleId: widget.circleId,
+        hashtagId: widget.hashtagId,
+        filterValueIds: values.toList(),
+        sort: sort,
+        minPrice: minPrice,
+        maxPrice: maxPrice,
+        currencyId: state.currencyId,
+      );
       if (widget.categoryId != null) filters = await api.categoryFilters(widget.categoryId!);
     } catch (_) {}
     if (mounted) setState(() => loading = false);
