@@ -13,6 +13,7 @@ from ...models import (
     Product,
     ProductCategory,
     ProductFilterValue,
+    ProductHashtag,
     ProductSideCategoryCircle,
     ProductVariant,
     SideCategoryCircle,
@@ -198,6 +199,7 @@ def public_product_feed():
 
     category_id = request.args.get("category_id", type=int)
     circle_id = request.args.get("circle_id", type=int)
+    hashtag_id = request.args.get("hashtag_id", type=int)
     search = (request.args.get("q") or "").strip()
     currency_id = request.args.get("currency_id", type=int)
     sort = (request.args.get("sort") or "recommended").strip().lower()
@@ -216,6 +218,12 @@ def public_product_feed():
             ProductSideCategoryCircle,
             ProductSideCategoryCircle.product_id == Product.id,
         ).filter(ProductSideCategoryCircle.circle_id == circle_id)
+
+    if hashtag_id:
+        query = query.join(
+            ProductHashtag,
+            ProductHashtag.product_id == Product.id,
+        ).filter(ProductHashtag.hashtag_id == hashtag_id)
 
     if search:
         needle = "%" + search + "%"
