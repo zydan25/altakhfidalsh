@@ -551,7 +551,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
             : const <String, dynamic>{};
     final headerTopColor = sxColor(
       activeBanner['header_top_background_color'],
-      const Color(0xFF111827),
+      Colors.white,
     );
     final categoryTextColor = sxColor(
       activeBanner['header_category_text_color'],
