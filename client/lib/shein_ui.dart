@@ -1367,7 +1367,9 @@ class _SxCouponStripState extends State<SxCouponStrip> {
             widget.settings['cards_per_slide'] ||
         oldWidget.settings['card_height'] != widget.settings['card_height']) {
       _page = 0;
-      _controller?.jumpToPage(0);
+      if (_controller?.hasClients == true) {
+        _controller!.jumpToPage(0);
+      }
       _schedule();
     }
   }
