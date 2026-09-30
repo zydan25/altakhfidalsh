@@ -1048,7 +1048,7 @@ class Banner(TimestampMixin, ActiveMixin, db.Model):
     button_background_color = db.Column(String(20), nullable=False, default="#111827")
     overlay_background_color = db.Column(String(20), nullable=False, default="#111827")
     overlay_opacity = db.Column(Numeric(4, 3), nullable=False, default=0)
-    header_top_background_color = db.Column(String(20), nullable=False, default="#111827")
+    header_top_background_color = db.Column(String(20), nullable=False, default="#ffffff")
     header_category_text_color = db.Column(String(20), nullable=False, default="#ffffff")
     header_category_active_color = db.Column(String(20), nullable=False, default="#ffffff")
     size_spec = db.Column(String(60))
