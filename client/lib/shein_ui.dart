@@ -476,12 +476,12 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black,
-                      Color.lerp(Colors.black, headerTopColor, .45) ??
-                          Colors.black,
                       headerTopColor,
+                      Color.lerp(headerTopColor, Colors.black, .55) ??
+                          Colors.black,
+                      Colors.black,
                     ],
-                    stops: const [0.0, 0.55, 1.0],
+                    stops: const [0.0, 0.58, 1.0],
                   ),
                 ),
               ),
@@ -516,7 +516,9 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               onRefresh: load,
               color: headerTopColor,
               backgroundColor: Colors.white,
-              child: CustomScrollView(
+              child: Transform.translate(
+                offset: Offset(0, pullGradientHeight),
+                child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           slivers: [
             SliverToBoxAdapter(
@@ -603,6 +605,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                 ),
               ),
           ],
+                ),
               ),
             ),
           ),
