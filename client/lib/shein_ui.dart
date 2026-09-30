@@ -379,8 +379,12 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         .clamp(0.0, 220.0)
         .toDouble();
 
-    final headerIsSolid =
-        position.pixels > position.minScrollExtent + 0.5;
+    // Keep the header transparent for the first 40px of upward scroll.
+    // It becomes solid only after the user passes that threshold.
+    const headerScrollThreshold = 40.0;
+    final scrolledDistance =
+        position.pixels - position.minScrollExtent;
+    final headerIsSolid = scrolledDistance >= headerScrollThreshold;
 
     if ((pullExtent - _pullExtent).abs() > .5 ||
         headerIsSolid != _headerIsSolid) {
