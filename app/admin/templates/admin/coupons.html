@@ -523,7 +523,10 @@
     color.addEventListener('input',()=>{hex.value=color.value.toUpperCase();});
     hex.addEventListener('input',()=>{
       const normalized=normalizeHex(hex.value);
-      if(normalized) color.value=normalized;
+      if(normalized){
+        color.value=normalized;
+        color.dispatchEvent(new Event('input',{bubbles:true}));
+      }
     });
     hex.addEventListener('blur',()=>{
       const normalized=normalizeHex(hex.value);
