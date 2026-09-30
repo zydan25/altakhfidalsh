@@ -278,6 +278,11 @@
             <option value="gift">🎁 هدية</option>
             <option value="star">★ مميز</option>
             <option value="truck">🚚 شحن</option>
+            <option value="delivery">📦 توصيل</option>
+            <option value="gift">🎁 هدية</option>
+            <option value="redeem">🎀 هدية خاصة</option>
+            <option value="shopping_bag">🛍 حقيبة</option>
+            <option value="favorite">♡ مفضلة</option>
             <option value="shield">🛡 أمان</option>
             <option value="zap">⚡ سريع</option>
           </select>
@@ -391,7 +396,7 @@
 
               <label>نوع الأيقونة
                 <select name="icon_type">
-                  {% for icon,label in [('percent','٪ خصم'),('tag','🏷 قسيمة'),('gift','🎁 هدية'),('star','★ مميز'),('truck','🚚 شحن'),('shield','🛡 أمان'),('zap','⚡ سريع')] %}
+                  {% for icon,label in [('percent','٪ خصم'),('tag','🏷 قسيمة'),('gift','🎁 هدية'),('star','★ مميز'),('truck','🚚 شحن'),('delivery','📦 توصيل'),('redeem','🎀 هدية خاصة'),('shopping_bag','🛍 حقيبة'),('favorite','♡ مفضلة'),('shield','🛡 أمان'),('zap','⚡ سريع')] %}
                   <option value="{{ icon }}" {% if row.icon_type == icon %}selected{% endif %}>{{ label }}</option>
                   {% endfor %}
                 </select>
