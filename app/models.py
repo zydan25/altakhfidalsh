@@ -895,6 +895,8 @@ class Look(TimestampMixin, ActiveMixin, db.Model):
     card_spacing = db.Column(Integer, nullable=False, default=6)
     caption_background_color = db.Column(String(20), nullable=False, default="#000000")
     caption_text_color = db.Column(String(20), nullable=False, default="#ffffff")
+    caption_height = db.Column(Integer, nullable=False, default=28)
+    caption_font_size = db.Column(Integer, nullable=False, default=12)
     starts_at = db.Column(db.DateTime(timezone=True))
     ends_at = db.Column(db.DateTime(timezone=True))
     __table_args__ = (
