@@ -452,9 +452,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       activeBanner['header_category_active_color'],
       Colors.white,
     );
-    final headerDarkColor =
-        Color.lerp(headerTopColor, Colors.black, .72) ?? Colors.black;
-    final pullGradientHeight = 112.0 + _pullExtent;
+    final pullGradientHeight = _pullExtent.clamp(0.0, 220.0);
     final categoryDisplay = _categoryDisplaySettings();
     final couponStrip = _couponDisplaySettings();
     final coupons = _homeCoupons();
@@ -591,19 +589,18 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
             right: 0,
             height: pullGradientHeight,
             child: IgnorePointer(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 70),
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      headerTopColor.withOpacity(.96),
-                      Color.lerp(headerTopColor, Colors.black, .25) ??
-                          headerDarkColor,
-                      headerDarkColor,
+                      Colors.black,
+                      Color.lerp(Colors.black, headerTopColor, .45) ??
+                          Colors.black,
+                      headerTopColor,
                     ],
-                    stops: const [0.0, 0.48, 1.0],
+                    stops: const [0.0, 0.55, 1.0],
                   ),
                 ),
               ),
