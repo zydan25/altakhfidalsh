@@ -585,29 +585,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               ),
             ),
           ),
-          _HomeFixedHeader(
-            roots: roots,
-            selected: selected,
-            categoryTextColor: categoryTextColor,
-            categoryActiveColor: categoryActiveColor,
-            onSelected: (id) async {
-              if (selected == id) return;
-              setState(() => selected = id);
-              await load();
-            },
-            onSearch: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SxSearchScreen()),
-            ),
-            onWishlist: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SxWishlistScreen()),
-            ),
-            onNotifications: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SxNotificationsScreen()),
-            ),
-          ),
           Positioned(
             top: 0,
             left: 0,
@@ -632,7 +609,36 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               ),
             ),
           ),
-          _HomeFixedHeader extends StatelessWidget {
+          _HomeFixedHeader(
+            roots: roots,
+            selected: selected,
+            categoryTextColor: categoryTextColor,
+            categoryActiveColor: categoryActiveColor,
+            onSelected: (id) async {
+              if (selected == id) return;
+              setState(() => selected = id);
+              await load();
+            },
+            onSearch: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SxSearchScreen()),
+            ),
+            onWishlist: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SxWishlistScreen()),
+            ),
+            onNotifications: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SxNotificationsScreen()),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeFixedHeader extends StatelessWidget {
   final List<CategoryModel> roots;
   final int selected;
   final Color categoryTextColor;
