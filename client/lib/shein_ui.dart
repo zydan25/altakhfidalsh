@@ -394,26 +394,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
     }).toList();
   }
 
-  Map<String, dynamic> _activeBannerHeaderStyle(
-    List<Map<String, dynamic>> banners,
-  ) {
-    final banner = banners.isNotEmpty ? banners.first : const <String, dynamic>{};
-    return {
-      'top_background_color': sxColor(
-        banner['header_top_background_color'],
-        const Color(0xFF111827),
-      ),
-      'category_text_color': sxColor(
-        banner['header_category_text_color'],
-        Colors.white,
-      ),
-      'category_active_color': sxColor(
-        banner['header_category_active_color'],
-        Colors.white,
-      ),
-    };
-  }
-
   void _openHomeLook(BuildContext context, Map<String, dynamic> look) {
     final targets = sxMaps(look['targets']);
     if (targets.isNotEmpty) {
