@@ -452,6 +452,18 @@ def register_operation_routes(admin_bp):
                         "button_text_color": color(request.form.get("button_text_color"), "#ffffff"),
                         "button_background_color": color(request.form.get("button_background_color"), "#111827"),
                         "overlay_background_color": color(request.form.get("overlay_background_color"), "#111827"),
+                        "header_top_background_color": color(
+                            request.form.get("header_top_background_color"),
+                            "#111827",
+                        ),
+                        "header_category_text_color": color(
+                            request.form.get("header_category_text_color"),
+                            "#ffffff",
+                        ),
+                        "header_category_active_color": color(
+                            request.form.get("header_category_active_color"),
+                            "#ffffff",
+                        ),
                         "overlay_opacity": opacity,
                         "size_spec": (request.form.get("size_spec") or "").strip() or None,
                         "overlay_text": (request.form.get("overlay_text") or "").strip() or None,
