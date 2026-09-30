@@ -36,7 +36,13 @@ class ApiService {
     final d=await get('/catalog/categories');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>CategoryModel.fromJson(Map<String,dynamic>.from(e))).toList();
   }
-  Future<Map<String,dynamic>> home()async=>Map<String,dynamic>.from(await get('/storefront/home'));
+  Future<Map<String,dynamic>> home({int? rootCategoryId}) async {
+    final q = <String,String>{};
+    if (rootCategoryId != null) q['root_category_id'] = rootCategoryId.toString();
+    return Map<String,dynamic>.from(
+      await get('/storefront/home', q: q.isEmpty ? null : q),
+    );
+  }
   Future<List<Map<String,dynamic>>> sideCategories({int? rootId})async{
     final d=await get('/storefront/home');
     final rows=((d['side_categories'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
