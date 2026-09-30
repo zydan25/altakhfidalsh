@@ -32,6 +32,8 @@
             <label>تباعد البطاقات<input name="card_spacing" type="number" min="0" max="30" value="8"></label>
             <label>خلفية اسم الإطلالة<input name="caption_background_color" type="color" value="#000000"></label>
             <label>لون اسم الإطلالة<input name="caption_text_color" type="color" value="#ffffff"></label>
+            <label>ارتفاع خلفية النص<input name="caption_height" type="number" min="12" max="120" value="28"></label>
+            <label>حجم النص<input name="caption_font_size" type="number" min="6" max="40" value="12"></label>
             <label>تبدأ من<input name="starts_at" type="datetime-local"></label>
             <label>تنتهي في<input name="ends_at" type="datetime-local"></label>
             <label class="form-field-wide">الوصف<textarea name="description" rows="2" placeholder="وصف اختياري"></textarea></label>
@@ -62,7 +64,9 @@
     <div class="look-cover" style="background-image:url('{{ asset.url if asset else "" }}');border-radius:{{ look.card_radius }}px">
       <div class="look-cover-shade"></div>
       <div class="look-cover-top"><span class="status-pill">{{ "نشطة" if look.status=="active" else "مسودة" }}</span><span class="look-order">#{{ look.sort_order }}</span></div>
-      <div class="look-cover-caption" style="background:{{ look.caption_background_color }};color:{{ look.caption_text_color }}"><strong>{{ look.name }}</strong><small dir="ltr">{{ look.slug }}</small></div>
+      <div class="look-cover-caption" style="background:{{ look.caption_background_color }};color:{{ look.caption_text_color }};height:{{ look.caption_height }}px">
+        <strong style="font-size:{{ look.caption_font_size }}px">{{ look.name }}</strong><small dir="ltr">{{ look.slug }}</small>
+      </div>
     </div>
 
     <div class="look-card-body">
@@ -153,6 +157,8 @@
             <label>تباعد البطاقات<input name="card_spacing" type="number" min="0" max="30" value="{{ look.card_spacing }}"></label>
             <label>خلفية اسم الإطلالة<input name="caption_background_color" type="color" value="{{ look.caption_background_color }}"></label>
             <label>لون اسم الإطلالة<input name="caption_text_color" type="color" value="{{ look.caption_text_color }}"></label>
+            <label>ارتفاع خلفية النص<input name="caption_height" type="number" min="12" max="120" value="{{ look.caption_height }}"></label>
+            <label>حجم النص<input name="caption_font_size" type="number" min="6" max="40" value="{{ look.caption_font_size }}"></label>
             <label>تبدأ من<input name="starts_at" type="datetime-local" value="{{ look.starts_at.strftime('%Y-%m-%dT%H:%M') if look.starts_at else '' }}"></label>
             <label>تنتهي في<input name="ends_at" type="datetime-local" value="{{ look.ends_at.strftime('%Y-%m-%dT%H:%M') if look.ends_at else '' }}"></label>
             <label class="form-field-wide">الوصف<textarea name="description" rows="2">{{ look.description or "" }}</textarea></label>
