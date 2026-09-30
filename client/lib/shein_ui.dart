@@ -137,7 +137,18 @@ class SxSearchBar extends StatelessWidget {
   final ValueChanged<String>? onChanged;
   final String hint;
   final bool autofocus;
-  const SxSearchBar({super.key, this.onTap, this.controller, this.onChanged, this.hint = 'ابحث عن المنتجات', this.autofocus = false});
+  final Color borderColor;
+  final Color backgroundColor;
+  const SxSearchBar({
+    super.key,
+    this.onTap,
+    this.controller,
+    this.onChanged,
+    this.hint = 'ابحث عن المنتجات',
+    this.autofocus = false,
+    this.borderColor = const Color(0xFFD5D5D5),
+    this.backgroundColor = Colors.white,
+  });
   @override Widget build(BuildContext context) => SizedBox(
     height: 43,
     child: TextField(
@@ -151,10 +162,10 @@ class SxSearchBar extends StatelessWidget {
         prefixIcon: const Icon(Icons.search, size: 22),
         suffixIcon: const Icon(Icons.camera_alt_outlined, size: 19),
         contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-        filled: true, fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: const BorderSide(color: Color(0xFFD5D5D5), width: .8)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: const BorderSide(color: Color(0xFFD5D5D5), width: .8)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: const BorderSide(color: Colors.black)),
+        filled: true, fillColor: backgroundColor,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide(color: borderColor, width: .8)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide(color: borderColor, width: .8)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide(color: borderColor, width: 1.1)),
       ),
     ),
   );
@@ -236,6 +247,8 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   int _loadSerial = 0;
   int _activeBannerIndex = 0;
   double _pullExtent = 0;
+  bool _headerIsSolid = false;
+  final GlobalKey _homeHeroKey = GlobalKey();
   late final ScrollController _homeScrollController;
   static const String _bannerColorCacheKey =
       'altakhfid_home_banner_header_colors_v1';
@@ -321,11 +334,25 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   void _handleHomeScroll() {
     if (!_homeScrollController.hasClients || !mounted) return;
     final position = _homeScrollController.position;
-    final extent = (position.minScrollExtent - position.pixels)
+    final pullExtent = (position.minScrollExtent - position.pixels)
         .clamp(0.0, 220.0)
         .toDouble();
-    if ((extent - _pullExtent).abs() > .5) {
-      setState(() => _pullExtent = extent);
+
+    bool headerIsSolid = _headerIsSolid;
+    final heroContext = _homeHeroKey.currentContext;
+    final heroBox = heroContext?.findRenderObject();
+    if (heroBox is RenderBox && heroBox.hasSize) {
+      final top = heroBox.localToGlobal(Offset.zero).dy;
+      final bottom = top + heroBox.size.height;
+      headerIsSolid = bottom <= 0;
+    }
+
+    if ((pullExtent - _pullExtent).abs() > .5 ||
+        headerIsSolid != _headerIsSolid) {
+      setState(() {
+        _pullExtent = pullExtent;
+        _headerIsSolid = headerIsSolid;
+      });
     }
   }
 
@@ -345,6 +372,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         loading = true;
         _homeScope = null;
         _activeBannerIndex = 0;
+        _headerIsSolid = false;
       });
     }
     try {
@@ -562,6 +590,10 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       Colors.white,
     );
     final pullGradientHeight = _pullExtent.clamp(0.0, 220.0).toDouble();
+    final effectiveCategoryTextColor =
+        _headerIsSolid ? Colors.black : categoryTextColor;
+    final effectiveCategoryActiveColor =
+        _headerIsSolid ? Colors.black : categoryActiveColor;
     final categoryDisplay = _categoryDisplaySettings();
     final couponStrip = _couponDisplaySettings();
     final coupons = _homeCoupons();
@@ -639,6 +671,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
           slivers: [
             SliverToBoxAdapter(
               child: _HomeHero(
+                key: _homeHeroKey,
                 banners: banners,
                 onBannerChanged: (index) {
                   if (!mounted) return;
@@ -728,8 +761,9 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
           _HomeFixedHeader(
             roots: roots,
             selected: selected,
-            categoryTextColor: categoryTextColor,
-            categoryActiveColor: categoryActiveColor,
+            solidBackground: _headerIsSolid,
+            categoryTextColor: effectiveCategoryTextColor,
+            categoryActiveColor: effectiveCategoryActiveColor,
             onSelected: (id) async {
               if (selected == id) return;
               setState(() => selected = id);
@@ -757,6 +791,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
 class _HomeFixedHeader extends StatelessWidget {
   final List<CategoryModel> roots;
   final int selected;
+  final bool solidBackground;
   final Color categoryTextColor;
   final Color categoryActiveColor;
   final ValueChanged<int> onSelected;
@@ -765,6 +800,7 @@ class _HomeFixedHeader extends StatelessWidget {
   const _HomeFixedHeader({
     required this.roots,
     required this.selected,
+    required this.solidBackground,
     required this.categoryTextColor,
     required this.categoryActiveColor,
     required this.onSelected,
@@ -786,7 +822,11 @@ class _HomeFixedHeader extends StatelessWidget {
       right: 0,
       child: IgnorePointer(
         ignoring: false,
-        child: Column(
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          color: solidBackground ? Colors.white : Colors.transparent,
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             SizedBox(height: topInset),
@@ -812,7 +852,12 @@ class _HomeFixedHeader extends StatelessWidget {
                       Expanded(
                         child: GestureDetector(
                           onTap: onSearch,
-                          child: const SxSearchBar(),
+                          child: SxSearchBar(
+                            borderColor: solidBackground
+                                ? const Color(0xFF111111)
+                                : const Color(0xFFD5D5D5),
+                            backgroundColor: Colors.white,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 7),
@@ -879,6 +924,7 @@ class _HomeFixedHeader extends StatelessWidget {
               ),
             ),
           ],
+          ),
         ),
       ),
     );
