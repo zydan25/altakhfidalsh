@@ -270,7 +270,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         loading = true;
         _homeScope = null;
         _activeBannerIndex = 0;
-        _pullExtent = 0;
       });
     }
     try {
@@ -512,7 +511,36 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               ),
             ),
           ),
-          RefreshIndicator(
+          NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification.metrics.axis != Axis.vertical) return false;
+              if (notification is OverscrollNotification &&
+                  notification.metrics.pixels <=
+                      notification.metrics.minScrollExtent) {
+                final extent = (_pullExtent - notification.overscroll)
+                    .clamp(0.0, 220.0)
+                    .toDouble();
+                if ((extent - _pullExtent).abs() > .5 && mounted) {
+                  setState(() => _pullExtent = extent);
+                }
+              } else if (notification is ScrollUpdateNotification &&
+                  notification.metrics.pixels <=
+                      notification.metrics.minScrollExtent &&
+                  (notification.scrollDelta ?? 0) < 0) {
+                final extent = (_pullExtent - (notification.scrollDelta ?? 0))
+                    .clamp(0.0, 220.0)
+                    .toDouble();
+                if ((extent - _pullExtent).abs() > .5 && mounted) {
+                  setState(() => _pullExtent = extent);
+                }
+              } else if (notification is ScrollEndNotification &&
+                  _pullExtent > 0 &&
+                  mounted) {
+                // The controller will keep this in sync while the bounce settles.
+              }
+              return false;
+            },
+            child: RefreshIndicator(
               onRefresh: load,
               color: headerTopColor,
               backgroundColor: Colors.white,
@@ -608,6 +636,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                 ),
               ),
           ],
+                ),
               ),
             ),
           ),
