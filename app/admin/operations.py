@@ -454,7 +454,7 @@ def register_operation_routes(admin_bp):
                         "overlay_background_color": color(request.form.get("overlay_background_color"), "#111827"),
                         "header_top_background_color": color(
                             request.form.get("header_top_background_color"),
-                            "#111827",
+                            "#ffffff",
                         ),
                         "header_category_text_color": color(
                             request.form.get("header_category_text_color"),
