@@ -432,34 +432,13 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         coupons.isNotEmpty;
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Column(
+      body: Stack(
+        fit: StackFit.expand,
         children: [
-          _HomeFixedHeader(
-            roots: roots,
-            selected: selected,
-            onSelected: (id) async {
-              if (selected == id) return;
-              setState(() => selected = id);
-              await load();
-            },
-            onSearch: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SxSearchScreen()),
-            ),
-            onWishlist: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SxWishlistScreen()),
-            ),
-            onNotifications: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SxNotificationsScreen()),
-            ),
-          ),
-          Expanded(
-            child: RefreshIndicator(
-              onRefresh: load,
-              color: Colors.black,
-              child: CustomScrollView(
+          RefreshIndicator(
+            onRefresh: load,
+            color: Colors.black,
+            child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           slivers: [
             SliverToBoxAdapter(
@@ -539,7 +518,27 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                 ),
               ),
           ],
-              ),
+            ),
+          ),
+          _HomeFixedHeader(
+            roots: roots,
+            selected: selected,
+            onSelected: (id) async {
+              if (selected == id) return;
+              setState(() => selected = id);
+              await load();
+            },
+            onSearch: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SxSearchScreen()),
+            ),
+            onWishlist: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SxWishlistScreen()),
+            ),
+            onNotifications: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SxNotificationsScreen()),
             ),
           ),
         ],
@@ -570,95 +569,104 @@ class _HomeFixedHeader extends StatelessWidget {
       ...roots,
     ];
     final topInset = MediaQuery.of(context).padding.top;
-
-    return Material(
-      color: Colors.white,
-      elevation: 0,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(height: topInset),
-          SizedBox(
-            height: 48,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 2, 10, 3),
-              child: Directionality(
-                textDirection: TextDirection.rtl,
-                child: Row(
-                  children: [
-                    SxCircleIcon(
-                      icon: Icons.calendar_today_outlined,
-                      onTap: onNotifications,
-                      dot: true,
-                    ),
-                    const SizedBox(width: 2),
-                    SxCircleIcon(
-                      icon: Icons.mail_outline,
-                      onTap: onNotifications,
-                    ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: onSearch,
-                        child: const SxSearchBar(),
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: IgnorePointer(
+        ignoring: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(height: topInset),
+            SizedBox(
+              height: 48,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 2, 10, 3),
+                child: Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: Row(
+                    children: [
+                      SxCircleIcon(
+                        icon: Icons.calendar_today_outlined,
+                        onTap: onNotifications,
+                        dot: true,
                       ),
-                    ),
-                    const SizedBox(width: 7),
-                    SxCircleIcon(
-                      icon: Icons.favorite_border,
-                      onTap: onWishlist,
-                    ),
-                  ],
+                      const SizedBox(width: 2),
+                      SxCircleIcon(
+                        icon: Icons.mail_outline,
+                        onTap: onNotifications,
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: onSearch,
+                          child: const SxSearchBar(),
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      SxCircleIcon(
+                        icon: Icons.favorite_border,
+                        onTap: onWishlist,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-          SizedBox(
-            height: 42,
-            child: Directionality(
-              textDirection: TextDirection.rtl,
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 7),
-                children: tabs.map((t) {
-                  final active = selected == t.id;
-                  return InkWell(
-                    onTap: () => onSelected(t.id),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 11),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            t.name,
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 13,
-                              fontWeight: active
-                                  ? FontWeight.w900
-                                  : FontWeight.w700,
+            SizedBox(
+              height: 42,
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  children: tabs.map((t) {
+                    final active = selected == t.id;
+                    return InkWell(
+                      onTap: () => onSelected(t.id),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 11),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Text(
+                              t.name,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: active
+                                    ? FontWeight.w900
+                                    : FontWeight.w700,
+                                shadows: const [
+                                  Shadow(
+                                    blurRadius: 2,
+                                    offset: Offset(0, 1),
+                                    color: Colors.black26,
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 5),
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            width: active ? 35 : 0,
-                            height: 3,
-                            decoration: BoxDecoration(
-                              color: Colors.black,
-                              borderRadius: BorderRadius.circular(10),
+                            const SizedBox(height: 5),
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              width: active ? 35 : 0,
+                              height: 3,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                }).toList(),
+                    );
+                  }).toList(),
+                ),
               ),
             ),
-          ),
-          const Divider(height: 1, thickness: .7, color: ClientTheme.border),
-        ],
+          ],
+        ),
       ),
     );
   }
