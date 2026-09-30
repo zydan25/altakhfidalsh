@@ -157,15 +157,27 @@ class SxSearchBar extends StatelessWidget {
       readOnly: onTap != null && controller == null,
       onTap: onTap,
       onChanged: onChanged,
+      style: const TextStyle(color: Colors.black, fontSize: 13),
       decoration: InputDecoration(
         hintText: hint,
-        prefixIcon: const Icon(Icons.search, size: 22),
-        suffixIcon: const Icon(Icons.camera_alt_outlined, size: 19),
+        hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
+        prefixIcon: const Icon(Icons.search, size: 22, color: Colors.black),
+        suffixIcon: const Icon(Icons.camera_alt_outlined, size: 19, color: Colors.black),
         contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-        filled: true, fillColor: backgroundColor,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide(color: borderColor, width: .8)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide(color: borderColor, width: .8)),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(7), borderSide: BorderSide(color: borderColor, width: 1.1)),
+        filled: true,
+        fillColor: backgroundColor,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(7),
+          borderSide: BorderSide(color: borderColor, width: .8),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(7),
+          borderSide: BorderSide(color: borderColor, width: .8),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(7),
+          borderSide: BorderSide(color: borderColor, width: 1.1),
+        ),
       ),
     ),
   );
@@ -214,16 +226,45 @@ class SxCircleIcon extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final bool dot;
-  const SxCircleIcon({super.key, required this.icon, this.onTap, this.dot = false});
-  @override Widget build(BuildContext context) => InkWell(
+  final Color iconColor;
+  final Color backgroundColor;
+
+  const SxCircleIcon({
+    super.key,
+    required this.icon,
+    this.onTap,
+    this.dot = false,
+    this.iconColor = Colors.black,
+    this.backgroundColor = Colors.transparent,
+  });
+
+  @override
+  Widget build(BuildContext context) => InkWell(
     onTap: onTap,
+    borderRadius: BorderRadius.circular(20),
     child: Container(
-      width: 40, height: 40,
+      width: 40,
+      height: 40,
       margin: const EdgeInsets.all(1),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(.91), shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        shape: BoxShape.circle,
+      ),
       child: Stack(children: [
-        Center(child: Icon(icon, size: 20)),
-        if (dot) Positioned(right: 5, top: 6, child: Container(width: 7, height: 7, decoration: const BoxDecoration(color: ClientTheme.promo, shape: BoxShape.circle))),
+        Center(child: Icon(icon, size: 20, color: iconColor)),
+        if (dot)
+          Positioned(
+            right: 5,
+            top: 6,
+            child: Container(
+              width: 7,
+              height: 7,
+              decoration: const BoxDecoration(
+                color: ClientTheme.promo,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
       ]),
     ),
   );
@@ -338,14 +379,8 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         .clamp(0.0, 220.0)
         .toDouble();
 
-    bool headerIsSolid = _headerIsSolid;
-    final heroContext = _homeHeroKey.currentContext;
-    final heroBox = heroContext?.findRenderObject();
-    if (heroBox is RenderBox && heroBox.hasSize) {
-      final top = heroBox.localToGlobal(Offset.zero).dy;
-      final bottom = top + heroBox.size.height;
-      headerIsSolid = bottom <= 0;
-    }
+    final headerIsSolid =
+        position.pixels > position.minScrollExtent + 0.5;
 
     if ((pullExtent - _pullExtent).abs() > .5 ||
         headerIsSolid != _headerIsSolid) {
@@ -823,7 +858,7 @@ class _HomeFixedHeader extends StatelessWidget {
       child: IgnorePointer(
         ignoring: false,
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+          duration: const Duration(milliseconds: 120),
           curve: Curves.easeOut,
           color: solidBackground ? Colors.white : Colors.transparent,
           child: Column(
@@ -855,8 +890,9 @@ class _HomeFixedHeader extends StatelessWidget {
                           child: SxSearchBar(
                             borderColor: solidBackground
                                 ? const Color(0xFF111111)
-                                : const Color(0xFFD5D5D5),
-                            backgroundColor: Colors.white,
+                                : Colors.transparent,
+                            backgroundColor:
+                                solidBackground ? Colors.white : Colors.transparent,
                           ),
                         ),
                       ),
