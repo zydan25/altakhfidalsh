@@ -936,6 +936,7 @@ class _HomeHero extends StatefulWidget {
   final ValueChanged<int>? onBannerChanged;
 
   const _HomeHero({
+    super.key,
     required this.banners,
     this.onBannerChanged,
   });
