@@ -322,7 +322,7 @@
             ('border_color','لون الإطار','#B7D9A6')
           ] %}
           <label>{{ label }}
-            <div class="color-line"><input type="color" name="{{ field }}" value="{{ default }}"><span class="color-label">اختيار بصري</span></div>
+            <div class="color-line"><input type="color" name="{{ field }}" value="{{ default }}"><input type="text" class="hex-code" name="{{ field }}_hex" value="{{ default }}" data-color-name="{{ field }}" maxlength="7" inputmode="text" dir="ltr" placeholder="#RRGGBB"><span class="color-label">اختيار بصري</span></div>
             <div class="swatch-toolbar">
               <button type="button" class="swatch-btn" style="background:#E2EFDA" title="أخضر فاتح" onclick="setColor(this,'#E2EFDA')"></button>
               <button type="button" class="swatch-btn" style="background:#FFF4E8" title="خوخي فاتح" onclick="setColor(this,'#FFF4E8')"></button>
