@@ -347,7 +347,8 @@ def home():
             ],
         }
 
-    banner_payload = banners().get("items", [])
+    root_category_id = request.args.get("root_category_id", type=int)
+    banner_payload = banners(root_category_id=root_category_id).get("items", [])
     look_payload = looks().get("items", [])
     return {
         "page": page_payload,
@@ -361,7 +362,7 @@ def home():
     }
 
 @api_bp.get("/banners")
-def banners():
+def banners(root_category_id=None):
     now = datetime.now(timezone.utc)
     rows = (
         Banner.query
@@ -370,6 +371,13 @@ def banners():
             Banner.status == "active",
             or_(Banner.starts_at.is_(None), Banner.starts_at <= now),
             or_(Banner.ends_at.is_(None), Banner.ends_at >= now),
+            (
+                Banner.root_category_id.is_(None)
+                if root_category_id == -1
+                else Banner.root_category_id == root_category_id
+            )
+            if root_category_id is not None
+            else True,
         )
         .order_by(Banner.sort_order, Banner.id.desc())
         .all()
@@ -487,6 +495,8 @@ def looks():
             "card_spacing": look.card_spacing,
             "caption_background_color": look.caption_background_color,
             "caption_text_color": look.caption_text_color,
+            "caption_height": look.caption_height,
+            "caption_font_size": look.caption_font_size,
             "cover_url": asset_urls.get(look.cover_asset_id),
             "starts_at": look.starts_at.isoformat() if look.starts_at else None,
             "ends_at": look.ends_at.isoformat() if look.ends_at else None,
