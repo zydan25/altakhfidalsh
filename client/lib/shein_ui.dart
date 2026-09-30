@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'app_state.dart';
@@ -235,12 +237,85 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   int _activeBannerIndex = 0;
   double _pullExtent = 0;
   late final ScrollController _homeScrollController;
+  static const String _bannerColorCacheKey =
+      'altakhfid_home_banner_header_colors_v1';
+  Map<int, List<Map<String, dynamic>>> _cachedBannerColors = {};
 
   @override
   void initState() {
     super.initState();
     _homeScrollController = ScrollController()..addListener(_handleHomeScroll);
+    unawaited(_loadCachedBannerColors());
     load();
+  }
+
+  Future<void> _loadCachedBannerColors() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_bannerColorCacheKey);
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return;
+
+      final next = <int, List<Map<String, dynamic>>>{};
+      for (final entry in decoded.entries) {
+        final scope = int.tryParse(entry.key.toString());
+        if (scope == null || entry.value is! List) continue;
+        final colors = (entry.value as List)
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
+        if (colors.isNotEmpty) {
+          next[scope] = colors;
+        }
+      }
+      if (!mounted) {
+        _cachedBannerColors = next;
+        return;
+      }
+      setState(() => _cachedBannerColors = next);
+    } catch (_) {
+      // Local cache is optional; network data remains the source of truth.
+    }
+  }
+
+  List<Map<String, dynamic>> _cachedColorsForScope([int? scope]) {
+    return _cachedBannerColors[scope ?? selected] ?? const [];
+  }
+
+  Future<void> _saveBannerColorCache(
+    int scope,
+    List<Map<String, dynamic>> banners,
+  ) async {
+    final colors = banners.map((banner) {
+      return <String, dynamic>{
+        'id': sxInt(banner['id']),
+        'root_category_id': banner['root_category_id'],
+        'header_top_background_color':
+            sxText(banner['header_top_background_color']),
+        'header_category_text_color':
+            sxText(banner['header_category_text_color']),
+        'header_category_active_color':
+            sxText(banner['header_category_active_color']),
+      };
+    }).where((item) =>
+        sxText(item['header_top_background_color']).isNotEmpty ||
+        sxText(item['header_category_text_color']).isNotEmpty ||
+        sxText(item['header_category_active_color']).isNotEmpty).toList();
+
+    if (colors.isEmpty) return;
+    final next = <int, List<Map<String, dynamic>>>{
+      ..._cachedBannerColors,
+      scope: colors,
+    };
+    _cachedBannerColors = next;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encoded = jsonEncode(
+        next.map((key, value) => MapEntry(key.toString(), value)),
+      );
+      await prefs.setString(_bannerColorCacheKey, encoded);
+    } catch (_) {}
   }
 
   void _handleHomeScroll() {
@@ -276,6 +351,10 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       final h = await api.home(
         rootCategoryId: requestedScope < 0 ? -1 : requestedScope,
       );
+      unawaited(_saveBannerColorCache(
+        requestedScope,
+        sxMaps(h['banners']),
+      ));
       final nextLooks = sxMaps(h['looks']);
       final nextAllCategories =
           sxMaps(h['categories']).map(CategoryModel.fromJson).toList();
@@ -461,9 +540,15 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
     final safeBannerIndex = banners.isEmpty
         ? 0
         : _activeBannerIndex.clamp(0, banners.length - 1).toInt();
-    final activeBanner = banners.isEmpty
-        ? const <String, dynamic>{}
-        : banners[safeBannerIndex];
+    final cachedBanners = _cachedColorsForScope();
+    final cachedBannerIndex = cachedBanners.isEmpty
+        ? 0
+        : _activeBannerIndex.clamp(0, cachedBanners.length - 1).toInt();
+    final activeBanner = banners.isNotEmpty
+        ? banners[safeBannerIndex]
+        : cachedBanners.isNotEmpty
+            ? cachedBanners[cachedBannerIndex]
+            : const <String, dynamic>{};
     final headerTopColor = sxColor(
       activeBanner['header_top_background_color'],
       const Color(0xFF111827),
