@@ -224,22 +224,33 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   int selected = -1;
   int discoveryTab = 2;
   bool loading = true;
+  int? _homeScope;
+  int _loadSerial = 0;
+
   @override void initState() { super.initState(); load(); }
+
   Future<void> load() async {
-    if (mounted) setState(() => loading = true);
+    final int requestSerial = ++_loadSerial;
+    final int requestedScope = selected;
+    if (mounted) {
+      setState(() {
+        loading = true;
+        _homeScope = null;
+      });
+    }
     try {
       final h = await api.home(
-        rootCategoryId: selected < 0 ? -1 : selected,
+        rootCategoryId: requestedScope < 0 ? -1 : requestedScope,
       );
-      home = h;
-      looks = sxMaps(h['looks']);
-      allCategories = sxMaps(h['categories']).map(CategoryModel.fromJson).toList();
-      roots = allCategories.where((x) => x.parentId == null).toList()
+      final nextLooks = sxMaps(h['looks']);
+      final nextAllCategories =
+          sxMaps(h['categories']).map(CategoryModel.fromJson).toList();
+      final nextRoots = nextAllCategories.where((x) => x.parentId == null).toList()
         ..sort((a, b) => a.sortOrder == b.sortOrder
             ? a.id.compareTo(b.id)
             : a.sortOrder.compareTo(b.sortOrder));
-      products = await api.feed(
-        category: selected < 0 ? null : selected,
+      final nextProducts = await api.feed(
+        category: requestedScope < 0 ? null : requestedScope,
         sort: discoveryTab == 1 ? 'newest' : 'recommended',
         currencyId: state.currencyId,
       );
@@ -247,10 +258,25 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         final c = await api.cart(currencyId: state.currencyId);
         _CartBadge.value.value = sxMaps(c['item']?['items']).length;
       } catch (_) {}
+
+      if (!mounted || requestSerial != _loadSerial || requestedScope != selected) {
+        return;
+      }
+      setState(() {
+        home = h;
+        looks = nextLooks;
+        allCategories = nextAllCategories;
+        roots = nextRoots;
+        products = nextProducts;
+        _homeScope = requestedScope;
+        loading = false;
+      });
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e))));
+      if (!mounted || requestSerial != _loadSerial) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(sxText(e))));
+      setState(() => loading = false);
     }
-    if (mounted) setState(() => loading = false);
   }
   Map<String, dynamic> _categoryDisplaySettings() {
     final payload = home['category_display'];
@@ -352,7 +378,9 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   }
 
   List<Map<String, dynamic>> _homeBanners() {
-    final banners = _homeBanners();
+    if (_homeScope != selected) return const [];
+
+    final banners = sxMaps(home['banners']);
     return banners.where((banner) {
       final rawRoot = banner['root_category_id'];
       final bannerRoot = rawRoot == null ? null : sxInt(rawRoot);
@@ -395,7 +423,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   }
 
   @override Widget build(BuildContext context) {
-    final banners = sxMaps(home['banners']);
+    final banners = _homeBanners();
     final categoryDisplay = _categoryDisplaySettings();
     final couponStrip = _couponDisplaySettings();
     final coupons = _homeCoupons();
