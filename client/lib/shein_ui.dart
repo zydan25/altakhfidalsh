@@ -234,8 +234,33 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   int _loadSerial = 0;
   int _activeBannerIndex = 0;
   double _pullExtent = 0;
+  late final ScrollController _homeScrollController;
 
-  @override void initState() { super.initState(); load(); }
+  @override
+  void initState() {
+    super.initState();
+    _homeScrollController = ScrollController()..addListener(_handleHomeScroll);
+    load();
+  }
+
+  void _handleHomeScroll() {
+    if (!_homeScrollController.hasClients || !mounted) return;
+    final position = _homeScrollController.position;
+    final extent = (position.minScrollExtent - position.pixels)
+        .clamp(0.0, 220.0)
+        .toDouble();
+    if ((extent - _pullExtent).abs() > .5) {
+      setState(() => _pullExtent = extent);
+    }
+  }
+
+  @override
+  void dispose() {
+    _homeScrollController
+      ..removeListener(_handleHomeScroll)
+      ..dispose();
+    super.dispose();
+  }
 
   Future<void> load() async {
     final int requestSerial = ++_loadSerial;
@@ -487,39 +512,17 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               ),
             ),
           ),
-          NotificationListener<ScrollNotification>(
-            onNotification: (notification) {
-              if (notification.metrics.axis != Axis.vertical) return false;
-
-              if (notification is OverscrollNotification &&
-                  notification.metrics.pixels <=
-                      notification.metrics.minScrollExtent) {
-                final extent =
-                    (_pullExtent - notification.overscroll).clamp(0.0, 220.0);
-                if ((extent - _pullExtent).abs() > .5 && mounted) {
-                  setState(() => _pullExtent = extent);
-                }
-              } else if (notification is ScrollEndNotification) {
-                if (_pullExtent > 0 && mounted) {
-                  setState(() => _pullExtent = 0);
-                }
-              } else if (notification is ScrollUpdateNotification &&
-                  notification.metrics.pixels >
-                      notification.metrics.minScrollExtent &&
-                  _pullExtent > 0 &&
-                  mounted) {
-                setState(() => _pullExtent = 0);
-              }
-              return false;
-            },
-            child: RefreshIndicator(
+          RefreshIndicator(
               onRefresh: load,
               color: headerTopColor,
               backgroundColor: Colors.white,
               child: Transform.translate(
                 offset: Offset(0, pullGradientHeight),
                 child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                  controller: _homeScrollController,
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
           slivers: [
             SliverToBoxAdapter(
               child: _HomeHero(
@@ -605,7 +608,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                 ),
               ),
           ],
-                ),
               ),
             ),
           ),
