@@ -37,10 +37,17 @@ class ApiService {
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>CategoryModel.fromJson(Map<String,dynamic>.from(e))).toList();
   }
   Future<Map<String,dynamic>> home({int? rootCategoryId}) async {
-    final q = <String,String>{};
-    if (rootCategoryId != null) q['root_category_id'] = rootCategoryId.toString();
+    final q = <String,String>{
+      // The storefront home payload is scope-sensitive. A cache-buster is
+      // required on web so a previous /home response cannot be reused after
+      // switching between root categories.
+      '_home_ts': DateTime.now().millisecondsSinceEpoch.toString(),
+    };
+    if (rootCategoryId != null) {
+      q['root_category_id'] = rootCategoryId.toString();
+    }
     return Map<String,dynamic>.from(
-      await get('/storefront/home', q: q.isEmpty ? null : q),
+      await get('/storefront/home', q: q),
     );
   }
   Future<List<Map<String,dynamic>>> sideCategories({int? rootId})async{
