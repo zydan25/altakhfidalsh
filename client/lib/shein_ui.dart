@@ -228,7 +228,9 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   Future<void> load() async {
     if (mounted) setState(() => loading = true);
     try {
-      final h = await api.home();
+      final h = await api.home(
+        rootCategoryId: selected < 0 ? -1 : selected,
+      );
       home = h;
       looks = sxMaps(h['looks']);
       allCategories = sxMaps(h['categories']).map(CategoryModel.fromJson).toList();
@@ -1448,6 +1450,14 @@ class SxHomeLookCarousel extends StatelessWidget {
               look['caption_text_color'],
               Colors.white,
             );
+            final captionHeight = sxDouble(
+              look['caption_height'],
+              28,
+            ).clamp(12.0, 120.0).toDouble();
+            final captionFontSize = sxDouble(
+              look['caption_font_size'],
+              12,
+            ).clamp(6.0, 40.0).toDouble();
             return InkWell(
               onTap: () => onTap(look),
               borderRadius: BorderRadius.circular(clipRadius),
@@ -1464,10 +1474,9 @@ class SxHomeLookCarousel extends StatelessWidget {
                         alignment: Alignment.bottomCenter,
                         child: Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 8,
-                          ),
+                          height: captionHeight,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          alignment: Alignment.center,
                           color: captionBg,
                           child: Text(
                             sxText(look['name'], 'إطلالة'),
@@ -1476,8 +1485,9 @@ class SxHomeLookCarousel extends StatelessWidget {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: captionText,
-                              fontSize: 12,
+                              fontSize: captionFontSize,
                               fontWeight: FontWeight.w900,
+                              height: 1.05,
                             ),
                           ),
                         ),
