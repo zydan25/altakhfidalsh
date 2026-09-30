@@ -720,6 +720,8 @@ def register_operation_routes(admin_bp):
                     look.card_spacing = max(0, min(30, request.form.get("card_spacing", 8, type=int)))
                     look.caption_background_color = request.form.get("caption_background_color") or "#000000"
                     look.caption_text_color = request.form.get("caption_text_color") or "#ffffff"
+                    look.caption_height = max(12, min(120, request.form.get("caption_height", 28, type=int)))
+                    look.caption_font_size = max(6, min(40, request.form.get("caption_font_size", 12, type=int)))
                     look.sort_order = request.form.get("sort_order", 0, type=int) or 0
                     from datetime import datetime, timezone
                     def parse_look_dt(value):
