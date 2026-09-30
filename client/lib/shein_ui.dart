@@ -351,6 +351,17 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       });
   }
 
+  List<Map<String, dynamic>> _homeBanners() {
+    final banners = _homeBanners();
+    return banners.where((banner) {
+      final rawRoot = banner['root_category_id'];
+      final bannerRoot = rawRoot == null ? null : sxInt(rawRoot);
+      return selected < 0
+          ? bannerRoot == null
+          : bannerRoot == selected;
+    }).toList();
+  }
+
   void _openHomeLook(BuildContext context, Map<String, dynamic> look) {
     final targets = sxMaps(look['targets']);
     if (targets.isNotEmpty) {
