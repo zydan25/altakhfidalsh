@@ -431,7 +431,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       'enabled': true,
       'auto_flip': true,
       'flip_seconds': 4,
-      'cards_per_slide': 2,
+      'cards_per_slide': 1,
       'card_height': 64,
       'card_radius': 14,
       'card_spacing': 8,
@@ -1329,7 +1329,7 @@ class _SxCouponStripState extends State<SxCouponStrip> {
   int _page = 0;
 
   int get _perSlide {
-    final value = sxInt(widget.settings['cards_per_slide'], 2);
+    final value = sxInt(widget.settings['cards_per_slide'], 1);
     return value == 2 ? 2 : 1;
   }
 
@@ -1344,8 +1344,7 @@ class _SxCouponStripState extends State<SxCouponStrip> {
   int _secondsForPage(int index) {
     if (_pages.isEmpty) return 4;
     final pageIndex = index.clamp(0, _pages.length - 1).toInt();
-    final page = _pages[pageIndex];
-    for (final card in page) {
+    for (final card in _pages[pageIndex]) {
       final custom = sxInt(card['duration']);
       if (custom > 0) return custom.clamp(1, 120).toInt();
     }
@@ -1364,9 +1363,11 @@ class _SxCouponStripState extends State<SxCouponStrip> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.coupons.length != widget.coupons.length ||
         oldWidget.settings['flip_seconds'] != widget.settings['flip_seconds'] ||
-        oldWidget.settings['cards_per_slide'] != widget.settings['cards_per_slide'] ||
+        oldWidget.settings['cards_per_slide'] !=
+            widget.settings['cards_per_slide'] ||
         oldWidget.settings['card_height'] != widget.settings['card_height']) {
       _page = 0;
+      _controller?.jumpToPage(0);
       _schedule();
     }
   }
@@ -1380,14 +1381,19 @@ class _SxCouponStripState extends State<SxCouponStrip> {
 
   void _schedule() {
     _timer?.cancel();
-    if (!mounted || widget.settings['auto_flip'] != true || _pages.length <= 1) return;
+    if (!mounted ||
+        widget.settings['auto_flip'] != true ||
+        _pages.length <= 1 ||
+        _controller == null) {
+      return;
+    }
     final seconds = _secondsForPage(_page);
     _timer = Timer(Duration(seconds: seconds), () {
       if (!mounted || _controller == null || !_controller!.hasClients) return;
       final next = (_page + 1) % _pages.length;
       _controller!.animateToPage(
         next,
-        duration: const Duration(milliseconds: 350),
+        duration: const Duration(milliseconds: 420),
         curve: Curves.easeOutCubic,
       );
     });
@@ -1402,7 +1408,9 @@ class _SxCouponStripState extends State<SxCouponStrip> {
   Color _color(dynamic value, Color fallback) {
     final raw = sxText(value);
     if (!RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(raw)) return fallback;
-    return Color(int.tryParse('FF' + raw.substring(1), radix: 16) ?? fallback.value);
+    return Color(
+      int.tryParse('FF' + raw.substring(1), radix: 16) ?? fallback.value,
+    );
   }
 
   IconData _icon(String type) {
@@ -1419,13 +1427,24 @@ class _SxCouponStripState extends State<SxCouponStrip> {
         return Icons.verified_user_outlined;
       case 'zap':
         return Icons.bolt_outlined;
+      case 'shopping_bag':
+        return Icons.shopping_bag_outlined;
+      case 'delivery':
+        return Icons.delivery_dining_outlined;
+      case 'redeem':
+        return Icons.redeem_outlined;
+      case 'favorite':
+        return Icons.favorite_border;
       case 'percent':
       default:
         return Icons.percent_outlined;
     }
   }
 
-  Future<void> _openCoupon(BuildContext context, Map<String, dynamic> coupon) async {
+  Future<void> _openCoupon(
+    BuildContext context,
+    Map<String, dynamic> coupon,
+  ) async {
     final type = sxText(coupon['display_type'], 'code');
     if (type == 'code') {
       final code = sxText(coupon['code']);
@@ -1454,20 +1473,38 @@ class _SxCouponStripState extends State<SxCouponStrip> {
     }
     final targetType = sxText(target['type']);
     final id = sxInt(target['id']);
-    if ((targetType == 'category' || targetType == 'product' || targetType == 'hashtag') && id <= 0) return;
+    if ((targetType == 'category' ||
+            targetType == 'product' ||
+            targetType == 'hashtag') &&
+        id <= 0) {
+      return;
+    }
 
     if (targetType == 'product') {
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(id: id)));
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => SxProductScreen(id: id)),
+      );
     } else if (targetType == 'category') {
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => SxResults(
-        title: sxText(target['name'], 'العروض'),
-        categoryId: id,
-      )));
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SxResults(
+            title: sxText(target['name'], 'العروض'),
+            categoryId: id,
+          ),
+        ),
+      );
     } else if (targetType == 'hashtag') {
-      await Navigator.push(context, MaterialPageRoute(builder: (_) => SxResults(
-        title: sxText(target['name'], 'العروض'),
-        hashtagId: id,
-      )));
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SxResults(
+            title: sxText(target['name'], 'العروض'),
+            hashtagId: id,
+          ),
+        ),
+      );
     } else if (targetType == 'url') {
       final uri = Uri.tryParse(sxText(target['url']));
       if (uri != null && await canLaunchUrl(uri)) {
@@ -1480,131 +1517,272 @@ class _SxCouponStripState extends State<SxCouponStrip> {
     }
   }
 
-  Widget _card(BuildContext context, Map<String, dynamic> coupon, double width, double height) {
+  Widget _cell(
+    BuildContext context,
+    Map<String, dynamic> coupon,
+    double height,
+  ) {
     final bg = _color(coupon['background_color'], Colors.white);
     final text = _color(coupon['text_color'], Colors.black87);
-    final badgeBg = _color(coupon['badge_background_color'], Colors.black);
+    final badgeBg =
+        _color(coupon['badge_background_color'], Colors.black);
     final badgeText = _color(coupon['badge_text_color'], Colors.white);
-    final borderRaw = sxText(coupon['border_color']);
-    final border = borderRaw.isEmpty ? bg : _color(borderRaw, bg);
+    final radius =
+        sxDouble(widget.settings['card_radius'], 14).clamp(0.0, 100.0).toDouble();
     final compact = height <= 66;
-    final iconSize = compact ? 30.0 : 38.0;
-    final iconGlyph = compact ? 16.0 : 19.0;
-    final innerHorizontal = compact ? 7.0 : 10.0;
-    final innerVertical = compact ? 5.0 : 8.0;
-    final radius = sxDouble(widget.settings['card_radius'], 14).clamp(0.0, 100.0).toDouble();
-    final titleSize = sxDouble(widget.settings['title_font_size'], compact ? 13 : 16).clamp(8.0, 32.0).toDouble();
-    final subtitleSize = sxDouble(widget.settings['subtitle_font_size'], compact ? 9 : 11).clamp(7.0, 24.0).toDouble();
-    final badgeSize = sxDouble(widget.settings['badge_font_size'], compact ? 8 : 10).clamp(7.0, 22.0).toDouble();
+    final iconSize = compact ? 25.0 : 32.0;
     final badge = sxText(
       coupon['badge_text'],
-      sxText(coupon['display_type']) == 'code' ? sxText(coupon['code']) : 'عرض',
+      sxText(coupon['display_type']) == 'code' ? sxText(coupon['code']) : '',
     );
     final actionIcon = sxText(coupon['display_type']) == 'code'
         ? Icons.content_copy_outlined
         : Icons.arrow_back_ios_new;
-    final showAction = width >= 150;
+    final widthAction = sxText(coupon['display_type']) == 'code';
 
     final title = Text(
       sxText(coupon['headline'], 'عرض خاص'),
       maxLines: compact ? 1 : 2,
       overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.right,
       style: TextStyle(
         color: text,
-        fontSize: titleSize,
+        fontSize: sxDouble(
+          widget.settings['title_font_size'],
+          compact ? 13 : 16,
+        ).clamp(8.0, 32.0).toDouble(),
         height: 1.02,
         fontWeight: FontWeight.w900,
       ),
     );
 
-    final subtitle = sxText(coupon['subtitle']).isEmpty
-        ? const SizedBox.shrink()
+    final subtitleRaw = sxText(coupon['subtitle']);
+    final subtitle = subtitleRaw.isEmpty
+        ? null
         : Text(
-            sxText(coupon['subtitle']),
+            subtitleRaw,
             maxLines: compact ? 1 : 2,
             overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
             style: TextStyle(
-              color: text.withOpacity(.78),
-              fontSize: subtitleSize,
+              color: text.withOpacity(.72),
+              fontSize: sxDouble(
+                widget.settings['subtitle_font_size'],
+                compact ? 9 : 11,
+              ).clamp(7.0, 24.0).toDouble(),
               height: 1.0,
               fontWeight: FontWeight.w600,
             ),
           );
 
-    return SizedBox(
-      width: width,
-      height: height,
-      child: Material(
-        color: bg,
-        borderRadius: BorderRadius.circular(radius),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(radius),
-          onTap: () => _openCoupon(context, coupon),
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: innerHorizontal, vertical: innerVertical),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(radius),
-              border: Border.all(color: border, width: .8),
-            ),
-            child: Row(
-              textDirection: TextDirection.rtl,
-              children: [
-                Container(
-                  width: iconSize,
-                  height: iconSize,
-                  decoration: BoxDecoration(
-                    color: badgeBg,
-                    borderRadius: BorderRadius.circular(radius * .55),
-                  ),
-                  child: Icon(_icon(sxText(coupon['icon_type'])), size: iconGlyph, color: badgeText),
-                ),
-                SizedBox(width: compact ? 6 : 8),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        textDirection: TextDirection.rtl,
-                        children: [
-                          if (badge.isNotEmpty && width >= 135)
-                            Flexible(
-                              child: Container(
-                                margin: const EdgeInsets.only(left: 5),
-                                padding: EdgeInsets.symmetric(horizontal: compact ? 5 : 6, vertical: compact ? 2 : 3),
-                                decoration: BoxDecoration(
-                                  color: badgeBg,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  badge,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: badgeText,
-                                    fontSize: badgeSize,
-                                    fontWeight: FontWeight.w900,
-                                    height: 1.0,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          Expanded(child: title),
-                        ],
+    final badgeFont = sxDouble(
+      widget.settings['badge_font_size'],
+      compact ? 8 : 10,
+    ).clamp(7.0, 22.0).toDouble();
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => _openCoupon(context, coupon),
+        child: Container(
+          height: height,
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 8 : 12,
+            vertical: compact ? 5 : 8,
+          ),
+          decoration: BoxDecoration(
+            color: bg,
+          ),
+          child: Row(
+            textDirection: TextDirection.rtl,
+            children: [
+              Icon(
+                _icon(sxText(coupon['icon_type'])),
+                size: iconSize,
+                color: text,
+              ),
+              SizedBox(width: compact ? 7 : 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (badge.isNotEmpty)
+                      Text(
+                        badge,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: badgeText,
+                          fontSize: badgeFont,
+                          fontWeight: FontWeight.w900,
+                          height: 1.0,
+                        ),
                       ),
-                      if (!compact && subtitle is! SizedBox) const SizedBox(height: 3),
-                      if (compact && subtitle is! SizedBox) const SizedBox(height: 2),
-                      subtitle,
-                    ],
-                  ),
+                    if (badge.isNotEmpty && subtitle != null)
+                      SizedBox(height: compact ? 2 : 3),
+                    title,
+                    if (subtitle != null) SizedBox(height: compact ? 2 : 3),
+                    if (subtitle != null) subtitle,
+                  ],
                 ),
-                if (showAction) ...[
-                  SizedBox(width: compact ? 3 : 6),
-                  Icon(actionIcon, size: compact ? 12 : 15, color: text.withOpacity(.58)),
-                ],
+              ),
+              if (widthAction) ...[
+                SizedBox(width: compact ? 4 : 6),
+                Icon(
+                  actionIcon,
+                  size: compact ? 13 : 15,
+                  color: text.withOpacity(.55),
+                ),
               ],
-            ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _pageView(BuildContext context, List<Map<String, dynamic>> page) {
+    final height =
+        sxDouble(widget.settings['card_height'], 64).clamp(48.0, 300.0).toDouble();
+
+    if (page.length == 1) {
+      final card = page.first;
+      final bg = _color(card['background_color'], Colors.white);
+      final borderRaw = sxText(card['border_color']);
+      final border = borderRaw.isEmpty
+          ? Colors.black.withOpacity(.06)
+          : _color(borderRaw, Colors.black.withOpacity(.06));
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 7),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(
+            sxDouble(widget.settings['card_radius'], 14)
+                .clamp(0.0, 100.0)
+                .toDouble(),
+          ),
+          border: Border.all(color: border, width: .7),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(
+            sxDouble(widget.settings['card_radius'], 14)
+                .clamp(0.0, 100.0)
+                .toDouble(),
+          ),
+          child: _buildSingle(context, page.first, height),
+        ),
+      );
+    }
+
+    final left = page[0];
+    final right = page[1];
+    final dividerColor = _color(
+      right['text_color'],
+      _color(left['text_color'], Colors.black87),
+    ).withOpacity(.18);
+    final radius =
+        sxDouble(widget.settings['card_radius'], 14).clamp(0.0, 100.0).toDouble();
+    final borderRaw = sxText(left['border_color']);
+    final border = borderRaw.isEmpty
+        ? Colors.black.withOpacity(.06)
+        : _color(borderRaw, Colors.black.withOpacity(.06));
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 7),
+      height: height,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: border, width: .7),
+      ),
+      child: Row(
+        textDirection: TextDirection.rtl,
+        children: [
+          _cell(context, right, height),
+          Container(width: 1, margin: const EdgeInsets.symmetric(vertical: 12), color: dividerColor),
+          _cell(context, left, height),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSingle(BuildContext context, Map<String, dynamic> coupon, double height) {
+    final bg = _color(coupon['background_color'], Colors.white);
+    final text = _color(coupon['text_color'], Colors.black87);
+    final badgeText = _color(coupon['badge_text_color'], Colors.white);
+    final badge = sxText(
+      coupon['badge_text'],
+      sxText(coupon['display_type']) == 'code' ? sxText(coupon['code']) : '',
+    );
+    final subtitleRaw = sxText(coupon['subtitle']);
+    final compact = height <= 66;
+    final titleSize = sxDouble(widget.settings['title_font_size'], compact ? 13 : 16)
+        .clamp(8.0, 32.0).toDouble();
+    final subtitleSize = sxDouble(widget.settings['subtitle_font_size'], compact ? 9 : 11)
+        .clamp(7.0, 24.0).toDouble();
+    final badgeSize = sxDouble(widget.settings['badge_font_size'], compact ? 8 : 10)
+        .clamp(7.0, 22.0).toDouble();
+
+    return Material(
+      color: bg,
+      child: InkWell(
+        onTap: () => _openCoupon(context, coupon),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: compact ? 9 : 13, vertical: compact ? 5 : 8),
+          child: Row(
+            textDirection: TextDirection.rtl,
+            children: [
+              Icon(_icon(sxText(coupon['icon_type'])), size: compact ? 26 : 34, color: text),
+              SizedBox(width: compact ? 7 : 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (badge.isNotEmpty)
+                      Text(
+                        badge,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: badgeText,
+                          fontSize: badgeSize,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    Text(
+                      sxText(coupon['headline'], 'عرض خاص'),
+                      maxLines: compact ? 1 : 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: text,
+                        fontSize: titleSize,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (subtitleRaw.isNotEmpty)
+                      Text(
+                        subtitleRaw,
+                        maxLines: compact ? 1 : 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: text.withOpacity(.72),
+                          fontSize: subtitleSize,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Icon(
+                sxText(coupon['display_type']) == 'code'
+                    ? Icons.content_copy_outlined
+                    : Icons.arrow_back_ios_new,
+                size: compact ? 13 : 15,
+                color: text.withOpacity(.5),
+              ),
+            ],
           ),
         ),
       ),
@@ -1615,11 +1793,14 @@ class _SxCouponStripState extends State<SxCouponStrip> {
   Widget build(BuildContext context) {
     if (widget.coupons.isEmpty) return const SizedBox.shrink();
     final pages = _pages;
-    final height = sxDouble(widget.settings['card_height'], 64).clamp(48.0, 300.0).toDouble();
-    final spacing = sxDouble(widget.settings['card_spacing'], 6).clamp(0.0, 40.0).toDouble();
-    return Container(
-      color: Colors.white,
-      padding: EdgeInsets.fromLTRB(7, 4, 7, pages.length > 1 ? 5 : 4),
+    final height =
+        sxDouble(widget.settings['card_height'], 64).clamp(48.0, 300.0).toDouble();
+
+    return Padding(
+      padding: EdgeInsets.only(
+        top: 4,
+        bottom: pages.length > 1 ? 4 : 4,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -1627,24 +1808,11 @@ class _SxCouponStripState extends State<SxCouponStrip> {
             height: height,
             child: PageView.builder(
               controller: _controller,
-              onPageChanged: _pageChanged,
+              scrollDirection: Axis.vertical,
+              pageSnapping: true,
               itemCount: pages.length,
-              itemBuilder: (_, index) {
-                final pair = pages[index];
-                if (_perSlide == 1 || pair.length == 1) {
-                  return _card(context, pair.first, MediaQuery.of(context).size.width - 14, height);
-                }
-                final usable = MediaQuery.of(context).size.width - 14;
-                final cardWidth = (usable - spacing) / 2;
-                return Row(
-                  textDirection: TextDirection.rtl,
-                  children: [
-                    _card(context, pair[0], cardWidth, height),
-                    SizedBox(width: spacing),
-                    _card(context, pair[1], cardWidth, height),
-                  ],
-                );
-              },
+              onPageChanged: _pageChanged,
+              itemBuilder: (_, index) => _pageView(context, pages[index]),
             ),
           ),
           if (pages.length > 1)
@@ -1660,7 +1828,9 @@ class _SxCouponStripState extends State<SxCouponStrip> {
                     height: 3,
                     margin: const EdgeInsets.symmetric(horizontal: 2),
                     decoration: BoxDecoration(
-                      color: i == _page ? Colors.black : const Color(0xFFBDBDBD),
+                      color: i == _page
+                          ? Colors.black
+                          : const Color(0xFFBDBDBD),
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
