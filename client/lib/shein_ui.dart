@@ -233,6 +233,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   int? _homeScope;
   int _loadSerial = 0;
   int _activeBannerIndex = 0;
+  double _pullExtent = 0;
 
   @override void initState() { super.initState(); load(); }
 
@@ -244,6 +245,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         loading = true;
         _homeScope = null;
         _activeBannerIndex = 0;
+        _pullExtent = 0;
       });
     }
     try {
@@ -450,6 +452,9 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       activeBanner['header_category_active_color'],
       Colors.white,
     );
+    final headerDarkColor =
+        Color.lerp(headerTopColor, Colors.black, .72) ?? Colors.black;
+    final pullGradientHeight = 112.0 + _pullExtent;
     final categoryDisplay = _categoryDisplaySettings();
     final couponStrip = _couponDisplaySettings();
     final coupons = _homeCoupons();
@@ -461,11 +466,35 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          ColoredBox(
-            color: headerTopColor,
+          NotificationListener<ScrollNotification>(
+            onNotification: (notification) {
+              if (notification.metrics.axis != Axis.vertical) return false;
+
+              if (notification is OverscrollNotification &&
+                  notification.metrics.pixels <=
+                      notification.metrics.minScrollExtent) {
+                final extent =
+                    (_pullExtent - notification.overscroll).clamp(0.0, 220.0);
+                if ((extent - _pullExtent).abs() > .5 && mounted) {
+                  setState(() => _pullExtent = extent);
+                }
+              } else if (notification is ScrollEndNotification) {
+                if (_pullExtent > 0 && mounted) {
+                  setState(() => _pullExtent = 0);
+                }
+              } else if (notification is ScrollUpdateNotification &&
+                  notification.metrics.pixels >
+                      notification.metrics.minScrollExtent &&
+                  _pullExtent > 0 &&
+                  mounted) {
+                setState(() => _pullExtent = 0);
+              }
+              return false;
+            },
             child: RefreshIndicator(
               onRefresh: load,
-              color: Colors.black,
+              color: headerTopColor,
+              backgroundColor: Colors.white,
               child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           slivers: [
@@ -579,13 +608,31 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               MaterialPageRoute(builder: (_) => const SxNotificationsScreen()),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HomeFixedHeader extends StatelessWidget {
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: pullGradientHeight,
+            child: IgnorePointer(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 70),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      headerTopColor.withOpacity(.96),
+                      Color.lerp(headerTopColor, Colors.black, .25) ??
+                          headerDarkColor,
+                      headerDarkColor,
+                    ],
+                    stops: const [0.0, 0.48, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          _HomeFixedHeader extends StatelessWidget {
   final List<CategoryModel> roots;
   final int selected;
   final Color categoryTextColor;
