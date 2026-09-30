@@ -66,7 +66,7 @@ def register_operation_routes(admin_bp):
                 "enabled": True,
                 "auto_flip": True,
                 "flip_seconds": 4,
-                "cards_per_slide": 2,
+                "cards_per_slide": 1,
                 "card_height": 64,
                 "card_radius": 14,
                 "card_spacing": 6,
