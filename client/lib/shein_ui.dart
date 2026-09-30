@@ -452,7 +452,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       activeBanner['header_category_active_color'],
       Colors.white,
     );
-    final pullGradientHeight = _pullExtent.clamp(0.0, 220.0);
+    final pullGradientHeight = _pullExtent.clamp(0.0, 220.0).toDouble();
     final categoryDisplay = _categoryDisplaySettings();
     final couponStrip = _couponDisplaySettings();
     final coupons = _homeCoupons();
@@ -464,6 +464,29 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       body: Stack(
         fit: StackFit.expand,
         children: [
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: pullGradientHeight,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black,
+                      Color.lerp(Colors.black, headerTopColor, .45) ??
+                          Colors.black,
+                      headerTopColor,
+                    ],
+                    stops: const [0.0, 0.55, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
           NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               if (notification.metrics.axis != Axis.vertical) return false;
@@ -580,29 +603,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                 ),
               ),
           ],
-              ),
-            ),
-          ),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: pullGradientHeight,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black,
-                      Color.lerp(Colors.black, headerTopColor, .45) ??
-                          Colors.black,
-                      headerTopColor,
-                    ],
-                    stops: const [0.0, 0.55, 1.0],
-                  ),
-                ),
               ),
             ),
           ),
