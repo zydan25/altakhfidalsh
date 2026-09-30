@@ -125,10 +125,10 @@
           </label>
           <label>عدد القسائم في الشاشة
             <select name="cards_per_slide">
-              <option value="1" {% if settings.cards_per_slide == 1 %}selected{% endif %}>قسيمة واحدة بعرض كامل</option>
-              <option value="2" {% if settings.cards_per_slide == 2 %}selected{% endif %}>قسيمتان مقسمتان إلى نصفين</option>
+              <option value="1" {% if settings.cards_per_slide == 1 %}selected{% endif %}>شريط واحد بعنصر واحد</option>
+              <option value="2" {% if settings.cards_per_slide == 2 %}selected{% endif %}>شريط واحد بمحتويين وفاصل عمودي</option>
             </select>
-            <small class="field-help">مناسب لعرض مثالين معًا مثل «خصم» و«هدية».</small>
+            <small class="field-help">عند اختيار محتويين يظهران داخل شريط واحد مع فاصل عمودي صغير، وليس كبطاقتين منفصلتين.</small>
           </label>
           <label>ارتفاع الشريط
             <select name="card_height">
@@ -180,34 +180,34 @@
         <div class="panel-heading"><div><span class="eyebrow">الألوان الافتراضية</span><h3>اخترها بصريًا</h3></div></div>
         <div class="color-grid">
           <label>خلفية القسيمة
-            <div class="color-line"><input type="color" name="default_background_color" value="{{ settings.default_background_color or '#E2EFDA' }}"><span class="color-label">اضغط على مربع اللون</span></div>
+            <div class="color-line"><input type="color" name="default_background_color" value="{{ settings.default_background_color or '#E2EFDA' }}"><input type="text" class="hex-code" name="default_background_color_hex" value="{{ settings.default_background_color or '#E2EFDA' }}" data-color-name="default_background_color" maxlength="7" inputmode="text" dir="ltr" placeholder="#RRGGBB"><span class="color-label">اضغط على مربع اللون</span></div>
             <div class="preset-row">
-              <button type="button" class="preset-chip" onclick="setColor('[name=default_background_color]','#E2EFDA')"><span class="preset-dot" style="background:#E2EFDA"></span>أخضر فاتح</button>
-              <button type="button" class="preset-chip" onclick="setColor('[name=default_background_color]','#FFF4E8')"><span class="preset-dot" style="background:#FFF4E8"></span>خوخي فاتح</button>
-              <button type="button" class="preset-chip" onclick="setColor('[name=default_background_color]','#F3F4F6')"><span class="preset-dot" style="background:#F3F4F6"></span>رمادي فاتح</button>
+              <button type="button" class="preset-chip" onclick="setColor(this,'#E2EFDA')"><span class="preset-dot" style="background:#E2EFDA"></span>أخضر فاتح</button>
+              <button type="button" class="preset-chip" onclick="setColor(this,'#FFF4E8')"><span class="preset-dot" style="background:#FFF4E8"></span>خوخي فاتح</button>
+              <button type="button" class="preset-chip" onclick="setColor(this,'#F3F4F6')"><span class="preset-dot" style="background:#F3F4F6"></span>رمادي فاتح</button>
             </div>
           </label>
           <label>لون النص
-            <div class="color-line"><input type="color" name="default_text_color" value="{{ settings.default_text_color or '#1B5E20' }}"><span class="color-label">اختر لونًا واضحًا للنص</span></div>
+            <div class="color-line"><input type="color" name="default_text_color" value="{{ settings.default_text_color or '#1B5E20' }}"><input type="text" class="hex-code" name="default_text_color_hex" value="{{ settings.default_text_color or '#1B5E20' }}" data-color-name="default_text_color" maxlength="7" inputmode="text" dir="ltr" placeholder="#RRGGBB"><span class="color-label">اختر لونًا واضحًا للنص</span></div>
             <div class="preset-row">
-              <button type="button" class="preset-chip" onclick="setColor('[name=default_text_color]','#1B5E20')"><span class="preset-dot" style="background:#1B5E20"></span>أخضر داكن</button>
-              <button type="button" class="preset-chip" onclick="setColor('[name=default_text_color]','#111111')"><span class="preset-dot" style="background:#111"></span>أسود</button>
-              <button type="button" class="preset-chip" onclick="setColor('[name=default_text_color]','#7A3E00')"><span class="preset-dot" style="background:#7A3E00"></span>بني دافئ</button>
+              <button type="button" class="preset-chip" onclick="setColor(this,'#1B5E20')"><span class="preset-dot" style="background:#1B5E20"></span>أخضر داكن</button>
+              <button type="button" class="preset-chip" onclick="setColor(this,'#111111')"><span class="preset-dot" style="background:#111"></span>أسود</button>
+              <button type="button" class="preset-chip" onclick="setColor(this,'#7A3E00')"><span class="preset-dot" style="background:#7A3E00"></span>بني دافئ</button>
             </div>
           </label>
           <label>خلفية الشارة أو الكود
-            <div class="color-line"><input type="color" name="default_badge_background_color" value="{{ settings.default_badge_background_color or '#166534' }}"><span class="color-label">لون الشارة الصغيرة</span></div>
+            <div class="color-line"><input type="color" name="default_badge_background_color" value="{{ settings.default_badge_background_color or '#166534' }}"><input type="text" class="hex-code" name="default_badge_background_color_hex" value="{{ settings.default_badge_background_color or '#166534' }}" data-color-name="default_badge_background_color" maxlength="7" inputmode="text" dir="ltr" placeholder="#RRGGBB"><span class="color-label">لون الشارة الصغيرة</span></div>
             <div class="preset-row">
-              <button type="button" class="preset-chip" onclick="setColor('[name=default_badge_background_color]','#166534')"><span class="preset-dot" style="background:#166534"></span>أخضر</button>
-              <button type="button" class="preset-chip" onclick="setColor('[name=default_badge_background_color]','#D97706')"><span class="preset-dot" style="background:#D97706"></span>برتقالي</button>
-              <button type="button" class="preset-chip" onclick="setColor('[name=default_badge_background_color]','#111111')"><span class="preset-dot" style="background:#111"></span>أسود</button>
+              <button type="button" class="preset-chip" onclick="setColor(this,'#166534')"><span class="preset-dot" style="background:#166534"></span>أخضر</button>
+              <button type="button" class="preset-chip" onclick="setColor(this,'#D97706')"><span class="preset-dot" style="background:#D97706"></span>برتقالي</button>
+              <button type="button" class="preset-chip" onclick="setColor(this,'#111111')"><span class="preset-dot" style="background:#111"></span>أسود</button>
             </div>
           </label>
           <label>لون نص الشارة أو الكود
-            <div class="color-line"><input type="color" name="default_badge_text_color" value="{{ settings.default_badge_text_color or '#FFFFFF' }}"><span class="color-label">الأبيض مناسب للخلفيات الداكنة</span></div>
+            <div class="color-line"><input type="color" name="default_badge_text_color" value="{{ settings.default_badge_text_color or '#FFFFFF' }}"><input type="text" class="hex-code" name="default_badge_text_color_hex" value="{{ settings.default_badge_text_color or '#FFFFFF' }}" data-color-name="default_badge_text_color" maxlength="7" inputmode="text" dir="ltr" placeholder="#RRGGBB"><span class="color-label">الأبيض مناسب للخلفيات الداكنة</span></div>
             <div class="preset-row">
-              <button type="button" class="preset-chip" onclick="setColor('[name=default_badge_text_color]','#FFFFFF')"><span class="preset-dot" style="background:#fff"></span>أبيض</button>
-              <button type="button" class="preset-chip" onclick="setColor('[name=default_badge_text_color]','#111111')"><span class="preset-dot" style="background:#111"></span>أسود</button>
+              <button type="button" class="preset-chip" onclick="setColor(this,'#FFFFFF')"><span class="preset-dot" style="background:#fff"></span>أبيض</button>
+              <button type="button" class="preset-chip" onclick="setColor(this,'#111111')"><span class="preset-dot" style="background:#111"></span>أسود</button>
             </div>
           </label>
         </div>
@@ -319,11 +319,11 @@
           <label>{{ label }}
             <div class="color-line"><input type="color" name="{{ field }}" value="{{ default }}"><span class="color-label">اختيار بصري</span></div>
             <div class="swatch-toolbar">
-              <button type="button" class="swatch-btn" style="background:#E2EFDA" title="أخضر فاتح" onclick="setColor('[name={{ field }}]','#E2EFDA')"></button>
-              <button type="button" class="swatch-btn" style="background:#FFF4E8" title="خوخي فاتح" onclick="setColor('[name={{ field }}]','#FFF4E8')"></button>
-              <button type="button" class="swatch-btn" style="background:#FDECEC" title="وردي فاتح" onclick="setColor('[name={{ field }}]','#FDECEC')"></button>
-              <button type="button" class="swatch-btn" style="background:#111111" title="أسود" onclick="setColor('[name={{ field }}]','#111111')"></button>
-              <button type="button" class="swatch-btn" style="background:#FFFFFF" title="أبيض" onclick="setColor('[name={{ field }}]','#FFFFFF')"></button>
+              <button type="button" class="swatch-btn" style="background:#E2EFDA" title="أخضر فاتح" onclick="setColor(this,'#E2EFDA')"></button>
+              <button type="button" class="swatch-btn" style="background:#FFF4E8" title="خوخي فاتح" onclick="setColor(this,'#FFF4E8')"></button>
+              <button type="button" class="swatch-btn" style="background:#FDECEC" title="وردي فاتح" onclick="setColor(this,'#FDECEC')"></button>
+              <button type="button" class="swatch-btn" style="background:#111111" title="أسود" onclick="setColor(this,'#111111')"></button>
+              <button type="button" class="swatch-btn" style="background:#FFFFFF" title="أبيض" onclick="setColor(this,'#FFFFFF')"></button>
             </div>
           </label>
           {% endfor %}
@@ -418,42 +418,42 @@
 
               <div class="color-grid">
                 <label>الخلفية
-                  <div class="color-line"><input type="color" name="background_color" value="{{ row.background_color or '#E2EFDA' }}"><span class="color-label">اختيار بصري</span></div>
+                  <div class="color-line"><input type="color" name="background_color" value="{{ row.background_color or '#E2EFDA' }}"><input type="text" class="hex-code" name="background_color_hex" value="{{ row.background_color or '#E2EFDA' }}" data-color-name="background_color" maxlength="7" inputmode="text" dir="ltr" placeholder="#RRGGBB"><span class="color-label">اختيار بصري</span></div>
                   <div class="swatch-toolbar">
-                    <button type="button" class="swatch-btn" style="background:#E2EFDA" onclick="setColor('[name=background_color]','#E2EFDA')"></button>
-                    <button type="button" class="swatch-btn" style="background:#FFF4E8" onclick="setColor('[name=background_color]','#FFF4E8')"></button>
-                    <button type="button" class="swatch-btn" style="background:#FDECEC" onclick="setColor('[name=background_color]','#FDECEC')"></button>
-                    <button type="button" class="swatch-btn" style="background:#111111" onclick="setColor('[name=background_color]','#111111')"></button>
+                    <button type="button" class="swatch-btn" style="background:#E2EFDA" onclick="setColor(this,'#E2EFDA')"></button>
+                    <button type="button" class="swatch-btn" style="background:#FFF4E8" onclick="setColor(this,'#FFF4E8')"></button>
+                    <button type="button" class="swatch-btn" style="background:#FDECEC" onclick="setColor(this,'#FDECEC')"></button>
+                    <button type="button" class="swatch-btn" style="background:#111111" onclick="setColor(this,'#111111')"></button>
                   </div>
                 </label>
                 <label>لون النص
-                  <div class="color-line"><input type="color" name="text_color" value="{{ row.text_color or '#1B5E20' }}"><span class="color-label">اختيار بصري</span></div>
+                  <div class="color-line"><input type="color" name="text_color" value="{{ row.text_color or '#1B5E20' }}"><input type="text" class="hex-code" name="text_color_hex" value="{{ row.text_color or '#1B5E20' }}" data-color-name="text_color" maxlength="7" inputmode="text" dir="ltr" placeholder="#RRGGBB"><span class="color-label">اختيار بصري</span></div>
                   <div class="swatch-toolbar">
-                    <button type="button" class="swatch-btn" style="background:#1B5E20" onclick="setColor('[name=text_color]','#1B5E20')"></button>
-                    <button type="button" class="swatch-btn" style="background:#111111" onclick="setColor('[name=text_color]','#111111')"></button>
-                    <button type="button" class="swatch-btn" style="background:#7A3E00" onclick="setColor('[name=text_color]','#7A3E00')"></button>
+                    <button type="button" class="swatch-btn" style="background:#1B5E20" onclick="setColor(this,'#1B5E20')"></button>
+                    <button type="button" class="swatch-btn" style="background:#111111" onclick="setColor(this,'#111111')"></button>
+                    <button type="button" class="swatch-btn" style="background:#7A3E00" onclick="setColor(this,'#7A3E00')"></button>
                   </div>
                 </label>
                 <label>خلفية الشارة أو الكود
-                  <div class="color-line"><input type="color" name="badge_background_color" value="{{ row.badge_background_color or '#166534' }}"><span class="color-label">اختيار بصري</span></div>
+                  <div class="color-line"><input type="color" name="badge_background_color" value="{{ row.badge_background_color or '#166534' }}"><input type="text" class="hex-code" name="badge_background_color_hex" value="{{ row.badge_background_color or '#166534' }}" data-color-name="badge_background_color" maxlength="7" inputmode="text" dir="ltr" placeholder="#RRGGBB"><span class="color-label">اختيار بصري</span></div>
                   <div class="swatch-toolbar">
-                    <button type="button" class="swatch-btn" style="background:#166534" onclick="setColor('[name=badge_background_color]','#166534')"></button>
-                    <button type="button" class="swatch-btn" style="background:#D97706" onclick="setColor('[name=badge_background_color]','#D97706')"></button>
-                    <button type="button" class="swatch-btn" style="background:#111111" onclick="setColor('[name=badge_background_color]','#111111')"></button>
+                    <button type="button" class="swatch-btn" style="background:#166534" onclick="setColor(this,'#166534')"></button>
+                    <button type="button" class="swatch-btn" style="background:#D97706" onclick="setColor(this,'#D97706')"></button>
+                    <button type="button" class="swatch-btn" style="background:#111111" onclick="setColor(this,'#111111')"></button>
                   </div>
                 </label>
                 <label>لون نص الشارة أو الكود
-                  <div class="color-line"><input type="color" name="badge_text_color" value="{{ row.badge_text_color or '#FFFFFF' }}"><span class="color-label">اختيار بصري</span></div>
+                  <div class="color-line"><input type="color" name="badge_text_color" value="{{ row.badge_text_color or '#FFFFFF' }}"><input type="text" class="hex-code" name="badge_text_color_hex" value="{{ row.badge_text_color or '#FFFFFF' }}" data-color-name="badge_text_color" maxlength="7" inputmode="text" dir="ltr" placeholder="#RRGGBB"><span class="color-label">اختيار بصري</span></div>
                   <div class="swatch-toolbar">
-                    <button type="button" class="swatch-btn" style="background:#FFFFFF" onclick="setColor('[name=badge_text_color]','#FFFFFF')"></button>
-                    <button type="button" class="swatch-btn" style="background:#111111" onclick="setColor('[name=badge_text_color]','#111111')"></button>
+                    <button type="button" class="swatch-btn" style="background:#FFFFFF" onclick="setColor(this,'#FFFFFF')"></button>
+                    <button type="button" class="swatch-btn" style="background:#111111" onclick="setColor(this,'#111111')"></button>
                   </div>
                 </label>
                 <label>الإطار
-                  <div class="color-line"><input type="color" name="border_color" value="{{ row.border_color or '#B7D9A6' }}"><span class="color-label">اختياري</span></div>
+                  <div class="color-line"><input type="color" name="border_color" value="{{ row.border_color or '#B7D9A6' }}"><input type="text" class="hex-code" name="border_color_hex" value="{{ row.border_color or '#B7D9A6' }}" data-color-name="border_color" maxlength="7" inputmode="text" dir="ltr" placeholder="#RRGGBB"><span class="color-label">اختياري</span></div>
                   <div class="swatch-toolbar">
-                    <button type="button" class="swatch-btn" style="background:#B7D9A6" onclick="setColor('[name=border_color]','#B7D9A6')"></button>
-                    <button type="button" class="swatch-btn" style="background:#E5E7EB" onclick="setColor('[name=border_color]','#E5E7EB')"></button>
+                    <button type="button" class="swatch-btn" style="background:#B7D9A6" onclick="setColor(this,'#B7D9A6')"></button>
+                    <button type="button" class="swatch-btn" style="background:#E5E7EB" onclick="setColor(this,'#E5E7EB')"></button>
                   </div>
                 </label>
               </div>
@@ -493,10 +493,39 @@
 </div>
 
 <script>
-  function setColor(selector, value){
-    const input=document.querySelector(selector);
-    if(input){input.value=value; input.dispatchEvent(new Event('input',{bubbles:true})); input.dispatchEvent(new Event('change',{bubbles:true}));}
+  function normalizeHex(value){
+    const raw=(value||'').trim();
+    if(/^#[0-9a-fA-F]{6}$/.test(raw)) return raw.toUpperCase();
+    return null;
   }
+  function setColor(source, value){
+    const host = source && source.closest ? source.closest('label') : null;
+    const input = host ? host.querySelector('input[type="color"]') : document.querySelector(source);
+    if(input){
+      const hex=normalizeHex(value);
+      if(!hex) return;
+      input.value=hex;
+      const hexInput=host ? host.querySelector('.hex-code') : null;
+      if(hexInput) hexInput.value=hex;
+      input.dispatchEvent(new Event('input',{bubbles:true}));
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+  }
+  document.querySelectorAll('.color-line').forEach(function(line){
+    const color=line.querySelector('input[type="color"]');
+    const hex=line.querySelector('.hex-code');
+    if(!color || !hex) return;
+    color.addEventListener('input',()=>{hex.value=color.value.toUpperCase();});
+    hex.addEventListener('input',()=>{
+      const normalized=normalizeHex(hex.value);
+      if(normalized) color.value=normalized;
+    });
+    hex.addEventListener('blur',()=>{
+      const normalized=normalizeHex(hex.value);
+      if(normalized) hex.value=normalized;
+      else hex.value=color.value.toUpperCase();
+    });
+  });
   function syncTargetBox(form){
     const type=form.querySelector('.target-type');
     const idWrap=form.querySelector('.target-id-wrap');
