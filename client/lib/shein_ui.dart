@@ -432,19 +432,39 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         coupons.isNotEmpty;
     return Scaffold(
       backgroundColor: Colors.white,
-      body: RefreshIndicator(
-        onRefresh: load,
-        color: Colors.black,
-        child: CustomScrollView(
+      body: Column(
+        children: [
+          _HomeFixedHeader(
+            roots: roots,
+            selected: selected,
+            onSelected: (id) async {
+              if (selected == id) return;
+              setState(() => selected = id);
+              await load();
+            },
+            onSearch: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SxSearchScreen()),
+            ),
+            onWishlist: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SxWishlistScreen()),
+            ),
+            onNotifications: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SxNotificationsScreen()),
+            ),
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: load,
+              color: Colors.black,
+              child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
           slivers: [
-            SliverToBoxAdapter(child: _HomeHero(
-              banners: banners, roots: roots, selected: selected,
-              onSelected: (id) async { setState(() => selected = id); await load(); },
-              onSearch: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxSearchScreen())),
-              onWishlist: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxWishlistScreen())),
-              onNotifications: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen())),
-            )),
+            SliverToBoxAdapter(
+              child: _HomeHero(banners: banners),
+            ),
             if (showCoupons)
               SliverToBoxAdapter(
                 child: SxCouponStrip(
@@ -519,7 +539,126 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                 ),
               ),
           ],
-        ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeFixedHeader extends StatelessWidget {
+  final List<CategoryModel> roots;
+  final int selected;
+  final ValueChanged<int> onSelected;
+  final VoidCallback onSearch, onWishlist, onNotifications;
+
+  const _HomeFixedHeader({
+    required this.roots,
+    required this.selected,
+    required this.onSelected,
+    required this.onSearch,
+    required this.onWishlist,
+    required this.onNotifications,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final tabs = <CategoryModel>[
+      const CategoryModel(id: -1, name: 'الكل'),
+      ...roots,
+    ];
+    final topInset = MediaQuery.of(context).padding.top;
+
+    return Material(
+      color: Colors.white,
+      elevation: 0,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(height: topInset),
+          SizedBox(
+            height: 48,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 2, 10, 3),
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: Row(
+                  children: [
+                    SxCircleIcon(
+                      icon: Icons.calendar_today_outlined,
+                      onTap: onNotifications,
+                      dot: true,
+                    ),
+                    const SizedBox(width: 2),
+                    SxCircleIcon(
+                      icon: Icons.mail_outline,
+                      onTap: onNotifications,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: onSearch,
+                        child: const SxSearchBar(),
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    SxCircleIcon(
+                      icon: Icons.favorite_border,
+                      onTap: onWishlist,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 42,
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 7),
+                children: tabs.map((t) {
+                  final active = selected == t.id;
+                  return InkWell(
+                    onTap: () => onSelected(t.id),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 11),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Text(
+                            t.name,
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 13,
+                              fontWeight: active
+                                  ? FontWeight.w900
+                                  : FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          AnimatedContainer(
+                            duration: const Duration(milliseconds: 150),
+                            width: active ? 35 : 0,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: Colors.black,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          const Divider(height: 1, thickness: .7, color: ClientTheme.border),
+        ],
       ),
     );
   }
@@ -527,19 +666,9 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
 
 class _HomeHero extends StatefulWidget {
   final List<Map<String, dynamic>> banners;
-  final List<CategoryModel> roots;
-  final int selected;
-  final ValueChanged<int> onSelected;
-  final VoidCallback onSearch, onWishlist, onNotifications;
 
   const _HomeHero({
     required this.banners,
-    required this.roots,
-    required this.selected,
-    required this.onSelected,
-    required this.onSearch,
-    required this.onWishlist,
-    required this.onNotifications,
   });
 
   @override
@@ -562,6 +691,12 @@ class _HomeHeroState extends State<_HomeHero> {
   void didUpdateWidget(covariant _HomeHero oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.banners.length != widget.banners.length) {
+      final maxPage = widget.banners.length - 1;
+      if (maxPage < 0) {
+        page = 0;
+      } else if (page > maxPage) {
+        page = maxPage;
+      }
       _scheduleNext();
     }
   }
@@ -583,7 +718,8 @@ class _HomeHeroState extends State<_HomeHero> {
     _timer?.cancel();
     if (widget.banners.length <= 1) return;
     final index = page.clamp(0, widget.banners.length - 1);
-    final seconds = (sxInt(widget.banners[index]['duration'], 6)).clamp(1, 120);
+    final seconds =
+        (sxInt(widget.banners[index]['duration'], 6)).clamp(1, 120);
     _timer = Timer(Duration(seconds: seconds), () {
       if (!mounted || !_controller.hasClients) return;
       final next = (page + 1) % widget.banners.length;
@@ -597,18 +733,8 @@ class _HomeHeroState extends State<_HomeHero> {
 
   @override
   Widget build(BuildContext context) {
-    final tabs = <CategoryModel>[
-      const CategoryModel(id: -1, name: 'الكل'),
-      ...widget.roots,
-    ];
-
     final media = MediaQuery.of(context);
     final viewportWidth = media.size.width;
-    final topInset = media.padding.top;
-    final actionTop = topInset + 2;
-    const actionHeight = 43.0;
-    const actionToTabsGap = 3.0;
-    final categoryTabsTop = actionTop + actionHeight + actionToTabsGap;
 
     final configuredSpec = sxText(
       widget.banners.isNotEmpty ? widget.banners.first['size_spec'] : '',
@@ -647,116 +773,12 @@ class _HomeHeroState extends State<_HomeHero> {
                 onTap: () => Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => SxBannerLandingScreen(banner: widget.banners[i]),
+                    builder: (_) =>
+                        SxBannerLandingScreen(banner: widget.banners[i]),
                   ),
                 ),
               ),
             ),
-          Positioned.fill(
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.center,
-                    colors: [
-                      Colors.black.withOpacity(.23),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            top: actionTop,
-            left: 10,
-            right: 10,
-            child: Directionality(
-                textDirection: TextDirection.rtl,
-                child: Row(
-                  children: [
-                    SxCircleIcon(
-                      icon: Icons.calendar_today_outlined,
-                      onTap: widget.onNotifications,
-                      dot: true,
-                    ),
-                    const SizedBox(width: 2),
-                    SxCircleIcon(
-                      icon: Icons.mail_outline,
-                      onTap: widget.onNotifications,
-                    ),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: widget.onSearch,
-                        child: const SxSearchBar(),
-                      ),
-                    ),
-                    const SizedBox(width: 7),
-                    SxCircleIcon(
-                      icon: Icons.favorite_border,
-                      onTap: widget.onWishlist,
-                    ),
-                  ],
-                ),
-              ),
-          ),
-          Positioned(
-            // Keep the category tabs immediately below the search/actions row.
-            top: categoryTabsTop,
-            left: 0,
-            right: 0,
-            child: Directionality(
-              textDirection: TextDirection.rtl,
-              child: SizedBox(
-                height: 42,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 7),
-                  children: tabs.map((t) {
-                    final active = widget.selected == t.id;
-                    return InkWell(
-                      onTap: () => widget.onSelected(t.id),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 11),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                              t.name,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: active ? FontWeight.w900 : FontWeight.w700,
-                                shadows: const [
-                                  Shadow(
-                                    blurRadius: 2,
-                                    offset: Offset(0, 1),
-                                    color: Colors.black26,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
-                              width: active ? 35 : 0,
-                              height: 3,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          ),
           Positioned(
             bottom: 7,
             left: 0,
