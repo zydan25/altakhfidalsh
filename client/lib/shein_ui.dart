@@ -899,34 +899,73 @@ class _HomeHero extends StatefulWidget {
 }
 
 class _HomeHeroState extends State<_HomeHero> {
+  static const int _virtualPages = 1000000;
+
   int page = 0;
+  int _virtualPage = 0;
   Timer? _timer;
   late final PageController _controller;
+
+  int _middlePage(int length) {
+    if (length <= 0) return 0;
+    final middle = _virtualPages ~/ 2;
+    return middle - (middle % length);
+  }
 
   @override
   void initState() {
     super.initState();
-    _controller = PageController();
+    final length = widget.banners.length;
+    _virtualPage = _middlePage(length);
+    _controller = PageController(initialPage: _virtualPage);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && widget.banners.isNotEmpty) {
-        widget.onBannerChanged?.call(page);
+        final current = _virtualPage % widget.banners.length;
+        page = current;
+        widget.onBannerChanged?.call(current);
+        _scheduleNext();
       }
     });
-    _scheduleNext();
   }
 
   @override
   void didUpdateWidget(covariant _HomeHero oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.banners.length != widget.banners.length) {
-      final maxPage = widget.banners.length - 1;
-      if (maxPage < 0) {
-        page = 0;
-      } else if (page > maxPage) {
-        page = maxPage;
-      }
-      _scheduleNext();
+
+    if (oldWidget.banners.length == 0 && widget.banners.isNotEmpty) {
+      final target = _middlePage(widget.banners.length);
+      _virtualPage = target;
+      page = 0;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_controller.hasClients) return;
+        _controller.jumpToPage(target);
+        _scheduleNext();
+        widget.onBannerChanged?.call(0);
+      });
+      return;
     }
+
+    if (oldWidget.banners.length != widget.banners.length) {
+      if (widget.banners.isEmpty) {
+        _timer?.cancel();
+        page = 0;
+        _virtualPage = 0;
+        return;
+      }
+
+      final currentIndex = _virtualPage % widget.banners.length;
+      _virtualPage = _middlePage(widget.banners.length) + currentIndex;
+      page = currentIndex;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_controller.hasClients) return;
+        _controller.jumpToPage(_virtualPage);
+        widget.onBannerChanged?.call(currentIndex);
+        _scheduleNext();
+      });
+      return;
+    }
+
+    _scheduleNext();
   }
 
   @override
@@ -937,23 +976,27 @@ class _HomeHeroState extends State<_HomeHero> {
   }
 
   void _pageChanged(int value) {
-    if (!mounted) return;
-    setState(() => page = value);
-    widget.onBannerChanged?.call(value);
+    if (!mounted || widget.banners.isEmpty) return;
+    _virtualPage = value;
+    final length = widget.banners.length;
+    final current = value % length;
+    setState(() => page = current);
+    widget.onBannerChanged?.call(current);
     _scheduleNext();
   }
 
   void _scheduleNext() {
     _timer?.cancel();
-    if (widget.banners.length <= 1) return;
-    final index = page.clamp(0, widget.banners.length - 1);
+    if (!mounted || widget.banners.length <= 1) return;
+    final index = _virtualPage % widget.banners.length;
     final seconds =
         (sxInt(widget.banners[index]['duration'], 6)).clamp(1, 120);
     _timer = Timer(Duration(seconds: seconds), () {
-      if (!mounted || !_controller.hasClients) return;
-      final next = (page + 1) % widget.banners.length;
+      if (!mounted || !_controller.hasClients || widget.banners.length <= 1) {
+        return;
+      }
       _controller.animateToPage(
-        next,
+        _virtualPage + 1,
         duration: const Duration(milliseconds: 420),
         curve: Curves.easeOutCubic,
       );
@@ -995,18 +1038,21 @@ class _HomeHeroState extends State<_HomeHero> {
           else
             PageView.builder(
               controller: _controller,
-              itemCount: widget.banners.length,
+              itemCount: _virtualPages,
               onPageChanged: _pageChanged,
-              itemBuilder: (_, i) => _BannerSlide(
-                banner: widget.banners[i],
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        SxBannerLandingScreen(banner: widget.banners[i]),
+              itemBuilder: (_, virtualIndex) {
+                final index = virtualIndex % widget.banners.length;
+                return _BannerSlide(
+                  banner: widget.banners[index],
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          SxBannerLandingScreen(banner: widget.banners[index]),
+                    ),
                   ),
-                ),
-              ),
+                );
+              },
             ),
           Positioned(
             bottom: 7,
