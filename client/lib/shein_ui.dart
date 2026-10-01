@@ -3346,7 +3346,7 @@ class _SideCategoryExplorer extends StatelessWidget {
   final List<Map<String, dynamic>> groups;
   final Map<String, dynamic> settings;
   final String rootTitle;
-  final ValueChanged<Map<String, dynamic>> onSideSelected;
+  final ValueChanged<Map<String, dynamic>?> onSideSelected;
   final ValueChanged<Map<String, dynamic>> onCircleTap;
   final ValueChanged<Map<String, dynamic>> onGroupTap;
 
@@ -3509,7 +3509,7 @@ class _SideCategoryRail extends StatelessWidget {
   final List<Map<String, dynamic>> categories;
   final int? selectedId;
   final String rootTitle;
-  final ValueChanged<Map<String, dynamic>> onSelected;
+  final ValueChanged<Map<String, dynamic>?> onSelected;
 
   const _SideCategoryRail({
     required this.categories,
@@ -3541,10 +3541,7 @@ class _SideCategoryRail extends StatelessWidget {
               ),
             ),
             InkWell(
-              onTap: () {
-                // Null is represented by a small synthetic row.
-                onSelected(const <String, dynamic>{'id': 0});
-              },
+              onTap: () => onSelected(null),
               child: Container(
                 width: double.infinity,
                 margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
