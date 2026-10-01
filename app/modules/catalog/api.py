@@ -251,6 +251,7 @@ def public_product_feed():
                 or_(ProductBadge.starts_at.is_(None), ProductBadge.starts_at <= now),
                 or_(ProductBadge.ends_at.is_(None), ProductBadge.ends_at > now),
             )
+            .distinct()
         )
 
     # OR within one filter group, AND between different filter groups.
@@ -1071,6 +1072,9 @@ def create_badge():
             raise ValueError("اسم الشارة والكود مطلوبان.")
         if Badge.query.filter_by(code=code).first():
             raise ValueError("كود الشارة مستخدم مسبقًا.")
+        storefront_tab = (payload.get("storefront_tab") or "none").strip().lower()
+        if storefront_tab not in {"none", "new", "offers"}:
+            raise ValueError("تبويب الشارة يجب أن يكون none أو new أو offers.")
         row = Badge(
             name=name,
             code=code,
@@ -1078,7 +1082,7 @@ def create_badge():
             bg_color=(payload.get("bg_color") or "").strip() or None,
             text_color=(payload.get("text_color") or "").strip() or None,
             style=(payload.get("style") or "solid").strip(),
-            storefront_tab=(payload.get("storefront_tab") or "none").strip().lower(),
+            storefront_tab=storefront_tab,
             priority=int(payload.get("priority", 0)),
         )
         db.session.add(row)
