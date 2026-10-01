@@ -66,6 +66,17 @@ def delete_category(category_id):
     return {"ok": True}
 
 
+@api_bp.get("/side-circle-display")
+def side_circle_display():
+    return {"item": CatalogService.get_side_circle_display()}
+
+
+@api_bp.get("/side-circle-groups")
+def side_circle_groups():
+    root_id = request.args.get("root_category_id", type=int)
+    return {"items": CatalogService.list_side_circle_groups(root_category_id=root_id, public_scope=True)}
+
+
 @api_bp.get("/side-categories")
 def side_categories():
     root_id = request.args.get("root_category_id", type=int)
