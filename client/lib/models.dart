@@ -24,6 +24,7 @@ class ProductModel {
   final List<String> images;
   final List<Map<String, dynamic>> badges;
   final List<int> categoryIds;
+  final List<int> rootCategoryIds;
   final double? imageAspectRatio;
   final String? cardAspectRatio;
   final int? variantId;
@@ -37,6 +38,7 @@ class ProductModel {
     this.images=const[],
     this.badges=const[],
     this.categoryIds=const[],
+    this.rootCategoryIds=const[],
     this.imageAspectRatio,
     this.cardAspectRatio,
     this.variantId,
@@ -56,6 +58,10 @@ class ProductModel {
     final categoryIds=rawCategoryIds is List
         ? rawCategoryIds.map((x)=>int.tryParse(x.toString())).whereType<int>().toList()
         : <int>[];
+    final rawRootCategoryIds=j['root_category_ids'];
+    final rootCategoryIds=rawRootCategoryIds is List
+        ? rawRootCategoryIds.map((x)=>int.tryParse(x.toString())).whereType<int>().toList()
+        : <int>[];
     final rawAspect=double.tryParse((j['image_aspect_ratio'] ?? '').toString());
     return ProductModel(
       id:int.tryParse((p['id'] ?? j['product_id'] ?? 0).toString()) ?? 0,
@@ -66,6 +72,7 @@ class ProductModel {
       images:unique,
       badges:badges,
       categoryIds:categoryIds,
+      rootCategoryIds:rootCategoryIds,
       imageAspectRatio: rawAspect != null && rawAspect > 0 ? rawAspect : null,
       cardAspectRatio: j['card_aspect_ratio']?.toString(),
       variantId:j['variant_id']==null ? null : int.tryParse(j['variant_id'].toString()),
