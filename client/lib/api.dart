@@ -74,6 +74,7 @@ class ApiService {
     String? minPrice,
     String? maxPrice,
     int? currencyId,
+    String? discoveryTab,
   })async{
     final qp=<String,String>{'limit':'100','sort':sort};
     if(category!=null)qp['category_id']=category.toString();
@@ -84,6 +85,7 @@ class ApiService {
     if(minPrice!=null&&minPrice.trim().isNotEmpty)qp['min_price']=minPrice.trim();
     if(maxPrice!=null&&maxPrice.trim().isNotEmpty)qp['max_price']=maxPrice.trim();
     if(currencyId!=null)qp['currency_id']=currencyId.toString();
+    if(discoveryTab!=null&&discoveryTab.trim().isNotEmpty)qp['discovery_tab']=discoveryTab.trim();
     final d=await get('/catalog/products/feed',q:qp);
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e){
       final m=Map<String,dynamic>.from(e);
