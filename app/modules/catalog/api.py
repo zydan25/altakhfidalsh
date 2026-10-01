@@ -341,9 +341,13 @@ def public_product_feed():
             .filter(ProductCategory.product_id.in_(product_ids))
             .all()
         )
+        # Build the hierarchy from the complete category tree. A product
+        # can remain attached to a child category even when that child was
+        # temporarily archived, so filtering only active categories can lose
+        # the root relation needed by the offline storefront.
         category_parent = {
             int(category.id): category.parent_id
-            for category in Category.query.filter(Category.is_active.is_(True)).all()
+            for category in Category.query.all()
         }
 
         def root_for_category(category_id):
