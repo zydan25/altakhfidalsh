@@ -973,7 +973,15 @@ class _HomeFixedHeader extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           curve: Curves.easeOut,
-          color: solidBackground ? Colors.white : Colors.transparent,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              bottom: BorderSide(
+                color: solidBackground ? const Color(0xFF111111) : Colors.transparent,
+                width: 1,
+              ),
+            ),
+          ),
           child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -3078,15 +3086,18 @@ class _SxProductCardState extends State<SxProductCard> {
 // Categories mirrors the Shein-style discovery layout using server-managed side categories and circle groups.
 class SxCategoriesScreen extends StatefulWidget {
   const SxCategoriesScreen({super.key});
-  @override State<SxCategoriesScreen> createState() => _SxCategoriesScreenState();
+
+  @override
+  State<SxCategoriesScreen> createState() => _SxCategoriesScreenState();
 }
 
 class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
+  Map<String, dynamic> home = <String, dynamic>{};
   List<CategoryModel> roots = <CategoryModel>[];
   List<Map<String, dynamic>> side = <Map<String, dynamic>>[];
   List<Map<String, dynamic>> groups = <Map<String, dynamic>>[];
   Map<String, dynamic> circleDisplay = <String, dynamic>{};
-  int? selectedRoot;
+  int selectedRoot = -1;
   int? selectedSideCategoryId;
   bool loading = true;
 
@@ -3098,16 +3109,21 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
 
   Future<void> load() async {
     if (mounted) setState(() => loading = true);
-    final rootScope = selectedRoot;
     try {
-      final h = await api.home(rootCategoryId: rootScope);
-      final nextRoots = sxMaps(h['categories'])
+      // Load the complete storefront once. Root/side/group navigation below
+      // is intentionally local so switching tabs never makes another request.
+      final h = await api.home();
+      final nextAllCategories = sxMaps(h['categories'])
           .map(CategoryModel.fromJson)
+          .toList();
+      final nextRoots = nextAllCategories
           .where((x) => x.parentId == null)
           .toList()
-        ..sort((a, b) => a.sortOrder == b.sortOrder
-            ? a.id.compareTo(b.id)
-            : a.sortOrder.compareTo(b.sortOrder));
+        ..sort(
+          (a, b) => a.sortOrder == b.sortOrder
+              ? a.id.compareTo(b.id)
+              : a.sortOrder.compareTo(b.sortOrder),
+        );
 
       final nextSide = sxMaps(h['side_categories']);
       final nextGroups = sxMaps(h['side_circle_groups']);
@@ -3115,26 +3131,16 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
           ? Map<String, dynamic>.from(h['side_circle_display'] as Map)
           : <String, dynamic>{};
 
-      int? nextSideId = selectedSideCategoryId;
-      if (rootScope != null) {
-        final valid = nextSide.any((x) => sxInt(x['id']) == nextSideId);
-        if (!valid) {
-          nextSideId = nextSide.isNotEmpty ? sxInt(nextSide.first['id']) : null;
-        }
-      } else if (nextSideId != null &&
-          !nextSide.any((x) => sxInt(x['id']) == nextSideId)) {
-        nextSideId = null;
-      }
-
       if (!mounted) return;
       setState(() {
+        home = h;
         roots = nextRoots;
         side = nextSide;
         groups = nextGroups;
         circleDisplay = nextDisplay;
-        selectedSideCategoryId = nextSideId;
         loading = false;
       });
+      _ensureValidSideSelection();
     } catch (e) {
       if (!mounted) return;
       setState(() => loading = false);
@@ -3145,16 +3151,47 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
   }
 
   List<Map<String, dynamic>> get _visibleSideCategories {
-    return side.where((x) => x['is_active'] != false).toList()
-      ..sort((a, b) {
-        final ao = sxInt(a['sort_order']);
-        final bo = sxInt(b['sort_order']);
-        return ao == bo ? sxInt(a['id']).compareTo(sxInt(b['id'])) : ao.compareTo(bo);
-      });
+    final rows = side
+        .where((row) => row['is_active'] != false)
+        .where((row) {
+          if (selectedRoot < 0) return true;
+          return sxInt(row['root_category_id']) == selectedRoot;
+        })
+        .toList();
+
+    rows.sort((a, b) {
+      final ao = sxInt(a['sort_order']);
+      final bo = sxInt(b['sort_order']);
+      return ao == bo
+          ? sxInt(a['id']).compareTo(sxInt(b['id']))
+          : ao.compareTo(bo);
+    });
+    return rows;
+  }
+
+  List<Map<String, dynamic>> get _visibleGroups {
+    final rows = groups
+        .where((row) => row['is_active'] != false)
+        .where((row) {
+          final root = row['root_category_id'];
+          if (selectedRoot < 0) return root == null;
+          return root == null || sxInt(root) == selectedRoot;
+        })
+        .where((row) => sxMaps(row['circles']).isNotEmpty)
+        .toList();
+
+    rows.sort((a, b) {
+      final ao = sxInt(a['sort_order']);
+      final bo = sxInt(b['sort_order']);
+      return ao == bo
+          ? sxInt(a['id']).compareTo(sxInt(b['id']))
+          : ao.compareTo(bo);
+    });
+    return rows;
   }
 
   Map<String, dynamic>? get _selectedSide {
-    for (final row in side) {
+    for (final row in _visibleSideCategories) {
       if (sxInt(row['id']) == selectedSideCategoryId) return row;
     }
     return null;
@@ -3162,9 +3199,8 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
 
   List<Map<String, dynamic>> get _visibleCircles {
     final selectedRow = _selectedSide;
-    if (selectedRow != null) {
-      return sxMaps(selectedRow['circles']);
-    }
+    if (selectedRow != null) return sxMaps(selectedRow['circles']);
+
     final result = <Map<String, dynamic>>[];
     for (final row in _visibleSideCategories) {
       result.addAll(sxMaps(row['circles']));
@@ -3172,33 +3208,41 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
     return result;
   }
 
-  String _rootName(int? id) {
-    if (id == null) return 'الكل';
+  void _ensureValidSideSelection() {
+    final visible = _visibleSideCategories;
+    if (visible.isEmpty) {
+      if (selectedSideCategoryId != null && mounted) {
+        setState(() => selectedSideCategoryId = null);
+      }
+      return;
+    }
+
+    final valid = visible.any((row) => sxInt(row['id']) == selectedSideCategoryId);
+    if (!valid && mounted) {
+      setState(() => selectedSideCategoryId = sxInt(visible.first['id']));
+    }
+  }
+
+  String _rootName(int id) {
+    if (id < 0) return 'الكل';
     for (final row in roots) {
       if (row.id == id) return row.name;
     }
     return 'الكل';
   }
 
-  int _settingInt(String key, int fallback) =>
-      sxInt(circleDisplay[key], fallback);
-
-  double _settingDouble(String key, double fallback) =>
-      sxDouble(circleDisplay[key], fallback);
-
-  void _selectRoot(int? rootId) {
-    if (selectedRoot == rootId) return;
+  void _selectRoot(int id) {
+    if (selectedRoot == id) return;
     setState(() {
-      selectedRoot = rootId;
+      selectedRoot = id;
       selectedSideCategoryId = null;
     });
-    load();
+    _ensureValidSideSelection();
   }
 
   void _selectSide(Map<String, dynamic>? item) {
     if (item == null) {
-      if (selectedSideCategoryId == null) return;
-      setState(() => selectedSideCategoryId = null);
+      _ensureValidSideSelection();
       return;
     }
     final id = sxInt(item['id']);
@@ -3234,45 +3278,63 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final display = circleDisplay;
+    final headerHeight = MediaQuery.of(context).padding.top + 90;
     return Scaffold(
-      appBar: SxAppBar(
-        title: 'الفئات',
-        onSearch: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SxSearchScreen()),
-        ),
-      ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-          : RefreshIndicator(
-              onRefresh: load,
-              child: CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: SxRootTabs(
-                      categories: roots,
-                      selected: selectedRoot,
-                      onChanged: _selectRoot,
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: loading
+                ? const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : RefreshIndicator(
+                    onRefresh: load,
+                    child: CustomScrollView(
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: SizedBox(height: headerHeight),
+                        ),
+                        SliverToBoxAdapter(
+                          child: _SideCategoryExplorer(
+                            sideCategories: _visibleSideCategories,
+                            selectedId: selectedSideCategoryId,
+                            circles: _visibleCircles,
+                            groups: _visibleGroups,
+                            settings: circleDisplay,
+                            rootTitle: _rootName(selectedRoot),
+                            onSideSelected: _selectSide,
+                            onCircleTap: (circle) => _openCircle(context, circle),
+                            onGroupTap: (group) => _openGroup(context, group),
+                          ),
+                        ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                      ],
                     ),
                   ),
-                  SliverToBoxAdapter(
-                    child: _SideCategoryExplorer(
-                      sideCategories: _visibleSideCategories,
-                      selectedId: selectedSideCategoryId,
-                      circles: _visibleCircles,
-                      groups: groups,
-                      settings: display,
-                      rootTitle: _rootName(selectedRoot),
-                      onSideSelected: _selectSide,
-                      onCircleTap: (circle) => _openCircle(context, circle),
-                      onGroupTap: (group) => _openGroup(context, group),
-                    ),
-                  ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
-                ],
-              ),
+          ),
+          _HomeFixedHeader(
+            roots: roots,
+            selected: selectedRoot,
+            solidBackground: true,
+            categoryTextColor: Colors.black,
+            categoryActiveColor: Colors.black,
+            onSelected: _selectRoot,
+            onSearch: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SxSearchScreen()),
             ),
+            onWishlist: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SxWishlistScreen()),
+            ),
+            onNotifications: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SxNotificationsScreen()),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -3290,22 +3352,24 @@ class SxRootTabs extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-        height: 54,
-        child: ListView(
-          reverse: true,
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 7),
-          children: [
-            _tab('كل', selected == null, () => onChanged(null)),
-            ...categories.map(
-              (c) => _tab(
-                c.name,
-                selected == c.id,
-                () => onChanged(c.id),
+  Widget build(BuildContext context) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: SizedBox(
+          height: 54,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            children: [
+              _tab('الكل', selected == null, () => onChanged(null)),
+              ...categories.map(
+                (c) => _tab(
+                  c.name,
+                  selected == c.id,
+                  () => onChanged(c.id),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
 
@@ -3320,8 +3384,7 @@ class SxRootTabs extends StatelessWidget {
                 t,
                 style: TextStyle(
                   fontSize: 12.5,
-                  fontWeight:
-                      active ? FontWeight.w900 : FontWeight.w600,
+                  fontWeight: active ? FontWeight.w900 : FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 8),
@@ -3361,8 +3424,10 @@ class _SideCategoryExplorer extends StatelessWidget {
   });
 
   int _int(String key, int fallback) => sxInt(settings[key], fallback);
+
   double _double(String key, double fallback) =>
       sxDouble(settings[key], fallback);
+
   String _text(String key, String fallback) =>
       sxText(settings[key], fallback);
 
@@ -3386,28 +3451,33 @@ class _SideCategoryExplorer extends StatelessWidget {
     final sectionSpacing =
         _double('section_spacing', 14).clamp(4, 40).toDouble();
 
-    Widget circleTile(Map<String, dynamic> circle, {double? forcedWidth}) {
-      return _SideCircleTile(
-        circle: circle,
-        width: forcedWidth ?? widthSetting,
-        height: heightSetting,
-        shape: shape,
-        radius: radius,
-        labelFontSize: labelSize,
-        labelBold: bold,
-        onTap: () => onCircleTap(circle),
-      );
-    }
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        final leftWidth = (constraints.maxWidth - railWidth).clamp(0.0, constraints.maxWidth);
+        final leftWidth =
+            (constraints.maxWidth - railWidth).clamp(0.0, constraints.maxWidth);
         final available = leftWidth - 14;
-        final adaptiveWidth = ((available - spacing * (columns - 1)) / columns)
-            .clamp(48.0, widthSetting)
-            .toDouble();
+        final adaptiveWidth =
+            ((available - spacing * (columns - 1)) / columns)
+                .clamp(48.0, widthSetting)
+                .toDouble();
         final adaptiveHeight =
             shape == 'circle' ? adaptiveWidth : heightSetting;
+
+        Widget circleTile(
+          Map<String, dynamic> circle, {
+          double? forcedWidth,
+        }) {
+          return _SideCircleTile(
+            circle: circle,
+            width: forcedWidth ?? widthSetting,
+            height: heightSetting,
+            shape: shape,
+            radius: radius,
+            labelFontSize: labelSize,
+            labelBold: bold,
+            onTap: () => onCircleTap(circle),
+          );
+        }
 
         return Container(
           color: Colors.white,
@@ -3417,12 +3487,7 @@ class _SideCategoryExplorer extends StatelessWidget {
             children: [
               Expanded(
                 child: Padding(
-                  padding: EdgeInsets.only(
-                    left: 7,
-                    right: 7,
-                    top: 7,
-                    bottom: 7,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(7, 7, 7, 7),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -3440,10 +3505,12 @@ class _SideCategoryExplorer extends StatelessWidget {
                           onTap: onCircleTap,
                         )
                       else if (settings['show_empty_state'] != false)
-                        Container(
-                          padding: const EdgeInsets.symmetric(vertical: 44, horizontal: 18),
-                          alignment: Alignment.center,
-                          child: const Text(
+                        const Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: 48,
+                            horizontal: 18,
+                          ),
+                          child: Text(
                             'لا توجد دوائر لهذا القسم حاليًا',
                             textAlign: TextAlign.center,
                             style: TextStyle(
@@ -3453,9 +3520,8 @@ class _SideCategoryExplorer extends StatelessWidget {
                             ),
                           ),
                         ),
-
                       if (groups.isNotEmpty) ...[
-                        SizedBox(height: _double('section_spacing', 14).clamp(4, 40).toDouble()),
+                        SizedBox(height: sectionSpacing),
                         for (final group in groups) ...[
                           _SideCircleGroupHeader(
                             title: sxText(group['name'], 'مجموعة'),
@@ -3473,10 +3539,14 @@ class _SideCategoryExplorer extends StatelessWidget {
                                 padding: const EdgeInsets.symmetric(horizontal: 2),
                                 physics: const BouncingScrollPhysics(),
                                 itemCount: sxMaps(group['circles']).length,
-                                separatorBuilder: (_, __) => SizedBox(width: spacing),
+                                separatorBuilder: (_, __) =>
+                                    SizedBox(width: spacing),
                                 itemBuilder: (_, i) {
                                   final row = sxMaps(group['circles'])[i];
-                                  return circleTile(row, forcedWidth: adaptiveWidth);
+                                  return circleTile(
+                                    row,
+                                    forcedWidth: adaptiveWidth,
+                                  );
                                 },
                               ),
                             ),
@@ -3524,7 +3594,7 @@ class _SideCategoryRail extends StatelessWidget {
         decoration: const BoxDecoration(
           color: Color(0xFFF6F6F6),
           border: Border(
-            left: BorderSide(color: Color(0xFFE3E3E3), width: .7),
+            left: BorderSide(color: Color(0xFF111111), width: .8),
           ),
         ),
         child: Column(
@@ -3691,8 +3761,9 @@ class _SideCircleTile extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFFF1F1F1),
                 shape: shape == 'circle' ? BoxShape.circle : BoxShape.rectangle,
-                borderRadius:
-                    shape == 'circle' ? null : BorderRadius.circular(clipRadius),
+                borderRadius: shape == 'circle'
+                    ? null
+                    : BorderRadius.circular(clipRadius),
               ),
               child: SxImage(
                 url: circle['image_url'],
@@ -3778,13 +3849,19 @@ class SxCircleGroupScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final circles = sxMaps(group['circles']);
-    final columns = sxInt(displaySettings['grid_columns'], 3).clamp(2, 5).toInt();
-    final spacing = sxDouble(displaySettings['item_spacing'], 8).clamp(0, 30).toDouble();
-    final width = sxDouble(displaySettings['item_width'], 88).clamp(48, 180).toDouble();
-    final height = sxDouble(displaySettings['item_height'], 88).clamp(48, 180).toDouble();
+    final columns =
+        sxInt(displaySettings['grid_columns'], 3).clamp(2, 5).toInt();
+    final spacing =
+        sxDouble(displaySettings['item_spacing'], 8).clamp(0, 30).toDouble();
+    final width =
+        sxDouble(displaySettings['item_width'], 88).clamp(48, 180).toDouble();
+    final height =
+        sxDouble(displaySettings['item_height'], 88).clamp(48, 180).toDouble();
     final shape = sxText(displaySettings['item_shape'], 'circle');
-    final radius = sxDouble(displaySettings['item_corner_radius'], 18).clamp(0, 90).toDouble();
-    final font = sxDouble(displaySettings['item_label_font_size'], 10).clamp(7, 24).toDouble();
+    final radius =
+        sxDouble(displaySettings['item_corner_radius'], 18).clamp(0, 90).toDouble();
+    final font =
+        sxDouble(displaySettings['item_label_font_size'], 10).clamp(7, 24).toDouble();
     final bold = displaySettings['item_label_bold'] != false;
 
     return SxShellPage(
