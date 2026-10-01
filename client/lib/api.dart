@@ -45,7 +45,9 @@ class ApiService {
     int? currencyId,
     String? discoveryTab,
   }) {
-    final filters = filterValueIds == null ? '' : [...filterValueIds]..sort();
+    final List<int> filters = filterValueIds == null
+        ? <int>[]
+        : List<int>.from(filterValueIds)..sort();
     return [
       category ?? 0,
       circleId ?? 0,
