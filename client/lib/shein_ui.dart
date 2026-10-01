@@ -180,7 +180,8 @@ class SxSearchBar extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
-        prefixIcon: const Icon(Icons.search, size: 22, color: Colors.black),
+        // Keep the search icon on the visual left side of the RTL field.
+        prefixIcon: null,
         suffixIcon: const Icon(Icons.search, size: 22, color: Colors.black),
         contentPadding: const EdgeInsets.symmetric(horizontal: 10),
         filled: true,
@@ -1022,6 +1023,15 @@ class _HomeFixedHeader extends StatelessWidget {
                   textDirection: TextDirection.rtl,
                   child: Row(
                     children: [
+                      SxCircleIcon(
+                        icon: Icons.notifications_none_outlined,
+                        onTap: onNotifications,
+                        dot: true,
+                        iconColor: solidBackground
+                            ? Colors.black
+                            : Colors.white,
+                      ),
+                      const SizedBox(width: 7),
                       Expanded(
                         child: GestureDetector(
                           onTap: onSearch,
@@ -1036,14 +1046,11 @@ class _HomeFixedHeader extends StatelessWidget {
                       ),
                       const SizedBox(width: 7),
                       SxCircleIcon(
-                        icon: Icons.notifications_none_outlined,
-                        onTap: onNotifications,
-                        dot: true,
-                      ),
-                      const SizedBox(width: 7),
-                      SxCircleIcon(
                         icon: Icons.favorite_border,
                         onTap: onWishlist,
+                        iconColor: solidBackground
+                            ? Colors.black
+                            : Colors.white,
                       ),
                     ],
                   ),
