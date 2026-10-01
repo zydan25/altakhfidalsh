@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from uuid import uuid4
@@ -879,21 +880,66 @@ class CatalogService:
         return {"color_ids": normalized_colors, "size_ids": normalized_sizes}
 
     @staticmethod
-    def set_product_badges(product_id, badge_ids):
+    def set_product_badges(product_id, badges):
         if db.session.get(Product, product_id) is None:
             raise LookupError("product not found")
+
+        # Backward compatibility: accept the old simple list of badge IDs.
+        items = []
+        for raw in badges or []:
+            if isinstance(raw, dict):
+                items.append({
+                    "badge_id": int(raw.get("badge_id") or raw.get("id")),
+                    "duration_days": int(raw.get("duration_days") or 0),
+                    "custom_text": str(raw.get("custom_text") or "").strip() or None,
+                })
+            else:
+                items.append({
+                    "badge_id": int(raw),
+                    "duration_days": 0,
+                    "custom_text": None,
+                })
+
         normalized = []
-        for raw in badge_ids:
-            badge_id = int(raw)
-            if db.session.get(Badge, badge_id) is None:
+        for item in items:
+            badge_id = int(item["badge_id"])
+            badge = db.session.get(Badge, badge_id)
+            if badge is None:
                 raise ValueError(f"badge {badge_id} not found")
-            if badge_id not in normalized:
-                normalized.append(badge_id)
+            if badge_id in {x["badge_id"] for x in normalized}:
+                continue
+            duration_days = max(0, min(int(item.get("duration_days") or 0), 3650))
+            starts_at = datetime.now(timezone.utc)
+            ends_at = starts_at + timedelta(days=duration_days) if duration_days else None
+            normalized.append({
+                "badge_id": badge_id,
+                "duration_days": duration_days,
+                "custom_text": item.get("custom_text"),
+                "starts_at": starts_at,
+                "ends_at": ends_at,
+            })
+
         ProductBadge.query.filter_by(product_id=product_id).delete()
-        for position, badge_id in enumerate(normalized):
-            db.session.add(ProductBadge(product_id=product_id, badge_id=badge_id, position=str(position)))
+        for position, item in enumerate(normalized):
+            db.session.add(ProductBadge(
+                product_id=product_id,
+                badge_id=item["badge_id"],
+                starts_at=item["starts_at"],
+                ends_at=item["ends_at"],
+                custom_text=item["custom_text"],
+                position=str(position),
+            ))
         db.session.commit()
-        return normalized
+        return [
+            {
+                "badge_id": item["badge_id"],
+                "duration_days": item["duration_days"],
+                "custom_text": item["custom_text"],
+                "starts_at": item["starts_at"].isoformat(),
+                "ends_at": item["ends_at"].isoformat() if item["ends_at"] else None,
+            }
+            for item in normalized
+        ]
 
     @staticmethod
     def set_product_hashtags(product_id, hashtag_ids):
@@ -1507,7 +1553,9 @@ class CatalogService:
                 {
                     "id": row.id, "name": row.name, "code": row.code,
                     "bg_color": row.bg_color, "text_color": row.text_color,
-                    "style": row.style, "priority": row.priority, "is_active": bool(row.is_active),
+                    "style": row.style, "priority": row.priority,
+                    "storefront_tab": row.storefront_tab,
+                    "is_active": bool(row.is_active),
                 }
                 for row in badges
             ],
@@ -1605,8 +1653,17 @@ class CatalogService:
             for variant in ProductVariant.query.filter_by(product_id=product_id).order_by(ProductVariant.id).all()
         ]
         badges = [
-            {"id": row.badge_id}
-            for row in ProductBadge.query.filter_by(product_id=product_id).order_by(ProductBadge.position, ProductBadge.id).all()
+            {
+                "id": row.badge_id,
+                "starts_at": row.starts_at.isoformat() if row.starts_at else None,
+                "ends_at": row.ends_at.isoformat() if row.ends_at else None,
+                "custom_text": row.custom_text,
+                "position": row.position,
+            }
+            for row in ProductBadge.query
+            .filter_by(product_id=product_id)
+            .order_by(ProductBadge.position, ProductBadge.id)
+            .all()
         ]
         hashtags = [
             {"id": row.hashtag_id}
