@@ -210,6 +210,7 @@
         <form method="post" class="inline-form" onsubmit="return confirm('أرشفة هذه الدائرة؟')"><input type="hidden" name="action" value="archive_circle"><input type="hidden" name="id" value="{{ circle.id }}"><button class="ghost-button danger-button" type="submit">أرشفة</button></form>
       </div>
     </article>
+    {% endif %}
     {% endfor %}
   </div>
   {% if not circles %}<div class="sc-empty">لا توجد دوائر نشطة بعد. أنشئ الدوائر من هنا، ثم ستظهر تلقائيًا في التطبيق.</div>{% endif %}
