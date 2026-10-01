@@ -3933,7 +3933,6 @@ class SxCircleGroupScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
     );
   }
 }
