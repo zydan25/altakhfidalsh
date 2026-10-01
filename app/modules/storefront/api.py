@@ -363,8 +363,8 @@ def home():
         ),
         "side_circle_display": CatalogService.get_side_circle_display(),
         "side_circle_groups": CatalogService.list_side_circle_groups(
-            root_category_id=root_category_id,
-            public_scope=True,
+            include_archived=False,
+            public_scope=False,
         ),
         "trends": CatalogService.list_public_trends(limit=20),
         "looks": look_payload,
