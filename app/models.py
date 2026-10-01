@@ -403,6 +403,57 @@ class SideCategoryCircle(TimestampMixin, ActiveMixin, db.Model):
     )
 
 
+class SideCircleDisplaySetting(TimestampMixin, db.Model):
+    """Global presentation settings for side-category circles on the customer categories page."""
+
+    __tablename__ = "side_circle_display_settings"
+
+    id = db.Column(Integer, primary_key=True)
+    scope_key = db.Column(String(40), nullable=False, unique=True, default="all")
+    grid_columns = db.Column(Integer, nullable=False, default=3)
+    item_width = db.Column(Integer, nullable=False, default=88)
+    item_height = db.Column(Integer, nullable=False, default=88)
+    item_shape = db.Column(String(20), nullable=False, default="circle")
+    item_corner_radius = db.Column(Integer, nullable=False, default=18)
+    item_spacing = db.Column(Integer, nullable=False, default=8)
+    item_label_font_size = db.Column(Integer, nullable=False, default=10)
+    item_label_bold = db.Column(Boolean, nullable=False, default=True)
+    section_spacing = db.Column(Integer, nullable=False, default=14)
+    title_font_size = db.Column(Integer, nullable=False, default=15)
+    show_empty_state = db.Column(Boolean, nullable=False, default=True)
+
+
+class SideCircleDisplayGroup(TimestampMixin, ActiveMixin, db.Model):
+    """Editorial group that reuses existing side-category circles in carousels such as Trends Store."""
+
+    __tablename__ = "side_circle_display_groups"
+
+    id = db.Column(Integer, primary_key=True)
+    root_category_id = db.Column(ForeignKey("categories.id", ondelete="SET NULL"))
+    name = db.Column(String(160), nullable=False)
+    slug = db.Column(String(180), nullable=False, unique=True)
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    show_view_all = db.Column(Boolean, nullable=False, default=True)
+    __table_args__ = (
+        Index("ix_side_circle_group_scope_sort", "root_category_id", "sort_order", "is_active"),
+    )
+
+
+class SideCircleDisplayGroupItem(TimestampMixin, db.Model):
+    """Ordered many-to-many membership between display groups and existing side-category circles."""
+
+    __tablename__ = "side_circle_display_group_items"
+
+    id = db.Column(Integer, primary_key=True)
+    group_id = db.Column(ForeignKey("side_circle_display_groups.id", ondelete="CASCADE"), nullable=False)
+    circle_id = db.Column(ForeignKey("side_category_circles.id", ondelete="CASCADE"), nullable=False)
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("group_id", "circle_id", name="uq_side_circle_display_group_item"),
+        Index("ix_side_circle_display_group_item_group_sort", "group_id", "sort_order"),
+    )
+
+
 class ProductSideCategoryCircle(TimestampMixin, db.Model):
     """Many-to-many assignment of products to independent side-category circles."""
 
