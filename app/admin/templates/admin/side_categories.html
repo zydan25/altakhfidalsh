@@ -1,12 +1,40 @@
 {% extends "admin/base.html" %}
 {% block content %}
 {% set selected_side_category_id = request.args.get('side_category_id')|int %}
-<section class="module-header side-category-page-header">
+
+<style>
+  .sc-intro { margin-bottom: 16px; }
+  .sc-tabs { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 16px; }
+  .sc-tabs a { text-decoration:none; }
+  .sc-settings-grid, .sc-group-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .sc-settings-card { margin-bottom:16px; }
+  .sc-field { display:flex; flex-direction:column; gap:6px; }
+  .sc-field input, .sc-field select { width:100%; box-sizing:border-box; }
+  .sc-field small { color:#6b7280; }
+  .sc-group-card { display:flex; flex-direction:column; gap:12px; }
+  .sc-group-head, .sc-group-meta, .sc-group-actions { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .sc-chip-list { display:flex; flex-wrap:wrap; gap:6px; }
+  .sc-chip { background:#f5f5f5; border:1px solid #e5e7eb; border-radius:999px; padding:4px 8px; font-size:11px; }
+  .sc-circle-picker { max-height:360px; overflow:auto; border:1px solid #e5e7eb; border-radius:12px; padding:10px; background:#fafafa; }
+  .sc-circle-check { display:grid; grid-template-columns:auto 44px 1fr; gap:8px; align-items:center; padding:7px; border-radius:8px; }
+  .sc-circle-check:hover { background:#fff; }
+  .sc-circle-check img { width:44px; height:44px; border-radius:50%; object-fit:cover; background:#eee; }
+  .sc-circle-check small { display:block; color:#777; margin-top:2px; }
+  .sc-divider { height:1px; background:#ececec; margin:12px 0; }
+  .sc-empty { padding:18px; text-align:center; color:#6b7280; }
+  .sc-badge { display:inline-flex; align-items:center; gap:5px; font-size:10px; padding:3px 7px; border-radius:999px; }
+  @media (max-width: 800px) {
+    .sc-settings-grid, .sc-group-grid { grid-template-columns:1fr; }
+    .sc-group-head, .sc-group-meta, .sc-group-actions { align-items:flex-start; flex-direction:column; }
+  }
+</style>
+
+<section class="module-header sc-intro">
   <div class="module-toolbar">
     <div class="module-heading-copy">
       <span class="eyebrow">المحتوى والمتجر</span>
-      <h2>إدارة الفئات الجانبية</h2>
-      <p class="muted">أنشئ أقسامًا جانبية مستقلة مرتبطة بالأقسام الرئيسية فقط، ثم أضف تحت كل قسم دوائر مصورة مستقلة يمكن ربط المنتجات بها.</p>
+      <h2>إدارة الفئات الجانبية ودوائرها</h2>
+      <p class="muted">الفئات الجانبية مستقلة عن شجرة التصنيفات الأساسية، لكنها ترتبط بالقسم الرئيسي فقط. دوائرها يمكن إعادة استخدامها في مجموعات عرض مثل «Trends Store».</p>
     </div>
     <div class="module-toolbar-actions">
       <span class="status-pill">{{ side_categories|length }} قسم</span>
@@ -18,25 +46,25 @@
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
-<section class="side-category-tabs" aria-label="طرق إدارة الفئات الجانبية">
-  <a class="{% if view != 'circles' %}is-active{% endif %}" href="{{ request.path }}?view=groups">قائمة الفئات الجانبية</a>
-  <a class="{% if view == 'circles' %}is-active{% endif %}" href="{{ request.path }}?view=circles">دوائر التصنيف (3 أعمدة)</a>
+<section class="side-category-tabs sc-tabs" aria-label="طرق إدارة الفئات الجانبية">
+  <a class="{% if view == 'groups' %}is-active{% endif %}" href="{{ request.path }}?view=groups">الفئات الجانبية</a>
+  <a class="{% if view == 'circles' %}is-active{% endif %}" href="{{ request.path }}?view=circles">دوائر التصنيف</a>
+  <a class="{% if view == 'collections' %}is-active{% endif %}" href="{{ request.path }}?view=collections">مجموعات عرض الدوائر</a>
 </section>
 
-{% if view != 'circles' %}
+{% if view == 'groups' %}
 <section class="side-category-manager panel">
   <div class="side-category-manager-head">
     <div>
       <span class="eyebrow">ربط بالقسم الرئيسي</span>
-      <h3>تخصيص الفئة الجانبية لقسم رئيسي</h3>
-      <p class="muted">المسموح هنا هو المستوى الأعلى فقط؛ لا يمكن اختيار فئة لها أب.</p>
+      <h3>الفئات الجانبية</h3>
+      <p class="muted">يمكن ربط كل فئة جانبية بقسم رئيسي مثل نساء أو رجال أو أطفال، ثم إنشاء دوائر مستقلة داخلها.</p>
     </div>
     <button class="primary-button" type="button" data-side-create>＋ فئة جانبية جديدة</button>
   </div>
 
   <div class="side-category-cards">
     {% for row in side_categories %}
-    {% set side_index = loop.index0 %}
     <article class="side-category-card panel">
       <div class="side-category-card-head">
         <div class="side-category-title">
@@ -48,7 +76,6 @@
         </div>
         <span class="status-pill">{{ row.circles|length }} دائرة</span>
       </div>
-
       <div class="side-category-meta">
         <span>القسم الرئيسي</span>
         <strong>{{ row.root_category_name }}</strong>
@@ -56,20 +83,19 @@
       {% if row.badge %}
       <span class="badge-preview" style="background:{{ row.badge.bg_color or '#111827' }};color:{{ row.badge.text_color or '#fff' }}">{{ row.badge.name }}</span>
       {% endif %}
-
       <div class="side-category-actions">
         <div class="reorder-actions" aria-label="ترتيب الفئة الجانبية">
           <form method="post" class="inline-form">
             <input type="hidden" name="action" value="move_side_category">
             <input type="hidden" name="id" value="{{ row.id }}">
             <input type="hidden" name="direction" value="up">
-            <button class="icon-button reorder-button" type="submit" title="رفع لأعلى" aria-label="رفع لأعلى" {% if loop.first %}disabled{% endif %}>↑</button>
+            <button class="icon-button reorder-button" type="submit" {% if loop.first %}disabled{% endif %}>↑</button>
           </form>
           <form method="post" class="inline-form">
             <input type="hidden" name="action" value="move_side_category">
             <input type="hidden" name="id" value="{{ row.id }}">
             <input type="hidden" name="direction" value="down">
-            <button class="icon-button reorder-button" type="submit" title="خفض لأسفل" aria-label="خفض لأسفل" {% if loop.last %}disabled{% endif %}>↓</button>
+            <button class="icon-button reorder-button" type="submit" {% if loop.last %}disabled{% endif %}>↓</button>
           </form>
         </div>
         <button class="ghost-button" type="button" data-side-edit="{{ row.id }}">تعديل</button>
@@ -85,7 +111,7 @@
     <div class="empty-state panel">
       <div class="empty-icon">◉</div>
       <h3>لم تُنشأ فئات جانبية بعد</h3>
-      <p class="muted">ابدأ بإنشاء أول قسم جانبي واربطه بقسم رئيسي مثل نساء أو رجال أو أطفال.</p>
+      <p class="muted">ابدأ بإنشاء أول قسم جانبي واربطه بقسم رئيسي.</p>
       <button class="primary-button" type="button" data-side-create>＋ إضافة أول فئة جانبية</button>
     </div>
     {% endfor %}
@@ -97,15 +123,46 @@
   <div class="panel-heading"><div><span class="eyebrow">الأرشيف</span><h3>فئات جانبية مؤرشفة</h3></div><span class="status-pill">{{ archived_side_categories|length }}</span></div>
   <div class="stack-list">
     {% for row in archived_side_categories %}
-    <div class="stack-row">
-      <div><strong>{{ row.name }}</strong><span>{{ row.slug }}</span></div>
-      <span class="muted">{{ row.root_category_id }}</span>
-    </div>
+    <div class="stack-row"><div><strong>{{ row.name }}</strong><span>{{ row.slug }}</span></div><span class="muted">{{ row.root_category_id }}</span></div>
     {% endfor %}
   </div>
 </section>
 {% endif %}
-{% else %}
+
+{% elif view == 'circles' %}
+<section class="panel sc-settings-card">
+  <div class="panel-heading">
+    <div>
+      <span class="eyebrow">إعداد عام</span>
+      <h3>شكل وحجم دوائر الفئات الجانبية</h3>
+      <p class="muted">هذه الإعدادات تطبق على جميع الدوائر في صفحة الفئات. تبقى الصورة والاسم والترتيب لكل دائرة مستقلًا.</p>
+    </div>
+  </div>
+  <form method="post" class="form-stack">
+    <input type="hidden" name="action" value="save_circle_display_settings">
+    <div class="sc-settings-grid">
+      <label class="sc-field"><span>عدد الأعمدة</span><input name="grid_columns" type="number" min="2" max="5" value="{{ circle_display_settings.grid_columns }}"><small>الافتراضي 3 مثل تصميم الهاتف.</small></label>
+      <label class="sc-field"><span>عرض الدائرة (px)</span><input name="item_width" type="number" min="48" max="180" value="{{ circle_display_settings.item_width }}"></label>
+      <label class="sc-field"><span>ارتفاع الدائرة (px)</span><input name="item_height" type="number" min="48" max="180" value="{{ circle_display_settings.item_height }}"></label>
+      <label class="sc-field"><span>شكل الدائرة</span>
+        <select name="item_shape">
+          <option value="circle" {% if circle_display_settings.item_shape == 'circle' %}selected{% endif %}>دائري</option>
+          <option value="rounded" {% if circle_display_settings.item_shape == 'rounded' %}selected{% endif %}>مستدير</option>
+          <option value="square" {% if circle_display_settings.item_shape == 'square' %}selected{% endif %}>مربع</option>
+        </select>
+      </label>
+      <label class="sc-field"><span>نصف قطر الحواف</span><input name="item_corner_radius" type="number" min="0" max="90" value="{{ circle_display_settings.item_corner_radius }}"></label>
+      <label class="sc-field"><span>المسافة بين العناصر</span><input name="item_spacing" type="number" min="0" max="30" value="{{ circle_display_settings.item_spacing }}"></label>
+      <label class="sc-field"><span>حجم اسم الدائرة</span><input name="item_label_font_size" type="number" min="7" max="24" value="{{ circle_display_settings.item_label_font_size }}"></label>
+      <label class="sc-field"><span>حجم عنوان المجموعة</span><input name="title_font_size" type="number" min="10" max="28" value="{{ circle_display_settings.title_font_size }}"></label>
+      <label class="sc-field"><span>المسافة بين الأقسام</span><input name="section_spacing" type="number" min="4" max="40" value="{{ circle_display_settings.section_spacing }}"></label>
+    </div>
+    <label><input type="checkbox" name="item_label_bold" {% if circle_display_settings.item_label_bold %}checked{% endif %}> جعل أسماء الدوائر عريضة</label>
+    <label><input type="checkbox" name="show_empty_state" {% if circle_display_settings.show_empty_state %}checked{% endif %}> إظهار حالة عدم وجود دوائر</label>
+    <div class="modal-actions"><button class="primary-button" type="submit">حفظ إعدادات الدوائر ✨</button></div>
+  </form>
+</section>
+
 <section class="side-circle-workspace panel">
   <div class="side-category-manager-head">
     <div>
@@ -146,111 +203,148 @@
       </div>
       <div class="side-circle-actions">
         <div class="reorder-actions" aria-label="ترتيب الدائرة">
-          <form method="post" class="inline-form">
-            <input type="hidden" name="action" value="move_circle">
-            <input type="hidden" name="id" value="{{ circle.id }}">
-            <input type="hidden" name="direction" value="up">
-            <button class="icon-button reorder-button" type="submit" title="رفع لأعلى" aria-label="رفع لأعلى" {% if side_circle_index == 0 %}disabled{% endif %}>↑</button>
-          </form>
-          <form method="post" class="inline-form">
-            <input type="hidden" name="action" value="move_circle">
-            <input type="hidden" name="id" value="{{ circle.id }}">
-            <input type="hidden" name="direction" value="down">
-            <button class="icon-button reorder-button" type="submit" title="خفض لأسفل" aria-label="خفض لأسفل" {% if side_circle_index == (side_circle_ids|length - 1) %}disabled{% endif %}>↓</button>
-          </form>
+          <form method="post" class="inline-form"><input type="hidden" name="action" value="move_circle"><input type="hidden" name="id" value="{{ circle.id }}"><input type="hidden" name="direction" value="up"><button class="icon-button reorder-button" type="submit" {% if side_circle_index == 0 %}disabled{% endif %}>↑</button></form>
+          <form method="post" class="inline-form"><input type="hidden" name="action" value="move_circle"><input type="hidden" name="id" value="{{ circle.id }}"><input type="hidden" name="direction" value="down"><button class="icon-button reorder-button" type="submit" {% if side_circle_index == (side_circle_ids|length - 1) %}disabled{% endif %}>↓</button></form>
         </div>
         <button class="ghost-button" type="button" data-circle-edit="{{ circle.id }}">تعديل</button>
-        <form method="post" class="inline-form" onsubmit="return confirm('أرشفة هذه الدائرة؟')">
-          <input type="hidden" name="action" value="archive_circle">
-          <input type="hidden" name="id" value="{{ circle.id }}">
+        <form method="post" class="inline-form" onsubmit="return confirm('أرشفة هذه الدائرة؟')"><input type="hidden" name="action" value="archive_circle"><input type="hidden" name="id" value="{{ circle.id }}"><button class="ghost-button danger-button" type="submit">أرشفة</button></form>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+  {% if not circles %}<div class="sc-empty">لا توجد دوائر نشطة بعد. أنشئ الدوائر من هنا، ثم ستظهر تلقائيًا في التطبيق.</div>{% endif %}
+</section>
+
+{% else %}
+<section class="panel">
+  <div class="panel-heading">
+    <div>
+      <span class="eyebrow">مجموعات العرض</span>
+      <h3>مجموعات دوائر قابلة لإعادة الاستخدام</h3>
+      <p class="muted">أنشئ أقسامًا مثل «Trends Store» أو «الأكثر رواجًا» ثم اختر أي دوائر موجودة مسبقًا لتظهر داخلها.</p>
+    </div>
+    <button class="primary-button" type="button" data-group-create>＋ مجموعة جديدة</button>
+  </div>
+
+  <div class="sc-group-grid">
+    {% for group in circle_groups %}
+    <article class="panel sc-group-card">
+      <div class="sc-group-head">
+        <div>
+          <span class="eyebrow">{{ group.root_category_name or 'عام لكل الأقسام' }}</span>
+          <h3>{{ group.name }}</h3>
+          <small class="muted">{{ group.slug }} · ترتيب {{ group.sort_order }}</small>
+        </div>
+        <span class="status-pill">{{ group.circles|length }} دائرة</span>
+      </div>
+      <div class="sc-chip-list">
+        {% for circle in group.circles[:8] %}
+        <span class="sc-chip">{{ circle.name }}</span>
+        {% endfor %}
+        {% if group.circles|length > 8 %}<span class="sc-chip">+{{ group.circles|length - 8 }}</span>{% endif %}
+      </div>
+      <div class="sc-group-meta">
+        <span>{{ 'يظهر زر عرض الكل' if group.show_view_all else 'بدون عرض الكل' }}</span>
+        <span>{{ 'نشط' if group.is_active else 'مؤرشف' }}</span>
+      </div>
+      <div class="sc-group-actions">
+        <button class="ghost-button" type="button" data-group-edit="{{ group.id }}">تعديل المجموعة</button>
+        <form method="post" class="inline-form" onsubmit="return confirm('أرشفة مجموعة العرض؟')">
+          <input type="hidden" name="action" value="archive_circle_group">
+          <input type="hidden" name="id" value="{{ group.id }}">
           <button class="ghost-button danger-button" type="submit">أرشفة</button>
         </form>
       </div>
     </article>
-    {% endif %}
     {% else %}
-    <div class="empty-state panel"><div class="empty-icon">○</div><h3>لا توجد دوائر</h3><p class="muted">أنشئ أول دائرة مصورة للقسم الجانبي.</p></div>
+    <div class="empty-state panel">
+      <div class="empty-icon">◇</div>
+      <h3>لا توجد مجموعات عرض</h3>
+      <p class="muted">أنشئ مجموعة مثل Trends Store واختر الدوائر التي تريد عرضها فيها.</p>
+      <button class="primary-button" type="button" data-group-create>＋ إنشاء أول مجموعة</button>
+    </div>
     {% endfor %}
   </div>
 </section>
 {% endif %}
 
+<!-- Side category editor -->
 <div class="admin-modal side-category-modal" data-modal="sideCategoryEditor" hidden>
   <div class="admin-modal-backdrop" data-side-close></div>
   <section class="admin-modal-dialog" role="dialog" aria-modal="true">
-    <div class="admin-modal-header">
-      <div><span class="eyebrow">الفئات الجانبية</span><h3 id="sideCategoryEditorTitle">إضافة فئة جانبية جديدة</h3></div>
-      <button class="icon-button" type="button" data-side-close>×</button>
-    </div>
+    <div class="admin-modal-header"><div><span class="eyebrow">الفئات الجانبية</span><h3 id="sideCategoryEditorTitle">إضافة فئة جانبية جديدة</h3></div><button class="icon-button" type="button" data-side-close>×</button></div>
     <form method="post" class="form-stack" id="sideCategoryForm">
-      <input type="hidden" name="action" id="sideCategoryAction" value="create_side_category">
-      <input type="hidden" name="id" id="sideCategoryId">
-      <label>تخصيص لقسم رئيسي <b class="required-mark">*</b>
-        <select name="root_category_id" id="sideCategoryRoot" required>
-          <option value="">اختر القسم الرئيسي</option>
-          {% for row in root_categories %}<option value="{{ row.id }}">{{ row.name }}</option>{% endfor %}
-        </select>
-      </label>
-      <label>اسم الفئة الجانبية <b class="required-mark">*</b>
-        <input name="name" id="sideCategoryName" required placeholder="مثال: فساتين نسائية، ملابس منزلية">
-      </label>
-      <label>Slug <small class="muted">(اختياري)</small>
-        <input name="slug" id="sideCategorySlug" dir="ltr" placeholder="يولد تلقائيًا">
-      </label>
-      <label>الشارة الترويجية <small class="muted">(اختياري)</small>
-        <select name="badge_id" id="sideCategoryBadge">
-          <option value="">بدون شارة</option>
-          {% for badge in badges %}<option value="{{ badge.id }}">{{ badge.name }}</option>{% endfor %}
-        </select>
-      </label>
+      <input type="hidden" name="action" id="sideCategoryAction" value="create_side_category"><input type="hidden" name="id" id="sideCategoryId">
+      <label>تخصيص لقسم رئيسي <b class="required-mark">*</b><select name="root_category_id" id="sideCategoryRoot" required><option value="">اختر القسم الرئيسي</option>{% for row in root_categories %}<option value="{{ row.id }}">{{ row.name }}</option>{% endfor %}</select></label>
+      <label>اسم الفئة الجانبية <b class="required-mark">*</b><input name="name" id="sideCategoryName" required placeholder="مثال: فساتين نسائية، ملابس منزلية"></label>
+      <label>Slug <small class="muted">(اختياري)</small><input name="slug" id="sideCategorySlug" dir="ltr" placeholder="يولد تلقائيًا"></label>
+      <label>الشارة الترويجية <small class="muted">(اختياري)</small><select name="badge_id" id="sideCategoryBadge"><option value="">بدون شارة</option>{% for badge in badges %}<option value="{{ badge.id }}">{{ badge.name }}</option>{% endfor %}</select></label>
       <label>الترتيب<input name="sort_order" id="sideCategorySort" type="number" min="0" value="0"></label>
       <div class="modal-actions"><button class="ghost-button" type="button" data-side-close>إلغاء</button><button class="primary-button" type="submit" id="sideCategorySave">حفظ الفئة الجانبية ✨</button></div>
     </form>
   </section>
 </div>
 
+<!-- Circle editor -->
 <div class="admin-modal side-category-modal" data-modal="sideCircleEditor" hidden>
   <div class="admin-modal-backdrop" data-side-close></div>
   <section class="admin-modal-dialog" role="dialog" aria-modal="true">
-    <div class="admin-modal-header">
-      <div><span class="eyebrow">دوائر التصنيف</span><h3 id="sideCircleEditorTitle">إضافة دائرة جديدة</h3></div>
-      <button class="icon-button" type="button" data-side-close>×</button>
-    </div>
+    <div class="admin-modal-header"><div><span class="eyebrow">دوائر التصنيف</span><h3 id="sideCircleEditorTitle">إضافة دائرة جديدة</h3></div><button class="icon-button" type="button" data-side-close>×</button></div>
     <form method="post" enctype="multipart/form-data" class="form-stack" id="sideCircleForm">
-      <input type="hidden" name="action" id="sideCircleAction" value="create_circle">
-      <input type="hidden" name="id" id="sideCircleId">
-      <label>الفئة الجانبية <b class="required-mark">*</b>
-        <select name="side_category_id" id="sideCircleSide" required>
-          <option value="">اختر الفئة الجانبية</option>
-          {% for row in side_categories %}<option value="{{ row.id }}">{{ row.name }} · {{ row.root_category_name }}</option>{% endfor %}
-        </select>
-      </label>
-      <label>اسم الدائرة <b class="required-mark">*</b>
-        <input name="name" id="sideCircleName" required placeholder="مثال: فساتين، قمصان، شتوي">
-      </label>
-      <label>Slug <small class="muted">(اختياري)</small>
-        <input name="slug" id="sideCircleSlug" dir="ltr" placeholder="يولد تلقائيًا">
-      </label>
-      <label class="upload-zone side-circle-upload">
-        <input name="files" id="sideCircleFiles" type="file" accept="image/*">
-        <span class="upload-icon">◎</span>
-        <strong id="sideCircleFileLabel">صورة الدائرة / استبدال الصورة</strong>
-        <small>عند التعديل يمكنك اختيار صورة جديدة لاستبدال الصورة الحالية.</small>
-      </label>
-      <div id="sideCircleCurrentPreview" class="side-circle-current-preview" hidden>
-        <img id="sideCircleCurrentImage" src="" alt="الصورة الحالية للدائرة">
-        <div><span class="eyebrow">الصورة الحالية</span><strong>ستبقى كما هي حتى تختار صورة جديدة.</strong></div>
-      </div>
-      <label>الشارة <small class="muted">(اختياري)</small>
-        <select name="badge_id" id="sideCircleBadge"><option value="">بدون شارة</option>{% for badge in badges %}<option value="{{ badge.id }}">{{ badge.name }}</option>{% endfor %}</select>
-      </label>
+      <input type="hidden" name="action" id="sideCircleAction" value="create_circle"><input type="hidden" name="id" id="sideCircleId">
+      <label>الفئة الجانبية <b class="required-mark">*</b><select name="side_category_id" id="sideCircleSide" required><option value="">اختر الفئة الجانبية</option>{% for row in side_categories %}<option value="{{ row.id }}">{{ row.name }} · {{ row.root_category_name }}</option>{% endfor %}</select></label>
+      <label>اسم الدائرة <b class="required-mark">*</b><input name="name" id="sideCircleName" required placeholder="مثال: فساتين، قمصان، شتوي"></label>
+      <label>Slug <small class="muted">(اختياري)</small><input name="slug" id="sideCircleSlug" dir="ltr" placeholder="يولد تلقائيًا"></label>
+      <label class="upload-zone side-circle-upload"><input name="files" id="sideCircleFiles" type="file" accept="image/*"><span class="upload-icon">◎</span><strong id="sideCircleFileLabel">صورة الدائرة / استبدال الصورة</strong><small>عند التعديل يمكنك اختيار صورة جديدة لاستبدال الصورة الحالية.</small></label>
+      <div id="sideCircleCurrentPreview" class="side-circle-current-preview" hidden><img id="sideCircleCurrentImage" src="" alt="الصورة الحالية للدائرة"><div><span class="eyebrow">الصورة الحالية</span><strong>ستبقى كما هي حتى تختار صورة جديدة.</strong></div></div>
+      <label>الشارة <small class="muted">(اختياري)</small><select name="badge_id" id="sideCircleBadge"><option value="">بدون شارة</option>{% for badge in badges %}<option value="{{ badge.id }}">{{ badge.name }}</option>{% endfor %}</select></label>
       <label>الترتيب<input name="sort_order" id="sideCircleSort" type="number" min="0" value="0"></label>
       <div class="modal-actions"><button class="ghost-button" type="button" data-side-close>إلغاء</button><button class="primary-button" type="submit" id="sideCircleSave">حفظ الدائرة ✨</button></div>
     </form>
   </section>
 </div>
 
+<!-- Circle display group editor -->
+<div class="admin-modal side-category-modal" data-modal="circleGroupEditor" hidden>
+  <div class="admin-modal-backdrop" data-group-close></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header"><div><span class="eyebrow">مجموعات الدوائر</span><h3 id="circleGroupEditorTitle">إضافة مجموعة جديدة</h3></div><button class="icon-button" type="button" data-group-close>×</button></div>
+    <form method="post" class="form-stack" id="circleGroupForm">
+      <input type="hidden" name="action" id="circleGroupAction" value="create_circle_group"><input type="hidden" name="id" id="circleGroupId">
+      <label>نطاق المجموعة <small class="muted">(اختياري)</small>
+        <select name="root_category_id" id="circleGroupRoot">
+          <option value="">عام لكل الأقسام</option>
+          {% for row in root_categories %}<option value="{{ row.id }}">{{ row.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>اسم المجموعة <b class="required-mark">*</b><input name="name" id="circleGroupName" required placeholder="مثال: Trends Store"></label>
+      <label>Slug <small class="muted">(اختياري)</small><input name="slug" id="circleGroupSlug" dir="ltr"></label>
+      <label>الترتيب<input name="sort_order" id="circleGroupSort" type="number" min="0" value="0"></label>
+      <label><input type="checkbox" name="show_view_all" id="circleGroupViewAll" checked> إظهار «عرض الكل»</label>
+      <div>
+        <div class="panel-heading"><div><strong>دوائر المجموعة</strong><p class="muted">يمكن اختيار أي دائرة موجودة. عند تحديد قسم رئيسي للمجموعة سيقبل الخادم دوائر ذلك القسم فقط.</p></div></div>
+        <div class="sc-circle-picker" id="circleGroupCirclePicker">
+          {% for circle in circles %}
+          {% set side = side_map.get(circle.side_category_id) %}
+          <label class="sc-circle-check">
+            <input type="checkbox" name="circle_ids" value="{{ circle.id }}">
+            {% set asset = circle_assets.get(circle.id) %}
+            {% if asset %}<img src="{{ asset.url }}" alt="{{ circle.name }}">{% else %}<span style="width:44px;height:44px;border-radius:50%;background:#eee;display:block"></span>{% endif %}
+            <span><strong>{{ circle.name }}</strong><small>{{ side.name if side else 'فئة جانبية' }} · {{ side.root_category_name if side else '' }}</small></span>
+          </label>
+          {% else %}
+          <div class="sc-empty">لا توجد دوائر نشطة للاختيار بعد.</div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-actions"><button class="ghost-button" type="button" data-group-close>إلغاء</button><button class="primary-button" type="submit">حفظ المجموعة ✨</button></div>
+    </form>
+  </section>
+</div>
+
 <script id="sideCategorySeed" type="application/json">{{ side_categories|map(attribute='id')|list|tojson }}</script>
 <script id="sideCategoryData" type="application/json">{{ side_categories|tojson }}</script>
-<script src="{{ url_for('admin.static', filename='side-categories.js') }}?v=20260926-2" defer></script>
+<script id="circleGroupData" type="application/json">{{ circle_groups|tojson }}</script>
+<script src="{{ url_for('admin.static', filename='side-categories.js') }}?v=20261001-1" defer></script>
+
 {% endblock %}
