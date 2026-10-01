@@ -134,6 +134,84 @@
     if (event.key !== "Escape") return;
     close(sideModal);
     close(circleModal);
+    close(groupModal);
+  });
+
+  const groupModal = document.querySelector('[data-modal="circleGroupEditor"]');
+  const groupDataEl = document.getElementById("circleGroupData");
+  let groups = [];
+  try { groups = JSON.parse(groupDataEl?.textContent || "[]") || []; } catch { groups = []; }
+
+  const groupForm = {
+    action: document.getElementById("circleGroupAction"),
+    id: document.getElementById("circleGroupId"),
+    title: document.getElementById("circleGroupEditorTitle"),
+    root: document.getElementById("circleGroupRoot"),
+    name: document.getElementById("circleGroupName"),
+    slug: document.getElementById("circleGroupSlug"),
+    sort: document.getElementById("circleGroupSort"),
+    viewAll: document.getElementById("circleGroupViewAll"),
+    picker: document.getElementById("circleGroupCirclePicker"),
+  };
+
+  const groupById = id => groups.find(x => Number(x.id) === Number(id));
+
+  const syncGroupCircleScope = () => {
+    if (!groupForm.picker || !groupForm.root) return;
+    const selectedRoot = Number(groupForm.root.value || 0);
+    groupForm.picker.querySelectorAll(".sc-circle-check").forEach(row => {
+      const root = Number(row.dataset.circleRoot || 0);
+      const input = row.querySelector('input[name="circle_ids"]');
+      const allowed = !selectedRoot || root === selectedRoot;
+      row.style.display = allowed ? "" : "none";
+      if (!allowed && input) input.checked = false;
+    });
+  };
+
+  const setGroupCheckedCircles = ids => {
+    const selected = new Set((ids || []).map(Number));
+    groupForm.picker?.querySelectorAll('input[name="circle_ids"]').forEach(input => {
+      input.checked = selected.has(Number(input.value));
+    });
+    syncGroupCircleScope();
+  };
+
+  document.querySelectorAll("[data-group-create]").forEach(button => {
+    button.addEventListener("click", () => {
+      groupForm.action.value = "create_circle_group";
+      groupForm.id.value = "";
+      groupForm.title.textContent = "إضافة مجموعة جديدة";
+      groupForm.root.value = "";
+      groupForm.name.value = "";
+      groupForm.slug.value = "";
+      groupForm.sort.value = "0";
+      groupForm.viewAll.checked = true;
+      setGroupCheckedCircles([]);
+      open(groupModal);
+    });
+  });
+
+  document.querySelectorAll("[data-group-edit]").forEach(button => {
+    button.addEventListener("click", () => {
+      const row = groupById(button.dataset.groupEdit);
+      if (!row) return;
+      groupForm.action.value = "update_circle_group";
+      groupForm.id.value = String(row.id);
+      groupForm.title.textContent = "تعديل مجموعة الدوائر";
+      groupForm.root.value = row.root_category_id ? String(row.root_category_id) : "";
+      groupForm.name.value = row.name || "";
+      groupForm.slug.value = row.slug || "";
+      groupForm.sort.value = String(row.sort_order || 0);
+      groupForm.viewAll.checked = row.show_view_all !== false;
+      setGroupCheckedCircles((row.circles || []).map(x => x.id));
+      open(groupModal);
+    });
+  });
+
+  groupForm.root?.addEventListener("change", syncGroupCircleScope);
+
+  document.querySelectorAll("[data-group-close]").forEach(button => {
+    button.addEventListener("click", () => close(groupModal));
   });
 
   const filter = document.getElementById("sideCircleFilter");
