@@ -4268,8 +4268,9 @@ class _SxResultsState extends State<SxResults> {
             delegate: _ResultHeaderDelegate(
               height: 56,
               child: _ResultsFilterBar(
-                sortLabel: _sortLabel,
                 filterCount: filterCount,
+                priceDescending: sort == 'price_desc',
+                discoveryLabel: sort == 'newest' ? 'الأحدث' : 'الأكثر انتشاراً',
                 onRecommendation: recommendationSheet,
                 onDiscovery: discoveryToggle,
                 onPrice: priceToggle,
