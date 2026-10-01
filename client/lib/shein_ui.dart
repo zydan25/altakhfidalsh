@@ -181,7 +181,7 @@ class SxSearchBar extends StatelessWidget {
         hintText: hint,
         hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
         prefixIcon: const Icon(Icons.search, size: 22, color: Colors.black),
-        suffixIcon: const Icon(Icons.camera_alt_outlined, size: 19, color: Colors.black),
+        suffixIcon: const Icon(Icons.search, size: 22, color: Colors.black),
         contentPadding: const EdgeInsets.symmetric(horizontal: 10),
         filled: true,
         fillColor: backgroundColor,
@@ -1022,17 +1022,6 @@ class _HomeFixedHeader extends StatelessWidget {
                   textDirection: TextDirection.rtl,
                   child: Row(
                     children: [
-                      SxCircleIcon(
-                        icon: Icons.calendar_today_outlined,
-                        onTap: onNotifications,
-                        dot: true,
-                      ),
-                      const SizedBox(width: 2),
-                      SxCircleIcon(
-                        icon: Icons.mail_outline,
-                        onTap: onNotifications,
-                      ),
-                      const SizedBox(width: 7),
                       Expanded(
                         child: GestureDetector(
                           onTap: onSearch,
@@ -1045,7 +1034,7 @@ class _HomeFixedHeader extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 7),
+                      const SizedBox(width: 9),
                       SxCircleIcon(
                         icon: Icons.favorite_border,
                         onTap: onWishlist,
