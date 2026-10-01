@@ -459,9 +459,15 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         ..sort((a, b) => a.sortOrder == b.sortOrder
             ? a.id.compareTo(b.id)
             : a.sortOrder.compareTo(b.sortOrder));
+      final discoveryFilter = discoveryTab == 0
+          ? 'offers'
+          : discoveryTab == 1
+              ? 'new'
+              : null;
       final nextProducts = await api.feed(
         category: requestedScope < 0 ? null : requestedScope,
         sort: discoveryTab == 1 ? 'newest' : 'recommended',
+        discoveryTab: discoveryFilter,
         currencyId: state.currencyId,
       );
       try {
@@ -2495,22 +2501,120 @@ class SxTrendRail extends StatelessWidget {
   ]);
 }
 
+double sxProductImageRatio(ProductModel product) {
+  final direct = product.imageAspectRatio;
+  if (direct != null && direct > 0) {
+    return direct.clamp(.56, 1.45).toDouble();
+  }
+  final raw = product.cardAspectRatio ?? '';
+  final parts = raw.split(':');
+  if (parts.length == 2) {
+    final width = double.tryParse(parts[0]);
+    final height = double.tryParse(parts[1]);
+    if (width != null && height != null && width > 0 && height > 0) {
+      return (width / height).clamp(.56, 1.45).toDouble();
+    }
+  }
+  return .75;
+}
+
 class SxProductGrid extends StatelessWidget {
   final List<ProductModel> products;
-  const SxProductGrid({super.key, required this.products});
-  @override Widget build(BuildContext context) => products.isEmpty
-    ? const Padding(padding: EdgeInsets.all(30), child: Center(child: Text('لا توجد منتجات مطابقة', style: TextStyle(fontWeight: FontWeight.w700))))
-    : GridView.builder(
-      primary: false, shrinkWrap: true, physics: const NeverScrollableScrollPhysics(),
+  final bool masonry;
+
+  const SxProductGrid({
+    super.key,
+    required this.products,
+    this.masonry = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (products.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(30),
+        child: Center(
+          child: Text(
+            'لا توجد منتجات مطابقة',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+      );
+    }
+
+    if (masonry) {
+      return _SxMasonryProductGrid(products: products);
+    }
+
+    return GridView.builder(
+      primary: false,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: products.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 5, mainAxisSpacing: 7, childAspectRatio: .69),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 5,
+        mainAxisSpacing: 7,
+        childAspectRatio: .69,
+      ),
       itemBuilder: (_, i) => SxProductCard(product: products[i]),
     );
+  }
+}
+
+class _SxMasonryProductGrid extends StatelessWidget {
+  final List<ProductModel> products;
+
+  const _SxMasonryProductGrid({required this.products});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columnWidth = (constraints.maxWidth - 5) / 2;
+        final columns = <List<ProductModel>>[[], []];
+        final heights = <double>[0, 0];
+
+        for (final product in products) {
+          final ratio = sxProductImageRatio(product);
+          final estimatedHeight = columnWidth / ratio + 112;
+          final column = heights[0] <= heights[1] ? 0 : 1;
+          columns[column].add(product);
+          heights[column] += estimatedHeight + 7;
+        }
+
+        Widget buildColumn(List<ProductModel> rows) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (int i = 0; i < rows.length; i++) ...[
+              SxProductCard(product: rows[i], masonry: true),
+              if (i != rows.length - 1) const SizedBox(height: 7),
+            ],
+          ],
+        );
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: buildColumn(columns[0])),
+            const SizedBox(width: 5),
+            Expanded(child: buildColumn(columns[1])),
+          ],
+        );
+      },
+    );
+  }
 }
 
 class SxProductCard extends StatefulWidget {
   final ProductModel product;
-  const SxProductCard({super.key, required this.product});
+  final bool masonry;
+
+  const SxProductCard({
+    super.key,
+    required this.product,
+    this.masonry = false,
+  });
 
   @override
   State<SxProductCard> createState() => _SxProductCardState();
@@ -2542,7 +2646,10 @@ class _SxProductCardState extends State<SxProductCard> {
     if (_galleryLoaded || _galleryLoading || !mounted) return;
     _galleryLoading = true;
     try {
-      final data = await api.product(widget.product.id, currencyId: state.currencyId);
+      final data = await api.product(
+        widget.product.id,
+        currencyId: state.currencyId,
+      );
       final item = data['item'] is Map
           ? Map<String, dynamic>.from(data['item'])
           : const <String, dynamic>{};
@@ -2595,6 +2702,191 @@ class _SxProductCardState extends State<SxProductCard> {
     }
   }
 
+  Widget _imageStack({
+    required double ratio,
+    required bool masonry,
+    required int discount,
+    required List<String> gallery,
+  }) {
+    final image = gallery.isEmpty
+        ? Container(
+            color: ClientTheme.soft,
+            child: const Icon(Icons.image_outlined),
+          )
+        : GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragStart: (_) {
+              _dragDistance = 0;
+              if (_gallery.length <= 1) {
+                unawaited(_loadFullGallery());
+              }
+            },
+            onHorizontalDragUpdate: (details) {
+              _dragDistance += details.delta.dx;
+            },
+            onHorizontalDragEnd: (details) {
+              unawaited(
+                _handleImageSwipeEnd(details, _gallery.length),
+              );
+            },
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 170),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              child: KeyedSubtree(
+                key: ValueKey(
+                  widget.product.id.toString() + '-' + page.toString(),
+                ),
+                child: SxImage(
+                  url: gallery[page],
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          );
+
+    final imageContainer = ClipRRect(
+      borderRadius: BorderRadius.circular(
+        widget.masonry ? 8 : 10,
+      ),
+      child: image,
+    );
+
+    final body = Stack(
+      fit: StackFit.passthrough,
+      children: [
+        if (masonry)
+          AspectRatio(aspectRatio: ratio, child: imageContainer)
+        else
+          Positioned.fill(child: imageContainer),
+        const Positioned(
+          top: 6,
+          right: 6,
+          child: SxPill(
+            text: 'علامة تجارية',
+            background: Colors.black87,
+            foreground: Colors.white,
+          ),
+        ),
+        if (gallery.length > 1)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: discount > 0 ? 29 : 8,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                gallery.length,
+                (i) => AnimatedContainer(
+                  duration: const Duration(milliseconds: 130),
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  width: i == page ? 12 : 5,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: i == page ? Colors.white : Colors.white70,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (_galleryLoading)
+          const Positioned.fill(
+            child: Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        if (discount > 0)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              color: Colors.black.withOpacity(.74),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+              child: Row(
+                children: [
+                  const Text(
+                    '🔥 توفير',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    discount.toString() + '%',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        Positioned(
+          left: 7,
+          bottom: discount > 0 ? 27 : 7,
+          child: Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(.93),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.shopping_bag_outlined, size: 17),
+          ),
+        ),
+      ],
+    );
+
+    if (!masonry) {
+      return Expanded(child: body);
+    }
+    return body;
+  }
+
+  Widget _badgeChip(Map<String, dynamic> badge) {
+    final tab = sxText(badge['storefront_tab']);
+    final fallback = tab == 'new'
+        ? const Color(0xFF16A34A)
+        : tab == 'offers'
+            ? const Color(0xFFDC2626)
+            : const Color(0xFF111827);
+    final bg = sxColor(badge['bg_color'], fallback);
+    final fg = sxColor(badge['text_color'], Colors.white);
+    final text = sxText(
+      badge['custom_text'],
+      sxText(badge['name'], sxText(badge['code'])),
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: fg,
+          fontSize: 9,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
@@ -2602,159 +2894,27 @@ class _SxProductCardState extends State<SxProductCard> {
     final now = sxDouble(product.price);
     final discount =
         old > now && old > 0 ? ((1 - now / old) * 100).round() : 0;
+    final ratio = sxProductImageRatio(product);
+    final gallery = _gallery;
+    final visibleBadges = product.badges.take(2).toList();
 
     return InkWell(
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id)),
+        MaterialPageRoute(
+          builder: (_) => SxProductScreen(id: product.id),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: _gallery.isEmpty
-                        ? Container(
-                            color: ClientTheme.soft,
-                            child: const Icon(Icons.image_outlined),
-                          )
-                        : GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onHorizontalDragStart: (_) {
-                              _dragDistance = 0;
-                              if (_gallery.length <= 1) {
-                                unawaited(_loadFullGallery());
-                              }
-                            },
-                            onHorizontalDragUpdate: (details) {
-                              _dragDistance += details.delta.dx;
-                            },
-                            onHorizontalDragEnd: (details) {
-                              unawaited(
-                                _handleImageSwipeEnd(
-                                  details,
-                                  _gallery.length,
-                                ),
-                              );
-                            },
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 170),
-                              switchInCurve: Curves.easeOutCubic,
-                              switchOutCurve: Curves.easeInCubic,
-                              child: KeyedSubtree(
-                                key: ValueKey(
-                                  product.id.toString() +
-                                      '-' +
-                                      page.toString(),
-                                ),
-                                child: SxImage(
-                                  url: _gallery[page],
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                            ),
-                          ),
-                  ),
-                ),
-                const Positioned(
-                  top: 6,
-                  right: 6,
-                  child: SxPill(
-                    text: 'علامة تجارية',
-                    background: Colors.black87,
-                    foreground: Colors.white,
-                  ),
-                ),
-                if (_gallery.length > 1)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: discount > 0 ? 29 : 8,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(
-                        _gallery.length,
-                        (i) => AnimatedContainer(
-                          duration: const Duration(milliseconds: 130),
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          width: i == page ? 12 : 5,
-                          height: 3,
-                          decoration: BoxDecoration(
-                            color: i == page ? Colors.white : Colors.white70,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (_galleryLoading)
-                  const Positioned.fill(
-                    child: Center(
-                      child: SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                if (discount > 0)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      color: Colors.black.withOpacity(.74),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 5,
-                      ),
-                      child: Row(
-                        children: [
-                          const Text(
-                            '🔥 توفير',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            discount.toString() + '%',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                Positioned(
-                  left: 7,
-                  bottom: discount > 0 ? 27 : 7,
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(.93),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.shopping_bag_outlined, size: 17),
-                  ),
-                ),
-              ],
-            ),
+          _imageStack(
+            ratio: ratio,
+            masonry: widget.masonry,
+            discount: discount,
+            gallery: gallery,
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             product.name,
             maxLines: 2,
@@ -2765,6 +2925,14 @@ class _SxProductCardState extends State<SxProductCard> {
               height: 1.2,
             ),
           ),
+          if (visibleBadges.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Wrap(
+              spacing: 4,
+              runSpacing: 3,
+              children: visibleBadges.map(_badgeChip).toList(),
+            ),
+          ],
           const SizedBox(height: 4),
           Row(
             children: [
