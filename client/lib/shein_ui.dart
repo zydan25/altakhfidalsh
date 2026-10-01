@@ -2574,7 +2574,7 @@ class _SxProductCardState extends State<SxProductCard> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: List.generate(
-                    gallery.length.clamp(0, 6),
+                    gallery.length,
                     (i) => AnimatedContainer(
                       duration: const Duration(milliseconds: 130),
                       margin: const EdgeInsets.symmetric(horizontal: 2),
