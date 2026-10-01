@@ -10,8 +10,11 @@ from ...models import (
     CategoryFilterDefinition,
     CategoryFilterValue,
     MediaAsset,
+    Badge,
     Product,
+    ProductBadge,
     ProductCategory,
+    ProductDisplaySettings,
     ProductFilterValue,
     ProductHashtag,
     ProductMedia,
@@ -204,6 +207,7 @@ def public_product_feed():
     search = (request.args.get("q") or "").strip()
     currency_id = request.args.get("currency_id", type=int)
     sort = (request.args.get("sort") or "recommended").strip().lower()
+    discovery_tab = (request.args.get("discovery_tab") or "").strip().lower()
     min_price_raw = (request.args.get("min_price") or "").strip()
     max_price_raw = (request.args.get("max_price") or "").strip()
 
@@ -233,6 +237,21 @@ def public_product_feed():
             Product.sku.ilike(needle),
             Product.slug.ilike(needle),
         ))
+
+    if discovery_tab in {"new", "offers"}:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        query = (
+            query
+            .join(ProductBadge, ProductBadge.product_id == Product.id)
+            .join(Badge, Badge.id == ProductBadge.badge_id)
+            .filter(
+                Badge.is_active.is_(True),
+                Badge.storefront_tab == discovery_tab,
+                or_(ProductBadge.starts_at.is_(None), ProductBadge.starts_at <= now),
+                or_(ProductBadge.ends_at.is_(None), ProductBadge.ends_at > now),
+            )
+        )
 
     # OR within one filter group, AND between different filter groups.
     selected_filter_ids = []
@@ -288,14 +307,30 @@ def public_product_feed():
     product_ids = [row.id for row in rows]
     if product_ids:
         media_rows = (
-            db.session.query(ProductMedia.product_id, MediaAsset.url)
+            db.session.query(
+                ProductMedia.product_id,
+                MediaAsset.url,
+                MediaAsset.width,
+                MediaAsset.height,
+            )
             .join(MediaAsset, MediaAsset.id == ProductMedia.asset_id)
             .filter(ProductMedia.product_id.in_(product_ids))
             .order_by(ProductMedia.product_id, ProductMedia.sort_order, ProductMedia.id)
             .all()
         )
-        for product_id, media_url in media_rows:
-            media_by_product.setdefault(product_id, []).append(media_url)
+        for product_id, media_url, width, height in media_rows:
+            media_by_product.setdefault(product_id, []).append({
+                "url": media_url,
+                "width": width,
+                "height": height,
+            })
+
+    display_by_product = {
+        row.product_id: row
+        for row in ProductDisplaySettings.query
+        .filter(ProductDisplaySettings.product_id.in_(product_ids))
+        .all()
+    } if product_ids else {}
 
     customer = current_customer()
     items = []
@@ -307,7 +342,42 @@ def public_product_feed():
 
     for row in rows:
         item = CatalogService._serialize_trend_product(row)
-        item["images"] = media_by_product.get(row.id, [])
+        row_media = media_by_product.get(row.id, [])
+        item["images"] = [x["url"] for x in row_media]
+        first_media = row_media[0] if row_media else None
+        if first_media and first_media.get("width") and first_media.get("height"):
+            item["image_aspect_ratio"] = float(first_media["width"]) / float(first_media["height"])
+        display = display_by_product.get(row.id)
+        item["card_aspect_ratio"] = display.card_aspect_ratio if display else "3:4"
+
+        from datetime import datetime, timezone
+        now_utc = datetime.now(timezone.utc)
+        badge_rows = (
+            db.session.query(ProductBadge, Badge)
+            .join(Badge, Badge.id == ProductBadge.badge_id)
+            .filter(
+                ProductBadge.product_id == row.id,
+                Badge.is_active.is_(True),
+                or_(ProductBadge.starts_at.is_(None), ProductBadge.starts_at <= now_utc),
+                or_(ProductBadge.ends_at.is_(None), ProductBadge.ends_at > now_utc),
+            )
+            .order_by(ProductBadge.position, ProductBadge.id)
+            .all()
+        )
+        item["badges"] = [
+            {
+                "id": badge.id,
+                "code": badge.code,
+                "name": badge.name,
+                "custom_text": product_badge.custom_text,
+                "bg_color": badge.bg_color,
+                "text_color": badge.text_color,
+                "style": badge.style,
+                "storefront_tab": badge.storefront_tab,
+            }
+            for product_badge, badge in badge_rows
+        ]
+
         variant = ProductVariant.query.filter_by(
             product_id=row.id,
             is_active=True,
@@ -611,7 +681,10 @@ def set_product_reference_dimensions(product_id):
 def set_product_badges(product_id):
     payload = request.get_json(silent=True) or {}
     try:
-        return {"items": CatalogService.set_product_badges(product_id, payload.get("badge_ids", []))}
+        badges = payload.get("badges")
+        if badges is None:
+            badges = payload.get("badge_ids", [])
+        return {"items": CatalogService.set_product_badges(product_id, badges)}
     except LookupError as exc:
         return {"error": "not_found", "detail": str(exc)}, 404
     except ValueError as exc:
@@ -1005,6 +1078,7 @@ def create_badge():
             bg_color=(payload.get("bg_color") or "").strip() or None,
             text_color=(payload.get("text_color") or "").strip() or None,
             style=(payload.get("style") or "solid").strip(),
+            storefront_tab=(payload.get("storefront_tab") or "none").strip().lower(),
             priority=int(payload.get("priority", 0)),
         )
         db.session.add(row)
@@ -1012,7 +1086,8 @@ def create_badge():
         return {"item": {
             "id": row.id, "name": row.name, "code": row.code,
             "bg_color": row.bg_color, "text_color": row.text_color,
-            "style": row.style, "priority": row.priority,
+            "style": row.style, "storefront_tab": row.storefront_tab,
+            "priority": row.priority,
         }}, 201
     except (TypeError, ValueError) as exc:
         db.session.rollback()
