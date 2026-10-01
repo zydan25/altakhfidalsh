@@ -974,7 +974,7 @@ class _HomeFixedHeader extends StatelessWidget {
           duration: const Duration(milliseconds: 120),
           curve: Curves.easeOut,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: solidBackground ? Colors.white : Colors.transparent,
             border: Border(
               bottom: BorderSide(
                 color: solidBackground ? const Color(0xFF111111) : Colors.transparent,
@@ -3174,7 +3174,7 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
         .where((row) => row['is_active'] != false)
         .where((row) {
           final root = row['root_category_id'];
-          if (selectedRoot < 0) return root == null;
+          if (selectedRoot < 0) return true;
           return root == null || sxInt(root) == selectedRoot;
         })
         .where((row) => sxMaps(row['circles']).isNotEmpty)
