@@ -529,10 +529,14 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
     Iterable<ProductModel> scoped = source;
 
     if (selected >= 0) {
-      final categoryIds = _categoryScopeIds(selected);
-      scoped = scoped.where(
-        (product) => product.categoryIds.any(categoryIds.contains),
-      );
+      scoped = scoped.where((product) {
+        if (product.rootCategoryIds.isNotEmpty) {
+          return product.rootCategoryIds.contains(selected);
+        }
+        // Fallback for legacy cached/product payloads.
+        final categoryIds = _categoryScopeIds(selected);
+        return product.categoryIds.any(categoryIds.contains);
+      });
     }
 
     final scopedList = scoped.toList();
