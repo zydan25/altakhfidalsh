@@ -906,7 +906,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
           Positioned(
             top: headerHeight,
             bottom: 0,
-            right: 116,
+            right: 115,
             child: IgnorePointer(
               child: Container(
                 width: 1,
