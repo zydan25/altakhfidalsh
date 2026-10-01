@@ -154,6 +154,7 @@ class SxSearchBar extends StatelessWidget {
   final VoidCallback? onTap;
   final TextEditingController? controller;
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
   final String hint;
   final bool autofocus;
   final Color borderColor;
@@ -163,6 +164,7 @@ class SxSearchBar extends StatelessWidget {
     this.onTap,
     this.controller,
     this.onChanged,
+    this.onSubmitted,
     this.hint = 'ابحث عن المنتجات',
     this.autofocus = false,
     this.borderColor = const Color(0xFFD5D5D5),
@@ -176,6 +178,7 @@ class SxSearchBar extends StatelessWidget {
       readOnly: onTap != null && controller == null,
       onTap: onTap,
       onChanged: onChanged,
+      onSubmitted: onSubmitted,
       style: const TextStyle(color: Colors.black, fontSize: 13),
       decoration: InputDecoration(
         hintText: hint,
@@ -884,12 +887,15 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                   itemLabelBold: categoryDisplay['item_label_bold'] != false,
 
                   onRootTap: (category) {
-                    if (selected == category.id) return;
-                    setState(() {
-                      selected = category.id;
-                      _activeBannerIndex = 0;
-                      products = _filterVisibleProducts(_allStoreProducts);
-                    });
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SxResults(
+                          title: category.name,
+                          categoryId: category.id,
+                        ),
+                      ),
+                    );
                   },
                   onCategoryTap: (category) {
                     Navigator.push(
@@ -1541,50 +1547,56 @@ class SxBannerLandingScreen extends StatefulWidget {
 }
 
 class _SxBannerLandingScreenState extends State<SxBannerLandingScreen> {
-  List<ProductModel> products = [];
-  bool loading = true;
-  String title = '';
-
-  @override void initState() {
+  @override
+  void initState() {
     super.initState();
-    title = sxText(widget.banner['title'], 'العرض');
-    load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _route());
   }
 
-  Future<void> load() async {
-    try {
-      final targets = sxMaps(widget.banner['targets']);
-      final target = targets.isEmpty ? <String, dynamic>{} : targets.first;
-      final type = sxText(target['type']);
-      final id = sxInt(target['id']);
-      if (type == 'product' && id > 0) {
-        if (mounted) {
-          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SxProductScreen(id: id)));
-        }
-        return;
-      }
-      if (type == 'category' && id > 0) {
-        products = await api.feed(category: id, currencyId: state.currencyId);
-      } else if ((type == 'circle' || type == 'side_category_circle') && id > 0) {
-        products = await api.feed(circleId: id, currencyId: state.currencyId);
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e))));
+  Future<void> _route() async {
+    final targets = sxMaps(widget.banner['targets']);
+    final target = targets.isEmpty ? <String, dynamic>{} : targets.first;
+    final type = sxText(target['type']);
+    final id = sxInt(target['id']);
+    Widget destination;
+
+    if (type == 'product' && id > 0) {
+      destination = SxProductScreen(id: id);
+    } else if (type == 'category' && id > 0) {
+      destination = SxResults(
+        title: sxText(target['name'], sxText(widget.banner['title'], 'العروض')),
+        categoryId: id,
+      );
+    } else if ((type == 'circle' || type == 'side_category_circle') && id > 0) {
+      destination = SxResults(
+        title: sxText(target['name'], sxText(widget.banner['title'], 'العروض')),
+        circleId: id,
+      );
+    } else if (type == 'hashtag' && id > 0) {
+      destination = SxResults(
+        title: sxText(target['name'], sxText(widget.banner['title'], 'العروض')),
+        hashtagId: id,
+      );
+    } else {
+      destination = SxResults(title: sxText(widget.banner['title'], 'العروض'));
     }
-    if (mounted) setState(() => loading = false);
+
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => destination),
+    );
   }
 
-  @override Widget build(BuildContext context) => SxShellPage(
-    title: title,
-    back: true,
-    child: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : ListView(
-      children: [
-        SizedBox(height: 285, child: SxImage(url: widget.banner['mobile_image_url'] ?? widget.banner['image_url'])),
-        if (sxText(widget.banner['description']).isNotEmpty)
-          Padding(padding: const EdgeInsets.all(14), child: Text(sxText(widget.banner['description']), textAlign: TextAlign.center, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, height: 1.5))),
-        const SxSectionTitle(title: 'منتجات العرض'),
-        Padding(padding: const EdgeInsets.fromLTRB(7, 0, 7, 20), child: SxProductGrid(products: products)),
-      ],
+  @override
+  Widget build(BuildContext context) => const Scaffold(
+    backgroundColor: Colors.white,
+    body: Center(
+      child: SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
     ),
   );
 }
@@ -3941,68 +3953,734 @@ class SxCircleGroupScreen extends StatelessWidget {
 
 class SxResults extends StatefulWidget {
   final String title;
+  final String? query;
   final int? categoryId, circleId, hashtagId;
+
   const SxResults({
     super.key,
     required this.title,
+    this.query,
     this.categoryId,
     this.circleId,
     this.hashtagId,
   });
+
   @override State<SxResults> createState() => _SxResultsState();
 }
 
 class _SxResultsState extends State<SxResults> {
-  List<ProductModel> products = []; List<Map<String, dynamic>> filters = [];
-  final values = <int>{}; String sort = 'recommended'; String? minPrice, maxPrice; bool loading = true;
-  @override void initState() { super.initState(); load(); }
-  Future<void> load() async {
-    setState(() => loading = true);
+  static const int _viewGrid = 0;
+  static const int _viewMasonry = 1;
+  static const int _viewList = 2;
+
+  List<ProductModel> products = [];
+  List<CategoryModel> categories = [];
+  List<CategoryModel> roots = [];
+  List<CategoryModel> allCategories = [];
+  List<Map<String, dynamic>> filters = [];
+  Map<String, dynamic> home = {};
+
+  final Set<int> values = {};
+  String sort = 'recommended';
+  String? minPrice, maxPrice;
+  int? selectedCategoryId;
+  int? categoryContextId;
+  bool loading = true;
+  bool changingCategory = false;
+  int viewMode = _viewGrid;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  int? _circleRootId(Map<String, dynamic> payload) {
+    final id = widget.circleId;
+    if (id == null) return null;
+    for (final side in sxMaps(payload['side_categories'])) {
+      for (final circle in sxMaps(side['circles'])) {
+        if (sxInt(circle['id']) == id) return sxInt(side['root_category_id']);
+      }
+    }
+    return null;
+  }
+
+  void _buildCategoryRail() {
+    allCategories = sxMaps(home['categories'])
+        .map(CategoryModel.fromJson)
+        .toList()
+      ..sort((a, b) => a.sortOrder == b.sortOrder
+          ? a.id.compareTo(b.id)
+          : a.sortOrder.compareTo(b.sortOrder));
+    roots = allCategories.where((x) => x.parentId == null).toList();
+
+    final scope = widget.categoryId ?? categoryContextId;
+    if (scope != null) {
+      categories = allCategories.where((x) => x.parentId == scope).toList()
+        ..sort((a, b) => a.sortOrder == b.sortOrder
+            ? a.id.compareTo(b.id)
+            : a.sortOrder.compareTo(b.sortOrder));
+    } else {
+      categories = roots;
+    }
+  }
+
+  Future<void> _loadFilters(int? categoryId) async {
+    filters = [];
+    if (categoryId == null) return;
     try {
-      products = await api.feed(
-        category: widget.categoryId,
-        circleId: widget.circleId,
-        hashtagId: widget.hashtagId,
-        filterValueIds: values.toList(),
-        sort: sort,
-        minPrice: minPrice,
-        maxPrice: maxPrice,
-        currencyId: state.currencyId,
-      );
-      if (widget.categoryId != null) filters = await api.categoryFilters(widget.categoryId!);
+      filters = await api.categoryFilters(categoryId);
     } catch (_) {}
+  }
+
+  Future<List<ProductModel>> _fetch() => api.feed(
+    category: selectedCategoryId ?? widget.categoryId,
+    circleId: widget.circleId,
+    hashtagId: widget.hashtagId,
+    q: widget.query ?? '',
+    filterValueIds: values.toList(),
+    sort: sort,
+    minPrice: minPrice,
+    maxPrice: maxPrice,
+    currencyId: state.currencyId,
+  );
+
+  Future<void> load() async {
+    if (mounted) setState(() => loading = true);
+    try {
+      home = await api.home();
+      categoryContextId = _circleRootId(home);
+      selectedCategoryId = null;
+
+      await _loadFilters(widget.categoryId ?? categoryContextId);
+      products = await _fetch();
+      _buildCategoryRail();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(sxText(e, 'تعذر تحميل النتائج'))),
+        );
+      }
+    }
     if (mounted) setState(() => loading = false);
   }
+
+  Future<void> _selectCategory(int? id) async {
+    if (changingCategory) return;
+    setState(() {
+      selectedCategoryId = id;
+      changingCategory = true;
+      values.clear();
+      minPrice = null;
+      maxPrice = null;
+    });
+    await _loadFilters(id ?? widget.categoryId ?? categoryContextId);
+    try {
+      final next = await _fetch();
+      if (mounted) setState(() => products = next);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(sxText(e, 'تعذر تحديث النتائج'))),
+        );
+      }
+    }
+    if (mounted) setState(() => changingCategory = false);
+  }
+
+  Future<void> _reloadResults() async {
+    if (mounted) setState(() => loading = true);
+    try {
+      products = await _fetch();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(sxText(e, 'تعذر تحديث المنتجات'))),
+        );
+      }
+    }
+    if (mounted) setState(() => loading = false);
+  }
+
   Future<void> filterSheet() async {
-    if (widget.categoryId == null) return;
-    final r = await showModalBottomSheet<SxFilterSelection>(context: context, isScrollControlled: true, backgroundColor: Colors.white, builder: (_) => SxFilterSheet(filters: filters, selected: values, minPrice: minPrice, maxPrice: maxPrice));
-    if (r == null) return;
-    values..clear()..addAll(r.valueIds); minPrice = r.minPrice; maxPrice = r.maxPrice; await load();
+    final filterCategory = selectedCategoryId ?? widget.categoryId ?? categoryContextId;
+    if (filterCategory == null || filters.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('لا توجد فلاتر مخصصة لهذه الفئة حاليًا')),
+      );
+      return;
+    }
+
+    final result = await showModalBottomSheet<SxFilterSelection>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      builder: (_) => SxFilterSheet(
+        filters: filters,
+        selected: values,
+        minPrice: minPrice,
+        maxPrice: maxPrice,
+      ),
+    );
+    if (result == null) return;
+
+    values
+      ..clear()
+      ..addAll(result.valueIds);
+    minPrice = result.minPrice;
+    maxPrice = result.maxPrice;
+    await _reloadResults();
   }
+
   Future<void> sortSheet() async {
-    final r = await showModalBottomSheet<String>(context: context, backgroundColor: Colors.white, builder: (_) => SxSortSheet(current: sort));
-    if (r == null) return;
-    setState(() => sort = r); await load();
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      builder: (_) => SxSortSheet(current: sort),
+    );
+    if (result == null) return;
+    setState(() => sort = result);
+    await _reloadResults();
   }
-  @override Widget build(BuildContext context) => Scaffold(
-    appBar: SxAppBar(title: widget.title, back: true, onSearch: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxSearchScreen()))),
-    body: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : CustomScrollView(slivers: [
-      if (values.isNotEmpty || minPrice != null || maxPrice != null) SliverToBoxAdapter(child: SizedBox(height: 40, child: ListView(reverse: true, scrollDirection: Axis.horizontal, padding: const EdgeInsets.symmetric(horizontal: 9), children: [
-        const SxPill(text: 'فلاتر مفعلة', background: Colors.black, foreground: Colors.white),
-        ...values.map((e) => Padding(padding: const EdgeInsets.only(right: 5), child: SxPill(text: _label(e)))),
-      ]))),
-      SliverPersistentHeader(pinned: true, delegate: _FilterHeader(child: Row(children: [
-        Expanded(child: _FilterButton('التوصية', Icons.keyboard_arrow_down, sortSheet)),
-        const SizedBox(width: 5), Expanded(child: _FilterButton('أوسع من...', Icons.local_fire_department_outlined, sortSheet)),
-        const SizedBox(width: 5), Expanded(child: _FilterButton('السعر', Icons.swap_vert, sortSheet)),
-        const SizedBox(width: 5), Expanded(child: _FilterButton('تصنيف', Icons.tune, filterSheet)),
-      ]))),
-      SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(7, 9, 7, 20), child: SxProductGrid(products: products))),
-    ]),
-  );
-  String _label(int id) {
-    for (final f in filters) for (final v in sxMaps(f['values'])) if (sxInt(v['id']) == id) return sxText(v['label']);
+
+  String get _sortLabel {
+    switch (sort) {
+      case 'newest': return 'الأحدث';
+      case 'price_asc': return 'السعر ↑';
+      case 'price_desc': return 'السعر ↓';
+      default: return 'التوصية';
+    }
+  }
+
+  String get _scopeLabel =>
+      widget.query != null && widget.query!.trim().isNotEmpty
+          ? widget.query!.trim()
+          : widget.title;
+
+  String _filterLabel(int id) {
+    for (final f in filters) {
+      for (final v in sxMaps(f['values'])) {
+        if (sxInt(v['id']) == id) return sxText(v['label'], 'فلتر');
+      }
+    }
     return 'فلتر';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filterCount = values.length +
+        (minPrice != null ? 1 : 0) +
+        (maxPrice != null ? 1 : 0);
+
+    if (loading && products.isEmpty) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Column(
+          children: [
+            _ResultsTopBar(
+              title: _scopeLabel,
+              viewMode: viewMode,
+              onViewMode: () => setState(() => viewMode = (viewMode + 1) % 3),
+              onBack: () => Navigator.pop(context),
+              onSearch: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SxSearchScreen()),
+              ),
+              onWishlist: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SxWishlistScreen()),
+              ),
+            ),
+            const Expanded(
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        slivers: [
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _ResultHeaderDelegate(
+              height: 58,
+              child: _ResultsTopBar(
+                title: _scopeLabel,
+                viewMode: viewMode,
+                onViewMode: () => setState(() => viewMode = (viewMode + 1) % 3),
+                onBack: () => Navigator.pop(context),
+                onSearch: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SxSearchScreen()),
+                ),
+                onWishlist: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SxWishlistScreen()),
+                ),
+              ),
+            ),
+          ),
+          if (categories.isNotEmpty)
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _ResultHeaderDelegate(
+                height: 94,
+                child: _ResultsCategoryRail(
+                  categories: categories,
+                  selected: selectedCategoryId,
+                  onSelected: _selectCategory,
+                ),
+              ),
+            ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _ResultHeaderDelegate(
+              height: 56,
+              child: _ResultsFilterBar(
+                sortLabel: _sortLabel,
+                filterCount: filterCount,
+                onSort: sortSheet,
+                onFilter: filterSheet,
+              ),
+            ),
+          ),
+          if (changingCategory || (loading && products.isNotEmpty))
+            const SliverToBoxAdapter(
+              child: LinearProgressIndicator(
+                minHeight: 1.5,
+                backgroundColor: Colors.transparent,
+              ),
+            ),
+          if (filterCount > 0)
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 39,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  reverse: true,
+                  padding: const EdgeInsets.fromLTRB(8, 3, 8, 3),
+                  children: [
+                    const SxPill(
+                      text: 'فلاتر',
+                      background: Colors.black,
+                      foreground: Colors.white,
+                    ),
+                    for (final id in values)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 5),
+                        child: SxPill(text: _filterLabel(id)),
+                      ),
+                    if (minPrice != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 5),
+                        child: SxPill(text: 'من ' + minPrice!),
+                      ),
+                    if (maxPrice != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 5),
+                        child: SxPill(text: 'إلى ' + maxPrice!),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          SliverToBoxAdapter(
+            child: viewMode == _viewList
+                ? _ResultsList(products: products)
+                : SxProductGrid(
+                    products: products,
+                    masonry: viewMode == _viewMasonry,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ResultHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final double height;
+  final Widget child;
+  _ResultHeaderDelegate({required this.height, required this.child});
+  @override double get minExtent => height;
+  @override double get maxExtent => height;
+  @override Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      Material(color: Colors.white, elevation: overlapsContent ? .55 : 0, child: child);
+  @override bool shouldRebuild(covariant _ResultHeaderDelegate oldDelegate) =>
+      oldDelegate.height != height || oldDelegate.child != child;
+}
+
+class _ResultsTopBar extends StatelessWidget {
+  final String title;
+  final int viewMode;
+  final VoidCallback onViewMode;
+  final VoidCallback onBack;
+  final VoidCallback onSearch;
+  final VoidCallback onWishlist;
+
+  const _ResultsTopBar({
+    required this.title,
+    required this.viewMode,
+    required this.onViewMode,
+    required this.onBack,
+    required this.onSearch,
+    required this.onWishlist,
+  });
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    bottom: false,
+    child: SizedBox(
+      height: 58,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(7, 2, 6, 2),
+        child: Row(
+          textDirection: TextDirection.ltr,
+          children: [
+            SxCircleIcon(icon: Icons.favorite_border, onTap: onWishlist),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: 'تغيير طريقة العرض',
+              onPressed: onViewMode,
+              icon: Icon(
+                viewMode == _SxResultsState._viewList
+                    ? Icons.view_list_outlined
+                    : viewMode == _SxResultsState._viewMasonry
+                        ? Icons.view_comfy_alt_outlined
+                        : Icons.grid_view_outlined,
+                size: 21,
+              ),
+            ),
+            const SizedBox(width: 3),
+            Expanded(
+              child: InkWell(
+                onTap: onSearch,
+                borderRadius: BorderRadius.circular(4),
+                child: Container(
+                  height: 39,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: const Color(0xFFCFCFCF), width: .8),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    textDirection: TextDirection.ltr,
+                    children: [
+                      Container(
+                        width: 39,
+                        height: double.infinity,
+                        color: Colors.black,
+                        child: const Icon(Icons.search, color: Colors.white, size: 20),
+                      ),
+                      Expanded(
+                        child: Directionality(
+                          textDirection: TextDirection.rtl,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(
+                              title.isEmpty ? 'ابحث عن المنتجات' : title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11.5, color: Colors.black87, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 7),
+                        child: Icon(Icons.camera_alt_outlined, size: 17),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: 'رجوع',
+              onPressed: onBack,
+              icon: const Icon(Icons.arrow_forward_ios, size: 16),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _ResultsCategoryRail extends StatelessWidget {
+  final List<CategoryModel> categories;
+  final int? selected;
+  final Future<void> Function(int?) onSelected;
+
+  const _ResultsCategoryRail({
+    required this.categories,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      const SizedBox(height: 2),
+      SizedBox(
+        height: 84,
+        child: ListView.separated(
+          reverse: true,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          itemCount: categories.length + 1,
+          separatorBuilder: (_, __) => const SizedBox(width: 10),
+          itemBuilder: (_, i) {
+            if (i == 0) {
+              return _ResultsCategoryChip(
+                name: 'الكل',
+                image: null,
+                selected: selected == null,
+                onTap: () => onSelected(null),
+              );
+            }
+            final row = categories[i - 1];
+            return _ResultsCategoryChip(
+              name: row.name,
+              image: row.iconUrl,
+              selected: row.id == selected,
+              onTap: () => onSelected(row.id),
+            );
+          },
+        ),
+      ),
+    ],
+  );
+}
+
+class _ResultsCategoryChip extends StatelessWidget {
+  final String name;
+  final String? image;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ResultsCategoryChip({
+    required this.name,
+    required this.image,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 70,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF2F2F2),
+              shape: image == null ? BoxShape.rectangle : BoxShape.circle,
+              border: Border.all(
+                color: selected ? Colors.black : const Color(0xFFE0E0E0),
+                width: selected ? 1.6 : .6,
+              ),
+              borderRadius: image == null ? BorderRadius.circular(3) : null,
+            ),
+            child: image == null
+                ? const Center(child: Icon(Icons.apps_outlined, size: 20))
+                : SxImage(url: image, fit: BoxFit.cover),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
+              height: 1.03,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ResultsFilterBar extends StatelessWidget {
+  final String sortLabel;
+  final int filterCount;
+  final VoidCallback onSort;
+  final VoidCallback onFilter;
+
+  const _ResultsFilterBar({
+    required this.sortLabel,
+    required this.filterCount,
+    required this.onSort,
+    required this.onFilter,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+    decoration: const BoxDecoration(
+      color: Colors.white,
+      border: Border(
+        top: BorderSide(color: Color(0xFFE7E7E7), width: .7),
+        bottom: BorderSide(color: Color(0xFFE7E7E7), width: .7),
+      ),
+    ),
+    child: Row(
+      textDirection: TextDirection.rtl,
+      children: [
+        Expanded(child: _FilterButton(sortLabel, Icons.keyboard_arrow_down, onSort)),
+        const SizedBox(width: 5),
+        Expanded(child: _FilterButton('الأحدث', Icons.auto_awesome_outlined, onSort)),
+        const SizedBox(width: 5),
+        Expanded(child: _FilterButton('السعر', Icons.swap_vert, onSort)),
+        const SizedBox(width: 5),
+        Expanded(
+          child: _FilterButton(
+            filterCount > 0 ? 'تصفية ' + filterCount.toString() : 'تصفية',
+            Icons.tune,
+            onFilter,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ResultsList extends StatelessWidget {
+  final List<ProductModel> products;
+  const _ResultsList({required this.products});
+
+  @override
+  Widget build(BuildContext context) {
+    if (products.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 70),
+        child: Center(
+          child: Text('لا توجد منتجات مطابقة', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+        ),
+      );
+    }
+    return Column(
+      children: [
+        for (final product in products)
+          _ResultsListCard(key: ValueKey(product.id), product: product),
+      ],
+    );
+  }
+}
+
+class _ResultsListCard extends StatelessWidget {
+  final ProductModel product;
+  const _ResultsListCard({super.key, required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    final old = sxDouble(product.oldPrice);
+    final now = sxDouble(product.price);
+    final discount = old > now && old > 0 ? ((1 - now / old) * 100).round() : 0;
+    return Container(
+      margin: const EdgeInsets.fromLTRB(6, 2, 6, 7),
+      padding: const EdgeInsets.all(6),
+      color: Colors.white,
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id)),
+        ),
+        child: SizedBox(
+          height: 150,
+          child: Row(
+            textDirection: TextDirection.rtl,
+            children: [
+              SizedBox(
+                width: 118,
+                height: 138,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: SxImage(url: product.image, fit: BoxFit.cover),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(children: [
+                      const Expanded(
+                        child: Text(
+                          'SHEIN STYLE',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                      const Icon(Icons.more_horiz, size: 15),
+                    ]),
+                    const SizedBox(height: 6),
+                    Text(
+                      product.name,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, height: 1.22),
+                    ),
+                    const Spacer(),
+                    Row(children: [
+                      if (discount > 0)
+                        Text(
+                          '-' + discount.toString() + '%',
+                          style: const TextStyle(color: ClientTheme.promo, fontSize: 10, fontWeight: FontWeight.w900),
+                        ),
+                      const SizedBox(width: 4),
+                      Text(
+                        product.price + ' ' + state.currencySymbol,
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                      ),
+                    ]),
+                    if (product.oldPrice != null && product.oldPrice!.isNotEmpty)
+                      Text(
+                        product.oldPrice! + ' ' + state.currencySymbol,
+                        style: const TextStyle(fontSize: 9, color: ClientTheme.muted, decoration: TextDecoration.lineThrough),
+                      ),
+                    const SizedBox(height: 4),
+                    Row(children: [
+                      const Icon(Icons.star, size: 13, color: Color(0xFFFFB400)),
+                      const Text(' 4.8', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+                      const Spacer(),
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFFD9D9D9)),
+                        ),
+                        child: const Icon(Icons.shopping_bag_outlined, size: 17),
+                      ),
+                    ]),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -4107,22 +4785,102 @@ class SxSearchScreen extends StatefulWidget {
 }
 
 class _SxSearchScreenState extends State<SxSearchScreen> {
-  final search = TextEditingController(); List<ProductModel> products = []; bool loading = false;
-  Future<void> doSearch(String q) async {
-    if (q.trim().isEmpty) { setState(() => products = []); return; }
+  final search = TextEditingController();
+  bool loading = false;
+
+  Future<void> submit(String value) async {
+    final q = value.trim();
+    if (q.isEmpty) return;
     setState(() => loading = true);
-    try { products = await api.feed(q: q, currencyId: state.currencyId); } catch (_) {}
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => SxResults(title: q, query: q)),
+    );
     if (mounted) setState(() => loading = false);
   }
-  @override void dispose() { search.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) => SxShellPage(title: 'البحث', back: true, child: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : ListView(
-    padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
-    children: [
-      SxSearchBar(controller: search, hint: 'ابحث عن منتج أو علامة', autofocus: true, onChanged: doSearch),
-      const SizedBox(height: 12),
-      if (products.isEmpty) const Wrap(spacing: 6, runSpacing: 6, children: [SxPill(text: 'بنطلون جينز'), SxPill(text: 'فساتين'), SxPill(text: 'أحذية'), SxPill(text: 'مقاسات كبيرة')]) else SxProductGrid(products: products),
-    ],
-  ));
+
+  void useSuggestion(String value) {
+    search
+      ..text = value
+      ..selection = TextSelection.collapsed(offset: value.length);
+    submit(value);
+  }
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.white,
+    body: SafeArea(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(7, 7, 6, 7),
+            child: Row(
+              textDirection: TextDirection.ltr,
+              children: [
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_forward_ios, size: 17),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: SxSearchBar(
+                    controller: search,
+                    hint: 'ابحث عن منتج أو علامة',
+                    autofocus: true,
+                    onSubmitted: submit,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(Icons.camera_alt_outlined, size: 20),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 30),
+              children: [
+                if (loading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 30),
+                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                const SxSectionTitle(title: 'عمليات البحث الشائعة'),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: [
+                    for (final label in const ['جينز', 'فساتين', 'أحذية', 'ملابس نسائية', 'مقاسات كبيرة'])
+                      GestureDetector(
+                        onTap: () => useSuggestion(label),
+                        child: SxPill(text: label),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                const SxSectionTitle(title: 'اكتشف'),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: const [
+                    SxPill(text: 'الأكثر مبيعًا'),
+                    SxPill(text: 'وصل حديثًا'),
+                    SxPill(text: 'العروض'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class SxProductScreen extends StatefulWidget {
