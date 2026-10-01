@@ -22,14 +22,35 @@ class ProductModel {
   final String? oldPrice;
   final String? image;
   final List<String> images;
+  final List<Map<String, dynamic>> badges;
+  final double? imageAspectRatio;
+  final String? cardAspectRatio;
   final int? variantId;
-  const ProductModel({required this.id,required this.name,required this.price,this.oldPrice,this.image,this.images=const[],this.variantId});
+
+  const ProductModel({
+    required this.id,
+    required this.name,
+    required this.price,
+    this.oldPrice,
+    this.image,
+    this.images=const[],
+    this.badges=const[],
+    this.imageAspectRatio,
+    this.cardAspectRatio,
+    this.variantId,
+  });
+
   factory ProductModel.fromJson(Map<String,dynamic> j) {
     final p=j['product'] is Map ? Map<String,dynamic>.from(j['product']) : j;
     final primary=(j['image_url'] ?? p['image_url'])?.toString();
     final rawImages=(j['images'] as List?)?.whereType<String>().where((x)=>x.isNotEmpty).toList() ?? <String>[];
     final merged=<String>[if(primary!=null && primary.isNotEmpty) primary, ...rawImages];
     final unique=merged.toSet().toList();
+    final rawBadges=j['badges'];
+    final badges=rawBadges is List
+        ? rawBadges.whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList()
+        : <Map<String,dynamic>>[];
+    final rawAspect=double.tryParse((j['image_aspect_ratio'] ?? '').toString());
     return ProductModel(
       id:int.tryParse((p['id'] ?? j['product_id'] ?? 0).toString()) ?? 0,
       name:(p['name'] ?? j['name'] ?? '').toString(),
@@ -37,6 +58,9 @@ class ProductModel {
       oldPrice:(j['compare_at_price'] ?? p['compare_at_price'])?.toString(),
       image:unique.isNotEmpty ? unique.first : primary,
       images:unique,
+      badges:badges,
+      imageAspectRatio: rawAspect != null && rawAspect > 0 ? rawAspect : null,
+      cardAspectRatio: j['card_aspect_ratio']?.toString(),
       variantId:j['variant_id']==null ? null : int.tryParse(j['variant_id'].toString()),
     );
   }
