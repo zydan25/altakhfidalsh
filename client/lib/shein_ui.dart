@@ -903,6 +903,17 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               ),
             ),
           ),
+          Positioned(
+            top: headerHeight,
+            bottom: 0,
+            right: 116,
+            child: IgnorePointer(
+              child: Container(
+                width: 1,
+                color: const Color(0xFFE6E6E6),
+              ),
+            ),
+          ),
           _HomeFixedHeader(
             roots: roots,
             selected: selected,
@@ -977,7 +988,7 @@ class _HomeFixedHeader extends StatelessWidget {
             color: solidBackground ? Colors.white : Colors.transparent,
             border: Border(
               bottom: BorderSide(
-                color: solidBackground ? const Color(0xFF111111) : Colors.transparent,
+                color: solidBackground ? const Color(0xFFE6E6E6) : Colors.transparent,
                 width: 1,
               ),
             ),
@@ -3223,14 +3234,6 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
     }
   }
 
-  String _rootName(int id) {
-    if (id < 0) return 'الكل';
-    for (final row in roots) {
-      if (row.id == id) return row.name;
-    }
-    return 'الكل';
-  }
-
   void _selectRoot(int id) {
     if (selectedRoot == id) return;
     setState(() {
@@ -3302,7 +3305,6 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
                             circles: _visibleCircles,
                             groups: _visibleGroups,
                             settings: circleDisplay,
-                            rootTitle: _rootName(selectedRoot),
                             onSideSelected: _selectSide,
                             onCircleTap: (circle) => _openCircle(context, circle),
                             onGroupTap: (group) => _openGroup(context, group),
@@ -3406,7 +3408,6 @@ class _SideCategoryExplorer extends StatelessWidget {
   final List<Map<String, dynamic>> circles;
   final List<Map<String, dynamic>> groups;
   final Map<String, dynamic> settings;
-  final String rootTitle;
   final ValueChanged<Map<String, dynamic>?> onSideSelected;
   final ValueChanged<Map<String, dynamic>> onCircleTap;
   final ValueChanged<Map<String, dynamic>> onGroupTap;
@@ -3417,7 +3418,6 @@ class _SideCategoryExplorer extends StatelessWidget {
     required this.circles,
     required this.groups,
     required this.settings,
-    required this.rootTitle,
     required this.onSideSelected,
     required this.onCircleTap,
     required this.onGroupTap,
@@ -3563,7 +3563,6 @@ class _SideCategoryExplorer extends StatelessWidget {
                 child: _SideCategoryRail(
                   categories: sideCategories,
                   selectedId: selectedId,
-                  rootTitle: rootTitle,
                   onSelected: onSideSelected,
                 ),
               ),
@@ -3578,63 +3577,27 @@ class _SideCategoryExplorer extends StatelessWidget {
 class _SideCategoryRail extends StatelessWidget {
   final List<Map<String, dynamic>> categories;
   final int? selectedId;
-  final String rootTitle;
   final ValueChanged<Map<String, dynamic>?> onSelected;
 
   const _SideCategoryRail({
     required this.categories,
     required this.selectedId,
-    required this.rootTitle,
     required this.onSelected,
   });
 
   @override
   Widget build(BuildContext context) => Container(
         constraints: const BoxConstraints(minHeight: 440),
-        decoration: const BoxDecoration(
-          color: Color(0xFFF6F6F6),
-          border: Border(
-            left: BorderSide(color: Color(0xFF111111), width: .8),
-          ),
-        ),
+        color: const Color(0xFFF8F8F8),
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(7, 12, 7, 8),
-              child: Text(
-                rootTitle == 'الكل' ? 'الفئات' : rootTitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-            InkWell(
-              onTap: () => onSelected(null),
-              child: Container(
-                width: double.infinity,
-                margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
-                color: selectedId == null ? Colors.white : Colors.transparent,
-                child: Text(
-                  'كل الفئات',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight:
-                        selectedId == null ? FontWeight.w900 : FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
             for (final row in categories)
               InkWell(
                 onTap: () => onSelected(row),
                 child: Container(
                   width: double.infinity,
                   margin: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 11),
                   decoration: BoxDecoration(
                     color: sxInt(row['id']) == selectedId
                         ? Colors.white
