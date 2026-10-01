@@ -3970,8 +3970,7 @@ class SxResults extends StatefulWidget {
 
 class _SxResultsState extends State<SxResults> {
   static const int _viewGrid = 0;
-  static const int _viewMasonry = 1;
-  static const int _viewList = 2;
+  static const int _viewList = 1;
 
   List<ProductModel> products = [];
   List<CategoryModel> categories = [];
@@ -3982,7 +3981,7 @@ class _SxResultsState extends State<SxResults> {
 
   final Set<int> values = {};
   String sort = 'recommended';
-  String? minPrice, maxPrice;
+  String? minPrice, maxPrice, minRating;
   int? selectedCategoryId;
   int? categoryContextId;
   bool loading = true;
@@ -4043,6 +4042,7 @@ class _SxResultsState extends State<SxResults> {
     sort: sort,
     minPrice: minPrice,
     maxPrice: maxPrice,
+    minRating: minRating,
     currencyId: state.currencyId,
   );
 
@@ -4074,6 +4074,7 @@ class _SxResultsState extends State<SxResults> {
       values.clear();
       minPrice = null;
       maxPrice = null;
+      minRating = null;
     });
     await _loadFilters(id ?? widget.categoryId ?? categoryContextId);
     try {
@@ -4121,6 +4122,7 @@ class _SxResultsState extends State<SxResults> {
         selected: values,
         minPrice: minPrice,
         maxPrice: maxPrice,
+        minRating: minRating,
       ),
     );
     if (result == null) return;
@@ -4130,10 +4132,11 @@ class _SxResultsState extends State<SxResults> {
       ..addAll(result.valueIds);
     minPrice = result.minPrice;
     maxPrice = result.maxPrice;
+    minRating = result.minRating;
     await _reloadResults();
   }
 
-  Future<void> sortSheet() async {
+  Future<void> recommendationSheet() async {
     final result = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.white,
@@ -4144,8 +4147,22 @@ class _SxResultsState extends State<SxResults> {
     await _reloadResults();
   }
 
+  Future<void> discoveryToggle() async {
+    final next = sort == 'popular' ? 'newest' : 'popular';
+    setState(() => sort = next);
+    await _reloadResults();
+  }
+
+  Future<void> priceToggle() async {
+    final next = sort == 'price_desc' ? 'price_asc' : 'price_desc';
+    setState(() => sort = next);
+    await _reloadResults();
+  }
+
   String get _sortLabel {
     switch (sort) {
+      case 'popular': return 'الأكثر انتشاراً';
+      case 'rating_desc': return 'الأعلى تقييماً';
       case 'newest': return 'الأحدث';
       case 'price_asc': return 'السعر ↑';
       case 'price_desc': return 'السعر ↓';
@@ -4171,7 +4188,8 @@ class _SxResultsState extends State<SxResults> {
   Widget build(BuildContext context) {
     final filterCount = values.length +
         (minPrice != null ? 1 : 0) +
-        (maxPrice != null ? 1 : 0);
+        (maxPrice != null ? 1 : 0) +
+        (minRating != null ? 1 : 0);
 
     if (loading && products.isEmpty) {
       return Scaffold(
@@ -4181,7 +4199,7 @@ class _SxResultsState extends State<SxResults> {
             _ResultsTopBar(
               title: _scopeLabel,
               viewMode: viewMode,
-              onViewMode: () => setState(() => viewMode = (viewMode + 1) % 3),
+              onViewMode: () => setState(() => viewMode = (viewMode + 1) % 2),
               onBack: () => Navigator.pop(context),
               onSearch: () => Navigator.push(
                 context,
@@ -4246,7 +4264,9 @@ class _SxResultsState extends State<SxResults> {
               child: _ResultsFilterBar(
                 sortLabel: _sortLabel,
                 filterCount: filterCount,
-                onSort: sortSheet,
+                onRecommendation: recommendationSheet,
+                onDiscovery: discoveryToggle,
+                onPrice: priceToggle,
                 onFilter: filterSheet,
               ),
             ),
@@ -4287,6 +4307,11 @@ class _SxResultsState extends State<SxResults> {
                         padding: const EdgeInsets.only(right: 5),
                         child: SxPill(text: 'إلى ' + maxPrice!),
                       ),
+                    if (minRating != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 5),
+                        child: SxPill(text: minRating! + ' ★ فأعلى'),
+                      ),
                   ],
                 ),
               ),
@@ -4296,7 +4321,7 @@ class _SxResultsState extends State<SxResults> {
                 ? _ResultsList(products: products)
                 : SxProductGrid(
                     products: products,
-                    masonry: viewMode == _viewMasonry,
+                    masonry: false,
                   ),
           ),
         ],
