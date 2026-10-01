@@ -333,6 +333,16 @@ def public_product_feed():
         .all()
     } if product_ids else {}
 
+    category_ids_by_product = {}
+    if product_ids:
+        category_rows = (
+            db.session.query(ProductCategory.product_id, ProductCategory.category_id)
+            .filter(ProductCategory.product_id.in_(product_ids))
+            .all()
+        )
+        for product_id, category_id in category_rows:
+            category_ids_by_product.setdefault(product_id, []).append(category_id)
+
     customer = current_customer()
     items = []
     try:
@@ -350,6 +360,7 @@ def public_product_feed():
             item["image_aspect_ratio"] = float(first_media["width"]) / float(first_media["height"])
         display = display_by_product.get(row.id)
         item["card_aspect_ratio"] = display.card_aspect_ratio if display else "3:4"
+        item["category_ids"] = category_ids_by_product.get(row.id, [])
 
         from datetime import datetime, timezone
         now_utc = datetime.now(timezone.utc)
