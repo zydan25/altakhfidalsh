@@ -357,7 +357,15 @@ def home():
         "page": page_payload,
         "categories": CatalogService.list_categories(),
         "category_display": CatalogService.list_home_category_display(),
-        "side_categories": CatalogService.list_side_categories(include_archived=False),
+        "side_categories": CatalogService.list_side_categories(
+            root_category_id=root_category_id,
+            include_archived=False,
+        ),
+        "side_circle_display": CatalogService.get_side_circle_display(),
+        "side_circle_groups": CatalogService.list_side_circle_groups(
+            root_category_id=root_category_id,
+            public_scope=True,
+        ),
         "trends": CatalogService.list_public_trends(limit=20),
         "looks": look_payload,
         "banners": banner_payload,
