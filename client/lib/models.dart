@@ -28,6 +28,9 @@ class ProductModel {
   final double? imageAspectRatio;
   final String? cardAspectRatio;
   final int? variantId;
+  final double? rating;
+  final int reviewCount;
+  final int soldQty;
 
   const ProductModel({
     required this.id,
@@ -42,6 +45,9 @@ class ProductModel {
     this.imageAspectRatio,
     this.cardAspectRatio,
     this.variantId,
+    this.rating,
+    this.reviewCount = 0,
+    this.soldQty = 0,
   });
 
   factory ProductModel.fromJson(Map<String,dynamic> j) {
@@ -63,6 +69,9 @@ class ProductModel {
         ? rawRootCategoryIds.map((x)=>int.tryParse(x.toString())).whereType<int>().toList()
         : <int>[];
     final rawAspect=double.tryParse((j['image_aspect_ratio'] ?? '').toString());
+    final rawRating = double.tryParse((j['rating'] ?? '').toString());
+    final reviewCount = int.tryParse((j['review_count'] ?? 0).toString()) ?? 0;
+    final soldQty = int.tryParse((j['sold_qty'] ?? 0).toString()) ?? 0;
     return ProductModel(
       id:int.tryParse((p['id'] ?? j['product_id'] ?? 0).toString()) ?? 0,
       name:(p['name'] ?? j['name'] ?? '').toString(),
@@ -76,6 +85,9 @@ class ProductModel {
       imageAspectRatio: rawAspect != null && rawAspect > 0 ? rawAspect : null,
       cardAspectRatio: j['card_aspect_ratio']?.toString(),
       variantId:j['variant_id']==null ? null : int.tryParse(j['variant_id'].toString()),
+      rating: rawRating != null && rawRating > 0 ? rawRating : null,
+      reviewCount: reviewCount,
+      soldQty: soldQty,
     );
   }
 }
