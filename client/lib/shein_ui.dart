@@ -2669,10 +2669,12 @@ class SxProductGrid extends StatelessWidget {
       return _SxMasonryProductGrid(products: products);
     }
 
-    return Container(
-      color: const Color(0xFFF6F6F6),
-      padding: const EdgeInsets.fromLTRB(5, 5, 5, 8),
-      child: GridView.builder(
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        color: const Color(0xFFF6F6F6),
+        padding: const EdgeInsets.fromLTRB(5, 5, 5, 8),
+        child: GridView.builder(
         primary: false,
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -2683,15 +2685,16 @@ class SxProductGrid extends StatelessWidget {
           mainAxisSpacing: 7,
           childAspectRatio: .69,
         ),
-        itemBuilder: (_, i) => Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: SxProductCard(
-            key: ValueKey<int>(products[i].id),
-            product: products[i],
+          itemBuilder: (_, i) => Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SxProductCard(
+              key: ValueKey<int>(products[i].id),
+              product: products[i],
+            ),
           ),
         ),
       ),
@@ -2734,16 +2737,19 @@ class _SxMasonryProductGrid extends StatelessWidget {
           ],
         );
 
-        return Container(
-          color: const Color(0xFFF6F6F6),
-          padding: const EdgeInsets.fromLTRB(5, 5, 5, 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Container(
+            color: const Color(0xFFF6F6F6),
+            padding: const EdgeInsets.fromLTRB(5, 5, 5, 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               Expanded(child: buildColumn(columns[0])),
               const SizedBox(width: 5),
-              Expanded(child: buildColumn(columns[1])),
-            ],
+                Expanded(child: buildColumn(columns[1])),
+              ],
+            ),
           ),
         );
       },
