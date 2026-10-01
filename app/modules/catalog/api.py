@@ -334,14 +334,33 @@ def public_product_feed():
     } if product_ids else {}
 
     category_ids_by_product = {}
+    root_category_ids_by_product = {}
     if product_ids:
         category_rows = (
             db.session.query(ProductCategory.product_id, ProductCategory.category_id)
             .filter(ProductCategory.product_id.in_(product_ids))
             .all()
         )
+        category_parent = {
+            int(category.id): category.parent_id
+            for category in Category.query.filter(Category.is_active.is_(True)).all()
+        }
+
+        def root_for_category(category_id):
+            current = int(category_id)
+            seen = set()
+            while current not in seen:
+                seen.add(current)
+                parent = category_parent.get(current)
+                if parent is None:
+                    return current
+                current = int(parent)
+            return int(category_id)
+
         for product_id, category_id in category_rows:
             category_ids_by_product.setdefault(product_id, []).append(category_id)
+            root_id = root_for_category(category_id)
+            root_category_ids_by_product.setdefault(product_id, set()).add(root_id)
 
     customer = current_customer()
     items = []
@@ -361,6 +380,9 @@ def public_product_feed():
         display = display_by_product.get(row.id)
         item["card_aspect_ratio"] = display.card_aspect_ratio if display else "3:4"
         item["category_ids"] = category_ids_by_product.get(row.id, [])
+        item["root_category_ids"] = sorted(
+            root_category_ids_by_product.get(row.id, set())
+        )
 
         from datetime import datetime, timezone
         now_utc = datetime.now(timezone.utc)
