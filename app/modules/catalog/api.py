@@ -371,6 +371,8 @@ def public_product_feed():
                 "code": badge.code,
                 "name": badge.name,
                 "custom_text": product_badge.custom_text,
+                "starts_at": product_badge.starts_at.isoformat() if product_badge.starts_at else None,
+                "ends_at": product_badge.ends_at.isoformat() if product_badge.ends_at else None,
                 "bg_color": badge.bg_color,
                 "text_color": badge.text_color,
                 "style": badge.style,
