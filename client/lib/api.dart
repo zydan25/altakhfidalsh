@@ -43,6 +43,7 @@ class ApiService {
     String? minPrice,
     String? maxPrice,
     int? currencyId,
+    String? discoveryTab,
   }) {
     final filters = filterValueIds == null ? '' : [...filterValueIds]..sort();
     return [
@@ -55,6 +56,7 @@ class ApiService {
       minPrice?.trim() ?? '',
       maxPrice?.trim() ?? '',
       currencyId ?? 0,
+      discoveryTab?.trim() ?? '',
     ].join('|');
   }
 
@@ -171,6 +173,7 @@ class ApiService {
       minPrice: minPrice,
       maxPrice: maxPrice,
       currencyId: currencyId,
+      discoveryTab: discoveryTab,
     );
 
     try {
