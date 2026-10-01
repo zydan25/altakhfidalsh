@@ -323,7 +323,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   int selected = -1;
   int discoveryTab = 2;
   bool loading = true;
-  int? _homeScope;
   int _loadSerial = 0;
   int _activeBannerIndex = 0;
   double _pullExtent = 0;
@@ -373,7 +372,9 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   }
 
   List<Map<String, dynamic>> _cachedColorsForScope([int? scope]) {
-    return _cachedBannerColors[scope ?? selected] ?? const [];
+    return _cachedBannerColors[scope ?? selected] ??
+        _cachedBannerColors[-1] ??
+        const [];
   }
 
   Future<void> _saveBannerColorCache(
@@ -456,23 +457,17 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
 
   Future<void> load() async {
     final int requestSerial = ++_loadSerial;
-    final int requestedScope = selected;
     if (mounted) {
       setState(() {
         loading = true;
-        _homeScope = null;
         _activeBannerIndex = 0;
         _headerIsSolid = false;
       });
     }
     try {
-      final h = await api.home(
-        rootCategoryId: requestedScope < 0 ? -1 : requestedScope,
-      );
-      unawaited(_saveBannerColorCache(
-        requestedScope,
-        sxMaps(h['banners']),
-      ));
+      // Load the complete storefront payload once. Navigation is local.
+      final h = await api.home();
+      unawaited(_saveBannerColorCache(-1, sxMaps(h['banners'])));
       final nextLooks = sxMaps(h['looks']);
       final nextAllCategories =
           sxMaps(h['categories']).map(CategoryModel.fromJson).toList();
@@ -480,10 +475,9 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         ..sort((a, b) => a.sortOrder == b.sortOrder
             ? a.id.compareTo(b.id)
             : a.sortOrder.compareTo(b.sortOrder));
-      // Fetch the complete storefront product set once. Discovery
-      // tabs are filtered locally from this cached set.
+      // Load the complete storefront product set once. Category and
+      // discovery filtering happen locally.
       final nextProducts = await api.feed(
-        category: requestedScope < 0 ? null : requestedScope,
         sort: 'recommended',
         currencyId: state.currencyId,
       );
@@ -492,7 +486,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         _CartBadge.value.value = sxMaps(c['item']?['items']).length;
       } catch (_) {}
 
-      if (!mounted || requestSerial != _loadSerial || requestedScope != selected) {
+      if (!mounted || requestSerial != _loadSerial) {
         return;
       }
       setState(() {
@@ -501,8 +495,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         allCategories = nextAllCategories;
         roots = nextRoots;
         _allStoreProducts = nextProducts;
-        products = _filterDiscoveryProducts(nextProducts, discoveryTab);
-        _homeScope = requestedScope;
+        products = _filterVisibleProducts(nextProducts);
         loading = false;
       });
     } catch (e) {
@@ -512,16 +505,43 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       setState(() => loading = false);
     }
   }
-  List<ProductModel> _filterDiscoveryProducts(
-    List<ProductModel> source,
-    int tab,
-  ) {
-    if (tab == 2) return List<ProductModel>.from(source);
+  Set<int> _categoryScopeIds(int rootId) {
+    final ids = <int>{rootId};
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (final category in allCategories) {
+        if (category.parentId != null &&
+            ids.contains(category.parentId) &&
+            ids.add(category.id)) {
+          changed = true;
+        }
+      }
+    }
+    return ids;
+  }
 
-    final wanted = tab == 0 ? 'offers' : 'new';
+  List<ProductModel> _filterVisibleProducts(
+    List<ProductModel> source, [
+    int? tab,
+  ]) {
+    final selectedTab = tab ?? discoveryTab;
+    Iterable<ProductModel> scoped = source;
+
+    if (selected >= 0) {
+      final categoryIds = _categoryScopeIds(selected);
+      scoped = scoped.where(
+        (product) => product.categoryIds.any(categoryIds.contains),
+      );
+    }
+
+    final scopedList = scoped.toList();
+    if (selectedTab == 2) return scopedList;
+
+    final wanted = selectedTab == 0 ? 'offers' : 'new';
     final now = DateTime.now().toUtc();
 
-    return source.where((product) {
+    return scopedList.where((product) {
       return product.badges.any((badge) {
         if (sxText(badge['storefront_tab']) != wanted) return false;
         final starts = DateTime.tryParse(sxText(badge['starts_at']));
@@ -633,8 +653,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   }
 
   List<Map<String, dynamic>> _homeBanners() {
-    if (_homeScope != selected) return const [];
-
     final banners = sxMaps(home['banners']);
     return banners.where((banner) {
       final rawRoot = banner['root_category_id'];
@@ -832,9 +850,13 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                   ),
                   itemLabelBold: categoryDisplay['item_label_bold'] != false,
 
-                  onRootTap: (category) async {
-                    setState(() => selected = category.id);
-                    await load();
+                  onRootTap: (category) {
+                    if (selected == category.id) return;
+                    setState(() {
+                      selected = category.id;
+                      _activeBannerIndex = 0;
+                      products = _filterVisibleProducts(_allStoreProducts);
+                    });
                   },
                   onCategoryTap: (category) {
                     Navigator.push(
@@ -855,7 +877,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                 onChanged: (tab) {
                   setState(() {
                     discoveryTab = tab;
-                    products = _filterDiscoveryProducts(
+                    products = _filterVisibleProducts(
                       _allStoreProducts,
                       tab,
                     );
@@ -883,10 +905,13 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
             solidBackground: _headerIsSolid,
             categoryTextColor: effectiveCategoryTextColor,
             categoryActiveColor: effectiveCategoryActiveColor,
-            onSelected: (id) async {
+            onSelected: (id) {
               if (selected == id) return;
-              setState(() => selected = id);
-              await load();
+              setState(() {
+                selected = id;
+                _activeBannerIndex = 0;
+                products = _filterVisibleProducts(_allStoreProducts);
+              });
             },
             onSearch: () => Navigator.push(
               context,
