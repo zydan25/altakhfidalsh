@@ -4466,7 +4466,6 @@ class _ResultsCategoryRail extends StatelessWidget {
         SizedBox(
           height: 84,
           child: ListView.separated(
-          reverse: true,
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           itemCount: categories.length + 1,
