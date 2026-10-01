@@ -480,11 +480,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         ..sort((a, b) => a.sortOrder == b.sortOrder
             ? a.id.compareTo(b.id)
             : a.sortOrder.compareTo(b.sortOrder));
-      final discoveryFilter = discoveryTab == 0
-          ? 'offers'
-          : discoveryTab == 1
-              ? 'new'
-              : null;
       // Fetch the complete storefront product set once. Discovery
       // tabs are filtered locally from this cached set.
       final nextProducts = await api.feed(
