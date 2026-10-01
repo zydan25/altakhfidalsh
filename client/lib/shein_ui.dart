@@ -2655,20 +2655,31 @@ class SxProductGrid extends StatelessWidget {
       return _SxMasonryProductGrid(products: products);
     }
 
-    return GridView.builder(
-      primary: false,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: products.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 5,
-        mainAxisSpacing: 7,
-        childAspectRatio: .69,
-      ),
-      itemBuilder: (_, i) => SxProductCard(
-        key: ValueKey<int>(products[i].id),
-        product: products[i],
+    return Container(
+      color: const Color(0xFFF6F6F6),
+      padding: const EdgeInsets.fromLTRB(5, 5, 5, 8),
+      child: GridView.builder(
+        primary: false,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: products.length,
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 5,
+          mainAxisSpacing: 7,
+          childAspectRatio: .69,
+        ),
+        itemBuilder: (_, i) => Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: SxProductCard(
+            key: ValueKey<int>(products[i].id),
+            product: products[i],
+          ),
+        ),
       ),
     );
   }
@@ -2709,13 +2720,17 @@ class _SxMasonryProductGrid extends StatelessWidget {
           ],
         );
 
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: buildColumn(columns[0])),
-            const SizedBox(width: 5),
-            Expanded(child: buildColumn(columns[1])),
-          ],
+        return Container(
+          color: const Color(0xFFF6F6F6),
+          padding: const EdgeInsets.fromLTRB(5, 5, 5, 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: buildColumn(columns[0])),
+              const SizedBox(width: 5),
+              Expanded(child: buildColumn(columns[1])),
+            ],
+          ),
         );
       },
     );
@@ -3025,8 +3040,10 @@ class _SxProductCardState extends State<SxProductCard> {
     final gallery = _gallery;
     final visibleBadges = product.badges.take(2).toList();
 
-    return InkWell(
-      onTap: () => Navigator.push(
+    return Container(
+      color: Colors.white,
+      child: InkWell(
+        onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => SxProductScreen(id: product.id),
@@ -3034,13 +3051,13 @@ class _SxProductCardState extends State<SxProductCard> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _imageStack(
-            ratio: ratio,
-            masonry: widget.masonry,
-            discount: discount,
-            gallery: gallery,
-          ),
+          children: [
+            _imageStack(
+              ratio: ratio,
+              masonry: widget.masonry,
+              discount: discount,
+              gallery: gallery,
+            ),
           const SizedBox(height: 5),
           Text(
             product.name,
@@ -3912,8 +3929,9 @@ class SxCircleGroupScreen extends StatelessWidget {
                   );
                 },
               ),
-            ),
-        ],
+              ),
+          ],
+        ),
       ),
     );
   }
