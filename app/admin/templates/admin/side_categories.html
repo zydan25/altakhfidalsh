@@ -326,7 +326,7 @@
         <div class="sc-circle-picker" id="circleGroupCirclePicker">
           {% for circle in circles %}
           {% set side = side_map.get(circle.side_category_id) %}
-          <label class="sc-circle-check">
+          <label class="sc-circle-check" data-circle-root="{{ side.root_category_id if side else '' }}">
             <input type="checkbox" name="circle_ids" value="{{ circle.id }}">
             {% set asset = circle_assets.get(circle.id) %}
             {% if asset %}<img src="{{ asset.url }}" alt="{{ circle.name }}">{% else %}<span style="width:44px;height:44px;border-radius:50%;background:#eee;display:block"></span>{% endif %}
