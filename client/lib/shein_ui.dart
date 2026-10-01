@@ -3075,6 +3075,7 @@ class _SxProductCardState extends State<SxProductCard> {
   }
 }
 
+// Categories mirrors the Shein-style discovery layout using server-managed side categories and circle groups.
 class SxCategoriesScreen extends StatefulWidget {
   const SxCategoriesScreen({super.key});
   @override State<SxCategoriesScreen> createState() => _SxCategoriesScreenState();
