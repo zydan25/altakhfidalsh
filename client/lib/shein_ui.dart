@@ -2519,24 +2519,78 @@ class SxProductCard extends StatefulWidget {
 class _SxProductCardState extends State<SxProductCard> {
   int page = 0;
   double _dragDistance = 0;
+  late List<String> _gallery;
+  bool _galleryLoading = false;
+  bool _galleryLoaded = false;
 
-  void _handleImageSwipeEnd(DragEndDetails details, int imageCount) {
-    if (imageCount <= 1 || !mounted) return;
+  @override
+  void initState() {
+    super.initState();
+    _gallery = _uniqueImages(widget.product.images, widget.product.image);
+    _galleryLoaded = _gallery.length > 1;
+  }
 
-    final velocity = details.primaryVelocity ?? 0;
-    if (_dragDistance.abs() < 22 && velocity.abs() < 120) {
-      _dragDistance = 0;
-      return;
+  List<String> _uniqueImages(Iterable<String> images, String? primary) {
+    final merged = <String>[
+      ...images.where((x) => x.isNotEmpty),
+      if (primary != null && primary.isNotEmpty) primary,
+    ];
+    return merged.toSet().toList();
+  }
+
+  Future<void> _loadFullGallery() async {
+    if (_galleryLoaded || _galleryLoading || !mounted) return;
+    _galleryLoading = true;
+    try {
+      final data = await api.product(widget.product.id, currencyId: state.currencyId);
+      final item = data['item'] is Map
+          ? Map<String, dynamic>.from(data['item'])
+          : const <String, dynamic>{};
+      final media = (item['media'] as List?)
+              ?.whereType<Map>()
+              .map((e) => sxText(e['url']))
+              .where((x) => x.isNotEmpty)
+              .toList() ??
+          <String>[];
+      final next = _uniqueImages(media, widget.product.image);
+      if (!mounted) return;
+      setState(() {
+        if (next.isNotEmpty) _gallery = next;
+        _galleryLoaded = true;
+        _galleryLoading = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _galleryLoaded = true;
+          _galleryLoading = false;
+        });
+      }
     }
+  }
 
-    final direction = velocity.abs() >= 120
-        ? (velocity < 0 ? 1 : -1)
-        : (_dragDistance < 0 ? 1 : -1);
-
-    final nextPage = (page + direction).clamp(0, imageCount - 1);
+  Future<void> _handleImageSwipeEnd(
+    DragEndDetails details,
+    int imageCount,
+  ) async {
+    final velocity = details.primaryVelocity ?? 0;
+    final distance = _dragDistance;
     _dragDistance = 0;
 
-    if (nextPage != page) {
+    if (imageCount <= 1) {
+      await _loadFullGallery();
+      if (!mounted || _gallery.length <= 1) return;
+      imageCount = _gallery.length;
+    }
+
+    if (distance.abs() < 18 && velocity.abs() < 100) return;
+
+    final direction = velocity.abs() >= 100
+        ? (velocity < 0 ? 1 : -1)
+        : (distance < 0 ? 1 : -1);
+
+    final nextPage = (page + direction).clamp(0, imageCount - 1);
+    if (nextPage != page && mounted) {
       setState(() => page = nextPage);
     }
   }
@@ -2544,180 +2598,220 @@ class _SxProductCardState extends State<SxProductCard> {
   @override
   Widget build(BuildContext context) {
     final product = widget.product;
-    final old = sxDouble(product.oldPrice), now = sxDouble(product.price);
-    final discount = old > now && old > 0 ? ((1 - now / old) * 100).round() : 0;
-    final gallery = <String>{
-      ...product.images,
-      if (product.image != null && product.image!.isNotEmpty) product.image!,
-    }.toList();
+    final old = sxDouble(product.oldPrice);
+    final now = sxDouble(product.price);
+    final discount =
+        old > now && old > 0 ? ((1 - now / old) * 100).round() : 0;
 
     return InkWell(
       onTap: () => Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id)),
       ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Expanded(
-          child: Stack(children: [
-            Positioned.fill(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: gallery.isEmpty
-                    ? Container(
-                        color: ClientTheme.soft,
-                        child: const Icon(Icons.image_outlined),
-                      )
-                    : GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onHorizontalDragUpdate: (details) {
-                          _dragDistance += details.delta.dx;
-                        },
-                        onHorizontalDragEnd: (details) {
-                          _handleImageSwipeEnd(details, gallery.length);
-                        },
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
-                          switchInCurve: Curves.easeOutCubic,
-                          switchOutCurve: Curves.easeInCubic,
-                          layoutBuilder: (currentChild, previousChildren) {
-                            return Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                ...previousChildren,
-                                if (currentChild != null) currentChild,
-                              ],
-                            );
-                          },
-                          child: KeyedSubtree(
-                            key: ValueKey(product.id.toString() + '-' + page.toString()),
-                            child: SxImage(
-                              url: gallery[page],
-                              fit: BoxFit.cover,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: _gallery.isEmpty
+                        ? Container(
+                            color: ClientTheme.soft,
+                            child: const Icon(Icons.image_outlined),
+                          )
+                        : GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onHorizontalDragStart: (_) {
+                              _dragDistance = 0;
+                              if (_gallery.length <= 1) {
+                                unawaited(_loadFullGallery());
+                              }
+                            },
+                            onHorizontalDragUpdate: (details) {
+                              _dragDistance += details.delta.dx;
+                            },
+                            onHorizontalDragEnd: (details) {
+                              unawaited(
+                                _handleImageSwipeEnd(
+                                  details,
+                                  _gallery.length,
+                                ),
+                              );
+                            },
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 170),
+                              switchInCurve: Curves.easeOutCubic,
+                              switchOutCurve: Curves.easeInCubic,
+                              child: KeyedSubtree(
+                                key: ValueKey(
+                                  product.id.toString() +
+                                      '-' +
+                                      page.toString(),
+                                ),
+                                child: SxImage(
+                                  url: _gallery[page],
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
                             ),
+                          ),
+                  ),
+                ),
+                const Positioned(
+                  top: 6,
+                  right: 6,
+                  child: SxPill(
+                    text: 'علامة تجارية',
+                    background: Colors.black87,
+                    foreground: Colors.white,
+                  ),
+                ),
+                if (_gallery.length > 1)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: discount > 0 ? 29 : 8,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(
+                        _gallery.length,
+                        (i) => AnimatedContainer(
+                          duration: const Duration(milliseconds: 130),
+                          margin: const EdgeInsets.symmetric(horizontal: 2),
+                          width: i == page ? 12 : 5,
+                          height: 3,
+                          decoration: BoxDecoration(
+                            color: i == page ? Colors.white : Colors.white70,
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
                       ),
-              ),
-            ),
-            const Positioned(
-              top: 6,
-              right: 6,
-              child: SxPill(
-                text: 'علامة تجارية',
-                background: Colors.black87,
-                foreground: Colors.white,
-              ),
-            ),
-            if (gallery.length > 1)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: discount > 0 ? 29 : 8,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(
-                    gallery.length,
-                    (i) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 130),
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      width: i == page ? 12 : 5,
-                      height: 3,
-                      decoration: BoxDecoration(
-                        color: i == page ? Colors.white : Colors.white70,
-                        borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                if (_galleryLoading)
+                  const Positioned.fill(
+                    child: Center(
+                      child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-            if (discount > 0)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  color: Colors.black.withOpacity(.74),
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-                  child: Row(children: [
-                    const Text(
-                      '🔥 توفير',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w800,
+                if (discount > 0)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      color: Colors.black.withOpacity(.74),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 5,
+                      ),
+                      child: Row(
+                        children: [
+                          const Text(
+                            '🔥 توفير',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            discount.toString() + '%',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const Spacer(),
-                    Text(
-                      discount.toString() + '%',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 9.5,
-                        fontWeight: FontWeight.w900,
-                      ),
+                  ),
+                Positioned(
+                  left: 7,
+                  bottom: discount > 0 ? 27 : 7,
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(.93),
+                      shape: BoxShape.circle,
                     ),
-                  ]),
+                    child: const Icon(Icons.shopping_bag_outlined, size: 17),
+                  ),
                 ),
-              ),
-            Positioned(
-              left: 7,
-              bottom: discount > 0 ? 27 : 7,
-              child: Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(.93),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.shopping_bag_outlined, size: 17),
-              ),
+              ],
             ),
-          ]),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          product.name,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
-            height: 1.2,
           ),
-        ),
-        const SizedBox(height: 4),
-        Row(children: [
-          if (discount > 0) ...[
-            Text(
-              '-' + discount.toString() + '%',
-              style: const TextStyle(
-                color: ClientTheme.promo,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(width: 4),
-          ],
+          const SizedBox(height: 6),
           Text(
-            product.price + ' ' + state.currencySymbol,
-            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900),
-          ),
-        ]),
-        if (product.oldPrice != null && product.oldPrice!.isNotEmpty)
-          Text(
-            product.oldPrice! + ' ' + state.currencySymbol,
+            product.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 8.5,
-              color: ClientTheme.muted,
-              decoration: TextDecoration.lineThrough,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              height: 1.2,
             ),
           ),
-        const Row(children: [
-          Icon(Icons.star, size: 12.5, color: Color(0xFFFFB400)),
-          Text(' 4.8', style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 4),
-      ]),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              if (discount > 0) ...[
+                Text(
+                  '-' + discount.toString() + '%',
+                  style: const TextStyle(
+                    color: ClientTheme.promo,
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                product.price + ' ' + state.currencySymbol,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          if (product.oldPrice != null && product.oldPrice!.isNotEmpty)
+            Text(
+              product.oldPrice! + ' ' + state.currencySymbol,
+              style: const TextStyle(
+                fontSize: 8.5,
+                color: ClientTheme.muted,
+                decoration: TextDecoration.lineThrough,
+              ),
+            ),
+          const Row(
+            children: [
+              Icon(Icons.star, size: 12.5, color: Color(0xFFFFB400)),
+              Text(
+                ' 4.8',
+                style: TextStyle(
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+        ],
+      ),
     );
   }
 }
