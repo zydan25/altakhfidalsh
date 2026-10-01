@@ -967,18 +967,65 @@ def register_entity_views(admin_bp):
 
     @admin_bp.route("/side-categories", methods=["GET", "POST"])
     def side_categories():
-        from ..models import Badge, Category, MediaAsset, SideCategory, SideCategoryCircle
+        from ..models import (
+            Badge,
+            Category,
+            MediaAsset,
+            SideCategory,
+            SideCategoryCircle,
+        )
 
         error = None
         success = None
         view = (request.args.get("view") or "groups").strip().lower()
-        if view not in {"groups", "circles"}:
+        if view not in {"groups", "circles", "collections"}:
             view = "groups"
 
         if request.method == "POST":
             action = (request.form.get("action") or "").strip()
             try:
-                if action == "create_side_category":
+                if action == "save_circle_display_settings":
+                    CatalogService.save_side_circle_display({
+                        "grid_columns": request.form.get("grid_columns", 3, type=int),
+                        "item_width": request.form.get("item_width", 88, type=int),
+                        "item_height": request.form.get("item_height", 88, type=int),
+                        "item_shape": request.form.get("item_shape") or "circle",
+                        "item_corner_radius": request.form.get("item_corner_radius", 18, type=int),
+                        "item_spacing": request.form.get("item_spacing", 8, type=int),
+                        "item_label_font_size": request.form.get("item_label_font_size", 10, type=int),
+                        "item_label_bold": request.form.get("item_label_bold") == "on",
+                        "section_spacing": request.form.get("section_spacing", 14, type=int),
+                        "title_font_size": request.form.get("title_font_size", 15, type=int),
+                        "show_empty_state": request.form.get("show_empty_state") == "on",
+                    })
+                    success = "تم حفظ إعدادات دوائر الفئات."
+                elif action == "create_circle_group":
+                    CatalogService.create_side_circle_group({
+                        "root_category_id": request.form.get("root_category_id", type=int),
+                        "name": request.form.get("name"),
+                        "slug": request.form.get("slug"),
+                        "sort_order": request.form.get("sort_order", 0, type=int),
+                        "show_view_all": request.form.get("show_view_all") == "on",
+                        "circle_ids": request.form.getlist("circle_ids", type=int),
+                    })
+                    success = "تم إنشاء مجموعة الدوائر."
+                elif action == "update_circle_group":
+                    CatalogService.update_side_circle_group(
+                        request.form.get("id", type=int),
+                        {
+                            "root_category_id": request.form.get("root_category_id", type=int),
+                            "name": request.form.get("name"),
+                            "slug": request.form.get("slug"),
+                            "sort_order": request.form.get("sort_order", 0, type=int),
+                            "show_view_all": request.form.get("show_view_all") == "on",
+                            "circle_ids": request.form.getlist("circle_ids", type=int),
+                        },
+                    )
+                    success = "تم تحديث مجموعة الدوائر."
+                elif action == "archive_circle_group":
+                    CatalogService.archive_side_circle_group(request.form.get("id", type=int))
+                    success = "تمت أرشفة مجموعة الدوائر."
+                elif action == "create_side_category":
                     CatalogService.create_side_category(request.form)
                     success = "تمت إضافة الفئة الجانبية."
                 elif action == "update_side_category":
@@ -1065,11 +1112,15 @@ def register_entity_views(admin_bp):
             .limit(100)
             .all()
         )
+
         side_map = {row["id"]: row for row in side_categories}
         circle_assets = {
             row.id: db.session.get(MediaAsset, row.image_asset_id) if row.image_asset_id else None
             for row in circles
         }
+        circle_display_settings = CatalogService.get_side_circle_display()
+        circle_groups = CatalogService.list_side_circle_groups()
+
         return render_template(
             "admin/side_categories.html",
             title="الفئات الجانبية",
@@ -1083,6 +1134,8 @@ def register_entity_views(admin_bp):
             archived_circles=archived_circles,
             side_map=side_map,
             circle_assets=circle_assets,
+            circle_display_settings=circle_display_settings,
+            circle_groups=circle_groups,
             error=error,
             success=success,
             **_ctx(),
