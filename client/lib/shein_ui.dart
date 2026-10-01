@@ -3185,9 +3185,6 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
   double _settingDouble(String key, double fallback) =>
       sxDouble(circleDisplay[key], fallback);
 
-  String _settingText(String key, String fallback) =>
-      sxText(circleDisplay[key], fallback);
-
   void _selectRoot(int? rootId) {
     if (selectedRoot == rootId) return;
     setState(() {
@@ -3197,7 +3194,12 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
     load();
   }
 
-  void _selectSide(Map<String, dynamic> item) {
+  void _selectSide(Map<String, dynamic>? item) {
+    if (item == null) {
+      if (selectedSideCategoryId == null) return;
+      setState(() => selectedSideCategoryId = null);
+      return;
+    }
     final id = sxInt(item['id']);
     if (id <= 0 || id == selectedSideCategoryId) return;
     setState(() => selectedSideCategoryId = id);
@@ -3232,11 +3234,6 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
   @override
   Widget build(BuildContext context) {
     final display = circleDisplay;
-    final columns = _settingInt('grid_columns', 3).clamp(2, 5).toInt();
-    final spacing = _settingDouble('item_spacing', 8).clamp(0, 30).toDouble();
-    final sectionSpacing =
-        _settingDouble('section_spacing', 14).clamp(4, 40).toDouble();
-
     return Scaffold(
       appBar: SxAppBar(
         title: 'الفئات',
@@ -3385,6 +3382,8 @@ class _SideCategoryExplorer extends StatelessWidget {
         _double('item_corner_radius', 18).clamp(0, 90).toDouble();
     final shape = _text('item_shape', 'circle');
     final bold = settings['item_label_bold'] != false;
+    final sectionSpacing =
+        _double('section_spacing', 14).clamp(4, 40).toDouble();
 
     Widget circleTile(Map<String, dynamic> circle, {double? forcedWidth}) {
       return _SideCircleTile(
@@ -3673,7 +3672,7 @@ class _SideCircleTile extends StatelessWidget {
     final clipRadius = shape == 'circle'
         ? visualWidth / 2
         : shape == 'square'
-            ? 0
+            ? 0.0
             : radius;
 
     return SizedBox(
