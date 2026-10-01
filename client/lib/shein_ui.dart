@@ -2518,6 +2518,28 @@ class SxProductCard extends StatefulWidget {
 
 class _SxProductCardState extends State<SxProductCard> {
   int page = 0;
+  double _dragDistance = 0;
+
+  void _handleImageSwipeEnd(DragEndDetails details, int imageCount) {
+    if (imageCount <= 1 || !mounted) return;
+
+    final velocity = details.primaryVelocity ?? 0;
+    if (_dragDistance.abs() < 22 && velocity.abs() < 120) {
+      _dragDistance = 0;
+      return;
+    }
+
+    final direction = velocity.abs() >= 120
+        ? (velocity < 0 ? 1 : -1)
+        : (_dragDistance < 0 ? 1 : -1);
+
+    final nextPage = (page + direction).clamp(0, imageCount - 1);
+    _dragDistance = 0;
+
+    if (nextPage != page) {
+      setState(() => page = nextPage);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2545,14 +2567,34 @@ class _SxProductCardState extends State<SxProductCard> {
                         color: ClientTheme.soft,
                         child: const Icon(Icons.image_outlined),
                       )
-                    : PageView.builder(
-                        itemCount: gallery.length,
-                        onPageChanged: (value) {
-                          if (mounted) setState(() => page = value);
+                    : GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onHorizontalDragUpdate: (details) {
+                          _dragDistance += details.delta.dx;
                         },
-                        itemBuilder: (_, i) => SxImage(
-                          url: gallery[i],
-                          fit: BoxFit.cover,
+                        onHorizontalDragEnd: (details) {
+                          _handleImageSwipeEnd(details, gallery.length);
+                        },
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          switchInCurve: Curves.easeOutCubic,
+                          switchOutCurve: Curves.easeInCubic,
+                          layoutBuilder: (currentChild, previousChildren) {
+                            return Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                ...previousChildren,
+                                if (currentChild != null) currentChild,
+                              ],
+                            );
+                          },
+                          child: KeyedSubtree(
+                            key: ValueKey(product.id.toString() + '-' + page.toString()),
+                            child: SxImage(
+                              url: gallery[page],
+                              fit: BoxFit.cover,
+                            ),
+                          ),
                         ),
                       ),
               ),
