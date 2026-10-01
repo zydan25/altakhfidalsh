@@ -3124,6 +3124,7 @@ class _SxProductCardState extends State<SxProductCard> {
           const SizedBox(height: 4),
         ],
       ),
+      ),
     );
   }
 }
