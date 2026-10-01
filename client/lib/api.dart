@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
 
 class ApiService {
+  static const _homeCachePrefix = 'storefront_home_v3_';
+  static const _feedCachePrefix = 'storefront_feed_v3_';
   String token='';
   final String baseUrl;
   ApiService():baseUrl=(const String.fromEnvironment('API_BASE_URL',defaultValue:'https://takhfidsh.alattab.site/api/v1')).replaceAll(RegExp(r'/$'),'');
@@ -28,6 +30,70 @@ class ApiService {
   Future<dynamic> patch(String p,Map<String,dynamic> b)async=>decode(await http.patch(Uri.parse(baseUrl+p),headers:{...headers(),'Content-Type':'application/json'},body:jsonEncode(b)));
   Future<dynamic> delete(String p)async=>decode(await http.delete(Uri.parse(baseUrl+p),headers:headers()));
 
+  String _scopeCacheKey(int? rootCategoryId) =>
+      (rootCategoryId ?? -1).toString();
+
+  String _feedCacheKey({
+    int? category,
+    int? circleId,
+    int? hashtagId,
+    String q='',
+    List<int>? filterValueIds,
+    String sort='recommended',
+    String? minPrice,
+    String? maxPrice,
+    int? currencyId,
+  }) {
+    final filters = filterValueIds == null ? '' : [...filterValueIds]..sort();
+    return [
+      category ?? 0,
+      circleId ?? 0,
+      hashtagId ?? 0,
+      q.trim(),
+      filters.join(','),
+      sort,
+      minPrice?.trim() ?? '',
+      maxPrice?.trim() ?? '',
+      currencyId ?? 0,
+    ].join('|');
+  }
+
+  Future<void> _saveJson(String key, dynamic value) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(key, jsonEncode(value));
+    } catch (_) {}
+  }
+
+  Future<dynamic> _readJson(String key) async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      final raw = p.getString(key);
+      if (raw == null || raw.isEmpty) return null;
+      return jsonDecode(raw);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<List<ProductModel>> _decodeProducts(dynamic value) async {
+    if (value is! List) return <ProductModel>[];
+    return value.whereType<Map>().map((e) {
+      final m = Map<String, dynamic>.from(e);
+      if (m['image_url'] != null) {
+        m['image_url'] = url(m['image_url'].toString());
+      }
+      if (m['images'] is List) {
+        m['images'] = (m['images'] as List)
+            .whereType<String>()
+            .where((x) => x.isNotEmpty)
+            .map(url)
+            .toList();
+      }
+      return ProductModel.fromJson(m);
+    }).toList();
+  }
+
   Future<List<CategoryModel>> roots()async{
     final d=await get('/catalog/categories');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>CategoryModel.fromJson(Map<String,dynamic>.from(e))).where((x)=>x.parentId==null).toList();
@@ -38,17 +104,25 @@ class ApiService {
   }
   Future<Map<String,dynamic>> home({int? rootCategoryId}) async {
     final q = <String,String>{
-      // The storefront home payload is scope-sensitive. A cache-buster is
-      // required on web so a previous /home response cannot be reused after
-      // switching between root categories.
       '_home_ts': DateTime.now().millisecondsSinceEpoch.toString(),
     };
     if (rootCategoryId != null) {
       q['root_category_id'] = rootCategoryId.toString();
     }
-    return Map<String,dynamic>.from(
-      await get('/storefront/home', q: q),
-    );
+    final cacheKey = _homeCachePrefix + _scopeCacheKey(rootCategoryId);
+    try {
+      final result = Map<String,dynamic>.from(
+        await get('/storefront/home', q: q),
+      );
+      await _saveJson(cacheKey, result);
+      return result;
+    } catch (_) {
+      final cached = await _readJson(cacheKey);
+      if (cached is Map) {
+        return Map<String,dynamic>.from(cached);
+      }
+      rethrow;
+    }
   }
   Future<List<Map<String,dynamic>>> sideCategories({int? rootId})async{
     final d=await get('/storefront/home');
@@ -75,7 +149,7 @@ class ApiService {
     String? maxPrice,
     int? currencyId,
     String? discoveryTab,
-  })async{
+  }) async {
     final qp=<String,String>{'limit':'100','sort':sort};
     if(category!=null)qp['category_id']=category.toString();
     if(circleId!=null)qp['circle_id']=circleId.toString();
@@ -86,20 +160,35 @@ class ApiService {
     if(maxPrice!=null&&maxPrice.trim().isNotEmpty)qp['max_price']=maxPrice.trim();
     if(currencyId!=null)qp['currency_id']=currencyId.toString();
     if(discoveryTab!=null&&discoveryTab.trim().isNotEmpty)qp['discovery_tab']=discoveryTab.trim();
-    final d=await get('/catalog/products/feed',q:qp);
-    return ((d['items'] as List?)??const[]).whereType<Map>().map((e){
-      final m=Map<String,dynamic>.from(e);
-      if(m['image_url']!=null)m['image_url']=url(m['image_url'].toString());
-      if(m['images'] is List){
-        m['images']=(m['images'] as List)
-            .whereType<String>()
-            .where((x)=>x.isNotEmpty)
-            .map(url)
-            .toList();
-      }
-      return ProductModel.fromJson(m);
-    }).toList();
+
+    final cacheKey = _feedCachePrefix + _feedCacheKey(
+      category: category,
+      circleId: circleId,
+      hashtagId: hashtagId,
+      q: q,
+      filterValueIds: filterValueIds,
+      sort: sort,
+      minPrice: minPrice,
+      maxPrice: maxPrice,
+      currencyId: currencyId,
+    );
+
+    try {
+      final d=Map<String,dynamic>.from(
+        await get('/catalog/products/feed',q:qp),
+      );
+      final items = ((d['items'] as List?)??const[])
+          .whereType<Map>()
+          .map((e)=>Map<String,dynamic>.from(e))
+          .toList();
+      await _saveJson(cacheKey, items);
+      return _decodeProducts(items);
+    } catch (_) {
+      final cached = await _readJson(cacheKey);
+      return _decodeProducts(cached);
+    }
   }
+
   Future<Map<String,dynamic>> product(int id,{int? currencyId})async{
     final d=Map<String,dynamic>.from(await get('/catalog/products/'+id.toString(),q:currencyId==null?null:{'currency_id':currencyId.toString()}));
     if(d['item'] is Map){
