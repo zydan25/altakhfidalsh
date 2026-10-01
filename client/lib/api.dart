@@ -44,6 +44,7 @@ class ApiService {
     String? maxPrice,
     int? currencyId,
     String? discoveryTab,
+    String? minRating,
   }) {
     final List<int> filters = filterValueIds == null
         ? <int>[]
@@ -59,6 +60,7 @@ class ApiService {
       maxPrice?.trim() ?? '',
       currencyId ?? 0,
       discoveryTab?.trim() ?? '',
+      minRating?.trim() ?? '',
     ].join('|');
   }
 
@@ -153,6 +155,7 @@ class ApiService {
     String? maxPrice,
     int? currencyId,
     String? discoveryTab,
+    String? minRating,
   }) async {
     final qp=<String,String>{'limit':'100','sort':sort};
     if(category!=null)qp['category_id']=category.toString();
@@ -164,6 +167,7 @@ class ApiService {
     if(maxPrice!=null&&maxPrice.trim().isNotEmpty)qp['max_price']=maxPrice.trim();
     if(currencyId!=null)qp['currency_id']=currencyId.toString();
     if(discoveryTab!=null&&discoveryTab.trim().isNotEmpty)qp['discovery_tab']=discoveryTab.trim();
+    if(minRating!=null&&minRating.trim().isNotEmpty)qp['min_rating']=minRating.trim();
 
     final cacheKey = _feedCachePrefix + _feedCacheKey(
       category: category,
@@ -176,6 +180,7 @@ class ApiService {
       maxPrice: maxPrice,
       currencyId: currencyId,
       discoveryTab: discoveryTab,
+      minRating: minRating,
     );
 
     try {

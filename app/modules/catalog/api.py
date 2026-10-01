@@ -21,6 +21,9 @@ from ...models import (
     ProductMedia,
     ProductSideCategoryCircle,
     ProductVariant,
+    Review,
+    Order,
+    OrderItem,
     SideCategoryCircle,
 )
 
@@ -204,7 +207,7 @@ def products():
 @api_bp.get("/products/feed")
 def public_product_feed():
     """Mobile storefront feed with dynamic filters, sorting, price range and currency."""
-    from sqlalchemy import or_
+    from sqlalchemy import func, or_
     from ..customer.security import current_customer
     from ...services.pricing import price_for_customer
 
@@ -379,12 +382,56 @@ def public_product_feed():
             root_category_ids_by_product.setdefault(product_id, set()).add(root_id)
 
     customer = current_customer()
-    items = []
+
+    # Calculate the two discovery metrics from existing commerce data without adding
+    # a new schema: paid/shipped/delivered quantity for popularity and approved active
+    # reviews for average rating.
+    popularity_by_product = {}
+    rating_by_product = {}
+    rating_count_by_product = {}
+    if product_ids:
+        popularity_rows = (
+            db.session.query(
+                OrderItem.product_id,
+                func.coalesce(func.sum(OrderItem.qty), 0),
+            )
+            .join(Order, Order.id == OrderItem.order_id)
+            .filter(
+                OrderItem.product_id.in_(product_ids),
+                Order.status.in_(("paid", "shipped", "delivered")),
+            )
+            .group_by(OrderItem.product_id)
+            .all()
+        )
+        popularity_by_product = {
+            int(product_id): int(qty or 0)
+            for product_id, qty in popularity_rows
+        }
+
+        rating_rows = (
+            db.session.query(
+                Review.product_id,
+                func.avg(Review.rating),
+                func.count(Review.id),
+            )
+            .filter(
+                Review.product_id.in_(product_ids),
+                Review.is_active.is_(True),
+                Review.status == "approved",
+            )
+            .group_by(Review.product_id)
+            .all()
+        )
+        for product_id, average, count in rating_rows:
+            rating_by_product[int(product_id)] = float(average or 0)
+            rating_count_by_product[int(product_id)] = int(count or 0)
+
     try:
         min_price = Decimal(min_price_raw) if min_price_raw else None
         max_price = Decimal(max_price_raw) if max_price_raw else None
+        min_rating = Decimal(str((request.args.get("min_rating") or "").strip())) if (request.args.get("min_rating") or "").strip() else None
     except (InvalidOperation, ValueError):
-        min_price = max_price = None
+        min_price = max_price = min_rating = None
 
     for row in rows:
         item = CatalogService._serialize_trend_product(row)
@@ -455,10 +502,18 @@ def public_product_feed():
             item["currency_code"] = "SAR"
 
         current_price = Decimal(str(item["price"]))
+        average_rating = rating_by_product.get(row.id, 0.0)
+        review_count = rating_count_by_product.get(row.id, 0)
+        sold_qty = popularity_by_product.get(row.id, 0)
         if min_price is not None and current_price < min_price:
             continue
         if max_price is not None and current_price > max_price:
             continue
+        if min_rating is not None and Decimal(str(average_rating)) < min_rating:
+            continue
+        item["rating"] = round(average_rating, 2) if review_count else None
+        item["review_count"] = review_count
+        item["sold_qty"] = sold_qty
         items.append(item)
 
     if sort == "price_asc":
@@ -467,8 +522,12 @@ def public_product_feed():
         items.sort(key=lambda x: Decimal(str(x.get("price", "0"))), reverse=True)
     elif sort in {"newest", "latest"}:
         items.sort(key=lambda x: int(x.get("id", 0)), reverse=True)
+    elif sort in {"popular", "most_popular", "best_selling"}:
+        items.sort(key=lambda x: (int(x.get("sold_qty", 0)), int(x.get("id", 0))), reverse=True)
+    elif sort in {"rating", "rating_desc", "highest_rated"}:
+        items.sort(key=lambda x: (float(x.get("rating") or 0), int(x.get("review_count", 0)), int(x.get("id", 0))), reverse=True)
     else:
-        # Recommended defaults to the storefront's publication/newness ordering.
+        # Recommended uses the storefront's default newness order.
         items.sort(key=lambda x: int(x.get("id", 0)), reverse=True)
 
     limit = min(max(request.args.get("limit", 80, type=int), 1), 100)
