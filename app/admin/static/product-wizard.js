@@ -474,17 +474,34 @@
       mediaColor.innerHTML = '<option value="">صور عامة للمنتج</option>' +
         mediaColors.map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
     }
-    const selectedBadges = new Set((snapshot.badges || []).map(x => String(x.id)));
+    const selectedBadgeRows = new Map((snapshot.badges || []).map(x => [String(x.id), x]));
     const selectedHashtags = new Set((snapshot.hashtags || []).map(x => String(x.id)));
     const selectedStrips = new Set((snapshot.promotional_strips || []).map(x => String(x.id)));
     const selectedCampaigns = new Set((snapshot.campaigns || []).map(x => String(x.id)));
     const marketing = configRefs || marketingRefs || {};
 
-    document.getElementById("badgeSelection").innerHTML = (marketing.badges || []).map(x => (
-      '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-badge-checkbox ' +
-        (selectedBadges.has(String(x.id)) ? 'checked' : '') + (!x.is_active ? ' disabled' : '') + '><span><strong>' +
-      escapeHtml(x.name) + '</strong><small>' + escapeHtml(x.code) + (!x.is_active ? ' · مؤرشف' : '') + '</small></span></label>'
-    )).join("") || '<div class="empty-state compact"><strong>لا توجد شارات.</strong><span class="muted">أضف شارة جديدة من الزر.</span></div>';
+    const remainingDays = (row) => {
+      if (!row?.ends_at) return 0;
+      const ms = new Date(row.ends_at).getTime() - Date.now();
+      return ms > 0 ? Math.ceil(ms / 86400000) : 0;
+    };
+
+    document.getElementById("badgeSelection").innerHTML = (marketing.badges || []).map(x => {
+      const selected = selectedBadgeRows.has(String(x.id));
+      const current = selectedBadgeRows.get(String(x.id));
+      const tabLabel = x.storefront_tab === "new"
+        ? "جديد"
+        : x.storefront_tab === "offers"
+          ? "العروض"
+          : "عام";
+      const days = current ? remainingDays(current) : 0;
+      return '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-badge-checkbox ' +
+        (selected ? 'checked' : '') + (!x.is_active ? ' disabled' : '') + '><span><strong>' +
+        escapeHtml(x.name) + '</strong><small>' + escapeHtml(x.code) + ' · ' + tabLabel +
+        (!x.is_active ? ' · مؤرشف' : '') + '</small><small>مدة الظهور بالأيام (0 = دائم) ' +
+        '<input type="number" min="0" max="3650" step="1" value="' + days +
+        '" data-badge-days="' + x.id + '" style="width:96px;margin-inline-start:8px"></small></span></label>';
+    }).join("") || '<div class="empty-state compact"><strong>لا توجد شارات.</strong><span class="muted">أضف شارة جديدة من الزر.</span></div>';
 
     document.getElementById("hashtagSelection").innerHTML = (marketing.hashtags || []).map(x => (
       '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-hashtag-checkbox ' +
@@ -969,7 +986,13 @@
   });
 
   document.getElementById("saveMarketing").addEventListener("click", async () => {
-    const badgeIds = [...document.querySelectorAll("[data-badge-checkbox]:checked")].map(input => Number(input.value));
+    const badgeItems = [...document.querySelectorAll("[data-badge-checkbox]:checked")].map(input => {
+      const daysInput = document.querySelector('[data-badge-days="' + input.value + '"]');
+      return {
+        badge_id: Number(input.value),
+        duration_days: Number(daysInput?.value || 0),
+      };
+    });
     const hashtagIds = [...document.querySelectorAll("[data-hashtag-checkbox]:checked")].map(input => Number(input.value));
     const stripIds = [...document.querySelectorAll("[data-strip-checkbox]:checked")].map(input => Number(input.value));
     const campaignIds = [...document.querySelectorAll("[data-campaign-checkbox]:checked")].map(input => Number(input.value));
