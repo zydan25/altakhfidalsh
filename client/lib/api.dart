@@ -88,6 +88,13 @@ class ApiService {
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e){
       final m=Map<String,dynamic>.from(e);
       if(m['image_url']!=null)m['image_url']=url(m['image_url'].toString());
+      if(m['images'] is List){
+        m['images']=(m['images'] as List)
+            .whereType<String>()
+            .where((x)=>x.isNotEmpty)
+            .map(url)
+            .toList();
+      }
       return ProductModel.fromJson(m);
     }).toList();
   }
