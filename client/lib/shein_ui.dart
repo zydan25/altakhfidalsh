@@ -33,10 +33,18 @@ class SxAppShell extends StatefulWidget {
 
 class _SxAppShellState extends State<SxAppShell> {
   int index = 0;
+  final GlobalKey<_SxHomeScreenState> _homeKey = GlobalKey<_SxHomeScreenState>();
   late final List<Widget> pages;
+
   @override void initState() {
     super.initState();
-    pages = const [SxHomeScreen(), SxCategoriesScreen(), SxTrendsScreen(), SxCartScreen(), SxAccountScreen()];
+    pages = [
+      SxHomeScreen(key: _homeKey),
+      const SxCategoriesScreen(),
+      const SxTrendsScreen(),
+      const SxCartScreen(),
+      const SxAccountScreen(),
+    ];
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
@@ -48,7 +56,17 @@ class _SxAppShellState extends State<SxAppShell> {
     child: Scaffold(
       backgroundColor: Colors.white,
       body: IndexedStack(index: index, children: pages),
-      bottomNavigationBar: SxBottomBar(index: index, onChanged: (v) => setState(() => index = v)),
+      bottomNavigationBar: SxBottomBar(
+        index: index,
+        onChanged: (v) {
+          setState(() => index = v);
+          if (v == 0) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _homeKey.currentState?.refreshAndScrollTop();
+            });
+          }
+        },
+      ),
     ),
   );
 }
@@ -401,6 +419,18 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       ..removeListener(_handleHomeScroll)
       ..dispose();
     super.dispose();
+  }
+
+  Future<void> refreshAndScrollTop() async {
+    if (_homeScrollController.hasClients) {
+      await _homeScrollController.animateTo(
+        _homeScrollController.position.minScrollExtent,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+      );
+    }
+    if (!mounted) return;
+    await load();
   }
 
   Future<void> load() async {
@@ -2478,39 +2508,172 @@ class SxProductGrid extends StatelessWidget {
     );
 }
 
-class SxProductCard extends StatelessWidget {
+class SxProductCard extends StatefulWidget {
   final ProductModel product;
   const SxProductCard({super.key, required this.product});
-  @override Widget build(BuildContext context) {
+
+  @override
+  State<SxProductCard> createState() => _SxProductCardState();
+}
+
+class _SxProductCardState extends State<SxProductCard> {
+  int page = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final product = widget.product;
     final old = sxDouble(product.oldPrice), now = sxDouble(product.price);
     final discount = old > now && old > 0 ? ((1 - now / old) * 100).round() : 0;
+    final gallery = <String>{
+      ...product.images,
+      if (product.image != null && product.image!.isNotEmpty) product.image!,
+    }.toList();
+
     return InkWell(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id))),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id)),
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Expanded(child: Stack(children: [
-          Positioned.fill(child: ClipRRect(borderRadius: BorderRadius.circular(10), child: SxImage(url: product.image))),
-          const Positioned(top: 6, right: 6, child: SxPill(text: 'علامة تجارية', background: Colors.black87, foreground: Colors.white)),
-          if (discount > 0) Positioned(left: 0, right: 0, bottom: 0, child: Container(
-            color: Colors.black.withOpacity(.74), padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-            child: Row(children: [
-              const Text('🔥 توفير', style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w800)),
-              const Spacer(), Text(discount.toString() + '%', style: const TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w900)),
-            ]),
-          )),
-          Positioned(left: 7, bottom: discount > 0 ? 27 : 7, child: Container(
-            width: 32, height: 32, decoration: BoxDecoration(color: Colors.white.withOpacity(.93), shape: BoxShape.circle),
-            child: const Icon(Icons.shopping_bag_outlined, size: 17),
-          )),
-        ])),
+        Expanded(
+          child: Stack(children: [
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: gallery.isEmpty
+                    ? Container(
+                        color: ClientTheme.soft,
+                        child: const Icon(Icons.image_outlined),
+                      )
+                    : PageView.builder(
+                        itemCount: gallery.length,
+                        onPageChanged: (value) {
+                          if (mounted) setState(() => page = value);
+                        },
+                        itemBuilder: (_, i) => SxImage(
+                          url: gallery[i],
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+              ),
+            ),
+            const Positioned(
+              top: 6,
+              right: 6,
+              child: SxPill(
+                text: 'علامة تجارية',
+                background: Colors.black87,
+                foreground: Colors.white,
+              ),
+            ),
+            if (gallery.length > 1)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: discount > 0 ? 29 : 8,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(
+                    gallery.length.clamp(0, 6),
+                    (i) => AnimatedContainer(
+                      duration: const Duration(milliseconds: 130),
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      width: i == page ? 12 : 5,
+                      height: 3,
+                      decoration: BoxDecoration(
+                        color: i == page ? Colors.white : Colors.white70,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            if (discount > 0)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  color: Colors.black.withOpacity(.74),
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                  child: Row(children: [
+                    const Text(
+                      '🔥 توفير',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      discount.toString() + '%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            Positioned(
+              left: 7,
+              bottom: discount > 0 ? 27 : 7,
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.93),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.shopping_bag_outlined, size: 17),
+              ),
+            ),
+          ]),
+        ),
         const SizedBox(height: 6),
-        Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, height: 1.2)),
+        Text(
+          product.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            height: 1.2,
+          ),
+        ),
         const SizedBox(height: 4),
         Row(children: [
-          if (discount > 0) ...[Text('-' + discount.toString() + '%', style: const TextStyle(color: ClientTheme.promo, fontSize: 9.5, fontWeight: FontWeight.w900)), const SizedBox(width: 4)],
-          Text(product.price + ' ' + state.currencySymbol, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900)),
+          if (discount > 0) ...[
+            Text(
+              '-' + discount.toString() + '%',
+              style: const TextStyle(
+                color: ClientTheme.promo,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(width: 4),
+          ],
+          Text(
+            product.price + ' ' + state.currencySymbol,
+            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w900),
+          ),
         ]),
-        if (product.oldPrice != null && product.oldPrice!.isNotEmpty) Text(product.oldPrice! + ' ' + state.currencySymbol, style: const TextStyle(fontSize: 8.5, color: ClientTheme.muted, decoration: TextDecoration.lineThrough)),
-        const Row(children: [Icon(Icons.star, size: 12.5, color: Color(0xFFFFB400)), Text(' 4.8', style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700))]),
+        if (product.oldPrice != null && product.oldPrice!.isNotEmpty)
+          Text(
+            product.oldPrice! + ' ' + state.currencySymbol,
+            style: const TextStyle(
+              fontSize: 8.5,
+              color: ClientTheme.muted,
+              decoration: TextDecoration.lineThrough,
+            ),
+          ),
+        const Row(children: [
+          Icon(Icons.star, size: 12.5, color: Color(0xFFFFB400)),
+          Text(' 4.8', style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700)),
+        ]),
         const SizedBox(height: 4),
       ]),
     );
