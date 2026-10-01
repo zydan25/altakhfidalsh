@@ -2630,7 +2630,10 @@ class SxProductGrid extends StatelessWidget {
         mainAxisSpacing: 7,
         childAspectRatio: .69,
       ),
-      itemBuilder: (_, i) => SxProductCard(product: products[i]),
+      itemBuilder: (_, i) => SxProductCard(
+        key: ValueKey<int>(products[i].id),
+        product: products[i],
+      ),
     );
   }
 }
@@ -2660,7 +2663,11 @@ class _SxMasonryProductGrid extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             for (int i = 0; i < rows.length; i++) ...[
-              SxProductCard(product: rows[i], masonry: true),
+              SxProductCard(
+                key: ValueKey<int>(rows[i].id),
+                product: rows[i],
+                masonry: true,
+              ),
               if (i != rows.length - 1) const SizedBox(height: 7),
             ],
           ],
@@ -2699,6 +2706,17 @@ class _SxProductCardState extends State<SxProductCard> {
   late List<String> _gallery;
   bool _galleryLoading = false;
   bool _galleryLoaded = false;
+
+  @override
+  void didUpdateWidget(covariant SxProductCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.product.id != widget.product.id) {
+      page = 0;
+      _gallery = _uniqueImages(widget.product.images, widget.product.image);
+      _galleryLoaded = _gallery.length > 1;
+      _galleryLoading = false;
+    }
+  }
 
   @override
   void initState() {
