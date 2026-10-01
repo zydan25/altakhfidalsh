@@ -727,6 +727,21 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       Colors.white,
     );
     final pullGradientHeight = _pullExtent.clamp(0.0, 220.0).toDouble();
+    // Keep the lower end of the pull gradient behind the hero image instead
+    // of stopping exactly at the banner's top edge. This removes the hard
+    // transition and lets the darker part disappear naturally underneath the
+    // banner while the user pulls down.
+    final heroHeight = _homeHeroKey.currentContext?.size?.height ?? 280.0;
+    final pullGradientTail = (heroHeight * 0.5).clamp(110.0, 180.0).toDouble();
+    final pullGradientTotalHeight =
+        pullGradientHeight > 0
+            ? pullGradientHeight + pullGradientTail
+            : 0.0;
+    final bannerTopStop = pullGradientTotalHeight > 0
+        ? (pullGradientHeight / pullGradientTotalHeight)
+            .clamp(0.16, 0.72)
+            .toDouble()
+        : 0.16;
     final effectiveCategoryTextColor =
         _headerIsSolid ? Colors.black : categoryTextColor;
     final effectiveCategoryActiveColor =
@@ -746,7 +761,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
             top: 0,
             left: 0,
             right: 0,
-            height: pullGradientHeight,
+            height: pullGradientTotalHeight,
             child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -755,11 +770,15 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                     end: Alignment.bottomCenter,
                     colors: [
                       headerTopColor,
-                      Color.lerp(headerTopColor, Colors.black, .55) ??
+                      Color.lerp(headerTopColor, Colors.black, .68) ??
                           Colors.black,
                       Colors.black,
                     ],
-                    stops: const [0.0, 0.58, 1.0],
+                    stops: [
+                      0.0,
+                      bannerTopStop * 0.86,
+                      1.0,
+                    ],
                   ),
                 ),
               ),
