@@ -903,17 +903,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               ),
             ),
           ),
-          Positioned(
-            top: headerHeight,
-            bottom: 0,
-            right: 115,
-            child: IgnorePointer(
-              child: Container(
-                width: 1,
-                color: const Color(0xFFE6E6E6),
-              ),
-            ),
-          ),
           _HomeFixedHeader(
             roots: roots,
             selected: selected,
@@ -3314,6 +3303,17 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
                       ],
                     ),
                   ),
+          ),
+          Positioned(
+            top: headerHeight,
+            bottom: 0,
+            right: 115,
+            child: IgnorePointer(
+              child: Container(
+                width: 1,
+                color: const Color(0xFFE6E6E6),
+              ),
+            ),
           ),
           _HomeFixedHeader(
             roots: roots,
