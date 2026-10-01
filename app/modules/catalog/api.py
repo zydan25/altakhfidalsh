@@ -7,6 +7,7 @@ from ...security import admin_api_required
 from .services import CatalogService, MediaService
 from ...extensions import db
 from ...models import (
+    Category,
     CategoryFilterDefinition,
     CategoryFilterValue,
     MediaAsset,
