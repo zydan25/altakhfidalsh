@@ -14,6 +14,7 @@ from ...models import (
     ProductCategory,
     ProductFilterValue,
     ProductHashtag,
+    ProductMedia,
     ProductSideCategoryCircle,
     ProductVariant,
     SideCategoryCircle,
@@ -283,6 +284,19 @@ def public_product_feed():
     # customer/city/currency pricing has been resolved.
     rows = query.order_by(Product.id.desc()).limit(100).all()
 
+    media_by_product = {}
+    product_ids = [row.id for row in rows]
+    if product_ids:
+        media_rows = (
+            db.session.query(ProductMedia.product_id, MediaAsset.url)
+            .join(MediaAsset, MediaAsset.id == ProductMedia.asset_id)
+            .filter(ProductMedia.product_id.in_(product_ids))
+            .order_by(ProductMedia.product_id, ProductMedia.sort_order, ProductMedia.id)
+            .all()
+        )
+        for product_id, media_url in media_rows:
+            media_by_product.setdefault(product_id, []).append(media_url)
+
     customer = current_customer()
     items = []
     try:
@@ -293,6 +307,7 @@ def public_product_feed():
 
     for row in rows:
         item = CatalogService._serialize_trend_product(row)
+        item["images"] = media_by_product.get(row.id, [])
         variant = ProductVariant.query.filter_by(
             product_id=row.id,
             is_active=True,
