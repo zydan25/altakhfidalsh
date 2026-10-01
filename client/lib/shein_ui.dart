@@ -1034,7 +1034,13 @@ class _HomeFixedHeader extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 9),
+                      const SizedBox(width: 7),
+                      SxCircleIcon(
+                        icon: Icons.notifications_none_outlined,
+                        onTap: onNotifications,
+                        dot: true,
+                      ),
+                      const SizedBox(width: 7),
                       SxCircleIcon(
                         icon: Icons.favorite_border,
                         onTap: onWishlist,
