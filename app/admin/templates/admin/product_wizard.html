@@ -393,9 +393,14 @@
         </label>
       </div>
       <div class="form-grid">
-        <label>النمط<select name="style"><option value="solid">Solid</option><option value="outline">Outline</option><option value="soft">Soft</option></select></label>
+        <label>يظهر في<select name="storefront_tab">
+          <option value="none">لا يظهر في تبويب خاص</option>
+          <option value="new">جديد</option>
+          <option value="offers">العروض</option>
+        </select></label>
         <label>الأولوية<input name="priority" type="number" value="0"></label>
       </div>
+      <label>النمط<select name="style"><option value="solid">Solid</option><option value="outline">Outline</option><option value="soft">Soft</option></select></label>
       <div class="modal-actions">
         <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
         <button class="primary-button" type="submit">إنشاء الشارة</button>
