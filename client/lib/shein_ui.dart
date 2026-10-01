@@ -4377,9 +4377,7 @@ class _ResultsTopBar extends StatelessWidget {
               icon: Icon(
                 viewMode == _SxResultsState._viewList
                     ? Icons.view_list_outlined
-                    : viewMode == _SxResultsState._viewMasonry
-                        ? Icons.view_comfy_alt_outlined
-                        : Icons.grid_view_outlined,
+                    : Icons.grid_view_outlined,
                 size: 21,
               ),
             ),
@@ -4453,12 +4451,14 @@ class _ResultsCategoryRail extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      const SizedBox(height: 2),
-      SizedBox(
-        height: 84,
-        child: ListView.separated(
+  Widget build(BuildContext context) => Directionality(
+    textDirection: TextDirection.rtl,
+    child: Column(
+      children: [
+        const SizedBox(height: 2),
+        SizedBox(
+          height: 84,
+          child: ListView.separated(
           reverse: true,
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -4482,9 +4482,10 @@ class _ResultsCategoryRail extends StatelessWidget {
             );
           },
         ),
+          ),
+        ],
       ),
-    ],
-  );
+    );
 }
 
 class _ResultsCategoryChip extends StatelessWidget {
@@ -4544,15 +4545,21 @@ class _ResultsCategoryChip extends StatelessWidget {
 }
 
 class _ResultsFilterBar extends StatelessWidget {
-  final String sortLabel;
   final int filterCount;
-  final VoidCallback onSort;
+  final bool priceDescending;
+  final String discoveryLabel;
+  final VoidCallback onRecommendation;
+  final VoidCallback onDiscovery;
+  final VoidCallback onPrice;
   final VoidCallback onFilter;
 
   const _ResultsFilterBar({
-    required this.sortLabel,
     required this.filterCount,
-    required this.onSort,
+    required this.priceDescending,
+    required this.discoveryLabel,
+    required this.onRecommendation,
+    required this.onDiscovery,
+    required this.onPrice,
     required this.onFilter,
   });
 
@@ -4569,11 +4576,11 @@ class _ResultsFilterBar extends StatelessWidget {
     child: Row(
       textDirection: TextDirection.rtl,
       children: [
-        Expanded(child: _FilterButton(sortLabel, Icons.keyboard_arrow_down, onSort)),
+        Expanded(child: _FilterButton('التوصية', Icons.keyboard_arrow_down, onRecommendation)),
         const SizedBox(width: 5),
-        Expanded(child: _FilterButton('الأحدث', Icons.auto_awesome_outlined, onSort)),
+        Expanded(child: _FilterButton(discoveryLabel, Icons.local_fire_department_outlined, onDiscovery)),
         const SizedBox(width: 5),
-        Expanded(child: _FilterButton('السعر', Icons.swap_vert, onSort)),
+        Expanded(child: _FilterButton('السعر', priceDescending ? Icons.keyboard_arrow_down : Icons.keyboard_arrow_up, onPrice)),
         const SizedBox(width: 5),
         Expanded(
           child: _FilterButton(
@@ -4726,76 +4733,311 @@ class _FilterHeader extends SliverPersistentHeaderDelegate {
   @override bool shouldRebuild(covariant _FilterHeader oldDelegate) => false;
 }
 
+String sxResultFilterName(Map<String, dynamic> filter) {
+  final raw = sxText(filter['name']).trim();
+  final key = raw.toLowerCase();
+  const map = {
+    'category': 'الفئات',
+    'categories': 'الفئات',
+    'product category': 'الفئات',
+    'size': 'المقاس',
+    'sizes': 'المقاس',
+    'color': 'اللون',
+    'colour': 'اللون',
+    'material': 'الخامة',
+    'details': 'التفاصيل',
+    'type': 'النوع',
+    'product type': 'نوع المنتج',
+    'features': 'المميزات',
+    'feature': 'المميزات',
+    'style': 'الستايل',
+    'occasion': 'المناسبة',
+    'festivals': 'المناسبات',
+    'pattern type': 'نوع النقشة',
+  };
+  return map[key] ?? (raw.isEmpty ? 'فلتر' : raw);
+}
+
 class SxFilterSelection {
-  final Set<int> valueIds; final String? minPrice, maxPrice;
-  const SxFilterSelection({required this.valueIds, this.minPrice, this.maxPrice});
+  final Set<int> valueIds;
+  final String? minPrice, maxPrice, minRating;
+  const SxFilterSelection({required this.valueIds, this.minPrice, this.maxPrice, this.minRating});
 }
 
 class SxFilterSheet extends StatefulWidget {
-  final List<Map<String, dynamic>> filters; final Set<int> selected; final String? minPrice, maxPrice;
-  const SxFilterSheet({super.key, required this.filters, required this.selected, this.minPrice, this.maxPrice});
+  final List<Map<String, dynamic>> filters;
+  final Set<int> selected;
+  final String? minPrice, maxPrice, minRating;
+  const SxFilterSheet({super.key, required this.filters, required this.selected, this.minPrice, this.maxPrice, this.minRating});
   @override State<SxFilterSheet> createState() => _SxFilterSheetState();
 }
 
 class _SxFilterSheetState extends State<SxFilterSheet> {
-  late Set<int> values; late TextEditingController min, max;
-  @override void initState() { super.initState(); values = {...widget.selected}; min = TextEditingController(text: widget.minPrice ?? ''); max = TextEditingController(text: widget.maxPrice ?? ''); }
-  @override void dispose() { min.dispose(); max.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) => SafeArea(child: DraggableScrollableSheet(
-    expand: false, initialChildSize: .84, maxChildSize: .96, minChildSize: .55,
-    builder: (_, scroll) => Column(children: [
-      const _Handle(),
-      Padding(padding: const EdgeInsets.fromLTRB(16, 3, 16, 8), child: Row(children: [
-        const Expanded(child: Text('تصفية', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900))),
-        TextButton(onPressed: () => setState(() { values.clear(); min.clear(); max.clear(); }), child: const Text('مسح')),
-      ])),
-      Expanded(child: ListView(controller: scroll, padding: const EdgeInsets.fromLTRB(16, 0, 16, 20), children: [
-        for (final f in widget.filters) _FilterGroup(filter: f, values: values, changed: () => setState(() {})),
-        const Text('نطاق السعر', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 7),
-        Row(children: [
-          Expanded(child: TextField(controller: min, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'من'))),
-          const SizedBox(width: 7),
-          Expanded(child: TextField(controller: max, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'إلى'))),
-        ]),
-        const SizedBox(height: 15),
-        SizedBox(height: 49, child: FilledButton(
-          onPressed: () => Navigator.pop(context, SxFilterSelection(valueIds: values, minPrice: min.text.trim().isEmpty ? null : min.text.trim(), maxPrice: max.text.trim().isEmpty ? null : max.text.trim())),
-          style: FilledButton.styleFrom(backgroundColor: Colors.black),
-          child: const Text('عرض النتائج', style: TextStyle(fontWeight: FontWeight.w900)),
-        )),
-      ])),
-    ]),
-  ));
-}
+  late Set<int> values;
+  late TextEditingController min, max;
+  late String? rating;
+  int selectedGroup = 0;
 
-class _FilterGroup extends StatelessWidget {
-  final Map<String, dynamic> filter; final Set<int> values; final VoidCallback changed;
-  const _FilterGroup({required this.filter, required this.values, required this.changed});
-  @override Widget build(BuildContext context) {
-    final rows = sxMaps(filter['values']);
-    return Padding(padding: const EdgeInsets.only(bottom: 17), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Text(sxText(filter['name']), style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
-      const SizedBox(height: 8),
-      Wrap(spacing: 6, runSpacing: 6, children: rows.map((r) {
-        final id = sxInt(r['id']); final on = values.contains(id);
-        return FilterChip(selected: on, label: Text(sxText(r['label']), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700)), onSelected: (v) { if (v) values.add(id); else values.remove(id); changed(); });
-      }).toList()),
-    ]));
+  @override
+  void initState() {
+    super.initState();
+    values = {...widget.selected};
+    min = TextEditingController(text: widget.minPrice ?? '');
+    max = TextEditingController(text: widget.maxPrice ?? '');
+    rating = widget.minRating;
   }
+
+  @override
+  void dispose() {
+    min.dispose();
+    max.dispose();
+    super.dispose();
+  }
+
+  String _groupName(int index) {
+    if (index < widget.filters.length) return sxResultFilterName(widget.filters[index]);
+    if (index == widget.filters.length) return 'السعر';
+    return 'التقييم';
+  }
+
+  int get _groupCount => widget.filters.length + 2;
+
+  void _clear() {
+    setState(() {
+      values.clear();
+      min.clear();
+      max.clear();
+      rating = null;
+    });
+  }
+
+  Widget _choice(int id, String label) {
+    final active = values.contains(id);
+    return InkWell(
+      onTap: () => setState(() {
+        if (active) {
+          values.remove(id);
+        } else {
+          values.add(id);
+        }
+      }),
+      borderRadius: BorderRadius.circular(3),
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 82, minHeight: 40),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: active ? Colors.black : const Color(0xFFF5F5F5),
+          border: Border.all(color: active ? Colors.black : const Color(0xFFE3E3E3)),
+          borderRadius: BorderRadius.circular(3),
+        ),
+        alignment: Alignment.center,
+        child: Text(label, textAlign: TextAlign.center, style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: active ? Colors.white : Colors.black,
+        )),
+      ),
+    );
+  }
+
+  Widget _valuesContent() {
+    if (selectedGroup == widget.filters.length) {
+      return Directionality(
+        textDirection: TextDirection.rtl,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 14, 20),
+          children: [
+            const Text('نطاق السعر', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 7),
+            Row(children: [
+              Expanded(child: TextField(controller: min, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'من'))),
+              const SizedBox(width: 8),
+              Expanded(child: TextField(controller: max, keyboardType: TextInputType.number, decoration: const InputDecoration(hintText: 'إلى'))),
+            ]),
+          ],
+        ),
+      );
+    }
+
+    if (selectedGroup == widget.filters.length + 1) {
+      return Directionality(
+        textDirection: TextDirection.rtl,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 14, 20),
+          children: [
+            const Text('التقييم', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 10),
+            for (final value in const ['4', '3', '2', '1'])
+              Padding(
+                padding: const EdgeInsets.only(bottom: 7),
+                child: InkWell(
+                  onTap: () => setState(() => rating = rating == value ? null : value),
+                  child: Container(
+                    height: 43,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: rating == value ? const Color(0xFFF0F0F0) : Colors.white,
+                      border: Border.all(color: rating == value ? Colors.black : const Color(0xFFE5E5E5)),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: Row(
+                      children: [
+                        Text('& up', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: rating == value ? Colors.black : Colors.black87)),
+                        const SizedBox(width: 8),
+                        for (int i = 0; i < int.parse(value); i++) const Icon(Icons.star, size: 17),
+                        const Spacer(),
+                        if (rating == value) const Icon(Icons.check, size: 17),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    final rows = sxMaps(widget.filters[selectedGroup]['values']);
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 14, 20),
+        children: [
+          Text(_groupName(selectedGroup), style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 7,
+            runSpacing: 8,
+            children: [
+              for (final row in rows) _choice(sxInt(row['id']), sxText(row['label'])),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: .92,
+      maxChildSize: .97,
+      minChildSize: .62,
+      builder: (_, __) => Column(
+        children: [
+          const _Handle(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 2, 14, 9),
+            child: Row(
+              textDirection: TextDirection.rtl,
+              children: [
+                const Expanded(child: Text('تصفية', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900))),
+                TextButton(onPressed: _clear, child: const Text('مسح الكل')),
+              ],
+            ),
+          ),
+          Expanded(
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Row(
+                children: [
+                  Container(
+                    width: 122,
+                    color: const Color(0xFFF4F4F4),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.only(top: 6),
+                      itemCount: _groupCount,
+                      itemBuilder: (_, index) {
+                        final active = index == selectedGroup;
+                        return InkWell(
+                          onTap: () => setState(() => selectedGroup = index),
+                          child: Container(
+                            constraints: const BoxConstraints(minHeight: 58),
+                            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: active ? Colors.white : const Color(0xFFF4F4F4),
+                              border: Border(
+                                right: BorderSide(color: active ? Colors.black : Colors.transparent, width: 3),
+                                bottom: const BorderSide(color: Color(0xFFE9E9E9), width: .5),
+                              ),
+                            ),
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              _groupName(index),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 11, fontWeight: active ? FontWeight.w900 : FontWeight.w500),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Expanded(child: _valuesContent()),
+                ],
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 9),
+            child: Row(
+              textDirection: TextDirection.rtl,
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _clear,
+                    style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(49), side: const BorderSide(color: Color(0xFFD0D0D0)), shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero)),
+                    child: const Text('مسح', style: TextStyle(fontWeight: FontWeight.w900)),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(context, SxFilterSelection(
+                      valueIds: values,
+                      minPrice: min.text.trim().isEmpty ? null : min.text.trim(),
+                      maxPrice: max.text.trim().isEmpty ? null : max.text.trim(),
+                      minRating: rating,
+                    )),
+                    style: FilledButton.styleFrom(backgroundColor: Colors.black, minimumSize: const Size.fromHeight(49), shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero)),
+                    child: const Text('تطبيق', style: TextStyle(fontWeight: FontWeight.w900)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class SxSortSheet extends StatelessWidget {
   final String current;
   const SxSortSheet({super.key, required this.current});
-  @override Widget build(BuildContext context) {
-    const options = [('recommended', 'التوصية'), ('newest', 'الأحدث'), ('price_asc', 'السعر: الأقل'), ('price_desc', 'السعر: الأعلى')];
-    return SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const _Handle(),
-      const Padding(padding: EdgeInsets.fromLTRB(16, 5, 16, 8), child: Align(alignment: Alignment.centerRight, child: Text('ترتيب حسب', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)))),
-      for (final x in options) ListTile(title: Text(x.$2, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)), trailing: current == x.$1 ? const Icon(Icons.check) : null, onTap: () => Navigator.pop(context, x.$1)),
-      const SizedBox(height: 5),
-    ]));
+  @override
+  Widget build(BuildContext context) {
+    const options = [('popular', 'الأكثر انتشاراً'), ('rating_desc', 'الأعلى تقييماً')];
+    return SafeArea(
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const _Handle(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 5, 16, 8),
+            child: Align(alignment: Alignment.centerRight, child: Text('التوصية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900))),
+          ),
+          for (final x in options)
+            ListTile(
+              title: Text(x.$2, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+              trailing: current == x.$1 ? const Icon(Icons.check) : null,
+              onTap: () => Navigator.pop(context, x.$1),
+            ),
+          const SizedBox(height: 5),
+        ]),
+      ),
+    );
   }
 }
 
