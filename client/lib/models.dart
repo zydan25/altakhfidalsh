@@ -21,16 +21,22 @@ class ProductModel {
   final String price;
   final String? oldPrice;
   final String? image;
+  final List<String> images;
   final int? variantId;
-  const ProductModel({required this.id,required this.name,required this.price,this.oldPrice,this.image,this.variantId});
+  const ProductModel({required this.id,required this.name,required this.price,this.oldPrice,this.image,this.images=const[],this.variantId});
   factory ProductModel.fromJson(Map<String,dynamic> j) {
     final p=j['product'] is Map ? Map<String,dynamic>.from(j['product']) : j;
+    final primary=(j['image_url'] ?? p['image_url'])?.toString();
+    final rawImages=(j['images'] as List?)?.whereType<String>().where((x)=>x.isNotEmpty).toList() ?? <String>[];
+    final merged=<String>[if(primary!=null && primary.isNotEmpty) primary, ...rawImages];
+    final unique=merged.toSet().toList();
     return ProductModel(
       id:int.tryParse((p['id'] ?? j['product_id'] ?? 0).toString()) ?? 0,
       name:(p['name'] ?? j['name'] ?? '').toString(),
       price:(j['price'] ?? p['base_price_sar'] ?? p['price'] ?? '0').toString(),
       oldPrice:(j['compare_at_price'] ?? p['compare_at_price'])?.toString(),
-      image:(j['image_url'] ?? p['image_url'])?.toString(),
+      image:unique.isNotEmpty ? unique.first : primary,
+      images:unique,
       variantId:j['variant_id']==null ? null : int.tryParse(j['variant_id'].toString()),
     );
   }
