@@ -461,6 +461,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       setState(() {
         loading = true;
         _activeBannerIndex = 0;
+        _pullExtent = 0;
         _headerIsSolid = false;
       });
     }
@@ -767,6 +768,14 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
           NotificationListener<ScrollNotification>(
             onNotification: (notification) {
               if (notification.metrics.axis != Axis.vertical) return false;
+
+              // Only the HOME CustomScrollView may drive the pull-to-stretch
+              // effect. Nested vertical PageViews (notably the coupon
+              // carousel) also emit ScrollNotifications; treating those as
+              // a pull would make the banner gradient appear after a coupon
+              // flip/swipe and leave the home page visually stretched.
+              if (notification.depth != 0) return false;
+
               if (notification is OverscrollNotification &&
                   notification.metrics.pixels <=
                       notification.metrics.minScrollExtent) {
