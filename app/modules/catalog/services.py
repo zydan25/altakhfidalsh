@@ -45,6 +45,9 @@ from ...models import (
     TrendProduct,
     SideCategory,
     SideCategoryCircle,
+    SideCircleDisplaySetting,
+    SideCircleDisplayGroup,
+    SideCircleDisplayGroupItem,
     ProductSideCategoryCircle,
     SizeGuide,
     ProductColorReference,
@@ -323,6 +326,250 @@ class CatalogService:
             CatalogService._serialize_side_category(row)
             for row in query.order_by(SideCategory.sort_order, SideCategory.name, SideCategory.id).all()
         ]
+
+    @staticmethod
+    def default_side_circle_display():
+        return {
+            "grid_columns": 3,
+            "item_width": 88,
+            "item_height": 88,
+            "item_shape": "circle",
+            "item_corner_radius": 18,
+            "item_spacing": 8,
+            "item_label_font_size": 10,
+            "item_label_bold": True,
+            "section_spacing": 14,
+            "title_font_size": 15,
+            "show_empty_state": True,
+        }
+
+    @staticmethod
+    def serialize_side_circle_display(setting=None):
+        values = CatalogService.default_side_circle_display()
+        if setting is not None:
+            values.update({
+                "grid_columns": int(setting.grid_columns),
+                "item_width": int(setting.item_width),
+                "item_height": int(setting.item_height),
+                "item_shape": setting.item_shape,
+                "item_corner_radius": int(setting.item_corner_radius),
+                "item_spacing": int(setting.item_spacing),
+                "item_label_font_size": int(setting.item_label_font_size),
+                "item_label_bold": bool(setting.item_label_bold),
+                "section_spacing": int(setting.section_spacing),
+                "title_font_size": int(setting.title_font_size),
+                "show_empty_state": bool(setting.show_empty_state),
+            })
+        return values
+
+    @staticmethod
+    def get_side_circle_display():
+        setting = SideCircleDisplaySetting.query.filter_by(scope_key="all").first()
+        return CatalogService.serialize_side_circle_display(setting)
+
+    @staticmethod
+    def save_side_circle_display(payload):
+        grid_columns = max(2, min(5, int(payload.get("grid_columns", 3))))
+        item_width = max(48, min(180, int(payload.get("item_width", 88))))
+        item_height = max(48, min(180, int(payload.get("item_height", 88))))
+        item_shape = str(payload.get("item_shape", "circle")).strip().lower()
+        if item_shape not in {"circle", "rounded", "square"}:
+            raise ValueError("شكل الدوائر غير صالح.")
+        item_corner_radius = max(0, min(90, int(payload.get("item_corner_radius", 18))))
+        item_spacing = max(0, min(30, int(payload.get("item_spacing", 8))))
+        item_label_font_size = max(7, min(24, int(payload.get("item_label_font_size", 10))))
+        item_label_bold = bool(payload.get("item_label_bold", True))
+        section_spacing = max(4, min(40, int(payload.get("section_spacing", 14))))
+        title_font_size = max(10, min(28, int(payload.get("title_font_size", 15))))
+        show_empty_state = bool(payload.get("show_empty_state", True))
+
+        setting = SideCircleDisplaySetting.query.filter_by(scope_key="all").first()
+        if setting is None:
+            setting = SideCircleDisplaySetting(scope_key="all")
+            db.session.add(setting)
+
+        setting.grid_columns = grid_columns
+        setting.item_width = item_width
+        setting.item_height = item_height
+        setting.item_shape = item_shape
+        setting.item_corner_radius = item_corner_radius
+        setting.item_spacing = item_spacing
+        setting.item_label_font_size = item_label_font_size
+        setting.item_label_bold = item_label_bold
+        setting.section_spacing = section_spacing
+        setting.title_font_size = title_font_size
+        setting.show_empty_state = show_empty_state
+        db.session.commit()
+        return CatalogService.serialize_side_circle_display(setting)
+
+    @staticmethod
+    def _circle_root_category_id(circle):
+        side = db.session.get(SideCategory, circle.side_category_id)
+        return int(side.root_category_id) if side else None
+
+    @staticmethod
+    def _serialize_side_circle_group(group, include_circles=True):
+        root = db.session.get(Category, group.root_category_id) if group.root_category_id else None
+        circles = []
+        if include_circles:
+            assignments = (
+                SideCircleDisplayGroupItem.query
+                .filter_by(group_id=group.id)
+                .order_by(SideCircleDisplayGroupItem.sort_order, SideCircleDisplayGroupItem.id)
+                .all()
+            )
+            for assignment in assignments:
+                circle = db.session.get(SideCategoryCircle, assignment.circle_id)
+                if circle is None or not circle.is_active:
+                    continue
+                asset = db.session.get(MediaAsset, circle.image_asset_id) if circle.image_asset_id else None
+                circles.append({
+                    "id": circle.id,
+                    "name": circle.name,
+                    "slug": circle.slug,
+                    "side_category_id": circle.side_category_id,
+                    "sort_order": assignment.sort_order,
+                    "image_url": asset.url if asset else None,
+                })
+        return {
+            "id": group.id,
+            "root_category_id": group.root_category_id,
+            "root_category_name": root.name if root else None,
+            "name": group.name,
+            "slug": group.slug,
+            "sort_order": int(group.sort_order),
+            "show_view_all": bool(group.show_view_all),
+            "is_active": bool(group.is_active),
+            "circles": circles,
+        }
+
+    @staticmethod
+    def list_side_circle_groups(root_category_id=None, include_archived=False, public_scope=False):
+        query = SideCircleDisplayGroup.query
+        if not include_archived:
+            query = query.filter(SideCircleDisplayGroup.is_active.is_(True))
+        if public_scope:
+            if root_category_id is None:
+                query = query.filter(SideCircleDisplayGroup.root_category_id.is_(None))
+            else:
+                query = query.filter(
+                    or_(
+                        SideCircleDisplayGroup.root_category_id.is_(None),
+                        SideCircleDisplayGroup.root_category_id == int(root_category_id),
+                    )
+                )
+        elif root_category_id is not None:
+            query = query.filter(SideCircleDisplayGroup.root_category_id == int(root_category_id))
+        rows = query.order_by(
+            SideCircleDisplayGroup.sort_order,
+            SideCircleDisplayGroup.name,
+            SideCircleDisplayGroup.id,
+        ).all()
+        return [CatalogService._serialize_side_circle_group(row) for row in rows]
+
+    @staticmethod
+    def create_side_circle_group(payload):
+        name = (payload.get("name") or "").strip()
+        if not name:
+            raise ValueError("اسم مجموعة الدوائر مطلوب.")
+        root_id_raw = payload.get("root_category_id")
+        root_id = None if root_id_raw in (None, "", 0, "0", "-1") else int(root_id_raw)
+        if root_id is not None:
+            CatalogService._require_top_level_category(root_id)
+
+        slug = (payload.get("slug") or "").strip().lower() or _slugify(name, fallback="circle-group")
+        base_slug = slug
+        idx = 2
+        while SideCircleDisplayGroup.query.filter_by(slug=slug).first():
+            slug = f"{base_slug}-{idx}"[:180]
+            idx += 1
+
+        row = SideCircleDisplayGroup(
+            root_category_id=root_id,
+            name=name,
+            slug=slug,
+            sort_order=int(payload.get("sort_order", 0)),
+            show_view_all=bool(payload.get("show_view_all", True)),
+        )
+        db.session.add(row)
+        db.session.flush()
+        CatalogService._set_side_circle_group_items(row, payload.get("circle_ids", []))
+        db.session.commit()
+        return CatalogService._serialize_side_circle_group(row)
+
+    @staticmethod
+    def _set_side_circle_group_items(group, circle_ids):
+        normalized = []
+        root_id = int(group.root_category_id) if group.root_category_id else None
+        for raw in circle_ids or []:
+            circle = db.session.get(SideCategoryCircle, int(raw))
+            if circle is None or not circle.is_active:
+                raise ValueError("إحدى الدوائر المحددة غير موجودة أو مؤرشفة.")
+            if root_id is not None and CatalogService._circle_root_category_id(circle) != root_id:
+                raise ValueError("كل دوائر المجموعة يجب أن تنتمي إلى القسم الرئيسي المحدد للمجموعة.")
+            if circle.id not in normalized:
+                normalized.append(circle.id)
+
+        SideCircleDisplayGroupItem.query.filter_by(group_id=group.id).delete()
+        for position, circle_id in enumerate(normalized):
+            db.session.add(
+                SideCircleDisplayGroupItem(
+                    group_id=group.id,
+                    circle_id=circle_id,
+                    sort_order=position,
+                )
+            )
+
+    @staticmethod
+    def update_side_circle_group(group_id, payload):
+        row = db.session.get(SideCircleDisplayGroup, group_id)
+        if row is None:
+            raise LookupError("circle display group not found")
+
+        if "root_category_id" in payload:
+            root_id_raw = payload.get("root_category_id")
+            root_id = None if root_id_raw in (None, "", 0, "0", "-1") else int(root_id_raw)
+            if root_id is not None:
+                CatalogService._require_top_level_category(root_id)
+            row.root_category_id = root_id
+
+        if "name" in payload:
+            name = (payload.get("name") or "").strip()
+            if not name:
+                raise ValueError("اسم مجموعة الدوائر مطلوب.")
+            row.name = name
+        if "slug" in payload and (payload.get("slug") or "").strip():
+            row.slug = _slugify(payload["slug"], fallback=f"circle-group-{row.id}")
+        if "sort_order" in payload:
+            row.sort_order = int(payload["sort_order"])
+        if "show_view_all" in payload:
+            row.show_view_all = bool(payload.get("show_view_all"))
+
+        if "circle_ids" in payload:
+            CatalogService._set_side_circle_group_items(row, payload.get("circle_ids", []))
+
+        duplicate = (
+            SideCircleDisplayGroup.query
+            .filter(
+                SideCircleDisplayGroup.id != row.id,
+                SideCircleDisplayGroup.slug == row.slug,
+            )
+            .first()
+        )
+        if duplicate:
+            db.session.rollback()
+            raise ValueError("Slug مجموعة الدوائر مستخدم مسبقًا.")
+
+        db.session.commit()
+        return CatalogService._serialize_side_circle_group(row)
+
+    @staticmethod
+    def archive_side_circle_group(group_id):
+        row = db.session.get(SideCircleDisplayGroup, group_id)
+        if row is None:
+            raise LookupError("circle display group not found")
+        row.is_active = False
+        db.session.commit()
 
     @staticmethod
     def create_side_category(payload):
