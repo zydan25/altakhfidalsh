@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'app_state.dart';
@@ -235,8 +236,27 @@ class SxImage extends StatelessWidget {
   @override Widget build(BuildContext context) {
     final value = sxImage(url);
     if (value.isEmpty) return Container(width: width, height: height, color: ClientTheme.soft, child: const Icon(Icons.image_outlined, color: Color(0xFF9AA0A6)));
-    return Image.network(value, width: width, height: height, fit: fit, gaplessPlayback: true,
-      errorBuilder: (_, __, ___) => Container(width: width, height: height, color: ClientTheme.soft, child: const Icon(Icons.image_outlined, color: Color(0xFF9AA0A6))));
+    return CachedNetworkImage(
+      imageUrl: value,
+      width: width,
+      height: height,
+      fit: fit,
+      fadeInDuration: const Duration(milliseconds: 120),
+      placeholder: (_, __) => Container(
+        width: width,
+        height: height,
+        color: ClientTheme.soft,
+      ),
+      errorWidget: (_, __, ___) => Container(
+        width: width,
+        height: height,
+        color: ClientTheme.soft,
+        child: const Icon(
+          Icons.image_outlined,
+          color: Color(0xFF9AA0A6),
+        ),
+      ),
+    );
   }
 }
 
@@ -296,6 +316,7 @@ class SxHomeScreen extends StatefulWidget {
 class _SxHomeScreenState extends State<SxHomeScreen> {
   Map<String, dynamic> home = {};
   List<ProductModel> products = [];
+  List<ProductModel> _allStoreProducts = [];
   List<CategoryModel> roots = [];
   List<CategoryModel> allCategories = [];
   List<Map<String, dynamic>> looks = [];
@@ -464,10 +485,11 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
           : discoveryTab == 1
               ? 'new'
               : null;
+      // Fetch the complete storefront product set once. Discovery
+      // tabs are filtered locally from this cached set.
       final nextProducts = await api.feed(
         category: requestedScope < 0 ? null : requestedScope,
-        sort: discoveryTab == 1 ? 'newest' : 'recommended',
-        discoveryTab: discoveryFilter,
+        sort: 'recommended',
         currencyId: state.currencyId,
       );
       try {
@@ -483,7 +505,8 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         looks = nextLooks;
         allCategories = nextAllCategories;
         roots = nextRoots;
-        products = nextProducts;
+        _allStoreProducts = nextProducts;
+        products = _filterDiscoveryProducts(nextProducts, discoveryTab);
         _homeScope = requestedScope;
         loading = false;
       });
@@ -494,6 +517,27 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       setState(() => loading = false);
     }
   }
+  List<ProductModel> _filterDiscoveryProducts(
+    List<ProductModel> source,
+    int tab,
+  ) {
+    if (tab == 2) return List<ProductModel>.from(source);
+
+    final wanted = tab == 0 ? 'offers' : 'new';
+    final now = DateTime.now().toUtc();
+
+    return source.where((product) {
+      return product.badges.any((badge) {
+        if (sxText(badge['storefront_tab']) != wanted) return false;
+        final starts = DateTime.tryParse(sxText(badge['starts_at']));
+        final ends = DateTime.tryParse(sxText(badge['ends_at']));
+        if (starts != null && starts.isAfter(now)) return false;
+        if (ends != null && !ends.isAfter(now)) return false;
+        return true;
+      });
+    }).toList();
+  }
+
   Map<String, dynamic> _categoryDisplaySettings() {
     final payload = home['category_display'];
     if (payload is! Map) {
@@ -813,9 +857,14 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
             SliverToBoxAdapter(
               child: SxDiscoveryTabs(
                 selected: discoveryTab,
-                onChanged: (tab) async {
-                  setState(() => discoveryTab = tab);
-                  await load();
+                onChanged: (tab) {
+                  setState(() {
+                    discoveryTab = tab;
+                    products = _filterDiscoveryProducts(
+                      _allStoreProducts,
+                      tab,
+                    );
+                  });
                 },
               ),
             ),
