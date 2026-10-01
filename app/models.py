@@ -746,6 +746,7 @@ class Badge(TimestampMixin, ActiveMixin, db.Model):
     bg_color = db.Column(String(20))
     text_color = db.Column(String(20))
     style = db.Column(String(40))
+    storefront_tab = db.Column(String(30), nullable=False, default="none")
     priority = db.Column(Integer, nullable=False, default=0)
 
 
