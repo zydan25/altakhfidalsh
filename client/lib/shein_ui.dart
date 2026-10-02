@@ -4145,11 +4145,26 @@ class _SxResultsState extends State<SxResults> {
   bool changingCategory = false;
   int viewMode = _viewGrid;
 
+  late final ValueNotifier<int?> _activeCircleNotifier;
+  late final ValueNotifier<List<ProductModel>> _visibleProductsNotifier;
+  late final ValueNotifier<bool> _changingCategoryNotifier;
+
   @override
   void initState() {
     super.initState();
     activeCircleId = widget.circleId;
+    _activeCircleNotifier = ValueNotifier<int?>(activeCircleId);
+    _visibleProductsNotifier = ValueNotifier<List<ProductModel>>(const []);
+    _changingCategoryNotifier = ValueNotifier<bool>(false);
     load();
+  }
+
+  @override
+  void dispose() {
+    _activeCircleNotifier.dispose();
+    _visibleProductsNotifier.dispose();
+    _changingCategoryNotifier.dispose();
+    super.dispose();
   }
 
   int? _circleRootId(Map<String, dynamic> payload) {
@@ -4238,9 +4253,12 @@ class _SxResultsState extends State<SxResults> {
 
   Future<void> _loadFiltersForCurrentScope() async {
     filters = [];
+
+    final categoryIds = _currentCategoryScopeIds();
+
     try {
       filters = await api.scopedFilters(
-        categoryIds: _currentCategoryScopeIds(),
+        categoryIds: categoryIds,
         circleId: activeCircleId,
         hashtagIds: [
           if (widget.hashtagId != null && widget.hashtagId! > 0)
@@ -4249,7 +4267,32 @@ class _SxResultsState extends State<SxResults> {
         ],
         sideCategoryId: widget.sideCategoryId,
       );
-    } catch (_) {}
+    } catch (_) {
+      // Compatibility fallback: both endpoints are server-defined taxonomy
+      // sources. This also keeps the client working while an older API
+      // deployment is being restarted.
+      if (categoryIds.isNotEmpty) {
+        try {
+          filters = await api.categoryFiltersForCategories(
+            categoryIds,
+            includeDescendants: true,
+          );
+        } catch (_) {
+          filters = [];
+        }
+      }
+    }
+
+    // A successful but empty scoped response can occur on an older server
+    // that still exposes category filters.
+    if (filters.isEmpty && categoryIds.isNotEmpty) {
+      try {
+        filters = await api.categoryFiltersForCategories(
+          categoryIds,
+          includeDescendants: true,
+        );
+      } catch (_) {}
+    }
   }
 
   Future<List<ProductModel>> _fetch() => api.feed(
@@ -4282,6 +4325,7 @@ class _SxResultsState extends State<SxResults> {
 
       await _loadFiltersForCurrentScope();
       products = await _fetch();
+      _visibleProductsNotifier.value = products;
       _buildCategoryRail();
     } catch (e) {
       if (mounted) {
@@ -4310,7 +4354,10 @@ class _SxResultsState extends State<SxResults> {
     await _loadFiltersForCurrentScope();
     try {
       final next = await _fetch();
-      if (mounted) setState(() => products = next);
+      if (mounted) {
+        setState(() => products = next);
+        _visibleProductsNotifier.value = next;
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -4322,33 +4369,37 @@ class _SxResultsState extends State<SxResults> {
   }
 
   Future<void> _selectSideCircle(int? id) async {
-    if (changingCategory || activeCircleId == id) return;
+    if (_changingCategoryNotifier.value || activeCircleId == id) return;
 
-    // Circle selection changes only the product scope. The result-page
-    // chrome and server-defined filter taxonomy remain in place.
-    setState(() {
-      activeCircleId = id;
-      selectedCategoryId = null;
-      changingCategory = true;
-    });
+    // Keep the result-page chrome mounted. Only the circle rail selection
+    // and product pane react to this state change.
+    activeCircleId = id;
+    selectedCategoryId = null;
+    _activeCircleNotifier.value = id;
+    _changingCategoryNotifier.value = true;
 
     try {
       final next = await _fetch();
-      if (mounted) setState(() => products = next);
+      if (mounted) {
+        products = next;
+        _visibleProductsNotifier.value = next;
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(sxText(e, 'تعذر تحديث المنتجات'))),
         );
       }
+    } finally {
+      if (mounted) _changingCategoryNotifier.value = false;
     }
-    if (mounted) setState(() => changingCategory = false);
   }
 
   Future<void> _reloadResults() async {
     if (mounted) setState(() => loading = true);
     try {
       products = await _fetch();
+      _visibleProductsNotifier.value = products;
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -4504,10 +4555,13 @@ class _SxResultsState extends State<SxResults> {
               pinned: true,
               delegate: _ResultHeaderDelegate(
                 height: 94,
-                child: _ResultsCircleRail(
-                  circles: sideCircles,
-                  selected: activeCircleId,
-                  onSelected: _selectSideCircle,
+                child: ValueListenableBuilder<int?>(
+                  valueListenable: _activeCircleNotifier,
+                  builder: (context, selectedCircle, _) => _ResultsCircleRail(
+                    circles: sideCircles,
+                    selected: selectedCircle,
+                    onSelected: _selectSideCircle,
+                  ),
                 ),
               ),
             )
@@ -4578,25 +4632,35 @@ class _SxResultsState extends State<SxResults> {
               ),
             ),
           SliverToBoxAdapter(
-            child: Stack(
-              children: [
-                viewMode == _viewList
-                    ? _ResultsList(products: products)
-                    : SxProductGrid(
-                        products: products,
-                        masonry: false,
-                      ),
-                if (changingCategory)
-                  const Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: LinearProgressIndicator(
-                      minHeight: 2,
-                      backgroundColor: Colors.transparent,
-                    ),
-                  ),
-              ],
+            child: ValueListenableBuilder<List<ProductModel>>(
+              valueListenable: _visibleProductsNotifier,
+              builder: (context, visibleProducts, _) {
+                return ValueListenableBuilder<bool>(
+                  valueListenable: _changingCategoryNotifier,
+                  builder: (context, isChanging, _) {
+                    return Stack(
+                      children: [
+                        viewMode == _viewList
+                            ? _ResultsList(products: visibleProducts)
+                            : SxProductGrid(
+                                products: visibleProducts,
+                                masonry: false,
+                              ),
+                        if (isChanging)
+                          const Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: LinearProgressIndicator(
+                              minHeight: 2,
+                              backgroundColor: Colors.transparent,
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                );
+              },
             ),
           ),
         ],
