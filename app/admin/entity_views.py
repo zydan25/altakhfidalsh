@@ -1185,11 +1185,15 @@ def register_entity_views(admin_bp):
                 ("promo_font_weight", 400, 900, True),
                 ("promo_max_lines", 1, 3, True),
                 ("product_width", 0, 180, False),
+                ("product_height", 0, 260, True),
                 ("product_gap", 0, 20, True),
                 ("product_radius", 0, 20, True),
                 ("product_info_height", 16, 55, True),
                 ("product_name_font_size", 6, 14, False),
                 ("product_price_font_size", 7, 15, False),
+                ("product_name_font_weight", 400, 900, True),
+                ("product_price_font_weight", 400, 900, True),
+                ("product_name_max_lines", 1, 3, True),
                 ("badge_font_size", 7, 16, False),
                 ("badge_radius", 0, 16, True),
                 ("counter_font_size", 7, 18, True),
@@ -1268,12 +1272,17 @@ def register_entity_views(admin_bp):
                 "trend_store_title_arrow_color",
                 "trend_store_promo_color",
                 "product_text_color",
+                "product_name_color",
+                "product_price_color",
+                "product_info_background_color",
+                "title_hash_color",
                 "title_arrow_color",
             ):
                 settings[name] = color(name, str(defaults[name]))
 
             for name in ("logo_text", "pull_text", "pull_release_text", "badge_text"):
                 settings[name] = (request.form.get(name) or defaults[name]).strip()[:120]
+            settings["title_hash_text"] = (request.form.get("title_hash_text") or defaults["title_hash_text"]).strip()[:3] or "#"
 
             settings["show_counter"] = request.form.get("show_counter") == "on"
             settings["show_timer"] = request.form.get("show_timer") == "on"
@@ -1286,6 +1295,7 @@ def register_entity_views(admin_bp):
             settings["trend_store_show_title"] = request.form.get("trend_store_show_title") == "on"
             settings["trend_store_show_description"] = request.form.get("trend_store_show_description") == "on"
             settings["title_show_arrow"] = request.form.get("title_show_arrow") == "on"
+            settings["show_title_hash"] = request.form.get("show_title_hash") == "on"
             settings["trend_store_title_show_arrow"] = request.form.get("trend_store_title_show_arrow") == "on"
             settings["product_image_fit"] = (
                 request.form.get("product_image_fit") or defaults["product_image_fit"]
