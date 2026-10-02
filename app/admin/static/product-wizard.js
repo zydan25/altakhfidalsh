@@ -19,7 +19,6 @@
     }
   })();
   let sideCategoryReferences = [];
-  let categoryReferences = [];
   let draftColorIds = new Set();
   let draftSizeIds = new Set();
   let draftCategoryIds = new Set();
@@ -67,10 +66,9 @@
       requestJson("/api/v1/catalog/reference/marketing"),
       requestJson("/api/v1/catalog/reference/options?product_id=" + encodeURIComponent(productId)),
       requestJson("/api/v1/catalog/reference/product-config?product_id=" + encodeURIComponent(productId)),
-      requestJson("/api/v1/catalog/categories"),
     ]);
 
-    const [result, refs, marketing, options, config, categories] = requests;
+    const [result, refs, marketing, options, config] = requests;
     if (result.status === "rejected") {
       notify(result.reason?.message || "تعذر تحميل بيانات المنتج.", "error");
       return;
@@ -83,10 +81,6 @@
     if (config.status === "fulfilled") {
       configRefs = { ...(configRefs || {}), ...(config.value.item || config.value) };
     }
-    if (categories.status === "fulfilled") {
-      categoryReferences = categories.value?.items || [];
-    }
-
     hydrate();
     await refreshSideCategoryReferences();
 
@@ -148,75 +142,51 @@
     return tree || '<div class="empty-state compact"><strong>لا توجد نتائج.</strong><span class="muted">عدّل كلمة البحث أو أضف تصنيفًا جديدًا.</span></div>';
   };
 
-  const selectedRootCategoryIds = () => {
-    const categories = categoryReferences.length
-      ? categoryReferences
-      : (configRefs?.categories || []);
-    const byId = new Map(categories.map(row => [Number(row.id), row]));
-    const roots = new Set();
-
-    draftCategoryIds.forEach(rawId => {
-      let currentId = Number(rawId);
-      const visited = new Set();
-
-      while (Number.isFinite(currentId) && currentId > 0 && !visited.has(currentId)) {
-        visited.add(currentId);
-        const category = byId.get(currentId);
-        if (!category) break;
-
-        const parentId = category.parent_id == null ? null : Number(category.parent_id);
-        if (parentId == null) {
-          roots.add(currentId);
-          break;
-        }
-        currentId = parentId;
-      }
-    });
-
-    return roots;
-  };
+  const selectedCategoryIds = () =>
+    [...draftCategoryIds]
+      .map(Number)
+      .filter(id => Number.isFinite(id) && id > 0);
 
   const refreshSideCategoryReferences = async () => {
-    const selectedRoots = [...selectedRootCategoryIds()];
+    const categoryIds = selectedCategoryIds();
     sideCategoryReferences = [];
 
-    if (!selectedRoots.length) {
+    if (!categoryIds.length) {
       renderSideCategoryCircles();
       return;
     }
 
-    const requests = await Promise.allSettled(
-      selectedRoots.map(rootId =>
-        requestJson("/api/v1/catalog/side-categories?root_category_id=" + encodeURIComponent(rootId))
-      )
-    );
+    const params = new URLSearchParams();
+    categoryIds.forEach(categoryId => params.append("category_id", String(categoryId)));
 
-    const failures = requests.filter(item => item.status === "rejected");
-    if (failures.length && requests.every(item => item.status === "rejected")) {
-      renderSideCategoryCircles("تعذر تحميل الفئات الجانبية. أعد المحاولة بعد تحديث الصفحة.");
-      return;
+    try {
+      const response = await requestJson(
+        "/api/v1/catalog/reference/product-side-categories?" + params.toString()
+      );
+
+      const seen = new Set();
+      sideCategoryReferences = (response.items || [])
+        .flatMap(sideCategory => (sideCategory.circles || []).map(circle => ({
+          ...circle,
+          side_category_name: sideCategory.name,
+          root_category_id: sideCategory.root_category_id,
+          root_category_name: sideCategory.root_category_name || "—",
+        })))
+        .filter(circle => {
+          const key = Number(circle.id);
+          if (!Number.isFinite(key) || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+      configRefs = configRefs || {};
+      configRefs.available_side_category_circles = sideCategoryReferences;
+      renderSideCategoryCircles();
+    } catch (error) {
+      renderSideCategoryCircles(
+        error?.message || "تعذر تحميل الفئات الجانبية من الخادم."
+      );
     }
-
-    const seen = new Set();
-    sideCategoryReferences = requests
-      .filter(item => item.status === "fulfilled")
-      .flatMap(item => item.value?.items || [])
-      .flatMap(sideCategory => (sideCategory.circles || []).map(circle => ({
-        ...circle,
-        side_category_name: sideCategory.name,
-        root_category_id: sideCategory.root_category_id,
-        root_category_name: sideCategory.root_category_name || "—",
-      })))
-      .filter(circle => {
-        const key = Number(circle.id);
-        if (!Number.isFinite(key) || seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-
-    configRefs = configRefs || {};
-    configRefs.available_side_category_circles = sideCategoryReferences;
-    renderSideCategoryCircles();
   };
 
   const renderSideCategoryCircles = (errorText = "") => {
