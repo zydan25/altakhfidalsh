@@ -252,173 +252,307 @@
         </div>
       </section>
 
-      <section class="trend-editor-section">
-        <div class="trend-field-heading">
-          <label>أبعاد وتصميم الترند في التطبيق</label>
-          <small>كل القيم بالـdp على مرجع عرض 360px، ويقوم تطبيق Flutter بتوسيعها تلقائيًا حسب عرض الهاتف. لا توجد أبعاد ثابتة مفروضة على الجهاز.</small>
-        </div>
+<section class="panel trend-global-settings-panel">
+  <div class="panel-heading trend-global-heading">
+    <div>
+      <span class="eyebrow">إعدادات عامة</span>
+      <h3>تنسيق صفحة الترندات</h3>
+      <p class="muted">
+        هذه الإعدادات عامة وتطبق على جميع الترندات. القيم بالمقاس المنطقي
+        <b>dp</b> على مرجع عرض 360px، والتطبيق يحافظ على النسبة تلقائيًا على الشاشات المختلفة.
+      </p>
+    </div>
+    <span class="trend-settings-scope">عام • كل الترندات</span>
+  </div>
 
-        <div class="form-grid trend-design-grid">
-          <label>ارتفاع مساحة الـHero
-            <input name="ui_hero_height" type="number" min="180" max="520" value="278">
-            <small>الارتفاع الكلي للخلفية قبل بداية المحتوى الأبيض.</small>
-          </label>
-          <label>عرض بطاقة الترند
-            <input name="ui_hero_card_width" type="number" min="220" max="520" value="300">
-          </label>
-          <label>ارتفاع بطاقة الترند
-            <input name="ui_hero_card_height" type="number" min="120" max="360" value="198">
-          </label>
-          <label>موضع البطاقة من الأعلى
-            <input name="ui_hero_card_top" type="number" min="35" max="180" value="68">
-          </label>
-          <label>تدوير البطاقة
-            <input name="ui_hero_card_radius" type="number" min="0" max="40" value="9">
-          </label>
-          <label>سُمك إطار البطاقة
-            <input name="ui_hero_card_border_width" type="number" min="0" max="5" step="0.1" value="1">
-          </label>
-          <label>تغميق الخلفية
-            <span class="color-input-row"><input name="ui_hero_background_overlay_color" type="color" value="#000000"></span>
-          </label>
-          <label>شفافية تغميق الخلفية
-            <input name="ui_hero_background_overlay_opacity" type="number" min="0" max="1" step="0.01" value="0.47">
-          </label>
-          <label>شفافية تغميق محتوى البطاقة
-            <input name="ui_hero_card_overlay_opacity" type="number" min="0" max="1" step="0.01" value="0.48">
-          </label>
-          <label>لون إطار البطاقة
-            <input name="ui_hero_card_border_color" type="color" value="#ffffff">
-          </label>
-        </div>
+  <form method="post" action="{{ url_for('admin.trends_settings') }}" class="trend-global-settings-form">
+    <div class="trend-settings-note">
+      <span>✦</span>
+      <div>
+        <strong>تصميم قريب من مرجع SHEIN</strong>
+        <small>اضبط الأبعاد والألوان من الخادم مرة واحدة، ثم تستخدمها كل بطاقات الترند. لا تحتاج لإعادة بناء التطبيق عند تغييرها.</small>
+      </div>
+    </div>
 
-        <div class="form-grid trend-design-grid">
-          <label>عنوان البطاقة (Override)
-            <input name="ui_title_text" maxlength="180" placeholder="اتركه فارغًا لاستخدام اسم الهاشتاج">
-          </label>
-          <label>حجم عنوان البطاقة
-            <input name="ui_title_font_size" type="number" min="10" max="34" value="18">
-          </label>
-          <label>وزن العنوان
-            <input name="ui_title_font_weight" type="number" min="400" max="900" step="100" value="900">
-          </label>
-          <label>لون العنوان
-            <input name="ui_title_color" type="color" value="#ffffff">
-          </label>
-          <label>المسافة تحت العنوان
-            <input name="ui_title_spacing" type="number" min="0" max="20" value="5">
-          </label>
-          <label>حجم النص الترويجي
-            <input name="ui_promo_font_size" type="number" min="7" max="18" step="0.5" value="10.5">
-          </label>
-          <label>وزن النص الترويجي
-            <input name="ui_promo_font_weight" type="number" min="400" max="900" step="100" value="700">
-          </label>
-          <label>لون النص الترويجي
-            <input name="ui_promo_color" type="color" value="#ffffff">
-          </label>
-          <label>عدد أسطر النص
-            <input name="ui_promo_max_lines" type="number" min="1" max="3" value="2">
-          </label>
-          <label>حشو محتوى البطاقة
-            <input name="ui_content_padding" type="number" min="0" max="30" value="10">
-          </label>
-        </div>
+    <details open>
+      <summary><span>١. الهيرو والبطاقة الرئيسية</span><small>المساحة، البطاقة، الصورة والتغميق</small></summary>
+      <div class="trend-settings-grid">
+        <label>ارتفاع الـHero
+          <input name="hero_height" type="number" min="180" max="520" value="{{ trend_display_settings.hero_height }}">
+          <small>الارتفاع الكلي للخلفية.</small>
+        </label>
+        <label>موضع البطاقة من الأعلى
+          <input name="hero_card_top" type="number" min="35" max="180" value="{{ trend_display_settings.hero_card_top }}">
+        </label>
+        <label>عرض البطاقة
+          <input name="hero_card_width" type="number" min="220" max="520" value="{{ trend_display_settings.hero_card_width }}">
+        </label>
+        <label>ارتفاع البطاقة
+          <input name="hero_card_height" type="number" min="120" max="360" value="{{ trend_display_settings.hero_card_height }}">
+        </label>
+        <label>نصف قطر البطاقة
+          <input name="hero_card_radius" type="number" min="0" max="40" value="{{ trend_display_settings.hero_card_radius }}">
+        </label>
+        <label>سُمك الإطار
+          <input name="hero_card_border_width" type="number" min="0" max="5" step="0.1" value="{{ trend_display_settings.hero_card_border_width }}">
+        </label>
+        <label>لون الإطار
+          <input name="hero_card_border_color" type="color" value="{{ trend_display_settings.hero_card_border_color }}">
+        </label>
+        <label>لون تغميق الخلفية
+          <input name="hero_background_overlay_color" type="color" value="{{ trend_display_settings.hero_background_overlay_color }}">
+        </label>
+        <label>شفافية تغميق الخلفية
+          <input name="hero_background_overlay_opacity" type="number" min="0" max="1" step="0.01" value="{{ trend_display_settings.hero_background_overlay_opacity }}">
+        </label>
+        <label>لون تغميق البطاقة
+          <input name="hero_card_overlay_color" type="color" value="{{ trend_display_settings.hero_card_overlay_color }}">
+        </label>
+        <label>شفافية تغميق البطاقة
+          <input name="hero_card_overlay_opacity" type="number" min="0" max="1" step="0.01" value="{{ trend_display_settings.hero_card_overlay_opacity }}">
+        </label>
+      </div>
+    </details>
 
-        <div class="form-grid trend-design-grid">
-          <label>عرض كل بطاقة منتج
-            <input name="ui_product_width" type="number" min="0" max="180" value="0">
-            <small>0 = توزيع متساوٍ تلقائيًا على عرض البطاقة.</small>
-          </label>
-          <label>ارتفاع بطاقات المنتجات
-            <input name="ui_product_height" type="number" min="55" max="180" value="103">
-          </label>
-          <label>المسافة بين المنتجات
-            <input name="ui_product_gap" type="number" min="0" max="20" value="4">
-          </label>
-          <label>تدوير بطاقات المنتجات
-            <input name="ui_product_radius" type="number" min="0" max="20" value="7">
-          </label>
-          <label>ارتفاع معلومات المنتج
-            <input name="ui_product_info_height" type="number" min="16" max="55" value="27">
-          </label>
-          <label>حجم اسم المنتج
-            <input name="ui_product_name_font_size" type="number" min="6" max="14" step="0.5" value="8.5">
-          </label>
-          <label>حجم سعر المنتج
-            <input name="ui_product_price_font_size" type="number" min="7" max="15" step="0.5" value="9.5">
-          </label>
-          <label>لون نص المنتج
-            <input name="ui_product_text_color" type="color" value="#000000">
-          </label>
-          <label>طريقة قص صورة المنتج
-            <select name="ui_product_image_fit">
-              <option value="cover" selected>Cover</option>
-              <option value="contain">Contain</option>
-              <option value="fill">Fill</option>
-            </select>
-          </label>
-        </div>
+    <details open>
+      <summary><span>٢. العنوان والوصف والهوية</span><small>الخط والألوان والهوية العلوية</small></summary>
+      <div class="trend-settings-grid">
+        <label>لون عنوان الترند
+          <input name="title_color" type="color" value="{{ trend_display_settings.title_color }}">
+        </label>
+        <label>حجم العنوان
+          <input name="title_font_size" type="number" min="10" max="34" step="0.5" value="{{ trend_display_settings.title_font_size }}">
+        </label>
+        <label>وزن العنوان
+          <input name="title_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.title_font_weight }}">
+        </label>
+        <label>المسافة تحت العنوان
+          <input name="title_spacing" type="number" min="0" max="20" value="{{ trend_display_settings.title_spacing }}">
+        </label>
+        <label>لون النص الترويجي
+          <input name="promo_color" type="color" value="{{ trend_display_settings.promo_color }}">
+        </label>
+        <label>حجم النص الترويجي
+          <input name="promo_font_size" type="number" min="7" max="18" step="0.5" value="{{ trend_display_settings.promo_font_size }}">
+        </label>
+        <label>وزن النص الترويجي
+          <input name="promo_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.promo_font_weight }}">
+        </label>
+        <label>عدد أسطر الوصف
+          <input name="promo_max_lines" type="number" min="1" max="3" value="{{ trend_display_settings.promo_max_lines }}">
+        </label>
+        <label>حشو محتوى البطاقة
+          <input name="content_padding" type="number" min="0" max="30" value="{{ trend_display_settings.content_padding }}">
+        </label>
+        <label>النص العلوي
+          <input name="logo_text" maxlength="60" value="{{ trend_display_settings.logo_text }}">
+        </label>
+        <label>لون النص العلوي
+          <input name="logo_color" type="color" value="{{ trend_display_settings.logo_color }}">
+        </label>
+        <label>حجم النص العلوي
+          <input name="logo_font_size" type="number" min="14" max="40" value="{{ trend_display_settings.logo_font_size }}">
+        </label>
+        <label>تباعد حروف النص العلوي
+          <input name="logo_letter_spacing" type="number" min="-4" max="2" step="0.1" value="{{ trend_display_settings.logo_letter_spacing }}">
+        </label>
+        <label>لون أيقونات البحث والقلب
+          <input name="top_icon_color" type="color" value="{{ trend_display_settings.top_icon_color }}">
+        </label>
+      </div>
+    </details>
 
-        <div class="form-grid trend-design-grid">
-          <label>نص الشارة
-            <input name="ui_badge_text" maxlength="80" placeholder="مثال: NEW أو HOT">
-          </label>
-          <label>لون خلفية الشارة
-            <input name="ui_badge_background_color" type="color" value="#111827">
-          </label>
-          <label>لون نص الشارة
-            <input name="ui_badge_text_color" type="color" value="#ffffff">
-          </label>
-          <label>حجم نص الشارة
-            <input name="ui_badge_font_size" type="number" min="7" max="16" step="0.5" value="9.5">
-          </label>
-          <label>تدوير الشارة
-            <input name="ui_badge_radius" type="number" min="0" max="16" value="4">
-          </label>
-          <label>موضع الشارة
-            <select name="ui_badge_position">
-              <option value="top_right" selected>أعلى اليمين</option>
-              <option value="top_left">أعلى اليسار</option>
-            </select>
-          </label>
-          <label>لون عداد الترند
-            <input name="ui_counter_color" type="color" value="#ffffff">
-          </label>
-          <label>حجم عداد الترند
-            <input name="ui_counter_font_size" type="number" min="7" max="18" value="12">
-          </label>
-          <label>بعد العداد عن الأسفل
-            <input name="ui_counter_bottom" type="number" min="0" max="30" value="8">
-          </label>
-          <label class="check-row">
-            <input name="ui_show_counter" type="checkbox" checked>
-            <span><strong>إظهار عداد الصفحات</strong><small>مثل 2 / 11.</small></span>
-          </label>
-          <label>لون خلفية المؤقت
-            <input name="ui_timer_background_color" type="color" value="#111827">
-          </label>
-          <label>لون نص المؤقت
-            <input name="ui_timer_text_color" type="color" value="#ffffff">
-          </label>
-          <label>حجم المؤقت
-            <input name="ui_timer_font_size" type="number" min="7" max="16" step="0.5" value="9">
-          </label>
-          <label>تدوير المؤقت
-            <input name="ui_timer_radius" type="number" min="0" max="16" value="4">
-          </label>
-          <label>موضع المؤقت
-            <select name="ui_timer_position">
-              <option value="top_left" selected>أعلى اليسار</option>
-              <option value="top_right">أعلى اليمين</option>
-            </select>
-          </label>
-          <label class="check-row">
-            <input name="ui_show_timer" type="checkbox" checked>
-            <span><strong>إظهار المؤقت في البطاقة</strong><small>يظهر فقط إذا كان مؤقت الترند مفعّلًا.</small></span>
-          </label>
-        </div>
-      </section>
+    <details open>
+      <summary><span>٣. المنتجات الثلاثة داخل الترند</span><small>أحجام وصور وبطاقات المنتجات الصغيرة</small></summary>
+      <div class="trend-settings-grid">
+        <label>عرض المنتج
+          <input name="product_width" type="number" min="0" max="180" step="0.5" value="{{ trend_display_settings.product_width }}">
+          <small>0 = توزيع تلقائي لثلاث بطاقات.</small>
+        </label>
+        <label>ارتفاع المنتج
+          <input name="product_height" type="number" min="55" max="180" value="{{ trend_display_settings.product_height }}">
+        </label>
+        <label>المسافة بين المنتجات
+          <input name="product_gap" type="number" min="0" max="20" value="{{ trend_display_settings.product_gap }}">
+        </label>
+        <label>نصف قطر المنتج
+          <input name="product_radius" type="number" min="0" max="20" value="{{ trend_display_settings.product_radius }}">
+        </label>
+        <label>ارتفاع معلومات المنتج
+          <input name="product_info_height" type="number" min="16" max="55" value="{{ trend_display_settings.product_info_height }}">
+        </label>
+        <label>حجم اسم المنتج
+          <input name="product_name_font_size" type="number" min="6" max="14" step="0.5" value="{{ trend_display_settings.product_name_font_size }}">
+        </label>
+        <label>حجم السعر
+          <input name="product_price_font_size" type="number" min="7" max="15" step="0.5" value="{{ trend_display_settings.product_price_font_size }}">
+        </label>
+        <label>لون النص
+          <input name="product_text_color" type="color" value="{{ trend_display_settings.product_text_color }}">
+        </label>
+        <label>طريقة عرض الصورة
+          <select name="product_image_fit">
+            <option value="cover" {% if trend_display_settings.product_image_fit == "cover" %}selected{% endif %}>ملء الإطار</option>
+            <option value="contain" {% if trend_display_settings.product_image_fit == "contain" %}selected{% endif %}>داخل الإطار</option>
+            <option value="fill" {% if trend_display_settings.product_image_fit == "fill" %}selected{% endif %}>تمديد</option>
+          </select>
+        </label>
+      </div>
+      <div class="trend-settings-helper">
+        <strong>اختيار الصور يبقى على مستوى المستطيل:</strong>
+        <span>كل مستطيل يحتفظ باختيار صورة كل منتج من Media، بينما حجم البطاقات وشكلها يدار هنا بشكل عام.</span>
+      </div>
+    </details>
+
+    <details>
+      <summary><span>٤. الشارة والعداد والمؤقت</span><small>ألوان وحجوم العناصر فوق الصورة</small></summary>
+      <div class="trend-settings-grid">
+        <label>خلفية الشارة
+          <input name="badge_background_color" type="color" value="{{ trend_display_settings.badge_background_color }}">
+        </label>
+        <label>لون نص الشارة
+          <input name="badge_text_color" type="color" value="{{ trend_display_settings.badge_text_color }}">
+        </label>
+        <label>حجم الشارة
+          <input name="badge_font_size" type="number" min="7" max="16" step="0.5" value="{{ trend_display_settings.badge_font_size }}">
+        </label>
+        <label>تدوير الشارة
+          <input name="badge_radius" type="number" min="0" max="16" value="{{ trend_display_settings.badge_radius }}">
+        </label>
+        <label>موضع الشارة
+          <select name="badge_position">
+            <option value="top_right" {% if trend_display_settings.badge_position == "top_right" %}selected{% endif %}>أعلى اليمين</option>
+            <option value="top_left" {% if trend_display_settings.badge_position == "top_left" %}selected{% endif %}>أعلى اليسار</option>
+          </select>
+        </label>
+        <label>لون عداد الصفحات
+          <input name="counter_color" type="color" value="{{ trend_display_settings.counter_color }}">
+        </label>
+        <label>حجم العداد
+          <input name="counter_font_size" type="number" min="7" max="18" value="{{ trend_display_settings.counter_font_size }}">
+        </label>
+        <label>بعد العداد من الأسفل
+          <input name="counter_bottom" type="number" min="0" max="30" value="{{ trend_display_settings.counter_bottom }}">
+        </label>
+        <label>خلفية المؤقت
+          <input name="timer_background_color" type="color" value="{{ trend_display_settings.timer_background_color }}">
+        </label>
+        <label>لون نص المؤقت
+          <input name="timer_text_color" type="color" value="{{ trend_display_settings.timer_text_color }}">
+        </label>
+        <label>حجم المؤقت
+          <input name="timer_font_size" type="number" min="7" max="16" step="0.5" value="{{ trend_display_settings.timer_font_size }}">
+        </label>
+        <label>تدوير المؤقت
+          <input name="timer_radius" type="number" min="0" max="16" value="{{ trend_display_settings.timer_radius }}">
+        </label>
+        <label>موضع المؤقت
+          <select name="timer_position">
+            <option value="top_left" {% if trend_display_settings.timer_position == "top_left" %}selected{% endif %}>أعلى اليسار</option>
+            <option value="top_right" {% if trend_display_settings.timer_position == "top_right" %}selected{% endif %}>أعلى اليمين</option>
+          </select>
+        </label>
+        <label class="check-row">
+          <input name="show_counter" type="checkbox" {% if trend_display_settings.show_counter %}checked{% endif %}>
+          <span><strong>إظهار العداد</strong><small>مثل 2 / 11.</small></span>
+        </label>
+        <label class="check-row">
+          <input name="show_timer" type="checkbox" {% if trend_display_settings.show_timer %}checked{% endif %}>
+          <span><strong>إظهار المؤقت</strong><small>يظهر فقط للترند الذي لديه مؤقت فعال.</small></span>
+        </label>
+      </div>
+    </details>
+
+    <details>
+      <summary><span>٥. تبويبات وهاشتاجات الصفحة</span><small>الألوان والحجوم وشكل شريط التصفح</small></summary>
+      <div class="trend-settings-grid">
+        <label>لون التبويب النشط
+          <input name="tabs_active_color" type="color" value="{{ trend_display_settings.tabs_active_color }}">
+        </label>
+        <label>لون التبويب غير النشط
+          <input name="tabs_inactive_color" type="color" value="{{ trend_display_settings.tabs_inactive_color }}">
+        </label>
+        <label>لون خط التبويب
+          <input name="tabs_indicator_color" type="color" value="{{ trend_display_settings.tabs_indicator_color }}">
+        </label>
+        <label>عرض خط التبويب
+          <input name="tabs_indicator_width" type="number" min="40" max="180" value="{{ trend_display_settings.tabs_indicator_width }}">
+        </label>
+        <label>حجم نص التبويبات
+          <input name="tabs_font_size" type="number" min="10" max="28" step="0.5" value="{{ trend_display_settings.tabs_font_size }}">
+        </label>
+        <label>لون نص الهاشتاج
+          <input name="hashtag_text_color" type="color" value="{{ trend_display_settings.hashtag_text_color }}">
+        </label>
+        <label>لون نص الهاشتاج النشط
+          <input name="hashtag_active_text_color" type="color" value="{{ trend_display_settings.hashtag_active_text_color }}">
+        </label>
+        <label>خلفية الهاشتاج
+          <input name="hashtag_background_color" type="color" value="{{ trend_display_settings.hashtag_background_color }}">
+        </label>
+        <label>خلفية الهاشتاج النشط
+          <input name="hashtag_active_background_color" type="color" value="{{ trend_display_settings.hashtag_active_background_color }}">
+        </label>
+        <label>حجم الهاشتاج
+          <input name="hashtag_font_size" type="number" min="8" max="18" step="0.5" value="{{ trend_display_settings.hashtag_font_size }}">
+        </label>
+        <label>تدوير الهاشتاج
+          <input name="hashtag_radius" type="number" min="0" max="20" value="{{ trend_display_settings.hashtag_radius }}">
+        </label>
+      </div>
+    </details>
+
+    <details open>
+      <summary><span>٦. السحب للتحديث وواجهة الهاتف</span><small>النص واللون والمسافة والحواف</small></summary>
+      <div class="trend-settings-grid">
+        <label>نص السحب
+          <input name="pull_text" maxlength="120" value="{{ trend_display_settings.pull_text }}">
+        </label>
+        <label>نص عند الجاهزية
+          <input name="pull_release_text" maxlength="120" value="{{ trend_display_settings.pull_release_text }}">
+        </label>
+        <label>لون خلفية السحب
+          <input name="pull_background_color" type="color" value="{{ trend_display_settings.pull_background_color }}">
+        </label>
+        <label>لون مؤشر التحديث
+          <input name="pull_indicator_color" type="color" value="{{ trend_display_settings.pull_indicator_color }}">
+        </label>
+        <label>لون نص السحب
+          <input name="pull_text_color" type="color" value="{{ trend_display_settings.pull_text_color }}">
+        </label>
+        <label>حجم نص السحب
+          <input name="pull_font_size" type="number" min="8" max="20" step="0.5" value="{{ trend_display_settings.pull_font_size }}">
+        </label>
+        <label>ارتفاع منطقة السحب
+          <input name="pull_height" type="number" min="28" max="100" value="{{ trend_display_settings.pull_height }}">
+        </label>
+        <label>مسافة التفعيل
+          <input name="pull_distance" type="number" min="30" max="130" value="{{ trend_display_settings.pull_distance }}">
+        </label>
+        <label>لون خلفية صفحة الترند
+          <input name="page_background_color" type="color" value="{{ trend_display_settings.page_background_color }}">
+        </label>
+        <label>نصف قطر أعلى المحتوى الأبيض
+          <input name="content_top_radius" type="number" min="0" max="40" value="{{ trend_display_settings.content_top_radius }}">
+        </label>
+        <label class="check-row">
+          <input name="pull_enabled" type="checkbox" {% if trend_display_settings.pull_enabled %}checked{% endif %}>
+          <span><strong>تفعيل السحب للتحديث</strong><small>يمكن إيقافه دون تعديل التطبيق.</small></span>
+        </label>
+      </div>
+    </details>
+
+    <div class="trend-global-actions">
+      <div>
+        <strong>يحفظ كإعداد عام</strong>
+        <small>أي تعديل هنا ينعكس على كل الترندات في المرة التالية التي يفتح فيها العميل الصفحة.</small>
+      </div>
+      <button class="primary-button trend-global-save" type="submit">حفظ تنسيق صفحة الترندات</button>
+    </div>
+  </form>
+</section>
+
+>
 
       <section class="trend-editor-section">
         <div class="trend-field-heading">
