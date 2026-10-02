@@ -2554,8 +2554,8 @@ class CatalogService:
         merged["trend_store_show_description"] = bool(merged.get("trend_store_show_description", True))
         merged["title_arrow"] = merged.get("title_arrow") if merged.get("title_arrow") in {">", "<"} else ">"
         merged["trend_store_title_arrow"] = merged.get("trend_store_title_arrow") if merged.get("trend_store_title_arrow") in {">", "<"} else ">"
-        merged["title_arrow_gap"] = number("title_arrow_gap", 4, 0, 20, True)
-        merged["trend_store_title_arrow_gap"] = number("trend_store_title_arrow_gap", 4, 0, 20, True)
+        merged["title_arrow_gap"] = number("title_arrow_gap", 0, 20, True)
+        merged["trend_store_title_arrow_gap"] = number("trend_store_title_arrow_gap", 0, 20, True)
         merged["timer_position"] = (
             merged.get("timer_position")
             if merged.get("timer_position") in {"top_left", "top_right"}
