@@ -4265,7 +4265,13 @@ class _SxResultsState extends State<SxResults> {
       resolvedSideCategoryId = sxInt(side['id']);
       categoryContextId = sxInt(side['root_category_id']);
 
+      // Result-page circle rail must belong to the selected side category
+      // only. Do not allow sibling side categories under the same root to
+      // leak into this rail, even if the home payload is broader than expected.
       sideCircles = circles
+          .where((circle) =>
+              sxInt(circle['side_category_id']) == resolvedSideCategoryId)
+          .toList()
         ..sort((a, b) {
           final ao = sxInt(a['sort_order']);
           final bo = sxInt(b['sort_order']);
