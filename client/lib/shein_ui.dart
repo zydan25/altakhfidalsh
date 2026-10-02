@@ -6353,7 +6353,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
                                             title: Text(
                                               _tagText(tag),
                                               style: const TextStyle(
-                                                fontSize: _sxTrendNumber(ui, 'picks_title_font_size', 11),
+                                                fontSize: 12,
                                                 fontWeight: FontWeight.w700,
                                               ),
                                             ),
@@ -7685,9 +7685,9 @@ class _TrendProductTileState extends State<_TrendProductTile> {
   Widget build(BuildContext context) {
     final scale = (MediaQuery.sizeOf(context).width / 360.0).clamp(.86, 1.15).toDouble();
     final imageHeight =
-        _sxTrendNumber(ui, 'picks_image_height', 258) * scale;
+        _sxTrendNumber(widget.ui, 'picks_image_height', 258) * scale;
     final contentHeight =
-        _sxTrendNumber(ui, 'picks_content_height', 92) * scale;
+        _sxTrendNumber(widget.ui, 'picks_content_height', 92) * scale;
     final discount = _discount();
     final hashtagLabel = widget.hashtag == null
         ? '#ترندات'
