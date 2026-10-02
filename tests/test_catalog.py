@@ -1,7 +1,23 @@
 from decimal import Decimal
 
 from app.extensions import db
-from app.models import Category, Currency, InventoryLocation, Product, ProductMedia, ProductVariant, ProductCategory, StockInventory, MediaAsset, SideCategory, SideCategoryCircle, ProductSideCategoryCircle
+from app.models import (
+    Category,
+    CategoryFilterDefinition,
+    CategoryFilterValue,
+    Currency,
+    InventoryLocation,
+    Product,
+    ProductFilterValue,
+    ProductMedia,
+    ProductVariant,
+    ProductCategory,
+    StockInventory,
+    MediaAsset,
+    SideCategory,
+    SideCategoryCircle,
+    ProductSideCategoryCircle,
+)
 from app.modules.catalog.services import CatalogService
 
 
@@ -357,3 +373,149 @@ def test_product_wizard_publish_readiness_tracks_basic_fields_and_active_variant
         snapshot = CatalogService.wizard_snapshot(product.id)
         assert snapshot["steps"]["basics"] is False
         assert snapshot["publishable"] is False
+
+
+def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, client):
+    with app.app_context():
+        currency = Currency(
+            code="SAR",
+            name_ar="ريال سعودي",
+            decimals=2,
+            is_base=True,
+        )
+        root = Category(name="نساء", slug="results-women", display_style="circle")
+        child_one = Category(
+            name="فساتين",
+            slug="results-dresses",
+            parent_id=None,
+            display_style="circle",
+        )
+        child_two = Category(
+            name="أحذية",
+            slug="results-shoes",
+            parent_id=None,
+            display_style="circle",
+        )
+        db.session.add_all([currency, root, child_one, child_two])
+        db.session.flush()
+        child_one.parent_id = root.id
+        child_two.parent_id = root.id
+
+        color_filter = CategoryFilterDefinition(
+            category_id=child_one.id,
+            name="اللون",
+            filter_type="color",
+            sort_order=1,
+        )
+        red = CategoryFilterValue(
+            filter_id=color_filter.id if color_filter.id else 0,
+            label="أحمر",
+            slug="red-results",
+            sort_order=1,
+        )
+        db.session.add(color_filter)
+        db.session.flush()
+        red.filter_id = color_filter.id
+
+        first = Product(
+            sku="RESULT-SCOPE-001",
+            name="فستان أحمر",
+            slug="result-scope-001",
+            base_currency_id=currency.id,
+            base_price=100,
+            status="published",
+            is_active=True,
+        )
+        second = Product(
+            sku="RESULT-SCOPE-002",
+            name="حذاء",
+            slug="result-scope-002",
+            base_currency_id=currency.id,
+            base_price=120,
+            status="published",
+            is_active=True,
+        )
+        db.session.add_all([first, second])
+        db.session.flush()
+        db.session.add_all([
+            ProductCategory(
+                product_id=first.id,
+                category_id=child_one.id,
+                is_primary=True,
+            ),
+            ProductCategory(
+                product_id=second.id,
+                category_id=child_two.id,
+                is_primary=True,
+            ),
+            red,
+            ProductFilterValue(
+                product_id=first.id,
+                filter_value_id=red.id,
+            ),
+        ])
+        db.session.commit()
+
+        side = CatalogService.create_side_category({
+            "root_category_id": root.id,
+            "name": "التنسيقات",
+            "slug": "results-side",
+        })
+        circle_one = CatalogService.create_side_category_circle(
+            side["id"],
+            {"name": "فساتين", "slug": "results-side-dresses"},
+        )
+        circle_two = CatalogService.create_side_category_circle(
+            side["id"],
+            {"name": "أحذية", "slug": "results-side-shoes"},
+        )
+        CatalogService.set_product_side_category_circles(first.id, [circle_one["id"]])
+        CatalogService.set_product_side_category_circles(second.id, [circle_two["id"]])
+
+        category_filter_response = client.get(
+            f"/api/v1/catalog/products/filters?category_ids={root.id}"
+        )
+        assert category_filter_response.status_code == 200
+        category_filters = category_filter_response.get_json()["items"]
+        assert any(
+            value["id"] == red.id
+            for group in category_filters
+            for value in group["values"]
+        )
+
+        root_response = client.get(
+            "/api/v1/catalog/products/feed",
+            query_string={
+                "category_id": root.id,
+                "filter_value_ids": str(red.id),
+            },
+        )
+        assert root_response.status_code == 200
+        root_ids = {item["id"] for item in root_response.get_json()["items"]}
+        assert root_ids == {first.id}
+
+        union_response = client.get(
+            "/api/v1/catalog/products/feed",
+            query_string={
+                "category_ids": f"{child_one.id},{child_two.id}",
+            },
+        )
+        assert union_response.status_code == 200
+        union_ids = {item["id"] for item in union_response.get_json()["items"]}
+        assert union_ids == {first.id, second.id}
+
+        side_response = client.get(
+            "/api/v1/catalog/products/feed",
+            query_string={"side_category_id": side["id"]},
+        )
+        assert side_response.status_code == 200
+        side_ids = {item["id"] for item in side_response.get_json()["items"]}
+        assert side_ids == {first.id, second.id}
+
+        circle_response = client.get(
+            "/api/v1/catalog/products/feed",
+            query_string={"circle_id": circle_one["id"]},
+        )
+        assert circle_response.status_code == 200
+        circle_ids = {item["id"] for item in circle_response.get_json()["items"]}
+        assert circle_ids == {first.id}
