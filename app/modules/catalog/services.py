@@ -2335,6 +2335,7 @@ class CatalogService:
             "product_price_font_size": 9.5,
             "product_text_color": "#000000",
             "product_image_fit": "cover",
+            "badge_text": "",
             "badge_background_color": "#111827",
             "badge_text_color": "#ffffff",
             "badge_font_size": 9.5,
