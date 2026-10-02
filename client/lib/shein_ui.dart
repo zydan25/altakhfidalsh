@@ -6067,6 +6067,34 @@ Alignment _sxTrendAlignment(dynamic value, [Alignment fallback = Alignment.cente
   }
 }
 
+TextSpan _sxTrendTitleSpan(
+  String title,
+  Map<String, dynamic> ui, {
+  Color fallbackTitleColor = Colors.white,
+  Color fallbackHashColor = Colors.white,
+}) {
+  final raw = title.trim();
+  final clean = raw.startsWith('#') ? raw.substring(1) : raw;
+  final hash = sxText(ui['title_hash_text'], '#');
+  return TextSpan(
+    children: [
+      if (ui['show_title_hash'] != false)
+        TextSpan(
+          text: hash.isEmpty ? '#' : hash,
+          style: TextStyle(
+            color: _sxTrendHex(ui['title_hash_color'], fallbackHashColor),
+          ),
+        ),
+      TextSpan(
+        text: clean,
+        style: TextStyle(
+          color: _sxTrendHex(ui['title_color'], fallbackTitleColor),
+        ),
+      ),
+    ],
+  );
+}
+
 class SxTrendsScreen extends StatefulWidget {
   const SxTrendsScreen({super.key});
 
@@ -7053,6 +7081,8 @@ class _TrendHeroCard extends StatelessWidget {
     final productGap = _sxTrendNumber(ui, 'product_gap', 4);
     final configuredProductWidth =
         _sxTrendNumber(ui, 'product_width', 0);
+    final configuredProductHeight =
+        _sxTrendNumber(ui, 'product_height', 0);
     final availableWidth =
         width - (contentPadding * 2).clamp(0.0, width / 2).toDouble();
     final safeWidth = availableWidth > 0 ? availableWidth : width;
@@ -7062,6 +7092,12 @@ class _TrendHeroCard extends StatelessWidget {
             ? configuredProductWidth
             : (safeWidth - productGap * 2) / 3)
         : (safeWidth - productGap * 2) / 3;
+    final productTop = contentPadding + 72;
+    final availableProductHeight =
+        (height - productTop - contentPadding).clamp(70.0, height);
+    final productHeight = configuredProductHeight > 0
+        ? configuredProductHeight.clamp(70.0, availableProductHeight)
+        : availableProductHeight;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -7149,18 +7185,12 @@ class _TrendHeroCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Flexible(
-                            child: Text(
-                              title,
+                            child: Text.rich(
+                              _sxTrendTitleSpan(title, ui),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              textAlign: _sxTrendTextAlign(
-                                ui['title_align'],
-                              ),
+                              textAlign: _sxTrendTextAlign(ui['title_align']),
                               style: TextStyle(
-                                color: _sxTrendHex(
-                                  ui['title_color'],
-                                  Colors.white,
-                                ),
                                 fontSize: _sxTrendNumber(
                                   ui,
                                   'title_font_size',
@@ -7170,6 +7200,7 @@ class _TrendHeroCard extends StatelessWidget {
                                   ui['title_font_weight'],
                                   FontWeight.w900,
                                 ),
+                                height: 1.05,
                               ),
                             ),
                           ),
@@ -7238,29 +7269,35 @@ class _TrendHeroCard extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.fromLTRB(
                 contentPadding,
-                contentPadding + 72,
+                productTop,
                 contentPadding,
                 contentPadding,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                textDirection: TextDirection.ltr,
-                children: [
-                  for (int i = 0; i < 3; i++)
-                    Padding(
-                      padding: EdgeInsets.only(
-                        right: i == 2 ? 0 : productGap,
-                      ),
-                      child: SizedBox(
-                        width: productWidth,
-                        child: _MiniTrendProduct(
-                          row: i < products.length ? products[i] : null,
-                          ui: ui,
+              child: Align(
+                alignment: Alignment.center,
+                child: SizedBox(
+                  height: productHeight,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    textDirection: TextDirection.ltr,
+                    children: [
+                      for (int i = 0; i < 3; i++)
+                        Padding(
+                          padding: EdgeInsets.only(
+                            right: i == 2 ? 0 : productGap,
+                          ),
+                          child: SizedBox(
+                            width: productWidth,
+                            child: _MiniTrendProduct(
+                              row: i < products.length ? products[i] : null,
+                              ui: ui,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                ],
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
