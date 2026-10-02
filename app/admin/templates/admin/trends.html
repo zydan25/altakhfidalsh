@@ -415,6 +415,10 @@
     <details>
       <summary><span>٤. الشارة والعداد والمؤقت</span><small>ألوان وحجوم العناصر فوق الصورة</small></summary>
       <div class="trend-settings-grid">
+        <label>نص الشارة العام
+          <input name="badge_text" maxlength="80" value="{{ trend_display_settings.badge_text }}" placeholder="مثال: NEW أو HOT">
+          <small>يطبق على كل بطاقات الترند. اتركه فارغًا ليستخدم النص الخاص بالمستطيل إن وُجد.</small>
+        </label>
         <label>خلفية الشارة
           <input name="badge_background_color" type="color" value="{{ trend_display_settings.badge_background_color }}">
         </label>
