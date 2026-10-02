@@ -7348,8 +7348,9 @@ class _MiniTrendProduct extends StatelessWidget {
     final showPrice = ui['show_product_price'] != false;
     final name = sxText(product?['name']);
     final price = sxText(product?['price']);
+    final productId = sxInt(product?['id']);
 
-    return ClipRRect(
+    Widget content = ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: Container(
         color: const Color(0xFFEDEDED),
@@ -7459,6 +7460,20 @@ class _MiniTrendProduct extends StatelessWidget {
           ],
         ),
       ),
+    );
+
+    if (productId <= 0) return content;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SxProductScreen(id: productId),
+          ),
+        );
+      },
+      child: content,
     );
   }
 }
