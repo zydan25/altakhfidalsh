@@ -7092,12 +7092,32 @@ class _TrendHeroCard extends StatelessWidget {
             ? configuredProductWidth
             : (safeWidth - productGap * 2) / 3)
         : (safeWidth - productGap * 2) / 3;
-    final productTop = contentPadding + 72;
-    final availableProductHeight =
-        (height - productTop - contentPadding).clamp(70.0, height);
-    final productHeight = configuredProductHeight > 0
-        ? configuredProductHeight.clamp(70.0, availableProductHeight)
-        : availableProductHeight;
+    final configuredTopSpacing =
+        _sxTrendNumber(ui, 'product_top_spacing', 72);
+    final baseProductTop = contentPadding + configuredTopSpacing;
+    final baseAvailableHeight =
+        (height - baseProductTop - contentPadding).clamp(70.0, height);
+    double productTop = baseProductTop;
+    double productHeight;
+    if (configuredProductHeight > 0) {
+      // Allow a taller product card to consume the gap above it before
+      // reducing the requested height. Keep a small visual breathing room.
+      const minimumTopSpacing = 10.0;
+      final extraNeeded =
+          (configuredProductHeight - baseAvailableHeight).clamp(0.0, height);
+      final reducedTopSpacing =
+          (configuredTopSpacing - extraNeeded).clamp(
+        minimumTopSpacing,
+        configuredTopSpacing,
+      );
+      productTop = contentPadding + reducedTopSpacing;
+      productHeight = configuredProductHeight.clamp(
+        70.0,
+        (height - productTop - contentPadding).clamp(70.0, height),
+      );
+    } else {
+      productHeight = baseAvailableHeight;
+    }
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
