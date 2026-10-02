@@ -4350,6 +4350,7 @@ class _SxResultsState extends State<SxResults> {
       maxPrice = null;
       minRating = null;
     });
+    _changingCategoryNotifier.value = true;
     _buildCategoryRail();
     await _loadFiltersForCurrentScope();
     try {
@@ -4365,7 +4366,10 @@ class _SxResultsState extends State<SxResults> {
         );
       }
     }
-    if (mounted) setState(() => changingCategory = false);
+    if (mounted) {
+      setState(() => changingCategory = false);
+      _changingCategoryNotifier.value = false;
+    }
   }
 
   Future<void> _selectSideCircle(int? id) async {
