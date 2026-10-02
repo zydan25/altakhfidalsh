@@ -1220,6 +1220,8 @@ def register_entity_views(admin_bp):
                 ("trend_store_radius", 0, 30, True),
                 ("trend_store_content_padding", 4, 24, True),
                 ("trend_store_title_offset", -30, 30, True),
+                ("trend_store_title_arrow_font_size", 9, 28, False),
+                ("trend_store_title_arrow_gap", 0, 20, True),
                 ("trend_store_title_font_size", 9, 28, False),
                 ("trend_store_title_font_weight", 400, 900, True),
                 ("trend_store_promo_offset", -30, 30, True),
@@ -1262,7 +1264,9 @@ def register_entity_views(admin_bp):
                 "search_divider_color",
                 "trend_store_content_background",
                 "trend_store_title_color",
+                "trend_store_title_arrow_color",
                 "trend_store_promo_color",
+                "title_arrow_color",
             ):
                 settings[name] = color(name, str(defaults[name]))
 
@@ -1273,6 +1277,14 @@ def register_entity_views(admin_bp):
             settings["show_timer"] = request.form.get("show_timer") == "on"
             settings["pull_enabled"] = request.form.get("pull_enabled") == "on"
             settings["header_collapse_enabled"] = request.form.get("header_collapse_enabled") == "on"
+            settings["show_title"] = request.form.get("show_title") == "on"
+            settings["show_description"] = request.form.get("show_description") == "on"
+            settings["show_product_name"] = request.form.get("show_product_name") == "on"
+            settings["show_product_price"] = request.form.get("show_product_price") == "on"
+            settings["trend_store_show_title"] = request.form.get("trend_store_show_title") == "on"
+            settings["trend_store_show_description"] = request.form.get("trend_store_show_description") == "on"
+            settings["title_show_arrow"] = request.form.get("title_show_arrow") == "on"
+            settings["trend_store_title_show_arrow"] = request.form.get("trend_store_title_show_arrow") == "on"
             settings["product_image_fit"] = (
                 request.form.get("product_image_fit") or defaults["product_image_fit"]
             )
@@ -1280,6 +1292,16 @@ def register_entity_views(admin_bp):
                 settings["product_image_fit"] = "cover"
             settings["timer_position"] = request.form.get("timer_position") or defaults["timer_position"]
             settings["badge_position"] = request.form.get("badge_position") or defaults["badge_position"]
+            for name in ("product_name_align", "product_price_align", "title_align", "description_align", "trend_store_title_align", "trend_store_promo_align"):
+                settings[name] = (request.form.get(name) or defaults[name]).strip().lower()
+                if settings[name] not in {"left", "center", "right"}:
+                    settings[name] = defaults[name]
+            settings["title_arrow"] = request.form.get("title_arrow") or defaults["title_arrow"]
+            if settings["title_arrow"] not in {">", "<"}:
+                settings["title_arrow"] = defaults["title_arrow"]
+            settings["trend_store_title_arrow"] = request.form.get("trend_store_title_arrow") or defaults["trend_store_title_arrow"]
+            if settings["trend_store_title_arrow"] not in {">", "<"}:
+                settings["trend_store_title_arrow"] = defaults["trend_store_title_arrow"]
             if settings["timer_position"] not in {"top_left", "top_right"}:
                 settings["timer_position"] = "top_left"
             if settings["badge_position"] not in {"top_left", "top_right"}:
