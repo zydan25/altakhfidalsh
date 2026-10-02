@@ -24,6 +24,9 @@ from ...models import (
     ProductMedia,
     ProductSideCategoryCircle,
     ProductVariant,
+    ProductColorReference,
+    ProductSizeReference,
+    Brand,
     Review,
     Order,
     OrderItem,
@@ -31,6 +34,12 @@ from ...models import (
     SideCategoryCircle,
 )
 
+
+# Negative IDs identify server-side standard dimensions. They never collide
+# with CategoryFilterValue primary keys.
+_COLOR_FILTER_OFFSET = 1_000_000
+_SIZE_FILTER_OFFSET = 2_000_000
+_BRAND_FILTER_OFFSET = 3_000_000
 
 @api_bp.get("/categories")
 def categories():
@@ -1120,7 +1129,160 @@ def product_scope_filters():
             "sort_order": value_sort,
         })
 
-    return {"items": list(merged.values())}
+    # Standard dimensions are still server-owned taxonomy. They are not
+    # assembled by the Flutter client and are not restricted by the selected
+    # side circle; the category scope remains authoritative.
+    if category_scope_ids:
+        scoped_product_ids = (
+            db.session.query(Product.id)
+            .join(ProductCategory, ProductCategory.product_id == Product.id)
+            .filter(
+                ProductCategory.category_id.in_(category_scope_ids),
+                Product.is_active.is_(True),
+                Product.status == "published",
+            )
+            .distinct()
+            .subquery()
+        )
+    else:
+        scoped_product_ids = (
+            db.session.query(Product.id)
+            .filter(
+                Product.is_active.is_(True),
+                Product.status == "published",
+            )
+            .distinct()
+            .subquery()
+        )
+
+    def add_standard_group(key_name, filter_type, sort_order, values):
+        key = (key_name.casefold(), filter_type.casefold())
+        if key in merged or not values:
+            return
+        merged[key] = {
+            "id": None,
+            "name": key_name,
+            "filter_type": filter_type,
+            "sort_order": sort_order,
+            "values": values,
+        }
+
+    color_ids = {
+        int(value_id)
+        for (value_id,) in db.session.query(ProductVariant.color_id)
+        .filter(
+            ProductVariant.product_id.in_(db.session.query(scoped_product_ids.c.id)),
+            ProductVariant.color_id.isnot(None),
+            ProductVariant.is_active.is_(True),
+        )
+        .distinct()
+        .all()
+    }
+    color_ids.update(
+        int(value_id)
+        for (value_id,) in db.session.query(ProductColorReference.color_id)
+        .filter(
+            ProductColorReference.product_id.in_(db.session.query(scoped_product_ids.c.id)),
+            ProductColorReference.color_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    )
+    colors = Color.query.filter(
+        Color.is_active.is_(True),
+        Color.id.in_(sorted(color_ids)) if color_ids else Color.id == -1,
+    ).order_by(Color.sort_order, Color.name, Color.id).all()
+    add_standard_group(
+        "اللون",
+        "color",
+        10,
+        [
+            {
+                "id": -(_COLOR_FILTER_OFFSET + int(color.id)),
+                "label": color.name,
+                "slug": color.name,
+                "sort_order": color.sort_order,
+            }
+            for color in colors
+        ],
+    )
+
+    size_ids = {
+        int(value_id)
+        for (value_id,) in db.session.query(ProductVariant.size_id)
+        .filter(
+            ProductVariant.product_id.in_(db.session.query(scoped_product_ids.c.id)),
+            ProductVariant.size_id.isnot(None),
+            ProductVariant.is_active.is_(True),
+        )
+        .distinct()
+        .all()
+    }
+    size_ids.update(
+        int(value_id)
+        for (value_id,) in db.session.query(ProductSizeReference.size_id)
+        .filter(
+            ProductSizeReference.product_id.in_(db.session.query(scoped_product_ids.c.id)),
+            ProductSizeReference.size_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    )
+    from ...models import Size
+    sizes = Size.query.filter(
+        Size.is_active.is_(True),
+        Size.id.in_(sorted(size_ids)) if size_ids else Size.id == -1,
+    ).order_by(Size.group, Size.sort_order, Size.label, Size.id).all()
+    add_standard_group(
+        "المقاس",
+        "size",
+        20,
+        [
+            {
+                "id": -(_SIZE_FILTER_OFFSET + int(size.id)),
+                "label": size.label,
+                "slug": f"{size.group}-{size.code}",
+                "sort_order": size.sort_order,
+            }
+            for size in sizes
+        ],
+    )
+
+    brand_ids = {
+        int(value_id)
+        for (value_id,) in db.session.query(Product.brand_id)
+        .filter(
+            Product.id.in_(db.session.query(scoped_product_ids.c.id)),
+            Product.brand_id.isnot(None),
+        )
+        .distinct()
+        .all()
+    }
+    brands = Brand.query.filter(
+        Brand.is_active.is_(True),
+        Brand.id.in_(sorted(brand_ids)) if brand_ids else Brand.id == -1,
+    ).order_by(Brand.name, Brand.id).all()
+    add_standard_group(
+        "العلامة التجارية",
+        "brand",
+        30,
+        [
+            {
+                "id": -(_BRAND_FILTER_OFFSET + int(brand.id)),
+                "label": brand.name,
+                "slug": brand.slug,
+                "sort_order": index,
+            }
+            for index, brand in enumerate(brands)
+        ],
+    )
+
+    items = list(merged.values())
+    items.sort(key=lambda item: (
+        int(item.get("sort_order") or 0),
+        str(item.get("name") or "").casefold(),
+    ))
+    return {"items": items}
 
 
 @api_bp.post("/categories/<int:category_id>/filters")
