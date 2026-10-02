@@ -4322,17 +4322,16 @@ class _SxResultsState extends State<SxResults> {
   }
 
   Future<void> _selectSideCircle(int? id) async {
-    if (changingCategory) return;
+    if (changingCategory || activeCircleId == id) return;
+
+    // Circle selection changes only the product scope. The result-page
+    // chrome and server-defined filter taxonomy remain in place.
     setState(() {
       activeCircleId = id;
       selectedCategoryId = null;
       changingCategory = true;
-      values.clear();
-      minPrice = null;
-      maxPrice = null;
-      minRating = null;
     });
-    await _loadFiltersForCurrentScope();
+
     try {
       final next = await _fetch();
       if (mounted) setState(() => products = next);
@@ -4539,13 +4538,7 @@ class _SxResultsState extends State<SxResults> {
               ),
             ),
           ),
-          if (changingCategory || (loading && products.isNotEmpty))
-            const SliverToBoxAdapter(
-              child: LinearProgressIndicator(
-                minHeight: 1.5,
-                backgroundColor: Colors.transparent,
-              ),
-            ),
+
           if (filterCount > 0)
             SliverToBoxAdapter(
               child: SizedBox(
@@ -4585,12 +4578,26 @@ class _SxResultsState extends State<SxResults> {
               ),
             ),
           SliverToBoxAdapter(
-            child: viewMode == _viewList
-                ? _ResultsList(products: products)
-                : SxProductGrid(
-                    products: products,
-                    masonry: false,
+            child: Stack(
+              children: [
+                viewMode == _viewList
+                    ? _ResultsList(products: products)
+                    : SxProductGrid(
+                        products: products,
+                        masonry: false,
+                      ),
+                if (changingCategory)
+                  const Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: LinearProgressIndicator(
+                      minHeight: 2,
+                      backgroundColor: Colors.transparent,
+                    ),
                   ),
+              ],
+            ),
           ),
         ],
       ),
@@ -4868,7 +4875,7 @@ class _ResultsCategoryChip extends StatelessWidget {
               shape: image == null ? BoxShape.rectangle : BoxShape.circle,
               border: Border.all(
                 color: selected ? Colors.black : const Color(0xFFE0E0E0),
-                width: selected ? 1.6 : .6,
+                width: selected ? 2.0 : .6,
               ),
               borderRadius: image == null ? BorderRadius.circular(3) : null,
             ),
