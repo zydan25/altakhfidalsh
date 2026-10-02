@@ -159,6 +159,7 @@ def test_public_trend_exposes_countdown_and_overlay_metadata(app):
                     "hero_card_height": 196,
                     "product_height": 101,
                     "title_font_size": 19,
+                    "badge_text": "HOT",
                 }, ensure_ascii=False),
                 value_type="json",
             )
