@@ -1224,15 +1224,29 @@ def product_scope_filters():
         if not values:
             return
         key = (key_name.casefold(), filter_type.casefold())
-        if key in merged:
+        existing_group = merged.get(key)
+        if existing_group is None:
+            merged[key] = {
+                "id": None,
+                "name": key_name,
+                "filter_type": filter_type,
+                "sort_order": sort_order,
+                "values": list(values),
+            }
             return
-        merged[key] = {
-            "id": None,
-            "name": key_name,
-            "filter_type": filter_type,
-            "sort_order": sort_order,
-            "values": values,
-        }
+
+        # Standard dimensions are complementary to any custom taxonomy
+        # group with the same display/type. Merge them instead of dropping
+        # server-owned color/size/brand values.
+        seen = {int(value["id"]) for value in existing_group["values"]}
+        for value in values:
+            if int(value["id"]) not in seen:
+                existing_group["values"].append(value)
+                seen.add(int(value["id"]))
+        existing_group["sort_order"] = min(
+            int(existing_group.get("sort_order") or sort_order),
+            int(sort_order),
+        )
 
     colors = (
         Color.query
