@@ -6587,6 +6587,109 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
   }
 }
 
+class _TrendCompactHeader extends StatelessWidget {
+  final Map<String, dynamic> ui;
+  final VoidCallback onSearch;
+  final VoidCallback onWishlist;
+
+  const _TrendCompactHeader({
+    required this.ui,
+    required this.onSearch,
+    required this.onWishlist,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final scale = (width / 360.0).clamp(.86, 1.15).toDouble();
+    final horizontal = _sxTrendNumber(ui, 'search_horizontal_padding', 10) * scale;
+    final ratio = _sxTrendNumber(ui, 'search_width_ratio', .72);
+    final available = width - horizontal * 2;
+    final searchWidth = (available * ratio).clamp(190.0, available - 92.0);
+
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Row(
+        children: [
+          SizedBox(
+            width: searchWidth,
+            child: GestureDetector(
+              onTap: onSearch,
+              child: Container(
+                height: _sxTrendNumber(ui, 'search_height', 42) * scale,
+                decoration: BoxDecoration(
+                  color: _sxTrendHex(
+                    ui['search_background_color'],
+                    Colors.white,
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    _sxTrendNumber(ui, 'search_radius', 13),
+                  ),
+                ),
+                padding: EdgeInsets.symmetric(horizontal: 8 * scale),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.search,
+                      color: _sxTrendHex(
+                        ui['search_icon_color'],
+                        Colors.black,
+                      ),
+                      size: _sxTrendNumber(ui, 'search_icon_size', 22) * scale,
+                    ),
+                    Container(
+                      width: _sxTrendNumber(
+                        ui,
+                        'search_divider_width',
+                        1,
+                      ),
+                      height: 21 * scale,
+                      margin: EdgeInsets.symmetric(horizontal: 8 * scale),
+                      color: _sxTrendHex(
+                        ui['search_divider_color'],
+                        const Color(0xFFDDDDDD),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        sxText(ui['search_hint'], 'فساتين'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: _sxTrendHex(
+                            ui['search_text_color'],
+                            const Color(0xFF222222),
+                          ),
+                          fontSize:
+                              _sxTrendNumber(ui, 'search_font_size', 13),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            sxText(ui['logo_text'], 'Trends'),
+            style: TextStyle(
+              color: _sxTrendHex(ui['logo_color'], Colors.white),
+              fontSize: _sxTrendNumber(ui, 'logo_font_size', 26) * scale,
+              fontWeight: FontWeight.w900,
+              fontStyle: FontStyle.italic,
+              letterSpacing: _sxTrendNumber(ui, 'logo_letter_spacing', -1.4),
+            ),
+          ),
+          SizedBox(width: 4 * scale),
+        ],
+      ),
+    );
+  }
+}
+
 class _TrendsHero extends StatelessWidget {
   final List<Map<String, dynamic>> trends;
   final PageController pageController;
