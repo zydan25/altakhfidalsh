@@ -265,20 +265,26 @@ class _SearchBarPainter extends CustomPainter {
       const Radius.circular(4),
     );
 
-    final whiteBody = Path.combine(
-      PathOperation.difference,
-      Path()..addRRect(outer),
-      Path()..addRRect(iconRect),
-    );
+    // Paint the search field on its own layer, then physically clear the
+    // icon area when idle. This makes that area truly transparent instead
+    // of merely painting a transparent-colored rectangle over white.
+    canvas.saveLayer(Offset.zero & size, Paint());
 
-    canvas.drawPath(
-      whiteBody,
+    canvas.drawRRect(
+      outer,
       Paint()
         ..style = PaintingStyle.fill
         ..color = backgroundColor,
     );
 
-    if (iconBackgroundColor != Colors.transparent) {
+    if (iconBackgroundColor == Colors.transparent) {
+      canvas.drawRRect(
+        iconRect,
+        Paint()
+          ..style = PaintingStyle.fill
+          ..blendMode = BlendMode.clear,
+      );
+    } else {
       canvas.drawRRect(
         iconRect,
         Paint()
@@ -294,6 +300,8 @@ class _SearchBarPainter extends CustomPainter {
         ..strokeWidth = 0.8
         ..color = borderColor,
     );
+
+    canvas.restore();
   }
 
   @override
