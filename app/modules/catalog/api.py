@@ -342,10 +342,13 @@ def public_product_feed():
             value_id = int(raw)
         except ValueError:
             continue
-        if value_id not in selected_filter_ids:
+        if value_id != 0 and value_id not in selected_filter_ids:
             selected_filter_ids.append(value_id)
 
-    if selected_filter_ids:
+    # Positive IDs are CategoryFilterValue records.
+    custom_filter_ids = [value_id for value_id in selected_filter_ids if value_id > 0]
+
+    if custom_filter_ids:
         valid_values = (
             db.session.query(CategoryFilterValue, CategoryFilterDefinition)
             .join(
@@ -353,7 +356,7 @@ def public_product_feed():
                 CategoryFilterDefinition.id == CategoryFilterValue.filter_id,
             )
             .filter(
-                CategoryFilterValue.id.in_(selected_filter_ids),
+                CategoryFilterValue.id.in_(custom_filter_ids),
                 CategoryFilterValue.is_active.is_(True),
             )
         )
@@ -390,7 +393,70 @@ def public_product_feed():
                 .distinct()
                 .subquery()
             )
-            query = query.filter(Product.id.in_(db.session.query(matching_products.c.product_id)))
+            query = query.filter(
+                Product.id.in_(db.session.query(matching_products.c.product_id))
+            )
+
+    # Negative IDs are server-side standard dimensions exposed by
+    # /products/filters: color, size and brand.
+    selected_color_ids = {
+        -value_id - _COLOR_FILTER_OFFSET
+        for value_id in selected_filter_ids
+        if value_id < 0 and (-value_id) > _COLOR_FILTER_OFFSET
+        and (-value_id) < _SIZE_FILTER_OFFSET
+    }
+    selected_size_ids = {
+        -value_id - _SIZE_FILTER_OFFSET
+        for value_id in selected_filter_ids
+        if value_id < 0 and (-value_id) > _SIZE_FILTER_OFFSET
+        and (-value_id) < _BRAND_FILTER_OFFSET
+    }
+    selected_brand_ids = {
+        -value_id - _BRAND_FILTER_OFFSET
+        for value_id in selected_filter_ids
+        if value_id < 0 and (-value_id) > _BRAND_FILTER_OFFSET
+    }
+
+    if selected_color_ids:
+        variant_color_products = (
+            db.session.query(ProductVariant.product_id)
+            .filter(
+                ProductVariant.color_id.in_(sorted(selected_color_ids)),
+                ProductVariant.is_active.is_(True),
+            )
+            .distinct()
+        )
+        reference_color_products = (
+            db.session.query(ProductColorReference.product_id)
+            .filter(ProductColorReference.color_id.in_(sorted(selected_color_ids)))
+            .distinct()
+        )
+        query = query.filter(or_(
+            Product.id.in_(variant_color_products),
+            Product.id.in_(reference_color_products),
+        ))
+
+    if selected_size_ids:
+        variant_size_products = (
+            db.session.query(ProductVariant.product_id)
+            .filter(
+                ProductVariant.size_id.in_(sorted(selected_size_ids)),
+                ProductVariant.is_active.is_(True),
+            )
+            .distinct()
+        )
+        reference_size_products = (
+            db.session.query(ProductSizeReference.product_id)
+            .filter(ProductSizeReference.size_id.in_(sorted(selected_size_ids)))
+            .distinct()
+        )
+        query = query.filter(or_(
+            Product.id.in_(variant_size_products),
+            Product.id.in_(reference_size_products),
+        ))
+
+    if selected_brand_ids:
+        query = query.filter(Product.brand_id.in_(sorted(selected_brand_ids)))
 
     # Relation joins above can duplicate a product. Collapse them before the
     # predictable candidate limit is applied.
