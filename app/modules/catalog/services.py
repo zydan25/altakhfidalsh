@@ -2268,14 +2268,25 @@ class CatalogService:
 
     @staticmethod
     def _serialize_trend_product(product):
-        media = (
-            db.session.query(MediaAsset)
-            .join(ProductMedia, ProductMedia.asset_id == MediaAsset.id)
+        media_rows = (
+            db.session.query(ProductMedia, MediaAsset)
+            .join(MediaAsset, MediaAsset.id == ProductMedia.asset_id)
             .filter(ProductMedia.product_id == product.id)
             .order_by(ProductMedia.sort_order, ProductMedia.id)
-            .first()
+            .all()
         )
+        images = [
+            {
+                "id": media.asset_id,
+                "url": asset.url,
+                "color_id": media.color_id,
+                "width": asset.width,
+                "height": asset.height,
+            }
+            for media, asset in media_rows
+        ]
         brand = db.session.get(Brand, product.brand_id) if product.brand_id else None
+        primary_image = images[0]["url"] if images else None
         return {
             "id": product.id,
             "sku": product.sku,
@@ -2287,8 +2298,114 @@ class CatalogService:
                 "id": brand.id,
                 "name": brand.name,
             } if brand else None,
-            "image_url": media.url if media else None,
+            "image_url": primary_image,
+            "images": images,
         }
+
+    @staticmethod
+    def _trend_ui_settings(trend):
+        defaults = {
+            "hero_height": 278,
+            "hero_card_top": 68,
+            "hero_card_width": 300,
+            "hero_card_height": 198,
+            "hero_card_radius": 9,
+            "hero_card_border_width": 1,
+            "hero_card_border_color": "#ffffff",
+            "hero_background_overlay_color": "#000000",
+            "hero_background_overlay_opacity": 0.47,
+            "hero_card_overlay_opacity": 0.48,
+            "content_padding": 10,
+            "title_text": "",
+            "title_color": "#ffffff",
+            "title_font_size": 18,
+            "title_font_weight": 900,
+            "title_spacing": 5,
+            "promo_color": "#ffffff",
+            "promo_font_size": 10.5,
+            "promo_font_weight": 700,
+            "promo_max_lines": 2,
+            "product_width": 0,
+            "product_height": 103,
+            "product_gap": 4,
+            "product_radius": 7,
+            "product_info_height": 27,
+            "product_name_font_size": 8.5,
+            "product_price_font_size": 9.5,
+            "product_text_color": "#000000",
+            "product_image_fit": "cover",
+            "badge_text": "",
+            "badge_background_color": "#111827",
+            "badge_text_color": "#ffffff",
+            "badge_font_size": 9.5,
+            "badge_radius": 4,
+            "badge_position": "top_right",
+            "counter_color": "#ffffff",
+            "counter_font_size": 12,
+            "counter_bottom": 8,
+            "show_counter": True,
+        }
+        custom = trend.settings_json if isinstance(trend.settings_json, dict) else {}
+        merged = {**defaults, **custom}
+
+        def number(name, low, high, integer=False):
+            value = merged.get(name, defaults[name])
+            try:
+                value = float(value)
+            except (TypeError, ValueError):
+                value = float(defaults[name])
+            value = max(low, min(high, value))
+            return int(round(value)) if integer else value
+
+        for name, low, high in (
+            ("hero_height", 180, 520),
+            ("hero_card_top", 35, 180),
+            ("hero_card_width", 220, 520),
+            ("hero_card_height", 120, 360),
+            ("hero_card_radius", 0, 40),
+            ("hero_card_border_width", 0, 5),
+            ("content_padding", 0, 30),
+            ("title_font_size", 10, 34),
+            ("title_spacing", 0, 20),
+            ("promo_font_size", 7, 18),
+            ("product_width", 40, 180),
+            ("product_height", 55, 180),
+            ("product_gap", 0, 20),
+            ("product_radius", 0, 20),
+            ("product_info_height", 16, 55),
+            ("product_name_font_size", 6, 14),
+            ("product_price_font_size", 7, 15),
+            ("badge_font_size", 7, 16),
+            ("badge_radius", 0, 16),
+            ("counter_font_size", 7, 18),
+            ("counter_bottom", 0, 30),
+        ):
+            merged[name] = number(name, low, high)
+
+        for name, low, high in (
+            ("hero_card_border_width", 0, 5),
+            ("title_font_weight", 400, 900),
+            ("promo_font_weight", 400, 900),
+            ("promo_max_lines", 1, 3),
+        ):
+            merged[name] = number(name, low, high, integer=True)
+
+        for name in ("hero_background_overlay_opacity", "hero_card_overlay_opacity"):
+            merged[name] = number(name, 0, 1)
+
+        merged["show_counter"] = bool(merged.get("show_counter", True))
+        merged["hero_card_border_width"] = float(merged["hero_card_border_width"])
+        merged["product_image_fit"] = (
+            merged.get("product_image_fit")
+            if merged.get("product_image_fit") in {"cover", "contain", "fill"}
+            else "cover"
+        )
+        merged["badge_position"] = (
+            merged.get("badge_position")
+            if merged.get("badge_position") in {"top_left", "top_right"}
+            else "top_right"
+        )
+        return merged
 
     @staticmethod
     def _trend_timer_seconds(trend):
@@ -2322,9 +2439,18 @@ class CatalogService:
             product = db.session.get(Product, assignment.product_id)
             if not product or not product.is_active or product.status != "published":
                 continue
+            product_payload = CatalogService._serialize_trend_product(product)
+            selected_asset = (
+                db.session.get(MediaAsset, assignment.image_asset_id)
+                if assignment.image_asset_id else None
+            )
+            if selected_asset is not None:
+                product_payload["image_url"] = selected_asset.url
             products.append({
                 "slot": assignment.slot,
-                "product": CatalogService._serialize_trend_product(product),
+                "image_asset_id": assignment.image_asset_id,
+                "settings": assignment.settings_json if isinstance(assignment.settings_json, dict) else {},
+                "product": product_payload,
             })
 
         started_at = trend.timer_started_at
@@ -2360,6 +2486,7 @@ class CatalogService:
                 "text_color": trend.overlay_text_color,
                 "background_color": trend.overlay_background_color,
             },
+            "ui": CatalogService._trend_ui_settings(trend),
             "status": trend.status,
             "background": {
                 "id": background.id,
