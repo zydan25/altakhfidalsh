@@ -122,6 +122,16 @@ class ApiService {
     final d=await get('/catalog/categories');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>CategoryModel.fromJson(Map<String,dynamic>.from(e))).toList();
   }
+  Future<Map<String,dynamic>> trendsPage() async {
+    final d = Map<String, dynamic>.from(
+      await get(
+        '/catalog/trends',
+        q: {'_trends_ts': DateTime.now().millisecondsSinceEpoch.toString()},
+      ),
+    );
+    return d;
+  }
+
   Future<Map<String,dynamic>> home({int? rootCategoryId}) async {
     final q = <String,String>{
       '_home_ts': DateTime.now().millisecondsSinceEpoch.toString(),
