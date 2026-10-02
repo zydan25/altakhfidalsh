@@ -338,7 +338,7 @@ def public_product_feed():
 
     if selected_filter_ids:
         valid_values = (
-            CategoryFilterValue.query
+            db.session.query(CategoryFilterValue, CategoryFilterDefinition)
             .join(
                 CategoryFilterDefinition,
                 CategoryFilterDefinition.id == CategoryFilterValue.filter_id,
@@ -367,8 +367,12 @@ def public_product_feed():
         rows = valid_values.all()
 
         grouped = {}
-        for value in rows:
-            grouped.setdefault(int(value.filter_id), []).append(int(value.id))
+        for value, definition in rows:
+            group_key = (
+                (definition.name or "").strip().casefold(),
+                (definition.filter_type or "").strip().casefold(),
+            )
+            grouped.setdefault(group_key, []).append(int(value.id))
 
         for value_ids in grouped.values():
             matching_products = (
