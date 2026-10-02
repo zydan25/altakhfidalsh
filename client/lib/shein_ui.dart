@@ -1044,7 +1044,7 @@ class _HomeFixedHeader extends StatelessWidget {
                           child: SxSearchBar(
                             borderColor: solidBackground
                                 ? const Color(0xFF111111)
-                                : Colors.transparent,
+                                : Colors.white,
                             backgroundColor:
                                 solidBackground ? Colors.white : Colors.transparent,
                           ),
