@@ -195,18 +195,16 @@
     if (!root) return;
 
     const query = (document.getElementById("sideCategoryCircleSearch")?.value || "").trim().toLocaleLowerCase();
-    const selectedRootIds = selectedRootCategoryIds();
     const hasCategorySelection = draftCategoryIds.size > 0;
 
     const circles = sideCategoryReferences.filter(circle => {
       if (!circle) return false;
-      const rootMatches = selectedRootIds.has(Number(circle.root_category_id));
       const searchMatches =
         !query ||
         String(circle.name || "").toLocaleLowerCase().includes(query) ||
         String(circle.side_category_name || "").toLocaleLowerCase().includes(query) ||
         String(circle.root_category_name || "").toLocaleLowerCase().includes(query);
-      return rootMatches && searchMatches;
+      return searchMatches;
     });
 
     if (hasCategorySelection) {
