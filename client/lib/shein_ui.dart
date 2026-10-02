@@ -4712,6 +4712,57 @@ class _ResultsTopBar extends StatelessWidget {
   );
 }
 
+
+class _ResultsCircleRail extends StatelessWidget {
+  final List<Map<String, dynamic>> circles;
+  final int? selected;
+  final Future<void> Function(int?) onSelected;
+
+  const _ResultsCircleRail({
+    required this.circles,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: TextDirection.rtl,
+    child: Column(
+      children: [
+        const SizedBox(height: 2),
+        SizedBox(
+          height: 84,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            itemCount: circles.length + 1,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) {
+              if (i == 0) {
+                return _ResultsCategoryChip(
+                  name: 'الكل',
+                  image: null,
+                  selected: selected == null,
+                  onTap: () => onSelected(null),
+                );
+              }
+              final row = circles[i - 1];
+              return _ResultsCategoryChip(
+                name: sxText(row['name']),
+                image: sxText(row['image_url']).isEmpty
+                    ? null
+                    : sxText(row['image_url']),
+                selected: sxInt(row['id']) == selected,
+                onTap: () => onSelected(sxInt(row['id'])),
+              );
+            },
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class _ResultsCategoryRail extends StatelessWidget {
   final List<CategoryModel> categories;
   final int? selected;
