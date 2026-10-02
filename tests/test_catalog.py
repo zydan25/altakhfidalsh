@@ -529,6 +529,17 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
         }
         assert circle_product_ids == {first.id}
 
+        # The customer app opens a side circle by circle ID only.
+        direct_circle_response = client.get(
+            "/api/v1/catalog/products/feed",
+            query_string={"circle_id": circle_one["id"]},
+        )
+        assert direct_circle_response.status_code == 200
+        direct_circle_product_ids = {
+            item["id"] for item in direct_circle_response.get_json()["items"]
+        }
+        assert direct_circle_product_ids == {first.id}
+
         circle_filter_response = client.get(
             f"/api/v1/catalog/products/filters?circle_id={circle_one['id']}"
         )
