@@ -5991,6 +5991,52 @@ class _SizeGuide extends StatelessWidget {
   ])));
 }
 
+double _sxTrendNumber(
+  Map<String, dynamic> ui,
+  String key,
+  double fallback,
+) => sxDouble(ui[key], fallback);
+
+Color _sxTrendHex(
+  dynamic value,
+  Color fallback,
+) => sxColor(value, fallback);
+
+FontWeight _sxTrendWeight(
+  dynamic value,
+  FontWeight fallback,
+) {
+  final fallbackNumber = fallback == FontWeight.w900
+      ? 900
+      : fallback == FontWeight.w800
+          ? 800
+          : fallback == FontWeight.w700
+              ? 700
+              : fallback == FontWeight.w600
+                  ? 600
+                  : fallback == FontWeight.w500
+                      ? 500
+                      : 400;
+  final n = sxInt(value, fallbackNumber);
+  if (n >= 900) return FontWeight.w900;
+  if (n >= 800) return FontWeight.w800;
+  if (n >= 700) return FontWeight.w700;
+  if (n >= 600) return FontWeight.w600;
+  if (n >= 500) return FontWeight.w500;
+  return FontWeight.w400;
+}
+
+BoxFit _sxTrendFit(dynamic value) {
+  switch (sxText(value)) {
+    case 'contain':
+      return BoxFit.contain;
+    case 'fill':
+      return BoxFit.fill;
+    default:
+      return BoxFit.cover;
+  }
+}
+
 class SxTrendsScreen extends StatefulWidget {
   const SxTrendsScreen({super.key});
 
