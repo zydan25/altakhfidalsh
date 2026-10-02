@@ -1210,9 +1210,22 @@ def product_scope_filters():
             "sort_order": value_sort,
         })
 
-    # Standard dimensions are still server-owned taxonomy. They are not
-    # assembled by the Flutter client and are not restricted by the selected
-    # side circle; the category scope remains authoritative.
+    # Standard dimensions are server-owned taxonomy. They do not depend
+    # on whether the currently selected circle has products assigned to them.
+    def add_standard_group(key_name, filter_type, sort_order, values):
+        if not values:
+            return
+        key = (key_name.casefold(), filter_type.casefold())
+        if key in merged:
+            return
+        merged[key] = {
+            "id": None,
+            "name": key_name,
+            "filter_type": filter_type,
+            "sort_order": sort_order,
+            "values": values,
+        }
+
     colors = (
         Color.query
         .filter(Color.is_active.is_(True))
