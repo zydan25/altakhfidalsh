@@ -754,6 +754,14 @@ def upload_product_media(product_id):
 
 
 
+@api_bp.get("/reference/product-side-categories")
+def product_side_category_references():
+    category_ids = request.args.getlist("category_id", type=int)
+    return {
+        "items": CatalogService.product_side_category_references(category_ids)
+    }
+
+
 @api_bp.get("/reference/product-config")
 def product_config_references():
     product_id = request.args.get("product_id", type=int)

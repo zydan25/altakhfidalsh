@@ -196,6 +196,71 @@ def test_side_category_endpoint_returns_nested_circles_for_root(app, client):
         assert any(row["id"] == circle["id"] for row in matched_side["circles"])
 
 
+def test_product_side_category_references_follow_nested_category_root(app):
+    with app.app_context():
+        root = Category(name="نساء", slug="women-server-source", display_style="circle")
+        child = Category(name="ملابس نساء", slug="women-clothes-server-source", display_style="circle")
+        other_root = Category(name="رجال", slug="men-server-source", display_style="circle")
+        db.session.add_all([root, child, other_root])
+        db.session.flush()
+        child.parent_id = root.id
+
+        women_side = CatalogService.create_side_category({
+            "root_category_id": root.id,
+            "name": "دوائر النساء",
+            "slug": "women-side-server",
+        })
+        women_circle = CatalogService.create_side_category_circle(
+            women_side["id"],
+            {"name": "دائرة فساتين", "slug": "women-dresses-server"},
+        )
+        men_side = CatalogService.create_side_category({
+            "root_category_id": other_root.id,
+            "name": "دوائر الرجال",
+            "slug": "men-side-server",
+        })
+        men_circle = CatalogService.create_side_category_circle(
+            men_side["id"],
+            {"name": "دائرة قمصان", "slug": "men-shirts-server"},
+        )
+
+        result = CatalogService.product_side_category_references([child.id])
+        circle_ids = {
+            circle["id"]
+            for side in result
+            for circle in side["circles"]
+        }
+        assert women_circle["id"] in circle_ids
+        assert men_circle["id"] not in circle_ids
+
+
+def test_product_side_category_references_endpoint_uses_category_ids(app, client):
+    with app.app_context():
+        root = Category(name="نساء", slug="women-endpoint-source", display_style="circle")
+        child = Category(name="ملابس نساء", slug="women-child-endpoint-source", display_style="circle", parent_id=None)
+        db.session.add_all([root, child])
+        db.session.flush()
+        child.parent_id = root.id
+
+        side = CatalogService.create_side_category({
+            "root_category_id": root.id,
+            "name": "نساء endpoint",
+            "slug": "women-endpoint-side",
+        })
+        circle = CatalogService.create_side_category_circle(
+            side["id"],
+            {"name": "دائرة endpoint", "slug": "endpoint-circle-source"},
+        )
+
+        response = client.get(
+            "/api/v1/catalog/reference/product-side-categories?category_id=%s" % child.id
+        )
+        assert response.status_code == 200
+        sides = response.get_json()["items"]
+        matched = next(row for row in sides if row["id"] == side["id"])
+        assert any(row["id"] == circle["id"] for row in matched["circles"])
+
+
 def test_product_reference_data_exposes_compatible_side_circles(app):
     with app.app_context():
         currency = Currency(code="SAR", symbol="ر.س", name_ar="ريال سعودي", decimals=2, is_base=True)
