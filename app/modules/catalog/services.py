@@ -2468,6 +2468,16 @@ class CatalogService:
             value = max(low, min(high, value))
             return int(round(value)) if integer else value
 
+        def flag(name, fallback=True):
+            value = merged.get(name, fallback)
+            if isinstance(value, str):
+                normalized = value.strip().lower()
+                if normalized in {"false", "0", "no", "off", "disabled"}:
+                    return False
+                if normalized in {"true", "1", "yes", "on", "enabled"}:
+                    return True
+            return bool(value)
+
         numeric_ranges = (
             ("hero_height", 180, 520, True),
             ("hero_card_top", 35, 180, True),
@@ -2543,10 +2553,10 @@ class CatalogService:
         for name in ("hero_background_overlay_opacity", "hero_card_overlay_opacity"):
             merged[name] = number(name, 0, 1)
 
-        merged["show_counter"] = bool(merged.get("show_counter", True))
-        merged["show_timer"] = bool(merged.get("show_timer", True))
-        merged["pull_enabled"] = bool(merged.get("pull_enabled", True))
-        merged["header_collapse_enabled"] = bool(merged.get("header_collapse_enabled", True))
+        merged["show_counter"] = flag("show_counter", True)
+        merged["show_timer"] = flag("show_timer", True)
+        merged["pull_enabled"] = flag("pull_enabled", True)
+        merged["header_collapse_enabled"] = flag("header_collapse_enabled", True)
         merged["product_image_fit"] = (
             merged.get("product_image_fit")
             if merged.get("product_image_fit") in {"cover", "contain", "fill"}
@@ -2559,17 +2569,17 @@ class CatalogService:
                 else "center"
             )
         merged["title_show_arrow"] = bool(merged.get("title_show_arrow", True))
-        merged["show_title_hash"] = bool(merged.get("show_title_hash", True))
+        merged["show_title_hash"] = flag("show_title_hash", True)
         title_hash_text = str(merged.get("title_hash_text", "#") or "#").strip()[:3]
         merged["title_hash_text"] = title_hash_text or "#"
-        merged["trend_store_title_show_arrow"] = bool(merged.get("trend_store_title_show_arrow", True))
-        merged["show_title"] = bool(merged.get("show_title", True))
-        merged["show_description"] = bool(merged.get("show_description", True))
-        merged["show_product_name"] = bool(merged.get("show_product_name", True))
-        merged["show_product_price"] = bool(merged.get("show_product_price", True))
+        merged["trend_store_title_show_arrow"] = flag("trend_store_title_show_arrow", True)
+        merged["show_title"] = flag("show_title", True)
+        merged["show_description"] = flag("show_description", True)
+        merged["show_product_name"] = flag("show_product_name", True)
+        merged["show_product_price"] = flag("show_product_price", True)
         merged["product_name_max_lines"] = number("product_name_max_lines", 1, 3, True)
-        merged["trend_store_show_title"] = bool(merged.get("trend_store_show_title", True))
-        merged["trend_store_show_description"] = bool(merged.get("trend_store_show_description", True))
+        merged["trend_store_show_title"] = flag("trend_store_show_title", True)
+        merged["trend_store_show_description"] = flag("trend_store_show_description", True)
         merged["title_arrow"] = merged.get("title_arrow") if merged.get("title_arrow") in {">", "<"} else ">"
         merged["trend_store_title_arrow"] = merged.get("trend_store_title_arrow") if merged.get("trend_store_title_arrow") in {">", "<"} else ">"
         merged["title_arrow_gap"] = number("title_arrow_gap", 0, 20, True)
