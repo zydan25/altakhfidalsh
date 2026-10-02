@@ -18,6 +18,7 @@
       return {};
     }
   })();
+  let sideCategoryReferences = [];
   let draftColorIds = new Set();
   let draftSizeIds = new Set();
   let draftCategoryIds = new Set();
@@ -82,6 +83,7 @@
     }
 
     hydrate();
+    await refreshSideCategoryReferences();
 
     const optionalFailures = requests.slice(1).filter(item => item.status === "rejected");
     if (optionalFailures.length && !configRefs?.categories?.length && !configRefs?.colors?.length) {
@@ -167,7 +169,50 @@
     return roots;
   };
 
-  const renderSideCategoryCircles = () => {
+  const refreshSideCategoryReferences = async () => {
+    const selectedRoots = [...selectedRootCategoryIds()];
+    sideCategoryReferences = [];
+
+    if (!selectedRoots.length) {
+      renderSideCategoryCircles();
+      return;
+    }
+
+    const requests = await Promise.allSettled(
+      selectedRoots.map(rootId =>
+        requestJson("/api/v1/catalog/side-categories?root_category_id=" + encodeURIComponent(rootId))
+      )
+    );
+
+    const failures = requests.filter(item => item.status === "rejected");
+    if (failures.length && requests.every(item => item.status === "rejected")) {
+      renderSideCategoryCircles("تعذر تحميل الفئات الجانبية. أعد المحاولة بعد تحديث الصفحة.");
+      return;
+    }
+
+    const seen = new Set();
+    sideCategoryReferences = requests
+      .filter(item => item.status === "fulfilled")
+      .flatMap(item => item.value?.items || [])
+      .flatMap(sideCategory => (sideCategory.circles || []).map(circle => ({
+        ...circle,
+        side_category_name: sideCategory.name,
+        root_category_id: sideCategory.root_category_id,
+        root_category_name: sideCategory.root_category_name || "—",
+      })))
+      .filter(circle => {
+        const key = Number(circle.id);
+        if (!Number.isFinite(key) || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+    configRefs = configRefs || {};
+    configRefs.available_side_category_circles = sideCategoryReferences;
+    renderSideCategoryCircles();
+  };
+
+  const renderSideCategoryCircles = (errorText = "") => {
     const root = document.getElementById("sideCategoryCircleSelection");
     const count = document.getElementById("sideCategoryCircleCount");
     if (!root) return;
@@ -175,13 +220,10 @@
     const query = (document.getElementById("sideCategoryCircleSearch")?.value || "").trim().toLocaleLowerCase();
     const selectedRootIds = selectedRootCategoryIds();
     const hasCategorySelection = draftCategoryIds.size > 0;
-    const allCircles = configRefs?.available_side_category_circles || [];
 
-    // Always calculate compatibility from the current unsaved category selection.
-    // The API's "compatible" flag reflects the last saved product categories only.
-    const circles = allCircles.filter(circle => {
+    const circles = sideCategoryReferences.filter(circle => {
       if (!circle) return false;
-      const rootMatches = !hasCategorySelection || selectedRootIds.has(Number(circle.root_category_id));
+      const rootMatches = selectedRootIds.has(Number(circle.root_category_id));
       const searchMatches =
         !query ||
         String(circle.name || "").toLocaleLowerCase().includes(query) ||
@@ -190,7 +232,6 @@
       return rootMatches && searchMatches;
     });
 
-    // Drop draft selections that no longer belong to any currently selected root.
     if (hasCategorySelection) {
       const compatibleIds = new Set(circles.map(circle => Number(circle.id)));
       [...draftSideCircleIds].forEach(id => {
@@ -200,10 +241,15 @@
 
     if (count) count.textContent = draftSideCircleIds.size + " دائرة";
 
+    if (errorText) {
+      root.innerHTML = '<div class="empty-state compact"><strong>' + escapeHtml(errorText) + '</strong><span class="muted">تحقق من الاتصال ثم أعد تحميل الخطوة.</span></div>';
+      return;
+    }
+
     if (!circles.length) {
       root.innerHTML = hasCategorySelection
-        ? '<div class="empty-state compact"><strong>لا توجد دوائر فئات جانبية لهذا الجذر.</strong><span class="muted">أضف الفئات الجانبية ودوائرها تحت القسم الرئيسي المختار ثم ستظهر هنا مباشرة.</span></div>'
-        : '<div class="empty-state compact"><strong>اختر فئة رئيسية أو فئة فرعية أولًا.</strong><span class="muted">ستظهر هنا كل دوائر الفئات الجانبية التابعة للجذر المختار.</span></div>';
+        ? '<div class="empty-state compact"><strong>لا توجد دوائر فئات جانبية لهذا الجذر.</strong><span class="muted">أضف الفئات الجانبية ودوائرها تحت القسم الرئيسي المختار من إدارة الفئات الجانبية.</span></div>'
+        : '<div class="empty-state compact"><strong>اختر فئة من التصنيفات أولًا.</strong><span class="muted">سيتم تحديد الجذر تلقائيًا ثم جلب الفئات الجانبية ودوائرها التابعة له.</span></div>';
       return;
     }
 
@@ -220,16 +266,14 @@
       groups.get(key).circles.push(circle);
     });
 
-    root.innerHTML = [...groups.values()].map(group => {
-      const visible = group.circles;
-      if (!visible.length) return "";
-      return '<section class="side-circle-picker-group">' +
+    root.innerHTML = [...groups.values()].map(group =>
+      '<section class="side-circle-picker-group">' +
         '<div class="side-circle-picker-heading"><div><span class="eyebrow">القسم الرئيسي · ' +
         escapeHtml(group.rootCategoryName) +
         '</span><strong>' + escapeHtml(group.name) +
-        '</strong></div><span class="status-pill">' + visible.length + ' دائرة</span></div>' +
+        '</strong></div><span class="status-pill">' + group.circles.length + ' دائرة</span></div>' +
         '<div class="side-circle-picker-grid">' +
-        visible.map(circle => {
+        group.circles.map(circle => {
           const checked = draftSideCircleIds.has(Number(circle.id));
           return '<label class="side-circle-picker-card ' + (checked ? "is-selected" : "") + '">' +
             '<input type="checkbox" value="' + circle.id + '" data-side-circle-checkbox ' + (checked ? 'checked' : '') + '>' +
@@ -241,8 +285,8 @@
             '<span class="side-circle-picker-check">' + (checked ? "✓" : "○") + '</span>' +
             '</label>';
         }).join("") +
-        '</div></section>';
-    }).join("") || '<div class="empty-state compact"><strong>لا توجد دوائر مناسبة لهذا المنتج.</strong><span class="muted">تأكد من وجود دوائر فئات جانبية تحت الجذر المختار.</span></div>';
+        '</div></section>'
+    ).join("");
   };
 
   const renderDimensionChoices = () => {
@@ -331,8 +375,6 @@
       draftCategoryIds = new Set((snapshot.categories || []).map(x => String(x.id)));
     }
     document.getElementById("categorySelection").innerHTML = renderCategoryTree(categories, draftCategoryIds);
-    renderSideCategoryCircles();
-
     document.getElementById("optionsList").innerHTML = (snapshot.options || []).map(option => (
       '<details class="panel" style="padding:12px">' +
       '<summary><strong>' + escapeHtml(option.name) + '</strong><span class="muted"> · ' + escapeHtml(option.option_type) + ' · ' + ((option.values || []).length) + ' قيم</span></summary>' +
@@ -390,7 +432,6 @@
       draftsInitialized = true;
     }
     renderDimensionChoices();
-    renderSideCategoryCircles();
 
     const mediaColors = (configRefs?.colors || optionRefs?.colors || []).filter(color =>
       color.is_active && (draftColorIds.has(Number(color.id)) || mediaRows.some(x => Number(x.color_id) === Number(color.id)))
@@ -579,7 +620,7 @@
     if (input.checked) draftCategoryIds.add(input.value);
     else draftCategoryIds.delete(input.value);
     input.closest(".category-picker-choice")?.classList.toggle("is-selected", input.checked);
-    renderSideCategoryCircles();
+    refreshSideCategoryReferences();
   });
 
   document.getElementById("sideCategoryCircleSelection").addEventListener("change", (event) => {
