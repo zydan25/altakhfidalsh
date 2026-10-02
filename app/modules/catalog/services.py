@@ -52,6 +52,7 @@ from ...models import (
     SizeGuide,
     ProductColorReference,
     ProductSizeReference,
+    AppSetting,
 )
 
 
@@ -2303,7 +2304,7 @@ class CatalogService:
         }
 
     @staticmethod
-    def _trend_ui_settings(trend):
+    def trend_display_settings():
         defaults = {
             "hero_height": 278,
             "hero_card_top": 68,
@@ -2314,9 +2315,9 @@ class CatalogService:
             "hero_card_border_color": "#ffffff",
             "hero_background_overlay_color": "#000000",
             "hero_background_overlay_opacity": 0.47,
+            "hero_card_overlay_color": "#000000",
             "hero_card_overlay_opacity": 0.48,
             "content_padding": 10,
-            "title_text": "",
             "title_color": "#ffffff",
             "title_font_size": 18,
             "title_font_weight": 900,
@@ -2334,7 +2335,6 @@ class CatalogService:
             "product_price_font_size": 9.5,
             "product_text_color": "#000000",
             "product_image_fit": "cover",
-            "badge_text": "",
             "badge_background_color": "#111827",
             "badge_text_color": "#ffffff",
             "badge_font_size": 9.5,
@@ -2350,8 +2350,47 @@ class CatalogService:
             "timer_radius": 4,
             "timer_position": "top_left",
             "show_timer": True,
+            "top_icon_color": "#ffffff",
+            "logo_text": "Trends",
+            "logo_color": "#ffffff",
+            "logo_font_size": 26,
+            "logo_letter_spacing": -1.4,
+            "tabs_active_color": "#000000",
+            "tabs_inactive_color": "#777777",
+            "tabs_indicator_color": "#000000",
+            "tabs_indicator_width": 86,
+            "tabs_font_size": 18,
+            "hashtag_text_color": "#4c4c4c",
+            "hashtag_active_text_color": "#8355e6",
+            "hashtag_background_color": "#f3f4f7",
+            "hashtag_active_background_color": "#f0e6ff",
+            "hashtag_font_size": 11.5,
+            "hashtag_radius": 0,
+            "pull_enabled": True,
+            "pull_text": "اسحب للتحديث",
+            "pull_release_text": "حرر للتحديث",
+            "pull_background_color": "#ffffff",
+            "pull_indicator_color": "#000000",
+            "pull_text_color": "#555555",
+            "pull_font_size": 11,
+            "pull_height": 48,
+            "pull_distance": 70,
+            "page_background_color": "#ffffff",
+            "content_top_radius": 14,
         }
-        custom = trend.settings_json if isinstance(trend.settings_json, dict) else {}
+        row = AppSetting.query.filter_by(
+            group_code="trends",
+            key="display_settings",
+        ).first()
+        custom = {}
+        if row and row.value:
+            try:
+                import json
+                decoded = json.loads(row.value)
+                if isinstance(decoded, dict):
+                    custom = decoded
+            except (TypeError, ValueError):
+                custom = {}
         merged = {**defaults, **custom}
 
         def number(name, low, high, integer=False):
@@ -2363,46 +2402,53 @@ class CatalogService:
             value = max(low, min(high, value))
             return int(round(value)) if integer else value
 
-        for name, low, high in (
-            ("hero_height", 180, 520),
-            ("hero_card_top", 35, 180),
-            ("hero_card_width", 220, 520),
-            ("hero_card_height", 120, 360),
-            ("hero_card_radius", 0, 40),
-            ("hero_card_border_width", 0, 5),
-            ("content_padding", 0, 30),
-            ("title_font_size", 10, 34),
-            ("title_spacing", 0, 20),
-            ("promo_font_size", 7, 18),
-            ("product_width", 0, 180),
-            ("product_height", 55, 180),
-            ("product_gap", 0, 20),
-            ("product_radius", 0, 20),
-            ("product_info_height", 16, 55),
-            ("product_name_font_size", 6, 14),
-            ("product_price_font_size", 7, 15),
-            ("badge_font_size", 7, 16),
-            ("badge_radius", 0, 16),
-            ("counter_font_size", 7, 18),
-            ("counter_bottom", 0, 30),
-            ("timer_font_size", 7, 16),
-            ("timer_radius", 0, 16),
-        ):
-            merged[name] = number(name, low, high)
-
-        for name, low, high in (
-            ("hero_card_border_width", 0, 5),
-            ("title_font_weight", 400, 900),
-            ("promo_font_weight", 400, 900),
-            ("promo_max_lines", 1, 3),
-        ):
-            merged[name] = number(name, low, high, integer=True)
+        numeric_ranges = (
+            ("hero_height", 180, 520, True),
+            ("hero_card_top", 35, 180, True),
+            ("hero_card_width", 220, 520, True),
+            ("hero_card_height", 120, 360, True),
+            ("hero_card_radius", 0, 40, True),
+            ("hero_card_border_width", 0, 5, False),
+            ("content_padding", 0, 30, True),
+            ("title_font_size", 10, 34, False),
+            ("title_font_weight", 400, 900, True),
+            ("title_spacing", 0, 20, True),
+            ("promo_font_size", 7, 18, False),
+            ("promo_font_weight", 400, 900, True),
+            ("promo_max_lines", 1, 3, True),
+            ("product_width", 0, 180, False),
+            ("product_height", 55, 180, True),
+            ("product_gap", 0, 20, True),
+            ("product_radius", 0, 20, True),
+            ("product_info_height", 16, 55, True),
+            ("product_name_font_size", 6, 14, False),
+            ("product_price_font_size", 7, 15, False),
+            ("badge_font_size", 7, 16, False),
+            ("badge_radius", 0, 16, True),
+            ("counter_font_size", 7, 18, True),
+            ("counter_bottom", 0, 30, True),
+            ("timer_font_size", 7, 16, False),
+            ("timer_radius", 0, 16, True),
+            ("logo_font_size", 14, 40, True),
+            ("logo_letter_spacing", -4, 2, False),
+            ("tabs_indicator_width", 40, 180, True),
+            ("tabs_font_size", 10, 28, False),
+            ("hashtag_font_size", 8, 18, False),
+            ("hashtag_radius", 0, 20, True),
+            ("pull_font_size", 8, 20, False),
+            ("pull_height", 28, 100, True),
+            ("pull_distance", 30, 130, True),
+            ("content_top_radius", 0, 40, True),
+        )
+        for name, low, high, integer in numeric_ranges:
+            merged[name] = number(name, low, high, integer)
 
         for name in ("hero_background_overlay_opacity", "hero_card_overlay_opacity"):
             merged[name] = number(name, 0, 1)
 
         merged["show_counter"] = bool(merged.get("show_counter", True))
-        merged["hero_card_border_width"] = float(merged["hero_card_border_width"])
+        merged["show_timer"] = bool(merged.get("show_timer", True))
+        merged["pull_enabled"] = bool(merged.get("pull_enabled", True))
         merged["product_image_fit"] = (
             merged.get("product_image_fit")
             if merged.get("product_image_fit") in {"cover", "contain", "fill"}
@@ -2413,13 +2459,16 @@ class CatalogService:
             if merged.get("timer_position") in {"top_left", "top_right"}
             else "top_left"
         )
-        merged["show_timer"] = bool(merged.get("show_timer", True))
         merged["badge_position"] = (
             merged.get("badge_position")
             if merged.get("badge_position") in {"top_left", "top_right"}
             else "top_right"
         )
         return merged
+
+    @staticmethod
+    def _trend_ui_settings(trend):
+        return CatalogService.trend_display_settings()
 
     @staticmethod
     def _trend_timer_seconds(trend):
@@ -2512,6 +2561,25 @@ class CatalogService:
         }
 
     @staticmethod
+    @staticmethod
+    def list_public_trend_hashtags(limit=50):
+        rows = (
+            Hashtag.query
+            .filter(Hashtag.is_active.is_(True))
+            .order_by(Hashtag.sort_order, Hashtag.id)
+            .limit(min(max(int(limit), 1), 100))
+            .all()
+        )
+        return [
+            {
+                "id": row.id,
+                "name": row.name,
+                "slug": row.slug,
+                "display_name": row.display_name or f"#{row.name}",
+            }
+            for row in rows
+        ]
+
     def list_public_trends(limit=20):
         rows = (
             Trend.query
