@@ -416,6 +416,12 @@ def public_product_feed():
         -value_id - _BRAND_FILTER_OFFSET
         for value_id in selected_filter_ids
         if value_id < 0 and (-value_id) > _BRAND_FILTER_OFFSET
+        and (-value_id) < _CATEGORY_FILTER_OFFSET
+    }
+    selected_category_filter_ids = {
+        -value_id - _CATEGORY_FILTER_OFFSET
+        for value_id in selected_filter_ids
+        if value_id < 0 and (-value_id) > _CATEGORY_FILTER_OFFSET
     }
 
     if selected_color_ids:
@@ -458,6 +464,14 @@ def public_product_feed():
 
     if selected_brand_ids:
         query = query.filter(Product.brand_id.in_(sorted(selected_brand_ids)))
+
+    if selected_category_filter_ids:
+        query = query.join(
+            ProductCategory,
+            ProductCategory.product_id == Product.id,
+        ).filter(
+            ProductCategory.category_id.in_(sorted(selected_category_filter_ids))
+        )
 
     # Relation joins above can duplicate a product. Collapse them before the
     # predictable candidate limit is applied.
