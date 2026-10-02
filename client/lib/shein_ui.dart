@@ -1,3 +1,4 @@
+// CI validation: client builds must pass analyze, tests, APK and web builds.
 import 'dart:async';
 import 'dart:convert';
 
