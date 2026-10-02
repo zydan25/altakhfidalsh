@@ -161,6 +161,13 @@ def test_public_trend_exposes_countdown_and_overlay_metadata(app):
             overlay_text="خصم اليوم",
             overlay_text_color="#ffffff",
             overlay_background_color="#7c3aed",
+            settings_json={
+                "hero_card_width": 292,
+                "hero_card_height": 196,
+                "product_height": 101,
+                "title_font_size": 19,
+                "badge_text": "HOT",
+            },
             is_active=True,
         )
         db.session.add(trend)
@@ -178,6 +185,11 @@ def test_public_trend_exposes_countdown_and_overlay_metadata(app):
         assert payload["overlay"]["text"] == "خصم اليوم"
         assert payload["overlay"]["text_color"] == "#ffffff"
         assert payload["overlay"]["background_color"] == "#7c3aed"
+        assert payload["ui"]["hero_card_width"] == 292
+        assert payload["ui"]["hero_card_height"] == 196
+        assert payload["ui"]["product_height"] == 101
+        assert payload["ui"]["title_font_size"] == 19
+        assert payload["ui"]["badge_text"] == "HOT"
         assert len(payload["products"]) == 3
         assert CatalogService.is_trend_timer_expired(
             trend, datetime(2026, 9, 26, 12, 1, 59, tzinfo=timezone.utc)
