@@ -141,24 +141,69 @@
     return tree || '<div class="empty-state compact"><strong>لا توجد نتائج.</strong><span class="muted">عدّل كلمة البحث أو أضف تصنيفًا جديدًا.</span></div>';
   };
 
+  const selectedRootCategoryIds = () => {
+    const categories = configRefs?.categories || [];
+    const byId = new Map(categories.map(row => [Number(row.id), row]));
+    const roots = new Set();
+
+    draftCategoryIds.forEach(rawId => {
+      let currentId = Number(rawId);
+      const visited = new Set();
+
+      while (Number.isFinite(currentId) && currentId > 0 && !visited.has(currentId)) {
+        visited.add(currentId);
+        const category = byId.get(currentId);
+        if (!category) break;
+
+        const parentId = category.parent_id == null ? null : Number(category.parent_id);
+        if (parentId == null) {
+          roots.add(currentId);
+          break;
+        }
+        currentId = parentId;
+      }
+    });
+
+    return roots;
+  };
+
   const renderSideCategoryCircles = () => {
     const root = document.getElementById("sideCategoryCircleSelection");
     const count = document.getElementById("sideCategoryCircleCount");
     if (!root) return;
 
     const query = (document.getElementById("sideCategoryCircleSearch")?.value || "").trim().toLocaleLowerCase();
-    const circles = (configRefs?.available_side_category_circles || []).filter(circle =>
-      circle &&
-      (!query ||
+    const selectedRootIds = selectedRootCategoryIds();
+    const hasCategorySelection = draftCategoryIds.size > 0;
+    const allCircles = configRefs?.available_side_category_circles || [];
+
+    // Always calculate compatibility from the current unsaved category selection.
+    // The API's "compatible" flag reflects the last saved product categories only.
+    const circles = allCircles.filter(circle => {
+      if (!circle) return false;
+      const rootMatches = !hasCategorySelection || selectedRootIds.has(Number(circle.root_category_id));
+      const searchMatches =
+        !query ||
         String(circle.name || "").toLocaleLowerCase().includes(query) ||
         String(circle.side_category_name || "").toLocaleLowerCase().includes(query) ||
-        String(circle.root_category_name || "").toLocaleLowerCase().includes(query))
-    );
+        String(circle.root_category_name || "").toLocaleLowerCase().includes(query);
+      return rootMatches && searchMatches;
+    });
+
+    // Drop draft selections that no longer belong to any currently selected root.
+    if (hasCategorySelection) {
+      const compatibleIds = new Set(circles.map(circle => Number(circle.id)));
+      [...draftSideCircleIds].forEach(id => {
+        if (!compatibleIds.has(Number(id))) draftSideCircleIds.delete(Number(id));
+      });
+    }
 
     if (count) count.textContent = draftSideCircleIds.size + " دائرة";
 
     if (!circles.length) {
-      root.innerHTML = '<div class="empty-state compact"><strong>لا توجد دوائر فئات جانبية متاحة.</strong><span class="muted">أنشئ الفئة الجانبية ودوائرها من إدارة الفئات الجانبية أولًا.</span></div>';
+      root.innerHTML = hasCategorySelection
+        ? '<div class="empty-state compact"><strong>لا توجد دوائر فئات جانبية لهذا الجذر.</strong><span class="muted">أضف الفئات الجانبية ودوائرها تحت القسم الرئيسي المختار ثم ستظهر هنا مباشرة.</span></div>'
+        : '<div class="empty-state compact"><strong>اختر فئة رئيسية أو فئة فرعية أولًا.</strong><span class="muted">ستظهر هنا كل دوائر الفئات الجانبية التابعة للجذر المختار.</span></div>';
       return;
     }
 
@@ -176,7 +221,7 @@
     });
 
     root.innerHTML = [...groups.values()].map(group => {
-      const visible = group.circles.filter(circle => circle.compatible !== false || circle.selected);
+      const visible = group.circles;
       if (!visible.length) return "";
       return '<section class="side-circle-picker-group">' +
         '<div class="side-circle-picker-heading"><div><span class="eyebrow">القسم الرئيسي · ' +
@@ -197,7 +242,7 @@
             '</label>';
         }).join("") +
         '</div></section>';
-    }).join("") || '<div class="empty-state compact"><strong>لا توجد دوائر مناسبة لهذا المنتج.</strong><span class="muted">تأكد من أن المنتج مرتبط بالقسم الرئيسي الصحيح.</span></div>';
+    }).join("") || '<div class="empty-state compact"><strong>لا توجد دوائر مناسبة لهذا المنتج.</strong><span class="muted">تأكد من وجود دوائر فئات جانبية تحت الجذر المختار.</span></div>';
   };
 
   const renderDimensionChoices = () => {
@@ -534,6 +579,7 @@
     if (input.checked) draftCategoryIds.add(input.value);
     else draftCategoryIds.delete(input.value);
     input.closest(".category-picker-choice")?.classList.toggle("is-selected", input.checked);
+    renderSideCategoryCircles();
   });
 
   document.getElementById("sideCategoryCircleSelection").addEventListener("change", (event) => {
