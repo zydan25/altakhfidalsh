@@ -879,7 +879,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
             if (!loading)
               SliverToBoxAdapter(
                 child: SxHomeCategoryGrid(
-                  rootCategories: roots.take(10).toList(),
+                  rootCategories: roots,
                   allCategories: allCategories,
                   selectedRootId: selected,
                   gridRows: sxInt(categoryDisplay['grid_rows'], 2).clamp(1, 6),
@@ -2373,14 +2373,12 @@ class SxHomeCategoryGrid extends StatelessWidget {
     // therefore starts at their children; when a root is selected, every
     // descendant can be shown according to the configured row count.
     final categories = selectedRootId < 0
-        ? (allCategories
-              .where((category) =>
-                  category.parentId != null &&
-                  rootIds.contains(category.parentId))
-              .toList()
-            ..sort((a, b) => a.sortOrder == b.sortOrder
-                ? a.id.compareTo(b.id)
-                : a.sortOrder.compareTo(b.sortOrder)))
+        ? rootCategories
+            .expand(_descendantsOf)
+            .toList()
+          ..sort((a, b) => a.sortOrder == b.sortOrder
+              ? a.id.compareTo(b.id)
+              : a.sortOrder.compareTo(b.sortOrder))
         : _descendantsOf(selectedRootId);
 
     return _CategoryCircleGrid(
@@ -3378,15 +3376,35 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
   }
 
   List<Map<String, dynamic>> get _visibleGroups {
-    final rows = groups
-        .where((row) => row['is_active'] != false)
-        .where((row) {
-          final root = row['root_category_id'];
-          if (selectedRoot < 0) return true;
-          return root == null || sxInt(root) == selectedRoot;
-        })
-        .where((row) => sxMaps(row['circles']).isNotEmpty)
-        .toList();
+    final selectedSide = _selectedSide;
+    final selectedSideId =
+        selectedSide == null ? null : sxInt(selectedSide['id']);
+
+    final rows = <Map<String, dynamic>>[];
+    for (final row in groups) {
+      if (row['is_active'] == false) continue;
+
+      final root = row['root_category_id'];
+      if (selectedRoot >= 0 &&
+          root != null &&
+          sxInt(root) != selectedRoot) {
+        continue;
+      }
+
+      final sourceCircles = sxMaps(row['circles']);
+      final visibleCircles = selectedSideId == null
+          ? sourceCircles
+          : sourceCircles
+              .where((circle) =>
+                  sxInt(circle['side_category_id']) == selectedSideId)
+              .toList();
+
+      if (visibleCircles.isEmpty) continue;
+
+      final next = Map<String, dynamic>.from(row)
+        ..['circles'] = visibleCircles;
+      rows.add(next);
+    }
 
     rows.sort((a, b) {
       final ao = sxInt(a['sort_order']);
@@ -3407,11 +3425,20 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
 
   List<Map<String, dynamic>> get _visibleCircles {
     final selectedRow = _selectedSide;
-    if (selectedRow != null) return sxMaps(selectedRow['circles']);
+    if (selectedRow != null) {
+      final selectedId = sxInt(selectedRow['id']);
+      return sxMaps(selectedRow['circles'])
+          .where((circle) => sxInt(circle['side_category_id']) == selectedId)
+          .toList();
+    }
 
     final result = <Map<String, dynamic>>[];
     for (final row in _visibleSideCategories) {
-      result.addAll(sxMaps(row['circles']));
+      final sideId = sxInt(row['id']);
+      result.addAll(
+        sxMaps(row['circles'])
+            .where((circle) => sxInt(circle['side_category_id']) == sideId),
+      );
     }
     return result;
   }
