@@ -6119,7 +6119,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final scale = width / 360.0;
-          final heroHeight = (278.0 * scale).clamp(260.0, 360.0);
+          final heroHeight = (278.0 * scale).clamp(260.0, 360.0).toDouble();
           final cardHeight = 197.0 * scale;
           final cardWidth = 300.0 * scale;
 
