@@ -461,6 +461,10 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
             ),
             red,
             blue,
+        ])
+        db.session.flush()
+
+        db.session.add_all([
             ProductFilterValue(
                 product_id=first.id,
                 filter_value_id=red.id,
