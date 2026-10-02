@@ -4297,13 +4297,11 @@ class _SxResultsState extends State<SxResults> {
     try {
       filters = await api.scopedFilters(
         categoryIds: categoryIds,
-        circleId: activeCircleId,
         hashtagIds: [
           if (widget.hashtagId != null && widget.hashtagId! > 0)
             widget.hashtagId!,
           ...?widget.hashtagIds,
         ],
-        sideCategoryId: widget.sideCategoryId,
       );
     } catch (_) {
       // Compatibility fallback: both endpoints are server-defined taxonomy
