@@ -325,6 +325,47 @@
     <details open>
       <summary><span>٢. العنوان والوصف والهوية</span><small>الخط والألوان والهوية العلوية</small></summary>
       <div class="trend-settings-grid">
+        <label class="check-row">
+          <input name="show_title" type="checkbox" {% if trend_display_settings.show_title %}checked{% endif %}>
+          <span><strong>إظهار اسم الترند</strong><small>اسم الهاشتاج الرئيسي داخل البطاقة.</small></span>
+        </label>
+        <label class="check-row">
+          <input name="show_description" type="checkbox" {% if trend_display_settings.show_description %}checked{% endif %}>
+          <span><strong>إظهار وصف الترند</strong><small>النص الترويجي تحت اسم الترند.</small></span>
+        </label>
+        <label>موقع اسم الترند
+          <select name="title_align">
+            <option value="right" {% if trend_display_settings.title_align == "right" %}selected{% endif %}>يمين</option>
+            <option value="center" {% if trend_display_settings.title_align == "center" %}selected{% endif %}>وسط</option>
+            <option value="left" {% if trend_display_settings.title_align == "left" %}selected{% endif %}>يسار</option>
+          </select>
+        </label>
+        <label>موقع الوصف
+          <select name="description_align">
+            <option value="right" {% if trend_display_settings.description_align == "right" %}selected{% endif %}>يمين</option>
+            <option value="center" {% if trend_display_settings.description_align == "center" %}selected{% endif %}>وسط</option>
+            <option value="left" {% if trend_display_settings.description_align == "left" %}selected{% endif %}>يسار</option>
+          </select>
+        </label>
+        <label class="check-row">
+          <input name="title_show_arrow" type="checkbox" {% if trend_display_settings.title_show_arrow %}checked{% endif %}>
+          <span><strong>إظهار العلامة بعد الاسم</strong><small>يمكن اختيار &gt; أو &lt; ولونها وحجمها.</small></span>
+        </label>
+        <label>العلامة
+          <select name="title_arrow">
+            <option value="&gt;" {% if trend_display_settings.title_arrow == ">" %}selected{% endif %}>&gt; أكبر من</option>
+            <option value="&lt;" {% if trend_display_settings.title_arrow == "<" %}selected{% endif %}>&lt; أصغر من</option>
+          </select>
+        </label>
+        <label>لون العلامة
+          <input name="title_arrow_color" type="color" value="{{ trend_display_settings.title_arrow_color }}">
+        </label>
+        <label>حجم العلامة
+          <input name="title_arrow_font_size" type="number" min="9" max="28" step="0.5" value="{{ trend_display_settings.title_arrow_font_size }}">
+        </label>
+        <label>المسافة بين الاسم والعلامة
+          <input name="title_arrow_gap" type="number" min="0" max="20" value="{{ trend_display_settings.title_arrow_gap }}">
+        </label>
         <label>لون عنوان الترند
           <input name="title_color" type="color" value="{{ trend_display_settings.title_color }}">
         </label>
@@ -377,9 +418,6 @@
           <input name="product_width" type="number" min="0" max="180" step="0.5" value="{{ trend_display_settings.product_width }}">
           <small>0 = توزيع تلقائي لثلاث بطاقات.</small>
         </label>
-        <label>ارتفاع المنتج
-          <input name="product_height" type="number" min="55" max="180" value="{{ trend_display_settings.product_height }}">
-        </label>
         <label>المسافة بين المنتجات
           <input name="product_gap" type="number" min="0" max="20" value="{{ trend_display_settings.product_gap }}">
         </label>
@@ -388,6 +426,28 @@
         </label>
         <label>ارتفاع معلومات المنتج
           <input name="product_info_height" type="number" min="16" max="55" value="{{ trend_display_settings.product_info_height }}">
+        </label>
+        <label class="check-row">
+          <input name="show_product_name" type="checkbox" {% if trend_display_settings.show_product_name %}checked{% endif %}>
+          <span><strong>إظهار اسم المنتج</strong><small>يظهر أسفل صورة كل منتج داخل بطاقة الترند.</small></span>
+        </label>
+        <label class="check-row">
+          <input name="show_product_price" type="checkbox" {% if trend_display_settings.show_product_price %}checked{% endif %}>
+          <span><strong>إظهار السعر</strong><small>يظهر بجانب اسم المنتج أسفل صور المنتجات الثلاثة.</small></span>
+        </label>
+        <label>محاذاة اسم المنتج
+          <select name="product_name_align">
+            <option value="right" {% if trend_display_settings.product_name_align == "right" %}selected{% endif %}>يمين</option>
+            <option value="center" {% if trend_display_settings.product_name_align == "center" %}selected{% endif %}>وسط</option>
+            <option value="left" {% if trend_display_settings.product_name_align == "left" %}selected{% endif %}>يسار</option>
+          </select>
+        </label>
+        <label>محاذاة السعر
+          <select name="product_price_align">
+            <option value="right" {% if trend_display_settings.product_price_align == "right" %}selected{% endif %}>يمين</option>
+            <option value="center" {% if trend_display_settings.product_price_align == "center" %}selected{% endif %}>وسط</option>
+            <option value="left" {% if trend_display_settings.product_price_align == "left" %}selected{% endif %}>يسار</option>
+          </select>
         </label>
         <label>حجم اسم المنتج
           <input name="product_name_font_size" type="number" min="6" max="14" step="0.5" value="{{ trend_display_settings.product_name_font_size }}">
@@ -617,6 +677,33 @@
         </label>
         <label>حشو منطقة النص
           <input name="trend_store_content_padding" type="number" min="4" max="24" value="{{ trend_display_settings.trend_store_content_padding }}">
+        </label>
+        <label class="check-row">
+          <input name="trend_store_show_title" type="checkbox" {% if trend_display_settings.trend_store_show_title %}checked{% endif %}>
+          <span><strong>إظهار اسم الترند</strong><small>الاسم الذي يظهر أسفل صورة بطاقة الترند.</small></span>
+        </label>
+        <label class="check-row">
+          <input name="trend_store_show_description" type="checkbox" {% if trend_display_settings.trend_store_show_description %}checked{% endif %}>
+          <span><strong>إظهار الوصف</strong><small>النص الترويجي أسفل اسم الترند.</small></span>
+        </label>
+        <label class="check-row">
+          <input name="trend_store_title_show_arrow" type="checkbox" {% if trend_display_settings.trend_store_title_show_arrow %}checked{% endif %}>
+          <span><strong>علامة بعد الاسم</strong><small>اختيار &gt; أو &lt; مع اللون والحجم.</small></span>
+        </label>
+        <label>العلامة
+          <select name="trend_store_title_arrow">
+            <option value="&gt;" {% if trend_display_settings.trend_store_title_arrow == ">" %}selected{% endif %}>&gt; أكبر من</option>
+            <option value="&lt;" {% if trend_display_settings.trend_store_title_arrow == "<" %}selected{% endif %}>&lt; أصغر من</option>
+          </select>
+        </label>
+        <label>لون العلامة
+          <input name="trend_store_title_arrow_color" type="color" value="{{ trend_display_settings.trend_store_title_arrow_color }}">
+        </label>
+        <label>حجم العلامة
+          <input name="trend_store_title_arrow_font_size" type="number" min="9" max="28" step="0.5" value="{{ trend_display_settings.trend_store_title_arrow_font_size }}">
+        </label>
+        <label>المسافة بين الاسم والعلامة
+          <input name="trend_store_title_arrow_gap" type="number" min="0" max="20" value="{{ trend_display_settings.trend_store_title_arrow_gap }}">
         </label>
         <label>إزاحة العنوان
           <input name="trend_store_title_offset" type="number" min="-30" max="30" value="{{ trend_display_settings.trend_store_title_offset }}">
