@@ -206,6 +206,43 @@ def test_public_trend_exposes_countdown_and_overlay_metadata(app):
         ) is True
 
 
+def test_public_trends_page_exposes_global_settings_and_hashtags(app, client):
+    from app.models import AppSetting, Hashtag
+
+    with app.app_context():
+        first = Hashtag(
+            name="angelcore",
+            slug="angelcore",
+            display_name="#Angelcore",
+            is_active=True,
+        )
+        second = Hashtag(
+            name="timelessblack",
+            slug="timelessblack",
+            display_name="#TimelessBlack",
+            is_active=True,
+        )
+        db.session.add_all([first, second])
+        db.session.add(
+            AppSetting(
+                group_code="trends",
+                key="display_settings",
+                value='{"title_color":"#ff00aa","tabs_font_size":19,"pull_text":"اسحب الآن"}',
+                value_type="json",
+            )
+        )
+        db.session.commit()
+
+        response = client.get("/api/v1/catalog/trends")
+        assert response.status_code == 200
+        payload = response.get_json()
+        ids = {item["id"] for item in payload["hashtags"]}
+        assert {first.id, second.id}.issubset(ids)
+        assert payload["settings"]["title_color"] == "#ff00aa"
+        assert payload["settings"]["tabs_font_size"] == 19
+        assert payload["settings"]["pull_text"] == "اسحب الآن"
+
+
 def test_side_category_endpoint_returns_nested_circles_for_root(app, client):
     with app.app_context():
         root = Category(name="نساء", slug="women-endpoint", display_style="circle")
