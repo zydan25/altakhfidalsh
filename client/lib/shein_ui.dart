@@ -4092,6 +4092,9 @@ class SxCircleGroupScreen extends StatelessWidget {
                       builder: (_) => SxResults(
                         title: sxText(circles[i]['name'], 'الفئة'),
                         circleId: id,
+                        sideCategoryId: sxInt(circles[i]['side_category_id']) > 0
+                            ? sxInt(circles[i]['side_category_id'])
+                            : null,
                       ),
                     ),
                   );
