@@ -4277,10 +4277,12 @@ class _SxResultsState extends State<SxResults> {
       }
     } else if (widget.sideCategoryId != null &&
         widget.sideCategoryId! > 0) {
-      matchedSide = sides.cast<Map<String, dynamic>?>().firstWhere(
-        (side) => sxInt(side?['id']) == widget.sideCategoryId,
-        orElse: () => null,
-      );
+      for (final side in sides) {
+        if (sxInt(side['id']) == widget.sideCategoryId) {
+          matchedSide = side;
+          break;
+        }
+      }
     }
 
     if (matchedSide == null) {
