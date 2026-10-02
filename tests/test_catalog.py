@@ -498,6 +498,22 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
         CatalogService.set_product_side_category_circles(first.id, [circle_one["id"]])
         CatalogService.set_product_side_category_circles(second.id, [circle_two["id"]])
 
+        circle_filter_response = client.get(
+            f"/api/v1/catalog/products/filters?circle_id={circle_one['id']}"
+        )
+        assert circle_filter_response.status_code == 200
+        circle_filters = circle_filter_response.get_json()["items"]
+        assert any(
+            value["id"] == red.id
+            for group in circle_filters
+            for value in group["values"]
+        )
+        assert any(
+            value["id"] == green.id
+            for group in circle_filters
+            for value in group["values"]
+        )
+
         category_filter_response = client.get(
             f"/api/v1/catalog/products/filters?category_ids={root.id}"
         )
