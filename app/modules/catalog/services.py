@@ -2470,6 +2470,7 @@ class CatalogService:
             ("title_font_weight", 400, 900, True),
             ("title_spacing", 0, 20, True),
             ("title_arrow_font_size", 9, 28, False),
+            ("title_arrow_gap", 0, 20, True),
             ("promo_font_size", 7, 18, False),
             ("promo_font_weight", 400, 900, True),
             ("promo_max_lines", 1, 3, True),
