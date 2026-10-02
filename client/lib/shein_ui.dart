@@ -7514,6 +7514,56 @@ class _TrendHashtagStrip extends StatelessWidget {
       );
 }
 
+class SxTrendDetailScreen extends StatelessWidget {
+  final Map<String, dynamic> trend;
+
+  const SxTrendDetailScreen({super.key, required this.trend});
+
+  @override
+  Widget build(BuildContext context) {
+    final products = sxMaps(trend['products'])
+        .map((x) => x['product'])
+        .whereType<Map>()
+        .map((x) => ProductModel.fromJson(Map<String, dynamic>.from(x)))
+        .toList();
+
+    return SxShellPage(
+      title: sxText(
+        (trend['hashtag'] as Map?)?['display_name'],
+        'الترند',
+      ),
+      back: true,
+      child: ListView(
+        children: [
+          SizedBox(
+            height: 285,
+            child: SxImage(
+              url: (trend['background'] as Map?)?['url'],
+              fit: BoxFit.cover,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(15),
+            child: Text(
+              sxText(trend['promo_text']),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SxSectionTitle(title: 'منتجات الترند'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(7, 0, 7, 20),
+            child: SxProductGrid(products: products),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class SxCartScreen extends StatefulWidget {
   const SxCartScreen({super.key});
   @override State<SxCartScreen> createState() => _SxCartScreenState();
