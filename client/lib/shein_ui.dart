@@ -7205,7 +7205,6 @@ class _TrendHeroCard extends StatelessWidget {
                         child: _MiniTrendProduct(
                           row: i < products.length ? products[i] : null,
                           ui: ui,
-                          scale: width / 360.0,
                         ),
                       ),
                     ),
@@ -7222,12 +7221,10 @@ class _TrendHeroCard extends StatelessWidget {
 class _MiniTrendProduct extends StatelessWidget {
   final Map<String, dynamic>? row;
   final Map<String, dynamic> ui;
-  final double scale;
 
   const _MiniTrendProduct({
     this.row,
     required this.ui,
-    required this.scale,
   });
 
   @override
@@ -7237,8 +7234,6 @@ class _MiniTrendProduct extends StatelessWidget {
         : null;
     final image = sxText(product?['image_url']);
     final radius = _sxTrendNumber(ui, 'product_radius', 7);
-    final imageFit = _sxTrendFit(ui['product_image_fit']);
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: Container(
@@ -7252,7 +7247,7 @@ class _MiniTrendProduct extends StatelessWidget {
               )
             : SxImage(
                 url: image,
-                fit: imageFit,
+                fit: BoxFit.cover,
               ),
       ),
     );
