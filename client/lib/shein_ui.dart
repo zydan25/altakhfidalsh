@@ -2326,7 +2326,10 @@ class SxHomeLookCarousel extends StatelessWidget {
     final sectionHeight = maxCardHeight.clamp(40.0, 500.0) + 24;
 
     return Container(
-      color: Colors.white,
+      color: _sxTrendHex(
+        widget.ui['product_info_background_color'],
+        Colors.white,
+      ),
       padding: const EdgeInsets.fromLTRB(0, 7, 0, 8),
       child: SizedBox(
         height: sectionHeight,
@@ -7323,21 +7326,121 @@ class _MiniTrendProduct extends StatelessWidget {
         : null;
     final image = sxText(product?['image_url']);
     final radius = _sxTrendNumber(ui, 'product_radius', 7);
+    final infoHeight = _sxTrendNumber(ui, 'product_info_height', 27);
+    final showName = ui['show_product_name'] != false;
+    final showPrice = ui['show_product_price'] != false;
+    final name = sxText(product?['name']);
+    final price = sxText(product?['price']);
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: Container(
         color: const Color(0xFFEDEDED),
-        child: image.isEmpty
-            ? const Center(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (image.isEmpty)
+              const Center(
                 child: Icon(
                   Icons.image_outlined,
                   color: Color(0xFF9A9A9A),
                 ),
               )
-            : SxImage(
+            else
+              SxImage(
                 url: image,
-                fit: BoxFit.cover,
+                fit: _sxTrendFit(ui['product_image_fit']),
               ),
+            if (showName || showPrice)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  constraints: BoxConstraints(minHeight: infoHeight),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 4,
+                  ),
+                  color: _sxTrendHex(
+                    ui['product_info_background_color'],
+                    Colors.white,
+                  ).withOpacity(.92),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (showName && name.isNotEmpty)
+                        Text(
+                          name,
+                          maxLines: sxInt(ui['product_name_max_lines'], 2),
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: _sxTrendTextAlign(
+                            ui['product_name_align'],
+                            TextAlign.right,
+                          ),
+                          style: TextStyle(
+                            color: _sxTrendHex(
+                              ui['product_name_color'],
+                              _sxTrendHex(
+                                ui['product_text_color'],
+                                Colors.black,
+                              ),
+                            ),
+                            fontSize: _sxTrendNumber(
+                              ui,
+                              'product_name_font_size',
+                              8.5,
+                            ),
+                            fontWeight: _sxTrendWeight(
+                              ui['product_name_font_weight'],
+                              FontWeight.w800,
+                            ),
+                            height: 1.1,
+                          ),
+                        ),
+                      if (showName && showPrice && name.isNotEmpty && price.isNotEmpty)
+                        const SizedBox(height: 2),
+                      if (showPrice && price.isNotEmpty)
+                        Align(
+                          alignment: _sxTrendAlignment(
+                            ui['product_price_align'],
+                            Alignment.centerRight,
+                          ),
+                          child: Text(
+                            price + ' ' + state.currencySymbol,
+                            textDirection: TextDirection.ltr,
+                            textAlign: _sxTrendTextAlign(
+                              ui['product_price_align'],
+                              TextAlign.right,
+                            ),
+                            style: TextStyle(
+                              color: _sxTrendHex(
+                                ui['product_price_color'],
+                                _sxTrendHex(
+                                  ui['product_text_color'],
+                                  Colors.black,
+                                ),
+                              ),
+                              fontSize: _sxTrendNumber(
+                                ui,
+                                'product_price_font_size',
+                                9.5,
+                              ),
+                              fontWeight: _sxTrendWeight(
+                                ui['product_price_font_weight'],
+                                FontWeight.w900,
+                              ),
+                              height: 1.05,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -7987,15 +8090,21 @@ class _TrendProductTileState extends State<_TrendProductTile> {
                         ),
                         style: TextStyle(
                           color: _sxTrendHex(
-                            widget.ui['product_text_color'],
-                            Colors.black,
+                            widget.ui['product_name_color'],
+                            _sxTrendHex(
+                              widget.ui['product_text_color'],
+                              Colors.black,
+                            ),
                           ),
                           fontSize: _sxTrendNumber(
                             widget.ui,
                             'product_name_font_size',
                             8.5,
                           ),
-                          fontWeight: FontWeight.w800,
+                          fontWeight: _sxTrendWeight(
+                            widget.ui['product_name_font_weight'],
+                            FontWeight.w800,
+                          ),
                           height: 1.15,
                         ),
                       ),
@@ -8047,24 +8156,39 @@ class _TrendProductTileState extends State<_TrendProductTile> {
                             ),
                           ),
                         if (widget.ui['show_product_price'] != false)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 4),
-                            child: Text(
-                              widget.product.price +
-                                  ' ' +
-                                  state.currencySymbol,
-                              textDirection: TextDirection.ltr,
-                              style: TextStyle(
-                                color: _sxTrendHex(
-                                  widget.ui['product_text_color'],
-                                  Colors.black,
+                          Expanded(
+                            child: Align(
+                              alignment: _sxTrendAlignment(
+                                widget.ui['product_price_align'],
+                                Alignment.centerRight,
+                              ),
+                              child: Text(
+                                widget.product.price +
+                                    ' ' +
+                                    state.currencySymbol,
+                                textDirection: TextDirection.ltr,
+                                textAlign: _sxTrendTextAlign(
+                                  widget.ui['product_price_align'],
+                                  TextAlign.right,
                                 ),
-                                fontSize: _sxTrendNumber(
-                                  widget.ui,
-                                  'product_price_font_size',
-                                  9.5,
+                                style: TextStyle(
+                                  color: _sxTrendHex(
+                                    widget.ui['product_price_color'],
+                                    _sxTrendHex(
+                                      widget.ui['product_text_color'],
+                                      Colors.black,
+                                    ),
+                                  ),
+                                  fontSize: _sxTrendNumber(
+                                    widget.ui,
+                                    'product_price_font_size',
+                                    9.5,
+                                  ),
+                                  fontWeight: _sxTrendWeight(
+                                    widget.ui['product_price_font_weight'],
+                                    FontWeight.w900,
+                                  ),
                                 ),
-                                fontWeight: FontWeight.w900,
                               ),
                             ),
                           ),
