@@ -7021,7 +7021,6 @@ class _TrendHeroCard extends StatelessWidget {
         _sxTrendNumber(ui, 'hero_card_overlay_opacity', .48);
     final contentPadding = _sxTrendNumber(ui, 'content_padding', 10);
     final productGap = _sxTrendNumber(ui, 'product_gap', 4);
-    final productHeight = _sxTrendNumber(ui, 'product_height', 103);
     final configuredProductWidth =
         _sxTrendNumber(ui, 'product_width', 0);
     final availableWidth =
@@ -7183,30 +7182,35 @@ class _TrendHeroCard extends StatelessWidget {
               ],
             ),
           ),
-          Positioned(
-            left: contentPadding,
-            right: contentPadding,
-            bottom: contentPadding,
-            height: productHeight,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              textDirection: TextDirection.ltr,
-              children: [
-                for (int i = 0; i < 3; i++)
-                  Padding(
-                    padding: EdgeInsets.only(
-                      right: i == 2 ? 0 : productGap,
-                    ),
-                    child: SizedBox(
-                      width: productWidth,
-                      child: _MiniTrendProduct(
-                        row: i < products.length ? products[i] : null,
-                        ui: ui,
-                        scale: width / 360.0,
+          Positioned.fill(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                contentPadding,
+                contentPadding + 72,
+                contentPadding,
+                contentPadding,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                textDirection: TextDirection.ltr,
+                children: [
+                  for (int i = 0; i < 3; i++)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        right: i == 2 ? 0 : productGap,
+                      ),
+                      child: SizedBox(
+                        width: productWidth,
+                        child: _MiniTrendProduct(
+                          row: i < products.length ? products[i] : null,
+                          ui: ui,
+                          scale: width / 360.0,
+                        ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -7231,62 +7235,25 @@ class _MiniTrendProduct extends StatelessWidget {
     final product = row?['product'] is Map
         ? Map<String, dynamic>.from(row!['product'])
         : null;
-    final name = sxText(product?['name'], 'منتج');
-    final price = sxText(product?['price'], '—');
     final image = sxText(product?['image_url']);
     final radius = _sxTrendNumber(ui, 'product_radius', 7);
     final imageFit = _sxTrendFit(ui['product_image_fit']);
-    final infoHeight = _sxTrendNumber(ui, 'product_info_height', 27);
-    final nameSize = _sxTrendNumber(ui, 'product_name_font_size', 8.5);
-    final priceSize = _sxTrendNumber(ui, 'product_price_font_size', 9.5);
-    final textColor = _sxTrendHex(ui['product_text_color'], Colors.black);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(radius),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Expanded(
-            child: SxImage(
-              url: image,
-              fit: imageFit,
-            ),
-          ),
-          SizedBox(
-            height: infoHeight,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 5),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: textColor,
-                        fontSize: nameSize,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    price,
-                    style: TextStyle(
-                      color: textColor,
-                      fontSize: priceSize,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: Container(
+        color: const Color(0xFFEDEDED),
+        child: image.isEmpty
+            ? const Center(
+                child: Icon(
+                  Icons.image_outlined,
+                  color: Color(0xFF9A9A9A),
+                ),
+              )
+            : SxImage(
+                url: image,
+                fit: imageFit,
               ),
-            ),
-          ),
-        ],
       ),
     );
   }
