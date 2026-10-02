@@ -2306,10 +2306,10 @@ class CatalogService:
     @staticmethod
     def trend_display_settings():
         defaults = {
-            "hero_height": 278,
-            "hero_card_top": 68,
-            "hero_card_width": 300,
-            "hero_card_height": 198,
+            "hero_height": 238,
+            "hero_card_top": 44,
+            "hero_card_width": 282,
+            "hero_card_height": 168,
             "hero_card_radius": 9,
             "hero_card_border_width": 1,
             "hero_card_border_color": "#ffffff",
@@ -2360,12 +2360,12 @@ class CatalogService:
             "tabs_inactive_color": "#777777",
             "tabs_indicator_color": "#000000",
             "tabs_indicator_width": 86,
-            "tabs_font_size": 18,
+            "tabs_font_size": 17,
             "hashtag_text_color": "#4c4c4c",
             "hashtag_active_text_color": "#8355e6",
             "hashtag_background_color": "#f3f4f7",
             "hashtag_active_background_color": "#f0e6ff",
-            "hashtag_font_size": 11.5,
+            "hashtag_font_size": 11,
             "hashtag_radius": 0,
             "pull_enabled": True,
             "pull_text": "اسحب للتحديث",
@@ -2378,6 +2378,41 @@ class CatalogService:
             "pull_distance": 70,
             "page_background_color": "#ffffff",
             "content_top_radius": 14,
+            "header_collapse_enabled": True,
+            "header_collapse_offset": 46,
+            "compact_header_height": 58,
+            "search_width_ratio": 0.72,
+            "search_height": 42,
+            "search_radius": 13,
+            "search_horizontal_padding": 10,
+            "search_icon_size": 22,
+            "search_font_size": 13,
+            "search_hint": "فساتين",
+            "search_background_color": "#ffffff",
+            "search_text_color": "#222222",
+            "search_icon_color": "#111111",
+            "search_divider_color": "#dddddd",
+            "search_divider_width": 1,
+            "trend_store_card_height": 330,
+            "trend_store_image_height": 252,
+            "trend_store_content_height": 78,
+            "trend_store_radius": 10,
+            "trend_store_content_background": "#ffffff",
+            "trend_store_content_padding": 9,
+            "trend_store_title_offset": 0,
+            "trend_store_title_align": "center",
+            "trend_store_title_font_size": 14,
+            "trend_store_title_font_weight": 800,
+            "trend_store_title_color": "#111111",
+            "trend_store_promo_offset": 2,
+            "trend_store_promo_align": "center",
+            "trend_store_promo_font_size": 10,
+            "trend_store_promo_font_weight": 500,
+            "trend_store_promo_color": "#777777",
+            "picks_card_extent": 350,
+            "picks_image_height": 258,
+            "picks_content_height": 92,
+            "picks_title_font_size": 11,
         }
         row = AppSetting.query.filter_by(
             group_code="trends",
@@ -2440,6 +2475,30 @@ class CatalogService:
             ("pull_height", 28, 100, True),
             ("pull_distance", 30, 130, True),
             ("content_top_radius", 0, 40, True),
+            ("header_collapse_offset", 0, 140, False),
+            ("compact_header_height", 44, 96, True),
+            ("search_width_ratio", 0.45, 0.9, False),
+            ("search_height", 32, 58, True),
+            ("search_radius", 0, 30, True),
+            ("search_horizontal_padding", 4, 24, True),
+            ("search_icon_size", 14, 30, True),
+            ("search_font_size", 9, 20, False),
+            ("search_divider_width", 0, 4, False),
+            ("trend_store_card_height", 220, 520, True),
+            ("trend_store_image_height", 140, 430, True),
+            ("trend_store_content_height", 50, 140, True),
+            ("trend_store_radius", 0, 30, True),
+            ("trend_store_content_padding", 4, 24, True),
+            ("trend_store_title_offset", -30, 30, True),
+            ("trend_store_title_font_size", 9, 28, False),
+            ("trend_store_title_font_weight", 400, 900, True),
+            ("trend_store_promo_offset", -30, 30, True),
+            ("trend_store_promo_font_size", 8, 20, False),
+            ("trend_store_promo_font_weight", 400, 900, True),
+            ("picks_card_extent", 280, 520, True),
+            ("picks_image_height", 190, 390, True),
+            ("picks_content_height", 60, 150, True),
+            ("picks_title_font_size", 8, 18, False),
         )
         for name, low, high, integer in numeric_ranges:
             merged[name] = number(name, low, high, integer)
@@ -2450,10 +2509,21 @@ class CatalogService:
         merged["show_counter"] = bool(merged.get("show_counter", True))
         merged["show_timer"] = bool(merged.get("show_timer", True))
         merged["pull_enabled"] = bool(merged.get("pull_enabled", True))
+        merged["header_collapse_enabled"] = bool(merged.get("header_collapse_enabled", True))
         merged["product_image_fit"] = (
             merged.get("product_image_fit")
             if merged.get("product_image_fit") in {"cover", "contain", "fill"}
             else "cover"
+        )
+        merged["trend_store_title_align"] = (
+            merged.get("trend_store_title_align")
+            if merged.get("trend_store_title_align") in {"start", "center", "end"}
+            else "center"
+        )
+        merged["trend_store_promo_align"] = (
+            merged.get("trend_store_promo_align")
+            if merged.get("trend_store_promo_align") in {"start", "center", "end"}
+            else "center"
         )
         merged["timer_position"] = (
             merged.get("timer_position")
