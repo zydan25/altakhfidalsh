@@ -7514,6 +7514,412 @@ class _TrendHashtagStrip extends StatelessWidget {
       );
 }
 
+class _TrendProductTile extends StatefulWidget {
+  final ProductModel product;
+  final Map<String, dynamic>? hashtag;
+  final Map<String, dynamic> ui;
+
+  const _TrendProductTile({
+    required this.product,
+    this.hashtag,
+    required this.ui,
+  });
+
+  @override
+  State<_TrendProductTile> createState() => _TrendProductTileState();
+}
+
+class _TrendProductTileState extends State<_TrendProductTile> {
+  late List<String> gallery;
+  int imageIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    gallery = _unique(widget.product.images, widget.product.image);
+  }
+
+  @override
+  void didUpdateWidget(covariant _TrendProductTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.product.id != widget.product.id) {
+      gallery = _unique(widget.product.images, widget.product.image);
+      imageIndex = 0;
+    }
+  }
+
+  List<String> _unique(Iterable<String> images, String? primary) {
+    final rows = <String>[
+      ...images.where((x) => x.isNotEmpty),
+      if (primary != null && primary.isNotEmpty) primary,
+    ];
+    return rows.toSet().toList();
+  }
+
+  int _discount() {
+    final old = sxDouble(widget.product.oldPrice);
+    final current = sxDouble(widget.product.price);
+    if (old <= current || old <= 0) return 0;
+    return ((1 - current / old) * 100).round();
+  }
+
+  Future<void> _addToCart(BuildContext context) async {
+    try {
+      if (widget.product.variantId == null) return;
+      await api.addCart(widget.product.variantId!);
+      _CartBadge.value.value += 1;
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تمت إضافة المنتج إلى الحقيبة'),
+          duration: Duration(milliseconds: 850),
+        ),
+      );
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scale =
+        (MediaQuery.sizeOf(context).width / 360.0).clamp(.86, 1.15).toDouble();
+    final imageHeight =
+        _sxTrendNumber(widget.ui, 'picks_image_height', 258) * scale;
+    final contentHeight =
+        _sxTrendNumber(widget.ui, 'picks_content_height', 92) * scale;
+    final discount = _discount();
+    final hashtagLabel = widget.hashtag == null
+        ? '#ترندات'
+        : sxText(widget.hashtag?['display_name'], '#ترندات');
+    final swatches = widget.product.colors.take(4).toList();
+
+    return Container(
+      color: Colors.white,
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SxProductScreen(id: widget.product.id),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: imageHeight,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (gallery.isEmpty)
+                    Container(
+                      color: const Color(0xFFEDEDED),
+                      child: const Icon(Icons.image_outlined),
+                    )
+                  else
+                    GestureDetector(
+                      onHorizontalDragEnd: (details) {
+                        if (gallery.length <= 1) return;
+                        final velocity = details.primaryVelocity ?? 0;
+                        if (velocity.abs() < 30) return;
+                        final direction = velocity < 0 ? 1 : -1;
+                        final next =
+                            (imageIndex + direction) % gallery.length;
+                        setState(() {
+                          imageIndex =
+                              next < 0 ? next + gallery.length : next;
+                        });
+                      },
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: KeyedSubtree(
+                          key: ValueKey(
+                            widget.product.id.toString() +
+                                '-' +
+                                imageIndex.toString(),
+                          ),
+                          child: SxImage(
+                            url: gallery[imageIndex],
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (widget.product.badges.isNotEmpty)
+                    Positioned(
+                      left: 7,
+                      top: 7,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: widget.product.badges.take(2).map(
+                          (badge) {
+                            final bg = sxColor(
+                              badge['bg_color'],
+                              const Color(0xFF111111),
+                            );
+                            final fg = sxColor(
+                              badge['text_color'],
+                              Colors.white,
+                            );
+                            final label = sxText(
+                              badge['custom_text'],
+                              sxText(
+                                badge['name'],
+                                sxText(badge['code']),
+                              ),
+                            );
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: bg,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                                child: Text(
+                                  label,
+                                  style: TextStyle(
+                                    color: fg,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ).toList(),
+                      ),
+                    ),
+                  if (swatches.isNotEmpty)
+                    Positioned(
+                      right: 7,
+                      bottom: 10,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: swatches.map((color) {
+                          return Container(
+                            width: 22,
+                            height: 22,
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(.96),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: const Color(0xFFD5D5D5),
+                                width: .7,
+                              ),
+                            ),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: sxColor(
+                                  color['hex_code'],
+                                  const Color(0xFFE8E8E8),
+                                ),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  if (gallery.length > 1)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 6,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          gallery.length.clamp(0, 7).toInt(),
+                          (i) => Container(
+                            width: i == imageIndex ? 12 : 4,
+                            height: 3,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(
+                                i == imageIndex ? .95 : .55,
+                              ),
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: contentHeight,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(7, 0, 7, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      height: 25,
+                      color: const Color(0xFFF1EAFE),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        textDirection: TextDirection.ltr,
+                        children: [
+                          const Icon(
+                            Icons.chevron_left,
+                            size: 17,
+                            color: Color(0xFF8D65E8),
+                          ),
+                          Expanded(
+                            child: Text(
+                              hashtagLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF7751CA),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const Text(
+                            'ترندات',
+                            style: TextStyle(
+                              color: Color(0xFF8C5AE8),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    if (widget.ui['show_product_name'] != false)
+                      Text(
+                        widget.product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: _sxTrendTextAlign(
+                          widget.ui['product_name_align'],
+                          TextAlign.right,
+                        ),
+                        style: TextStyle(
+                          color: _sxTrendHex(
+                            widget.ui['product_name_color'],
+                            _sxTrendHex(
+                              widget.ui['product_text_color'],
+                              Colors.black,
+                            ),
+                          ),
+                          fontSize: _sxTrendNumber(
+                            widget.ui,
+                            'product_name_font_size',
+                            8.5,
+                          ),
+                          fontWeight: _sxTrendWeight(
+                            widget.ui['product_name_font_weight'],
+                            FontWeight.w800,
+                          ),
+                          height: 1.15,
+                        ),
+                      ),
+                    if (widget.product.soldQty > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          'sold +' + widget.product.soldQty.toString(),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: Color(0xFF333333),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    const Spacer(),
+                    Row(
+                      textDirection: TextDirection.ltr,
+                      children: [
+                        Material(
+                          color: const Color(0xFFF6F6F6),
+                          child: InkWell(
+                            onTap: () => _addToCart(context),
+                            child: const SizedBox(
+                              width: 33,
+                              height: 33,
+                              child: Center(
+                                child: Icon(
+                                  Icons.add_shopping_cart_outlined,
+                                  size: 19,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        if (discount > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Text(
+                              'خصم $discount%',
+                              style: const TextStyle(
+                                color: Color(0xFFDF5B37),
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        if (widget.ui['show_product_price'] != false)
+                          Expanded(
+                            child: Align(
+                              alignment: _sxTrendAlignment(
+                                widget.ui['product_price_align'],
+                                Alignment.centerRight,
+                              ),
+                              child: Text(
+                                widget.product.price +
+                                    ' ' +
+                                    state.currencySymbol,
+                                textDirection: TextDirection.ltr,
+                                textAlign: _sxTrendTextAlign(
+                                  widget.ui['product_price_align'],
+                                  TextAlign.right,
+                                ),
+                                style: TextStyle(
+                                  color: _sxTrendHex(
+                                    widget.ui['product_price_color'],
+                                    _sxTrendHex(
+                                      widget.ui['product_text_color'],
+                                      Colors.black,
+                                    ),
+                                  ),
+                                  fontSize: _sxTrendNumber(
+                                    widget.ui,
+                                    'product_price_font_size',
+                                    9.5,
+                                  ),
+                                  fontWeight: _sxTrendWeight(
+                                    widget.ui['product_price_font_weight'],
+                                    FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class SxTrendDetailScreen extends StatelessWidget {
   final Map<String, dynamic> trend;
 
