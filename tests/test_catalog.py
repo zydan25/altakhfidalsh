@@ -169,6 +169,33 @@ def test_public_trend_exposes_countdown_and_overlay_metadata(app):
         ) is True
 
 
+def test_side_category_endpoint_returns_nested_circles_for_root(app, client):
+    with app.app_context():
+        root = Category(name="نساء", slug="women-endpoint", display_style="circle")
+        child = Category(name="ملابس نساء", slug="women-clothes-endpoint", display_style="circle")
+        db.session.add_all([root, child])
+        db.session.flush()
+        child.parent_id = root.id
+        side = CatalogService.create_side_category({
+            "root_category_id": root.id,
+            "name": "نساء - دوائر endpoint",
+            "slug": "women-side-endpoint",
+        })
+        circle = CatalogService.create_side_category_circle(
+            side["id"],
+            {"name": "فساتين endpoint", "slug": "endpoint-dresses"},
+        )
+
+        response = client.get(
+            "/api/v1/catalog/side-categories?root_category_id=%s" % root.id
+        )
+        assert response.status_code == 200
+        items = response.get_json()["items"]
+        matched_side = next(row for row in items if row["id"] == side["id"])
+        assert matched_side["root_category_id"] == root.id
+        assert any(row["id"] == circle["id"] for row in matched_side["circles"])
+
+
 def test_product_reference_data_exposes_compatible_side_circles(app):
     with app.app_context():
         currency = Currency(code="SAR", symbol="ر.س", name_ar="ريال سعودي", decimals=2, is_base=True)
