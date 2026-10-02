@@ -6118,10 +6118,20 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
-          final scale = width / 360.0;
-          final heroHeight = (278.0 * scale).clamp(260.0, 360.0).toDouble();
-          final cardHeight = 197.0 * scale;
-          final cardWidth = 300.0 * scale;
+          final scale = (width / 360.0).clamp(.86, 1.15).toDouble();
+          final activeTrend = trends.isEmpty
+              ? const <String, dynamic>{}
+              : trends[trendIndex.clamp(0, trends.length - 1).toInt()];
+          final ui = activeTrend['ui'] is Map
+              ? Map<String, dynamic>.from(activeTrend['ui'] as Map)
+              : const <String, dynamic>{};
+          final heroHeight = (sxDouble(ui['hero_height'], 278) * scale)
+              .clamp(250.0, 430.0)
+              .toDouble();
+          final cardHeight = sxDouble(ui['hero_card_height'], 198) * scale;
+          final cardWidth = (sxDouble(ui['hero_card_width'], 300) * scale)
+              .clamp(220.0, width - 18.0)
+              .toDouble();
 
           return RefreshIndicator(
             color: Colors.black,
@@ -6354,6 +6364,38 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
   }
 }
 
+double _sxTrendNumber(
+  Map<String, dynamic> ui,
+  String key,
+  double fallback,
+) => sxDouble(ui[key], fallback);
+
+Color _sxTrendHex(
+  dynamic value,
+  Color fallback,
+) => sxColor(value, fallback);
+
+FontWeight _sxTrendWeight(dynamic value, FontWeight fallback) {
+  final n = sxInt(value, fallback.value);
+  if (n >= 900) return FontWeight.w900;
+  if (n >= 800) return FontWeight.w800;
+  if (n >= 700) return FontWeight.w700;
+  if (n >= 600) return FontWeight.w600;
+  if (n >= 500) return FontWeight.w500;
+  return FontWeight.w400;
+}
+
+BoxFit _sxTrendFit(dynamic value) {
+  switch (sxText(value)) {
+    case 'contain':
+      return BoxFit.contain;
+    case 'fill':
+      return BoxFit.fill;
+    default:
+      return BoxFit.cover;
+  }
+}
+
 class _TrendsHero extends StatelessWidget {
   final List<Map<String, dynamic>> trends;
   final PageController pageController;
@@ -6383,7 +6425,20 @@ class _TrendsHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final active = trends.isEmpty
         ? const <String, dynamic>{}
-        : trends[currentIndex.clamp(0, trends.length - 1)];
+        : trends[currentIndex.clamp(0, trends.length - 1).toInt()];
+    final ui = active['ui'] is Map
+        ? Map<String, dynamic>.from(active['ui'] as Map)
+        : const <String, dynamic>{};
+    final borderColor = _sxTrendHex(
+      ui['hero_card_border_color'],
+      Colors.white,
+    );
+    final backgroundOverlay = _sxTrendHex(
+      ui['hero_background_overlay_color'],
+      Colors.black,
+    );
+    final backgroundOpacity =
+        _sxTrendNumber(ui, 'hero_background_overlay_opacity', .47);
 
     return SizedBox(
       height: height,
@@ -6397,7 +6452,9 @@ class _TrendsHero extends StatelessWidget {
             )
           else
             Container(color: const Color(0xFF35312F)),
-          Container(color: Colors.black.withOpacity(.47)),
+          Container(
+            color: backgroundOverlay.withOpacity(backgroundOpacity),
+          ),
           SafeArea(
             bottom: false,
             child: SizedBox(
@@ -6442,7 +6499,7 @@ class _TrendsHero extends StatelessWidget {
           ),
           if (trends.isNotEmpty)
             Positioned(
-              top: 68,
+              top: _sxTrendNumber(ui, 'hero_card_top', 68),
               left: 0,
               right: 0,
               height: cardHeight,
@@ -6454,13 +6511,25 @@ class _TrendsHero extends StatelessWidget {
                 itemBuilder: (_, index) {
                   final trend = trends[index];
                   final activePage = index == currentIndex;
+                  final trendUi = trend['ui'] is Map
+                      ? Map<String, dynamic>.from(trend['ui'] as Map)
+                      : const <String, dynamic>{};
+                  final trendWidth = (
+                    _sxTrendNumber(trendUi, 'hero_card_width', 300) *
+                    ((context.size?.width ?? 360) / 360.0).clamp(.86, 1.15)
+                  ).clamp(220.0, (context.size?.width ?? 360) - 18.0);
+                  final trendHeight = _sxTrendNumber(
+                    trendUi,
+                    'hero_card_height',
+                    198,
+                  ) * ((context.size?.width ?? 360) / 360.0).clamp(.86, 1.15);
                   return Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 2),
                       child: _TrendHeroCard(
                         trend: trend,
-                        width: cardWidth,
-                        height: cardHeight,
+                        width: trendWidth.toDouble(),
+                        height: trendHeight,
                         active: activePage,
                         titleFor: titleFor,
                       ),
@@ -6469,23 +6538,20 @@ class _TrendsHero extends StatelessWidget {
                 },
               ),
             ),
-          if (trends.isNotEmpty)
+          if (trends.isNotEmpty && ui['show_counter'] != false)
             Positioned(
-              bottom: 8,
+              bottom: _sxTrendNumber(ui, 'counter_bottom', 8),
               left: 0,
               right: 0,
-              child: Directionality(
-                textDirection: TextDirection.ltr,
-                child: Text(
-                  (currentIndex + 1).toString() +
-                      ' / ' +
-                      trends.length.toString(),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+              child: Text(
+                (currentIndex + 1).toString() +
+                    ' / ' +
+                    trends.length.toString(),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: _sxTrendHex(ui['counter_color'], Colors.white),
+                  fontSize: _sxTrendNumber(ui, 'counter_font_size', 12),
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -6532,10 +6598,38 @@ class _TrendHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final products = sxMaps(trend['products']);
+    final ui = trend['ui'] is Map
+        ? Map<String, dynamic>.from(trend['ui'] as Map)
+        : const <String, dynamic>{};
     final promo = sxText(
       trend['promo_text'],
       sxText((trend['overlay'] as Map?)?['text']),
     );
+    final titleOverride = sxText(ui['title_text']);
+    final title = titleOverride.isNotEmpty
+        ? titleOverride
+        : titleFor(trend);
+    final cardRadius = _sxTrendNumber(ui, 'hero_card_radius', 9);
+    final cardBorderWidth =
+        _sxTrendNumber(ui, 'hero_card_border_width', 1);
+    final cardOverlayColor =
+        _sxTrendHex(ui['hero_card_border_color'], Colors.black);
+    final cardOverlayOpacity =
+        _sxTrendNumber(ui, 'hero_card_overlay_opacity', .48);
+    final contentPadding = _sxTrendNumber(ui, 'content_padding', 10);
+    final productGap = _sxTrendNumber(ui, 'product_gap', 4);
+    final productHeight = _sxTrendNumber(ui, 'product_height', 103);
+    final configuredProductWidth =
+        _sxTrendNumber(ui, 'product_width', 0);
+    final availableWidth =
+        width - (contentPadding * 2).clamp(0, width / 2);
+    final safeWidth = availableWidth > 0 ? availableWidth : width;
+    final productWidth = configuredProductWidth > 0
+        ? (configuredProductWidth <
+                (safeWidth - productGap * 2) / 3
+            ? configuredProductWidth
+            : (safeWidth - productGap * 2) / 3)
+        : (safeWidth - productGap * 2) / 3;
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 180),
@@ -6543,10 +6637,10 @@ class _TrendHeroCard extends StatelessWidget {
       height: height,
       decoration: BoxDecoration(
         color: const Color(0xFF2D2827),
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(cardRadius),
         border: Border.all(
-          color: active ? Colors.white70 : Colors.white30,
-          width: active ? 1.1 : .7,
+          color: _sxTrendHex(ui['hero_card_border_color'], Colors.white),
+          width: cardBorderWidth,
         ),
         boxShadow: const [
           BoxShadow(
@@ -6565,13 +6659,48 @@ class _TrendHeroCard extends StatelessWidget {
               url: (trend['background'] as Map?)?['url'],
               fit: BoxFit.cover,
             ),
-          Container(color: Colors.black.withOpacity(.48)),
+          Container(
+            color: cardOverlayColor.withOpacity(cardOverlayOpacity),
+          ),
           Positioned(
-            top: 13,
-            left: 12,
-            right: 12,
+            top: contentPadding,
+            left: contentPadding,
+            right: contentPadding,
             child: Column(
               children: [
+                if (sxText(ui['badge_text']).isNotEmpty)
+                  Align(
+                    alignment: sxText(ui['badge_position']) == 'top_left'
+                        ? Alignment.centerLeft
+                        : Alignment.centerRight,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _sxTrendHex(
+                          ui['badge_background_color'],
+                          const Color(0xFF111827),
+                        ),
+                        borderRadius: BorderRadius.circular(
+                          _sxTrendNumber(ui, 'badge_radius', 4),
+                        ),
+                      ),
+                      child: Text(
+                        sxText(ui['badge_text']),
+                        style: TextStyle(
+                          color: _sxTrendHex(
+                            ui['badge_text_color'],
+                            Colors.white,
+                          ),
+                          fontSize:
+                              _sxTrendNumber(ui, 'badge_font_size', 9.5),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -6582,60 +6711,87 @@ class _TrendHeroCard extends StatelessWidget {
                     ),
                     Flexible(
                       child: Text(
-                        titleFor(trend),
+                        title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                        style: TextStyle(
+                          color: _sxTrendHex(
+                            ui['title_color'],
+                            Colors.white,
+                          ),
+                          fontSize:
+                              _sxTrendNumber(ui, 'title_font_size', 18),
+                          fontWeight: _sxTrendWeight(
+                            ui['title_font_weight'],
+                            FontWeight.w900,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 2),
-                    const Text(
+                    Text(
                       '#',
                       style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
+                        color: _sxTrendHex(
+                          ui['title_color'],
+                          Colors.white,
+                        ),
+                        fontSize:
+                            _sxTrendNumber(ui, 'title_font_size', 18),
+                        fontWeight: _sxTrendWeight(
+                          ui['title_font_weight'],
+                          FontWeight.w900,
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 5),
+                SizedBox(
+                  height: _sxTrendNumber(ui, 'title_spacing', 5),
+                ),
                 Text(
                   promo,
-                  maxLines: 2,
+                  maxLines: sxInt(ui['promo_max_lines'], 2),
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10.5,
+                  style: TextStyle(
+                    color: _sxTrendHex(ui['promo_color'], Colors.white),
+                    fontSize: _sxTrendNumber(
+                      ui,
+                      'promo_font_size',
+                      10.5,
+                    ),
                     height: 1.25,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: _sxTrendWeight(
+                      ui['promo_font_weight'],
+                      FontWeight.w700,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
           Positioned(
-            left: 10,
-            right: 10,
-            bottom: 9,
-            height: 103,
+            left: contentPadding,
+            right: contentPadding,
+            bottom: contentPadding,
+            height: productHeight,
             child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               textDirection: TextDirection.ltr,
               children: [
                 for (int i = 0; i < 3; i++)
-                  Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        right: i == 2 ? 0 : 4,
-                      ),
+                  Padding(
+                    padding: EdgeInsets.only(
+                      right: i == 2 ? 0 : productGap,
+                    ),
+                    child: SizedBox(
+                      width: productWidth,
                       child: _MiniTrendProduct(
                         row: i < products.length ? products[i] : null,
+                        ui: ui,
+                        scale: width / 360.0,
                       ),
                     ),
                   ),
@@ -6650,8 +6806,14 @@ class _TrendHeroCard extends StatelessWidget {
 
 class _MiniTrendProduct extends StatelessWidget {
   final Map<String, dynamic>? row;
+  final Map<String, dynamic> ui;
+  final double scale;
 
-  const _MiniTrendProduct({this.row});
+  const _MiniTrendProduct({
+    this.row,
+    required this.ui,
+    required this.scale,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -6661,11 +6823,17 @@ class _MiniTrendProduct extends StatelessWidget {
     final name = sxText(product?['name'], 'منتج');
     final price = sxText(product?['price'], '—');
     final image = sxText(product?['image_url']);
+    final radius = _sxTrendNumber(ui, 'product_radius', 7);
+    final imageFit = _sxTrendFit(ui['product_image_fit']);
+    final infoHeight = _sxTrendNumber(ui, 'product_info_height', 27);
+    final nameSize = _sxTrendNumber(ui, 'product_name_font_size', 8.5);
+    final priceSize = _sxTrendNumber(ui, 'product_price_font_size', 9.5);
+    final textColor = _sxTrendHex(ui['product_text_color'], Colors.black);
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(radius),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -6673,11 +6841,11 @@ class _MiniTrendProduct extends StatelessWidget {
           Expanded(
             child: SxImage(
               url: image,
-              fit: BoxFit.cover,
+              fit: imageFit,
             ),
           ),
           SizedBox(
-            height: 27,
+            height: infoHeight,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 5),
               child: Row(
@@ -6687,9 +6855,9 @@ class _MiniTrendProduct extends StatelessWidget {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 8.5,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: nameSize,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -6697,9 +6865,9 @@ class _MiniTrendProduct extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     price,
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 9.5,
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: priceSize,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -7137,7 +7305,7 @@ class _TrendProductTileState extends State<_TrendProductTile> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(
-                          gallery.length.clamp(0, 7),
+                          gallery.length.clamp(0, 7).toInt(),
                           (i) => Container(
                             width: i == imageIndex ? 12 : 4,
                             height: 3,
