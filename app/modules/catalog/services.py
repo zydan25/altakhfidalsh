@@ -2358,6 +2358,22 @@ class CatalogService:
             "product_text_color": "#000000",
             "product_info_background_color": "#ffffff",
             "product_image_fit": "cover",
+            "hero_product_radius": 7,
+            "hero_product_info_height": 27,
+            "hero_show_product_name": True,
+            "hero_show_product_price": True,
+            "hero_product_name_font_size": 8.5,
+            "hero_product_price_font_size": 9.5,
+            "hero_product_name_font_weight": 800,
+            "hero_product_price_font_weight": 900,
+            "hero_product_name_max_lines": 2,
+            "hero_product_name_align": "right",
+            "hero_product_price_align": "right",
+            "hero_product_name_color": "#000000",
+            "hero_product_price_color": "#000000",
+            "hero_product_text_color": "#000000",
+            "hero_product_info_background_color": "#ffffff",
+            "hero_product_image_fit": "cover",
             "badge_text": "",
             "badge_background_color": "#111827",
             "badge_text_color": "#ffffff",
@@ -2459,6 +2475,27 @@ class CatalogService:
             except (TypeError, ValueError):
                 custom = {}
         merged = {**defaults, **custom}
+        legacy_hero_keys = {
+            "hero_product_radius": "product_radius",
+            "hero_product_info_height": "product_info_height",
+            "hero_show_product_name": "show_product_name",
+            "hero_show_product_price": "show_product_price",
+            "hero_product_name_font_size": "product_name_font_size",
+            "hero_product_price_font_size": "product_price_font_size",
+            "hero_product_name_font_weight": "product_name_font_weight",
+            "hero_product_price_font_weight": "product_price_font_weight",
+            "hero_product_name_max_lines": "product_name_max_lines",
+            "hero_product_name_align": "product_name_align",
+            "hero_product_price_align": "product_price_align",
+            "hero_product_name_color": "product_name_color",
+            "hero_product_price_color": "product_price_color",
+            "hero_product_text_color": "product_text_color",
+            "hero_product_info_background_color": "product_info_background_color",
+            "hero_product_image_fit": "product_image_fit",
+        }
+        for new_name, old_name in legacy_hero_keys.items():
+            if new_name not in custom and old_name in custom:
+                merged[new_name] = custom[old_name]
 
         def number(name, low, high, integer=False):
             value = merged.get(name, defaults[name])
@@ -2500,6 +2537,13 @@ class CatalogService:
             ("product_top_spacing", 8, 120, True),
             ("product_gap", 0, 20, True),
             ("product_radius", 0, 20, True),
+            ("hero_product_radius", 0, 20, True),
+            ("hero_product_info_height", 16, 55, True),
+            ("hero_product_name_font_size", 6, 14, False),
+            ("hero_product_price_font_size", 7, 15, False),
+            ("hero_product_name_font_weight", 400, 900, True),
+            ("hero_product_price_font_weight", 400, 900, True),
+            ("hero_product_name_max_lines", 1, 3, True),
             ("product_info_height", 16, 55, True),
             ("product_name_font_size", 6, 14, False),
             ("product_price_font_size", 7, 15, False),
@@ -2559,12 +2603,26 @@ class CatalogService:
         merged["show_timer"] = flag("show_timer", True)
         merged["pull_enabled"] = flag("pull_enabled", True)
         merged["header_collapse_enabled"] = flag("header_collapse_enabled", True)
+        merged["hero_product_image_fit"] = (
+            merged.get("hero_product_image_fit")
+            if merged.get("hero_product_image_fit") in {"cover", "contain", "fill"}
+            else "cover"
+        )
         merged["product_image_fit"] = (
             merged.get("product_image_fit")
             if merged.get("product_image_fit") in {"cover", "contain", "fill"}
             else "cover"
         )
-        for name in ("product_name_align", "product_price_align", "title_align", "description_align", "trend_store_title_align", "trend_store_promo_align"):
+        for name in (
+            "product_name_align",
+            "product_price_align",
+            "hero_product_name_align",
+            "hero_product_price_align",
+            "title_align",
+            "description_align",
+            "trend_store_title_align",
+            "trend_store_promo_align",
+        ):
             merged[name] = (
                 merged.get(name)
                 if merged.get(name) in {"left", "center", "right"}
@@ -2579,7 +2637,10 @@ class CatalogService:
         merged["show_description"] = flag("show_description", True)
         merged["show_product_name"] = flag("show_product_name", True)
         merged["show_product_price"] = flag("show_product_price", True)
+        merged["hero_show_product_name"] = flag("hero_show_product_name", True)
+        merged["hero_show_product_price"] = flag("hero_show_product_price", True)
         merged["product_name_max_lines"] = number("product_name_max_lines", 1, 3, True)
+        merged["hero_product_name_max_lines"] = number("hero_product_name_max_lines", 1, 3, True)
         merged["trend_store_show_title"] = flag("trend_store_show_title", True)
         merged["trend_store_show_description"] = flag("trend_store_show_description", True)
         merged["title_arrow"] = merged.get("title_arrow") if merged.get("title_arrow") in {">", "<"} else ">"
