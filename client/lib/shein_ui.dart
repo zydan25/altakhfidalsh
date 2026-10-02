@@ -6840,6 +6840,9 @@ class _TrendHeroCard extends StatelessWidget {
         ? Map<String, dynamic>.from(trend['overlay'] as Map)
         : const <String, dynamic>{};
     final overlayText = sxText(overlay['text']);
+    final badgeText = sxText(ui['badge_text']).isNotEmpty
+        ? sxText(ui['badge_text'])
+        : overlayText;
     final cardRadius = _sxTrendNumber(ui, 'hero_card_radius', 9);
     final cardBorderWidth =
         _sxTrendNumber(ui, 'hero_card_border_width', 1);
@@ -6906,7 +6909,7 @@ class _TrendHeroCard extends StatelessWidget {
                 SizedBox(
                   height: ui['show_timer'] == false ? 0 : 4,
                 ),
-                if (overlayText.isNotEmpty)
+                if (badgeText.isNotEmpty)
                   Align(
                     alignment: sxText(ui['badge_position']) == 'top_left'
                         ? Alignment.centerLeft
@@ -6926,7 +6929,7 @@ class _TrendHeroCard extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        overlayText,
+                        badgeText,
                         style: TextStyle(
                           color: _sxTrendHex(
                             ui['badge_text_color'],
