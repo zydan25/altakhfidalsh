@@ -351,6 +351,16 @@
           <input name="title_show_arrow" type="checkbox" {% if trend_display_settings.title_show_arrow %}checked{% endif %}>
           <span><strong>إظهار العلامة بعد الاسم</strong><small>يمكن اختيار &gt; أو &lt; ولونها وحجمها.</small></span>
         </label>
+        <label class="check-row">
+          <input name="show_title_hash" type="checkbox" {% if trend_display_settings.show_title_hash %}checked{% endif %}>
+          <span><strong>إظهار # قبل اسم الترند</strong><small>يمكن التحكم في إظهار الرمز ولونه بشكل مستقل عن لون الاسم.</small></span>
+        </label>
+        <label>رمز قبل الاسم
+          <input name="title_hash_text" maxlength="3" value="{{ trend_display_settings.title_hash_text }}">
+        </label>
+        <label>لون # قبل الاسم
+          <input name="title_hash_color" type="color" value="{{ trend_display_settings.title_hash_color }}">
+        </label>
         <label>العلامة
           <select name="title_arrow">
             <option value="&gt;" {% if trend_display_settings.title_arrow == ">" %}selected{% endif %}>&gt; أكبر من</option>
@@ -418,6 +428,10 @@
           <input name="product_width" type="number" min="0" max="180" step="0.5" value="{{ trend_display_settings.product_width }}">
           <small>0 = توزيع تلقائي لثلاث بطاقات.</small>
         </label>
+        <label>ارتفاع المنتج
+          <input name="product_height" type="number" min="0" max="260" value="{{ trend_display_settings.product_height }}">
+          <small>0 = يملأ المساحة المتاحة تلقائيًا.</small>
+        </label>
         <label>المسافة بين المنتجات
           <input name="product_gap" type="number" min="0" max="20" value="{{ trend_display_settings.product_gap }}">
         </label>
@@ -455,7 +469,25 @@
         <label>حجم السعر
           <input name="product_price_font_size" type="number" min="7" max="15" step="0.5" value="{{ trend_display_settings.product_price_font_size }}">
         </label>
-        <label>لون النص
+        <label>وزن اسم المنتج
+          <input name="product_name_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.product_name_font_weight }}">
+        </label>
+        <label>وزن السعر
+          <input name="product_price_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.product_price_font_weight }}">
+        </label>
+        <label>أسطر اسم المنتج
+          <input name="product_name_max_lines" type="number" min="1" max="3" value="{{ trend_display_settings.product_name_max_lines }}">
+        </label>
+        <label>لون اسم المنتج
+          <input name="product_name_color" type="color" value="{{ trend_display_settings.product_name_color }}">
+        </label>
+        <label>لون السعر
+          <input name="product_price_color" type="color" value="{{ trend_display_settings.product_price_color }}">
+        </label>
+        <label>خلفية معلومات المنتج
+          <input name="product_info_background_color" type="color" value="{{ trend_display_settings.product_info_background_color }}">
+        </label>
+        <label>لون النص العام (احتياطي)
           <input name="product_text_color" type="color" value="{{ trend_display_settings.product_text_color }}">
         </label>
         <label>طريقة عرض الصورة
