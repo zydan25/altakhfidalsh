@@ -2344,6 +2344,12 @@ class CatalogService:
             "counter_font_size": 12,
             "counter_bottom": 8,
             "show_counter": True,
+            "timer_background_color": "#111827",
+            "timer_text_color": "#ffffff",
+            "timer_font_size": 9,
+            "timer_radius": 4,
+            "timer_position": "top_left",
+            "show_timer": True,
         }
         custom = trend.settings_json if isinstance(trend.settings_json, dict) else {}
         merged = {**defaults, **custom}
@@ -2368,7 +2374,7 @@ class CatalogService:
             ("title_font_size", 10, 34),
             ("title_spacing", 0, 20),
             ("promo_font_size", 7, 18),
-            ("product_width", 40, 180),
+            ("product_width", 0, 180),
             ("product_height", 55, 180),
             ("product_gap", 0, 20),
             ("product_radius", 0, 20),
@@ -2379,6 +2385,8 @@ class CatalogService:
             ("badge_radius", 0, 16),
             ("counter_font_size", 7, 18),
             ("counter_bottom", 0, 30),
+            ("timer_font_size", 7, 16),
+            ("timer_radius", 0, 16),
         ):
             merged[name] = number(name, low, high)
 
@@ -2400,6 +2408,12 @@ class CatalogService:
             if merged.get("product_image_fit") in {"cover", "contain", "fill"}
             else "cover"
         )
+        merged["timer_position"] = (
+            merged.get("timer_position")
+            if merged.get("timer_position") in {"top_left", "top_right"}
+            else "top_left"
+        )
+        merged["show_timer"] = bool(merged.get("show_timer", True))
         merged["badge_position"] = (
             merged.get("badge_position")
             if merged.get("badge_position") in {"top_left", "top_right"}
