@@ -2669,7 +2669,7 @@ class SxProductGrid extends StatelessWidget {
   const SxProductGrid({
     super.key,
     required this.products,
-    this.masonry = false,
+    this.masonry = true,
   });
 
   @override
@@ -2795,6 +2795,7 @@ class SxProductCard extends StatefulWidget {
 class _SxProductCardState extends State<SxProductCard> {
   int page = 0;
   double _dragDistance = 0;
+  int _swipeDirection = 1;
   late List<String> _gallery;
   bool _galleryLoading = false;
   bool _galleryLoaded = false;
@@ -2879,9 +2880,18 @@ class _SxProductCardState extends State<SxProductCard> {
         ? (velocity < 0 ? 1 : -1)
         : (distance < 0 ? 1 : -1);
 
-    final nextPage = (page + direction).clamp(0, imageCount - 1);
+    var nextPage = page + direction;
+    if (nextPage < 0) {
+      nextPage = imageCount - 1;
+    } else if (nextPage >= imageCount) {
+      nextPage = 0;
+    }
+
     if (nextPage != page && mounted) {
-      setState(() => page = nextPage);
+      setState(() {
+        _swipeDirection = direction;
+        page = nextPage;
+      });
     }
   }
 
@@ -2913,9 +2923,19 @@ class _SxProductCardState extends State<SxProductCard> {
               );
             },
             child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 170),
+              duration: const Duration(milliseconds: 260),
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) {
+                final begin = Offset(_swipeDirection > 0 ? 1.0 : -1.0, 0);
+                final slide = Tween<Offset>(begin: begin, end: Offset.zero)
+                    .chain(CurveTween(curve: Curves.easeOutCubic))
+                    .animate(animation);
+                return FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(position: slide, child: child),
+                );
+              },
               child: KeyedSubtree(
                 key: ValueKey(
                   widget.product.id.toString() + '-' + page.toString(),
@@ -2942,15 +2962,76 @@ class _SxProductCardState extends State<SxProductCard> {
           AspectRatio(aspectRatio: ratio, child: imageContainer)
         else
           Positioned.fill(child: imageContainer),
-        const Positioned(
-          top: 6,
-          right: 6,
-          child: SxPill(
-            text: 'علامة تجارية',
-            background: Colors.black87,
-            foreground: Colors.white,
+        if (sxText(widget.product.brandName).isNotEmpty)
+          Positioned(
+            top: 6,
+            right: 6,
+            child: SxPill(
+              text: sxText(widget.product.brandName),
+              background: Colors.black.withOpacity(.82),
+              foreground: Colors.white,
+            ),
           ),
-        ),
+        if (widget.product.isTrend)
+          const Positioned(
+            top: 6,
+            left: 6,
+            child: SxPill(
+              text: 'ترندات',
+              background: Colors.black87,
+              foreground: Colors.white,
+            ),
+          ),
+        if (widget.product.colors.isNotEmpty)
+          Positioned(
+            left: 6,
+            top: 54,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: widget.product.colors.take(6).map((color) {
+                final hex = sxText(color['hex_code']);
+                final swatchUrl = sxText(color['swatch_url']);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: Container(
+                    width: 19,
+                    height: 19,
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(.95),
+                      shape: BoxShape.circle,
+                      boxShadow: const [
+                        BoxShadow(
+                          blurRadius: 2,
+                          offset: Offset(0, 1),
+                          color: Colors.black26,
+                        ),
+                      ],
+                    ),
+                    child: swatchUrl.isNotEmpty
+                        ? ClipOval(
+                            child: Image.network(
+                              api.url(swatchUrl),
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: sxColor(hex, const Color(0xFFE5E7EB)),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          )
+                        : DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: sxColor(hex, const Color(0xFFE5E7EB)),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
         if (gallery.length > 1)
           Positioned(
             left: 0,
@@ -2984,6 +3065,19 @@ class _SxProductCardState extends State<SxProductCard> {
                   color: Colors.white,
                 ),
               ),
+            ),
+          ),
+        if (widget.product.badges.isNotEmpty)
+          Positioned(
+            top: widget.product.brandName != null &&
+                    sxText(widget.product.brandName).isNotEmpty
+                ? 35
+                : 6,
+            right: 6,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: widget.product.badges.take(2).map(_badgeChip).toList(),
             ),
           ),
         if (discount > 0)
@@ -3080,6 +3174,8 @@ class _SxProductCardState extends State<SxProductCard> {
     final ratio = sxProductImageRatio(product);
     final gallery = _gallery;
     final visibleBadges = product.badges.take(2).toList();
+    final rating = product.rating;
+    final hasRating = rating != null && rating > 0;
 
     return Container(
       color: Colors.white,
@@ -3150,18 +3246,27 @@ class _SxProductCardState extends State<SxProductCard> {
                 decoration: TextDecoration.lineThrough,
               ),
             ),
-          const Row(
-            children: [
-              Icon(Icons.star, size: 12.5, color: Color(0xFFFFB400)),
-              Text(
-                ' 4.8',
-                style: TextStyle(
-                  fontSize: 8.5,
-                  fontWeight: FontWeight.w700,
+          if (hasRating)
+            Row(
+              children: [
+                const Icon(Icons.star, size: 12.5, color: Color(0xFFFFB400)),
+                Text(
+                  ' ' + rating!.toStringAsFixed(1),
+                  style: const TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-            ],
-          ),
+                if (product.reviewCount > 0)
+                  Text(
+                    ' (' + product.reviewCount.toString() + ')',
+                    style: const TextStyle(
+                      fontSize: 8,
+                      color: ClientTheme.muted,
+                    ),
+                  ),
+              ],
+            ),
           const SizedBox(height: 4),
         ],
       ),
