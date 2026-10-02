@@ -1576,27 +1576,58 @@ class CatalogService:
         return [{"product_id": product_id, "filter_value_id": value_id} for value_id in normalized]
     
     @staticmethod
-    def category_filters(category_id):
-        rows = CategoryFilterDefinition.query.filter_by(
-            category_id=category_id, is_active=True
-        ).order_by(CategoryFilterDefinition.sort_order, CategoryFilterDefinition.id).all()
-        return [
-            {
-                "id": row.id,
-                "name": row.name,
-                "filter_type": row.filter_type,
-                "values": [
-                    {
-                        "id": value.id,
-                        "label": value.label,
-                        "slug": value.slug,
-                        "sort_order": value.sort_order,
-                    }
-                    for value in CategoryFilterValue.query.filter_by(filter_id=row.id, is_active=True).order_by(CategoryFilterValue.sort_order, CategoryFilterValue.id).all()
-                ],
-            }
-            for row in rows
-        ]
+    def category_filters(category_id, include_descendants=False):
+        root_id = int(category_id)
+        scope_ids = (
+            CatalogService.category_descendant_ids(root_id)
+            if include_descendants
+            else [root_id]
+        )
+        rows = (
+            CategoryFilterDefinition.query
+            .filter(
+                CategoryFilterDefinition.category_id.in_(scope_ids),
+                CategoryFilterDefinition.is_active.is_(True),
+            )
+            .order_by(CategoryFilterDefinition.sort_order, CategoryFilterDefinition.id)
+            .all()
+        )
+
+        merged = {}
+        for row in rows:
+            key = (
+                (row.name or "").strip().casefold(),
+                (row.filter_type or "").strip().casefold(),
+            )
+            item = merged.get(key)
+            if item is None:
+                item = {
+                    "id": row.id,
+                    "name": row.name,
+                    "filter_type": row.filter_type,
+                    "values": [],
+                }
+                merged[key] = item
+
+            existing_value_ids = {int(value["id"]) for value in item["values"]}
+            values = (
+                CategoryFilterValue.query
+                .filter_by(filter_id=row.id, is_active=True)
+                .order_by(CategoryFilterValue.sort_order, CategoryFilterValue.id)
+                .all()
+            )
+            for value in values:
+                if int(value.id) in existing_value_ids:
+                    continue
+                item["values"].append({
+                    "id": value.id,
+                    "label": value.label,
+                    "slug": value.slug,
+                    "sort_order": value.sort_order,
+                })
+                existing_value_ids.add(int(value.id))
+
+        return list(merged.values())
 
     @staticmethod
     def set_display_settings(product_id, payload):
