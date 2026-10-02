@@ -6842,6 +6842,7 @@ class _TrendHeroCard extends StatelessWidget {
                   ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  textDirection: TextDirection.ltr,
                   children: [
                     const Icon(
                       Icons.chevron_left,
