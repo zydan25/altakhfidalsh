@@ -1150,6 +1150,7 @@ def register_entity_views(admin_bp):
             ProductHashtag,
             Trend,
             TrendProduct,
+            ProductMedia,
         )
         error = None
         success = None
@@ -1170,6 +1171,7 @@ def register_entity_views(admin_bp):
                 overlay_text = (request.form.get("overlay_text") or "").strip() or None
                 overlay_text_color = (request.form.get("overlay_text_color") or "#ffffff").strip()
                 overlay_background_color = (request.form.get("overlay_background_color") or "#111827").strip()
+                product_image_asset_ids = request.form.getlist("product_image_asset_ids", type=int)
 
                 import re
                 color_re = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -1183,6 +1185,71 @@ def register_entity_views(admin_bp):
                 else:
                     timer_value = None
                     timer_unit = "seconds"
+
+                def _hex(name, default):
+                    value = (request.form.get(name) or default).strip()
+                    if not color_re.fullmatch(value):
+                        raise ValueError(f"القيمة {name} يجب أن تكون HEX صالحة.")
+                    return value
+
+                def _number(name, default, low, high, integer=False):
+                    raw = request.form.get(name)
+                    try:
+                        value = float(raw) if raw not in (None, "") else float(default)
+                    except (TypeError, ValueError):
+                        raise ValueError(f"القيمة {name} غير صحيحة.")
+                    value = max(low, min(high, value))
+                    return int(round(value)) if integer else value
+
+                trend_ui = {
+                    "hero_height": _number("ui_hero_height", 278, 180, 520, True),
+                    "hero_card_top": _number("ui_hero_card_top", 68, 35, 180, True),
+                    "hero_card_width": _number("ui_hero_card_width", 300, 220, 520, True),
+                    "hero_card_height": _number("ui_hero_card_height", 198, 120, 360, True),
+                    "hero_card_radius": _number("ui_hero_card_radius", 9, 0, 40, True),
+                    "hero_card_border_width": _number("ui_hero_card_border_width", 1, 0, 5),
+                    "hero_card_border_color": _hex("ui_hero_card_border_color", "#ffffff"),
+                    "hero_background_overlay_color": _hex("ui_hero_background_overlay_color", "#000000"),
+                    "hero_background_overlay_opacity": _number("ui_hero_background_overlay_opacity", .47, 0, 1),
+                    "hero_card_overlay_opacity": _number("ui_hero_card_overlay_opacity", .48, 0, 1),
+                    "content_padding": _number("ui_content_padding", 10, 0, 30, True),
+                    "title_text": (request.form.get("ui_title_text") or "").strip()[:180],
+                    "title_color": _hex("ui_title_color", "#ffffff"),
+                    "title_font_size": _number("ui_title_font_size", 18, 10, 34, True),
+                    "title_font_weight": _number("ui_title_font_weight", 900, 400, 900, True),
+                    "title_spacing": _number("ui_title_spacing", 5, 0, 20, True),
+                    "promo_color": _hex("ui_promo_color", "#ffffff"),
+                    "promo_font_size": _number("ui_promo_font_size", 10.5, 7, 18),
+                    "promo_font_weight": _number("ui_promo_font_weight", 700, 400, 900, True),
+                    "promo_max_lines": _number("ui_promo_max_lines", 2, 1, 3, True),
+                    "product_width": _number("ui_product_width", 0, 40, 180),
+                    "product_height": _number("ui_product_height", 103, 55, 180, True),
+                    "product_gap": _number("ui_product_gap", 4, 0, 20, True),
+                    "product_radius": _number("ui_product_radius", 7, 0, 20, True),
+                    "product_info_height": _number("ui_product_info_height", 27, 16, 55, True),
+                    "product_name_font_size": _number("ui_product_name_font_size", 8.5, 6, 14),
+                    "product_price_font_size": _number("ui_product_price_font_size", 9.5, 7, 15),
+                    "product_text_color": _hex("ui_product_text_color", "#000000"),
+                    "product_image_fit": (request.form.get("ui_product_image_fit") or "cover").strip(),
+                    "badge_text": (request.form.get("ui_badge_text") or "").strip()[:80],
+                    "badge_background_color": _hex("ui_badge_background_color", "#111827"),
+                    "badge_text_color": _hex("ui_badge_text_color", "#ffffff"),
+                    "badge_font_size": _number("ui_badge_font_size", 9.5, 7, 16),
+                    "badge_radius": _number("ui_badge_radius", 4, 0, 16, True),
+                    "badge_position": (request.form.get("ui_badge_position") or "top_right").strip(),
+                    "counter_color": _hex("ui_counter_color", "#ffffff"),
+                    "counter_font_size": _number("ui_counter_font_size", 12, 7, 18, True),
+                    "counter_bottom": _number("ui_counter_bottom", 8, 0, 30, True),
+                    "show_counter": request.form.get("ui_show_counter") == "on",
+                }
+                if trend_ui["product_image_fit"] not in {"cover", "contain", "fill"}:
+                    trend_ui["product_image_fit"] = "cover"
+                if trend_ui["badge_position"] not in {"top_left", "top_right"}:
+                    trend_ui["badge_position"] = "top_right"
+                if len(product_ids) != 3:
+                    raise ValueError("يجب اختيار 3 منتجات بالضبط للترند.")
+                if len(product_image_asset_ids) not in {0, 3}:
+                    raise ValueError("صور منتجات الترند يجب أن تكون 3 صور أو تُترك تلقائية.")
 
                 if action in {"create", "update"}:
                     if not hashtag_id:
@@ -1198,6 +1265,21 @@ def register_entity_views(admin_bp):
                         hashtag_id,
                         product_ids,
                     )
+                    if len(product_image_asset_ids) == 3:
+                        for slot, product_id in enumerate(product_ids):
+                            asset_id = product_image_asset_ids[slot]
+                            if asset_id <= 0:
+                                continue
+                            valid_media = (
+                                db.session.query(ProductMedia)
+                                .filter(
+                                    ProductMedia.product_id == product_id,
+                                    ProductMedia.asset_id == asset_id,
+                                )
+                                .first()
+                            )
+                            if valid_media is None:
+                                raise ValueError("صورة أحد منتجات الترند لا تنتمي إلى المنتج المختار.")
 
                     trend = db.session.get(Trend, trend_id) if action == "update" else None
                     if action == "update" and trend is None:
@@ -1228,6 +1310,7 @@ def register_entity_views(admin_bp):
                             overlay_text=overlay_text,
                             overlay_text_color=overlay_text_color,
                             overlay_background_color=overlay_background_color,
+                            settings_json=trend_ui,
                             is_active=True,
                         )
                         db.session.add(trend)
@@ -1246,12 +1329,23 @@ def register_entity_views(admin_bp):
                         trend.overlay_text = overlay_text
                         trend.overlay_text_color = overlay_text_color
                         trend.overlay_background_color = overlay_background_color
+                        trend.settings_json = trend_ui
                         trend.is_active = True
                         message = "تم تحديث الترند المستطيل."
 
                     TrendProduct.query.filter_by(trend_id=trend.id).delete()
                     db.session.add_all([
-                        TrendProduct(trend_id=trend.id, product_id=product_id, slot=slot)
+                        TrendProduct(
+                            trend_id=trend.id,
+                            product_id=product_id,
+                            slot=slot,
+                            image_asset_id=(
+                                product_image_asset_ids[slot]
+                                if len(product_image_asset_ids) == 3
+                                else None
+                            ),
+                            settings_json={},
+                        )
                         for slot, product_id in enumerate(product_ids)
                     ])
                     db.session.commit()
@@ -1352,9 +1446,12 @@ def register_entity_views(admin_bp):
                 product = db.session.get(Product, assignment.product_id)
                 if product is None:
                     continue
+                selected_product_payload = CatalogService._serialize_trend_product(product)
                 selected_products.append({
                     "slot": assignment.slot,
-                    "product": CatalogService._serialize_trend_product(product),
+                    "image_asset_id": assignment.image_asset_id,
+                    "settings": assignment.settings_json if isinstance(assignment.settings_json, dict) else {},
+                    "product": selected_product_payload,
                 })
             trend_seeds.append({
                 "id": trend.id,
@@ -1371,6 +1468,7 @@ def register_entity_views(admin_bp):
                 "overlay_text": trend.overlay_text or "",
                 "overlay_text_color": trend.overlay_text_color or "#ffffff",
                 "overlay_background_color": trend.overlay_background_color or "#111827",
+                "settings": trend.settings_json if isinstance(trend.settings_json, dict) else {},
                 "background_url": background.url if background else "",
                 "products": selected_products,
             })
