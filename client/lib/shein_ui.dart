@@ -4336,7 +4336,7 @@ class _SxResultsState extends State<SxResults> {
   Future<List<ProductModel>> _fetch() => api.feed(
     category: selectedCategoryId ??
         ((widget.categoryIds == null || widget.categoryIds!.isEmpty)
-            ? widget.categoryId
+            ? (widget.categoryId ?? categoryContextId)
             : null),
     categoryIds: selectedCategoryId == null ? widget.categoryIds : null,
     circleId: activeCircleId,
