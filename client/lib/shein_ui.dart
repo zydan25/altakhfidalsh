@@ -4143,10 +4143,8 @@ class SxCircleGroupScreen extends StatelessWidget {
                     MaterialPageRoute(
                       builder: (_) => SxResults(
                         title: sxText(circles[i]['name'], 'الفئة'),
+                        // A circle opens by circle ID only.
                         circleId: id,
-                        sideCategoryId: sxInt(circles[i]['side_category_id']) > 0
-                            ? sxInt(circles[i]['side_category_id'])
-                            : null,
                       ),
                     ),
                   );
