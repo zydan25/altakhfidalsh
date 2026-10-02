@@ -3446,16 +3446,10 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
       return;
     }
     final id = sxInt(item['id']);
-    if (id <= 0) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SxResults(
-          title: sxText(item['name'], 'الفئة'),
-          sideCategoryId: id,
-        ),
-      ),
-    );
+    if (id <= 0 || id == selectedSideCategoryId) return;
+    // Side-category selection is local to the Categories page. Only a
+    // circular item below it opens the results page.
+    setState(() => selectedSideCategoryId = id);
   }
 
   void _openCircle(BuildContext context, Map<String, dynamic> circle) {
