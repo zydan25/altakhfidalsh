@@ -2559,11 +2559,15 @@ class CatalogService:
                 else "center"
             )
         merged["title_show_arrow"] = bool(merged.get("title_show_arrow", True))
+        merged["show_title_hash"] = bool(merged.get("show_title_hash", True))
+        title_hash_text = str(merged.get("title_hash_text", "#") or "#").strip()[:3]
+        merged["title_hash_text"] = title_hash_text or "#"
         merged["trend_store_title_show_arrow"] = bool(merged.get("trend_store_title_show_arrow", True))
         merged["show_title"] = bool(merged.get("show_title", True))
         merged["show_description"] = bool(merged.get("show_description", True))
         merged["show_product_name"] = bool(merged.get("show_product_name", True))
         merged["show_product_price"] = bool(merged.get("show_product_price", True))
+        merged["product_name_max_lines"] = number("product_name_max_lines", 1, 3, True)
         merged["trend_store_show_title"] = bool(merged.get("trend_store_show_title", True))
         merged["trend_store_show_description"] = bool(merged.get("trend_store_show_description", True))
         merged["title_arrow"] = merged.get("title_arrow") if merged.get("title_arrow") in {">", "<"} else ">"
