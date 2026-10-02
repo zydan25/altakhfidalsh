@@ -189,35 +189,35 @@ class SxSearchBar extends StatelessWidget {
         hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
         // Keep the search icon on the visual left side of the RTL field.
         prefixIcon: null,
-        suffixIcon: Padding(
-          padding: const EdgeInsets.all(3),
-          child: Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: iconBackgroundColor,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Center(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (iconBackgroundColor == Colors.transparent)
-                    const Icon(
-                      Icons.search,
-                      size: 23,
-                      color: Color(0x66000000),
-                    ),
-                  Icon(
+        suffixIcon: iconBackgroundColor == Colors.transparent
+            ? SizedBox(
+                width: 40,
+                child: Center(
+                  child: Icon(
                     Icons.search,
                     size: 21,
                     color: iconColor,
                   ),
-                ],
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.all(3),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: iconBackgroundColor,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Center(
+                    child: Icon(
+                      Icons.search,
+                      size: 21,
+                      color: iconColor,
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-        ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 10),
         filled: true,
         fillColor: backgroundColor,
