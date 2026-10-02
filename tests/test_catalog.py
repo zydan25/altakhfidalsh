@@ -167,3 +167,87 @@ def test_public_trend_exposes_countdown_and_overlay_metadata(app):
         assert CatalogService.is_trend_timer_expired(
             trend, datetime(2026, 9, 26, 12, 2, tzinfo=timezone.utc)
         ) is True
+
+
+def test_product_reference_data_exposes_compatible_side_circles(app):
+    with app.app_context():
+        currency = Currency(code="SAR", symbol="ر.س", name_ar="ريال سعودي", decimals=2, is_base=True)
+        root = Category(name="نسائي", slug="women", display_style="circle")
+        child = Category(name="فساتين", slug="dresses", parent_id=None, display_style="circle")
+        db.session.add_all([currency, root, child])
+        db.session.flush()
+        child.parent_id = root.id
+
+        side = CatalogService.create_side_category({
+            "root_category_id": root.id,
+            "name": "فساتين جانبية",
+            "slug": "side-dresses",
+        })
+        circle = CatalogService.create_side_category_circle(
+            side["id"],
+            {"name": "فساتين قصيرة", "slug": "short-dresses"},
+        )
+
+        product = Product(
+            sku="REF-SIDE-001",
+            name="منتج مرجعي",
+            slug="ref-side-001",
+            base_currency_id=currency.id,
+            base_price=100,
+            status="draft",
+        )
+        db.session.add(product)
+        db.session.flush()
+        db.session.add(ProductCategory(product_id=product.id, category_id=child.id, is_primary=True))
+        db.session.commit()
+
+        refs = CatalogService.product_reference_data(product_id=product.id)
+        matches = [row for row in refs["available_side_category_circles"] if row["id"] == circle["id"]]
+        assert matches and matches[0]["compatible"] is True
+        assert matches[0]["root_category_id"] == root.id
+        assert matches[0]["side_category_id"] == side["id"]
+
+
+def test_product_wizard_publish_readiness_tracks_basic_fields_and_active_variants(app):
+    with app.app_context():
+        currency = Currency(code="SAR", symbol="ر.س", name_ar="ريال سعودي", decimals=2, is_base=True)
+        category = Category(name="جاهز للنشر", slug="publish-ready", display_style="circle")
+        db.session.add_all([currency, category])
+        db.session.flush()
+        product = Product(
+            sku="READY-001",
+            name="منتج جاهز",
+            slug="ready-001",
+            base_currency_id=currency.id,
+            base_price=100,
+            status="draft",
+        )
+        db.session.add(product)
+        db.session.flush()
+        db.session.add(ProductCategory(product_id=product.id, category_id=category.id, is_primary=True))
+        db.session.add(ProductVariant(product_id=product.id, sku="READY-001-A"))
+        asset = MediaAsset(
+            storage_key="ready.webp",
+            url="/media/ready.webp",
+            mime_type="image/webp",
+            width=100,
+            height=100,
+            size_bytes=10,
+        )
+        db.session.add(asset)
+        db.session.flush()
+        db.session.add(ProductMedia(product_id=product.id, asset_id=asset.id, role="gallery"))
+        db.session.commit()
+
+        snapshot = CatalogService.wizard_snapshot(product.id)
+        assert snapshot["steps"]["basics"] is True
+        assert snapshot["steps"]["categories"] is True
+        assert snapshot["steps"]["variants"] is True
+        assert snapshot["steps"]["media"] is True
+        assert snapshot["publishable"] is True
+
+        product.name = ""
+        db.session.commit()
+        snapshot = CatalogService.wizard_snapshot(product.id)
+        assert snapshot["steps"]["basics"] is False
+        assert snapshot["publishable"] is False
