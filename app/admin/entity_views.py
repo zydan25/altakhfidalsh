@@ -8,6 +8,7 @@ from sqlalchemy import func
 
 from ..extensions import db
 from ..models import (
+    AppSetting,
     AuditLog,
     Banner,
     Campaign,
@@ -1141,6 +1142,140 @@ def register_entity_views(admin_bp):
             **_ctx(),
         )
 
+    @admin_bp.post("/trends/settings")
+    def trends_settings():
+        import json
+
+        defaults = CatalogService.trend_display_settings()
+        color_re = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+        def number(name, default, low, high, integer=False):
+            raw = request.form.get(name)
+            try:
+                value = float(raw) if raw not in (None, "") else float(default)
+            except (TypeError, ValueError):
+                raise ValueError(f"القيمة {name} غير صحيحة.")
+            value = max(low, min(high, value))
+            return int(round(value)) if integer else value
+
+        def color(name, default):
+            value = (request.form.get(name) or default).strip()
+            if not color_re.fullmatch(value):
+                raise ValueError(f"لون {name} غير صالح.")
+            return value
+
+        try:
+            settings = dict(defaults)
+            for name, low, high, integer in (
+                ("hero_height", 180, 520, True),
+                ("hero_card_top", 35, 180, True),
+                ("hero_card_width", 220, 520, True),
+                ("hero_card_height", 120, 360, True),
+                ("hero_card_radius", 0, 40, True),
+                ("hero_card_border_width", 0, 5, False),
+                ("hero_background_overlay_opacity", 0, 1, False),
+                ("hero_card_overlay_opacity", 0, 1, False),
+                ("content_padding", 0, 30, True),
+                ("title_font_size", 10, 34, False),
+                ("title_font_weight", 400, 900, True),
+                ("title_spacing", 0, 20, True),
+                ("promo_font_size", 7, 18, False),
+                ("promo_font_weight", 400, 900, True),
+                ("promo_max_lines", 1, 3, True),
+                ("product_width", 0, 180, False),
+                ("product_height", 55, 180, True),
+                ("product_gap", 0, 20, True),
+                ("product_radius", 0, 20, True),
+                ("product_info_height", 16, 55, True),
+                ("product_name_font_size", 6, 14, False),
+                ("product_price_font_size", 7, 15, False),
+                ("badge_font_size", 7, 16, False),
+                ("badge_radius", 0, 16, True),
+                ("counter_font_size", 7, 18, True),
+                ("counter_bottom", 0, 30, True),
+                ("timer_font_size", 7, 16, False),
+                ("timer_radius", 0, 16, True),
+                ("logo_font_size", 14, 40, True),
+                ("logo_letter_spacing", -4, 2, False),
+                ("tabs_indicator_width", 40, 180, True),
+                ("tabs_font_size", 10, 28, False),
+                ("hashtag_font_size", 8, 18, False),
+                ("hashtag_radius", 0, 20, True),
+                ("pull_font_size", 8, 20, False),
+                ("pull_height", 28, 100, True),
+                ("pull_distance", 30, 130, True),
+                ("content_top_radius", 0, 40, True),
+            ):
+                settings[name] = number(name, defaults[name], low, high, integer)
+
+            for name in (
+                "hero_card_border_color",
+                "hero_background_overlay_color",
+                "hero_card_overlay_color",
+                "title_color",
+                "promo_color",
+                "badge_background_color",
+                "badge_text_color",
+                "counter_color",
+                "timer_background_color",
+                "timer_text_color",
+                "top_icon_color",
+                "logo_color",
+                "tabs_active_color",
+                "tabs_inactive_color",
+                "tabs_indicator_color",
+                "hashtag_text_color",
+                "hashtag_active_text_color",
+                "hashtag_background_color",
+                "hashtag_active_background_color",
+                "pull_background_color",
+                "pull_indicator_color",
+                "pull_text_color",
+                "page_background_color",
+            ):
+                settings[name] = color(name, str(defaults[name]))
+
+            for name in ("logo_text", "pull_text", "pull_release_text"):
+                settings[name] = (request.form.get(name) or defaults[name]).strip()[:120]
+
+            settings["show_counter"] = request.form.get("show_counter") == "on"
+            settings["show_timer"] = request.form.get("show_timer") == "on"
+            settings["pull_enabled"] = request.form.get("pull_enabled") == "on"
+            settings["product_image_fit"] = (
+                request.form.get("product_image_fit") or defaults["product_image_fit"]
+            )
+            if settings["product_image_fit"] not in {"cover", "contain", "fill"}:
+                settings["product_image_fit"] = "cover"
+            settings["timer_position"] = request.form.get("timer_position") or defaults["timer_position"]
+            settings["badge_position"] = request.form.get("badge_position") or defaults["badge_position"]
+            if settings["timer_position"] not in {"top_left", "top_right"}:
+                settings["timer_position"] = "top_left"
+            if settings["badge_position"] not in {"top_left", "top_right"}:
+                settings["badge_position"] = "top_right"
+
+            row = AppSetting.query.filter_by(
+                group_code="trends",
+                key="display_settings",
+            ).first()
+            payload = json.dumps(settings, ensure_ascii=False, separators=(",", ":"))
+            if row is None:
+                db.session.add(
+                    AppSetting(
+                        group_code="trends",
+                        key="display_settings",
+                        value=payload,
+                        value_type="json",
+                    )
+                )
+            else:
+                row.value = payload
+                row.value_type = "json"
+            db.session.commit()
+            return redirect(url_for("admin.trends", trend_settings="saved"))
+        except (ValueError, TypeError) as exc:
+            db.session.rollback()
+            return redirect(url_for("admin.trends", trend_settings_error=str(exc)))
+
     @admin_bp.route("/trends", methods=["GET", "POST"])
     def trends():
         from ..models import (
@@ -1152,8 +1287,8 @@ def register_entity_views(admin_bp):
             TrendProduct,
             ProductMedia,
         )
-        error = None
-        success = None
+        error = request.args.get("trend_settings_error") or None
+        success = "تم حفظ التنسيق العام للترندات." if request.args.get("trend_settings") == "saved" else None
 
         if request.method == "POST":
             action = (request.form.get("action") or "create").strip()
@@ -1186,74 +1321,6 @@ def register_entity_views(admin_bp):
                     timer_value = None
                     timer_unit = "seconds"
 
-                def _hex(name, default):
-                    value = (request.form.get(name) or default).strip()
-                    if not color_re.fullmatch(value):
-                        raise ValueError(f"القيمة {name} يجب أن تكون HEX صالحة.")
-                    return value
-
-                def _number(name, default, low, high, integer=False):
-                    raw = request.form.get(name)
-                    try:
-                        value = float(raw) if raw not in (None, "") else float(default)
-                    except (TypeError, ValueError):
-                        raise ValueError(f"القيمة {name} غير صحيحة.")
-                    value = max(low, min(high, value))
-                    return int(round(value)) if integer else value
-
-                trend_ui = {
-                    "hero_height": _number("ui_hero_height", 278, 180, 520, True),
-                    "hero_card_top": _number("ui_hero_card_top", 68, 35, 180, True),
-                    "hero_card_width": _number("ui_hero_card_width", 300, 220, 520, True),
-                    "hero_card_height": _number("ui_hero_card_height", 198, 120, 360, True),
-                    "hero_card_radius": _number("ui_hero_card_radius", 9, 0, 40, True),
-                    "hero_card_border_width": _number("ui_hero_card_border_width", 1, 0, 5),
-                    "hero_card_border_color": _hex("ui_hero_card_border_color", "#ffffff"),
-                    "hero_background_overlay_color": _hex("ui_hero_background_overlay_color", "#000000"),
-                    "hero_background_overlay_opacity": _number("ui_hero_background_overlay_opacity", .47, 0, 1),
-                    "hero_card_overlay_opacity": _number("ui_hero_card_overlay_opacity", .48, 0, 1),
-                    "content_padding": _number("ui_content_padding", 10, 0, 30, True),
-                    "title_text": (request.form.get("ui_title_text") or "").strip()[:180],
-                    "title_color": _hex("ui_title_color", "#ffffff"),
-                    "title_font_size": _number("ui_title_font_size", 18, 10, 34, True),
-                    "title_font_weight": _number("ui_title_font_weight", 900, 400, 900, True),
-                    "title_spacing": _number("ui_title_spacing", 5, 0, 20, True),
-                    "promo_color": _hex("ui_promo_color", "#ffffff"),
-                    "promo_font_size": _number("ui_promo_font_size", 10.5, 7, 18),
-                    "promo_font_weight": _number("ui_promo_font_weight", 700, 400, 900, True),
-                    "promo_max_lines": _number("ui_promo_max_lines", 2, 1, 3, True),
-                    "product_width": _number("ui_product_width", 0, 40, 180),
-                    "product_height": _number("ui_product_height", 103, 55, 180, True),
-                    "product_gap": _number("ui_product_gap", 4, 0, 20, True),
-                    "product_radius": _number("ui_product_radius", 7, 0, 20, True),
-                    "product_info_height": _number("ui_product_info_height", 27, 16, 55, True),
-                    "product_name_font_size": _number("ui_product_name_font_size", 8.5, 6, 14),
-                    "product_price_font_size": _number("ui_product_price_font_size", 9.5, 7, 15),
-                    "product_text_color": _hex("ui_product_text_color", "#000000"),
-                    "product_image_fit": (request.form.get("ui_product_image_fit") or "cover").strip(),
-                    "badge_text": (request.form.get("ui_badge_text") or "").strip()[:80],
-                    "badge_background_color": _hex("ui_badge_background_color", "#111827"),
-                    "badge_text_color": _hex("ui_badge_text_color", "#ffffff"),
-                    "badge_font_size": _number("ui_badge_font_size", 9.5, 7, 16),
-                    "badge_radius": _number("ui_badge_radius", 4, 0, 16, True),
-                    "badge_position": (request.form.get("ui_badge_position") or "top_right").strip(),
-                    "counter_color": _hex("ui_counter_color", "#ffffff"),
-                    "counter_font_size": _number("ui_counter_font_size", 12, 7, 18, True),
-                    "counter_bottom": _number("ui_counter_bottom", 8, 0, 30, True),
-                    "show_counter": request.form.get("ui_show_counter") == "on",
-                    "timer_background_color": _hex("ui_timer_background_color", "#111827"),
-                    "timer_text_color": _hex("ui_timer_text_color", "#ffffff"),
-                    "timer_font_size": _number("ui_timer_font_size", 9, 7, 16),
-                    "timer_radius": _number("ui_timer_radius", 4, 0, 16, True),
-                    "timer_position": (request.form.get("ui_timer_position") or "top_left").strip(),
-                    "show_timer": request.form.get("ui_show_timer") == "on",
-                }
-                if trend_ui["product_image_fit"] not in {"cover", "contain", "fill"}:
-                    trend_ui["product_image_fit"] = "cover"
-                if trend_ui["badge_position"] not in {"top_left", "top_right"}:
-                    trend_ui["badge_position"] = "top_right"
-                if trend_ui["timer_position"] not in {"top_left", "top_right"}:
-                    trend_ui["timer_position"] = "top_left"
                 if len(product_ids) != 3:
                     raise ValueError("يجب اختيار 3 منتجات بالضبط للترند.")
                 if len(product_image_asset_ids) not in {0, 3}:
@@ -1318,7 +1385,6 @@ def register_entity_views(admin_bp):
                             overlay_text=overlay_text,
                             overlay_text_color=overlay_text_color,
                             overlay_background_color=overlay_background_color,
-                            settings_json=trend_ui,
                             is_active=True,
                         )
                         db.session.add(trend)
@@ -1337,7 +1403,6 @@ def register_entity_views(admin_bp):
                         trend.overlay_text = overlay_text
                         trend.overlay_text_color = overlay_text_color
                         trend.overlay_background_color = overlay_background_color
-                        trend.settings_json = trend_ui
                         trend.is_active = True
                         message = "تم تحديث الترند المستطيل."
 
