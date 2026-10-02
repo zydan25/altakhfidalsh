@@ -3471,24 +3471,10 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
       return;
     }
     final id = sxInt(item['id']);
-    if (id <= 0) return;
+    if (id <= 0 || id == selectedSideCategoryId) return;
 
-    final circles = sxMaps(item['circles']);
-    if (circles.isEmpty) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => SxResults(
-            title: sxText(item['name'], 'الفئة'),
-            sideCategoryId: id,
-          ),
-        ),
-      );
-      return;
-    }
-
-    if (id == selectedSideCategoryId) return;
-    // A side category that has child circles remains a local explorer.
+    // Side categories are navigation context only. Tapping the side item
+    // changes the circles shown beside it; only a circle opens results.
     setState(() => selectedSideCategoryId = id);
   }
 
@@ -3500,10 +3486,9 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
       MaterialPageRoute(
         builder: (_) => SxResults(
           title: sxText(circle['name'], 'الفئة'),
+          // The circle is the result scope. The side category stays on the
+          // categories screen as UI context and is intentionally not passed.
           circleId: id,
-          sideCategoryId: sxInt(circle['side_category_id']) > 0
-              ? sxInt(circle['side_category_id'])
-              : null,
         ),
       ),
     );
@@ -4341,11 +4326,13 @@ class _SxResultsState extends State<SxResults> {
       );
     roots = allCategories.where((x) => x.parentId == null).toList();
 
-    // Any explicit side-category entry is an independent results scope.
-    // Never fall back to the normal root-category rail here.
-    final sideScope =
-        widget.circleId != null || widget.sideCategoryId != null;
-    if (sideScope) {
+    // A direct circle result behaves like a normal category result:
+    // resolve its root context and show that root's child categories.
+    // A side-category result (used only by legacy/other entry points) remains
+    // a standalone side scope without the normal category rail.
+    final sideCategoryOnly =
+        widget.sideCategoryId != null && widget.circleId == null;
+    if (sideCategoryOnly) {
       categories = [];
       return;
     }
@@ -4414,12 +4401,12 @@ class _SxResultsState extends State<SxResults> {
   }
 
   Future<List<ProductModel>> _fetch() {
-    // Side-category results are an independent scope. Do not combine them
-    // with the root category, otherwise linked side products may be excluded.
+    // A direct circle is filtered by its own ID. The server resolves the
+    // circle-to-side relationship itself, so navigation does not carry a
+    // sibling/parent side-category ID.
     final sideScope =
         widget.circleId != null || widget.sideCategoryId != null;
-    final effectiveSideCategoryId =
-        widget.sideCategoryId ?? resolvedSideCategoryId;
+    final effectiveSideCategoryId = widget.sideCategoryId;
 
     return api.feed(
       category: sideScope
@@ -4699,8 +4686,7 @@ class _SxResultsState extends State<SxResults> {
                 ),
               ),
             )
-          else if (widget.circleId == null &&
-              widget.sideCategoryId == null &&
+          else if (widget.sideCategoryId == null &&
               categories.isNotEmpty)
             SliverPersistentHeader(
               pinned: true,
