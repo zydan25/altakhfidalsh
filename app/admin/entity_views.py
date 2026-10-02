@@ -1235,7 +1235,7 @@ def register_entity_views(admin_bp):
             ):
                 settings[name] = color(name, str(defaults[name]))
 
-            for name in ("logo_text", "pull_text", "pull_release_text"):
+            for name in ("logo_text", "pull_text", "pull_release_text", "badge_text"):
                 settings[name] = (request.form.get(name) or defaults[name]).strip()[:120]
 
             settings["show_counter"] = request.form.get("show_counter") == "on"
