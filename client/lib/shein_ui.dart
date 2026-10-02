@@ -161,6 +161,7 @@ class SxSearchBar extends StatelessWidget {
   final Color backgroundColor;
   final Color iconColor;
   final Color iconBackgroundColor;
+
   const SxSearchBar({
     super.key,
     this.onTap,
@@ -174,77 +175,136 @@ class SxSearchBar extends StatelessWidget {
     this.iconColor = Colors.black,
     this.iconBackgroundColor = Colors.transparent,
   });
-  @override Widget build(BuildContext context) => SizedBox(
-    height: 43,
-    child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        TextField(
-          controller: controller,
-          autofocus: autofocus,
-          readOnly: onTap != null && controller == null,
-          onTap: onTap,
-          onChanged: onChanged,
-          onSubmitted: onSubmitted,
-          style: const TextStyle(color: Colors.black, fontSize: 13),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
-            // The icon is layered over the field so its idle state has no
-            // separate white/filled icon box.
-            suffixIcon: null,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-            filled: true,
-            fillColor: backgroundColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(7),
-              borderSide: BorderSide(color: borderColor, width: .8),
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 43,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            CustomPaint(
+              size: const Size(double.infinity, 43),
+              painter: _SearchBarPainter(
+                backgroundColor: backgroundColor,
+                borderColor: borderColor,
+                iconBackgroundColor: iconBackgroundColor,
+              ),
             ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(7),
-              borderSide: BorderSide(color: borderColor, width: .8),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(7),
-              borderSide: BorderSide(color: borderColor, width: 1.1),
-            ),
-          ),
-        ),
-        Positioned(
-          left: 4,
-          top: 3,
-          bottom: 3,
-          child: iconBackgroundColor == Colors.transparent
-              ? SizedBox(
-                  width: 36,
-                  child: Center(
-                    child: Icon(
-                      Icons.search,
-                      size: 21,
-                      color: iconColor,
-                    ),
+            Positioned.fill(
+              child: TextField(
+                controller: controller,
+                autofocus: autofocus,
+                readOnly: onTap != null && controller == null,
+                onTap: onTap,
+                onChanged: onChanged,
+                onSubmitted: onSubmitted,
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 13,
+                ),
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                  errorBorder: InputBorder.none,
+                  focusedErrorBorder: InputBorder.none,
+                  filled: false,
+                  fillColor: Colors.transparent,
+                  contentPadding: EdgeInsets.only(
+                    left: 48,
+                    right: 10,
                   ),
-                )
-              : Container(
-                  width: 36,
-                  height: 37,
-                  decoration: BoxDecoration(
-                    color: iconBackgroundColor,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Center(
-                    child: Icon(
-                      Icons.search,
-                      size: 21,
-                      color: iconColor,
-                    ),
+                ).copyWith(
+                  hintText: hint,
+                  hintStyle: const TextStyle(
+                    color: Colors.black54,
+                    fontSize: 13,
                   ),
                 ),
+              ),
+            ),
+            Positioned(
+              left: 4,
+              top: 3,
+              width: 36,
+              height: 37,
+              child: Center(
+                child: Icon(
+                  Icons.search,
+                  size: 21,
+                  color: iconColor,
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
+      );
 }
+
+class _SearchBarPainter extends CustomPainter {
+  final Color backgroundColor;
+  final Color borderColor;
+  final Color iconBackgroundColor;
+
+  const _SearchBarPainter({
+    required this.backgroundColor,
+    required this.borderColor,
+    required this.iconBackgroundColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final outer = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(7),
+    );
+    final iconRect = RRect.fromRectAndRadius(
+      const Rect.fromLTWH(4, 3, 36, 37),
+      const Radius.circular(4),
+    );
+
+    final fillPath = Path()
+      ..addRRect(outer)
+      ..addRRect(iconRect);
+    final whiteBody = Path.combine(
+      PathOperation.difference,
+      Path()..addRRect(outer),
+      Path()..addRRect(iconRect),
+    );
+
+    canvas.drawPath(
+      whiteBody,
+      Paint()
+        ..style = PaintingStyle.fill
+        ..color = backgroundColor,
+    );
+
+    if (iconBackgroundColor != Colors.transparent) {
+      canvas.drawRRect(
+        iconRect,
+        Paint()
+          ..style = PaintingStyle.fill
+          ..color = iconBackgroundColor,
+      );
+    }
+
+    canvas.drawRRect(
+      outer,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8
+        ..color = borderColor,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SearchBarPainter oldDelegate) =>
+      oldDelegate.backgroundColor != backgroundColor ||
+      oldDelegate.borderColor != borderColor ||
+      oldDelegate.iconBackgroundColor != iconBackgroundColor;
+}
+
 
 class SxSectionTitle extends StatelessWidget {
   final String title;
