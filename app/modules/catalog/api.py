@@ -992,9 +992,12 @@ def product_policies(product_id):
 
 @api_bp.get("/products/filters")
 def product_scope_filters():
-    """Return only filter values that exist on products in the requested storefront scope."""
-    from sqlalchemy import or_
+    """Return the server-defined filter taxonomy for the current storefront scope.
 
+    Values come from CategoryFilterDefinition/CategoryFilterValue, not from
+    ProductFilterValue assignments, so the client can show every configured
+    option even when no current product uses that option.
+    """
     def _parse_id_list(name):
         values = []
         for raw in (request.args.get(name) or "").split(","):
@@ -1015,68 +1018,40 @@ def product_scope_filters():
         category_ids.insert(0, category_id)
 
     circle_id = request.args.get("circle_id", type=int)
-    hashtag_id = request.args.get("hashtag_id", type=int)
-    hashtag_ids = _parse_id_list("hashtag_ids")
-    if hashtag_id and hashtag_id not in hashtag_ids:
-        hashtag_ids.insert(0, hashtag_id)
-
     side_category_id = request.args.get("side_category_id", type=int)
-
-    product_query = Product.query.filter(
-        Product.is_active.is_(True),
-        Product.status == "published",
-    )
 
     category_scope_ids = []
     for requested_category_id in category_ids:
         category_scope_ids.extend(
             CatalogService.category_descendant_ids(requested_category_id)
         )
+
+    # A side-category/circle entry still belongs to its configured root
+    # category taxonomy. Use that taxonomy for filters, without inspecting
+    # which values happen to be assigned to the current products.
+    if not category_scope_ids and circle_id:
+        circle = db.session.get(SideCategoryCircle, circle_id)
+        if circle is not None and circle.is_active:
+            side_category = db.session.get(SideCategory, circle.side_category_id)
+            if side_category is not None and side_category.is_active:
+                category_scope_ids.extend(
+                    CatalogService.category_descendant_ids(
+                        side_category.root_category_id
+                    )
+                )
+
+    if not category_scope_ids and side_category_id:
+        side_category = db.session.get(SideCategory, side_category_id)
+        if side_category is not None and side_category.is_active:
+            category_scope_ids.extend(
+                CatalogService.category_descendant_ids(
+                    side_category.root_category_id
+                )
+            )
+
     category_scope_ids = sorted(set(category_scope_ids))
 
-    if category_scope_ids:
-        product_query = product_query.join(
-            ProductCategory,
-            ProductCategory.product_id == Product.id,
-        ).filter(ProductCategory.category_id.in_(category_scope_ids))
-
-    if side_category_id:
-        side_category = db.session.get(SideCategory, side_category_id)
-        if side_category is None or not side_category.is_active:
-            return {"items": []}
-        side_circle_ids = [
-            row.id
-            for row in SideCategoryCircle.query.filter(
-                SideCategoryCircle.side_category_id == side_category.id,
-                SideCategoryCircle.is_active.is_(True),
-            ).all()
-        ]
-        if not side_circle_ids:
-            return {"items": []}
-        product_query = product_query.join(
-            ProductSideCategoryCircle,
-            ProductSideCategoryCircle.product_id == Product.id,
-        ).filter(ProductSideCategoryCircle.circle_id.in_(side_circle_ids))
-
-    if circle_id:
-        product_query = product_query.join(
-            ProductSideCategoryCircle,
-            ProductSideCategoryCircle.product_id == Product.id,
-        ).filter(ProductSideCategoryCircle.circle_id == circle_id)
-
-    if hashtag_ids:
-        product_query = product_query.join(
-            ProductHashtag,
-            ProductHashtag.product_id == Product.id,
-        ).filter(ProductHashtag.hashtag_id.in_(hashtag_ids))
-
-    product_scope = (
-        product_query.with_entities(Product.id)
-        .distinct()
-        .subquery()
-    )
-
-    rows = (
+    query = (
         db.session.query(
             CategoryFilterDefinition.id,
             CategoryFilterDefinition.name,
@@ -1091,25 +1066,23 @@ def product_scope_filters():
             CategoryFilterValue,
             CategoryFilterValue.filter_id == CategoryFilterDefinition.id,
         )
-        .join(
-            ProductFilterValue,
-            ProductFilterValue.filter_value_id == CategoryFilterValue.id,
-        )
         .filter(
-            ProductFilterValue.product_id.in_(
-                db.session.query(product_scope.c.id)
-            ),
             CategoryFilterDefinition.is_active.is_(True),
             CategoryFilterValue.is_active.is_(True),
         )
-        .order_by(
-            CategoryFilterDefinition.sort_order,
-            CategoryFilterDefinition.id,
-            CategoryFilterValue.sort_order,
-            CategoryFilterValue.id,
-        )
-        .all()
     )
+
+    if category_scope_ids:
+        query = query.filter(
+            CategoryFilterDefinition.category_id.in_(category_scope_ids)
+        )
+
+    rows = query.order_by(
+        CategoryFilterDefinition.sort_order,
+        CategoryFilterDefinition.id,
+        CategoryFilterValue.sort_order,
+        CategoryFilterValue.id,
+    ).all()
 
     merged = {}
     for (
@@ -1122,7 +1095,10 @@ def product_scope_filters():
         slug,
         value_sort,
     ) in rows:
-        key = ((name or "").strip().casefold(), (filter_type or "").strip().casefold())
+        key = (
+            (name or "").strip().casefold(),
+            (filter_type or "").strip().casefold(),
+        )
         item = merged.get(key)
         if item is None:
             item = {
@@ -1133,14 +1109,16 @@ def product_scope_filters():
                 "values": [],
             }
             merged[key] = item
+
         existing = {int(value["id"]) for value in item["values"]}
-        if int(value_id) not in existing:
-            item["values"].append({
-                "id": value_id,
-                "label": label,
-                "slug": slug,
-                "sort_order": value_sort,
-            })
+        if int(value_id) in existing:
+            continue
+        item["values"].append({
+            "id": value_id,
+            "label": label,
+            "slug": slug,
+            "sort_order": value_sort,
+        })
 
     return {"items": list(merged.values())}
 
