@@ -541,6 +541,11 @@ body.modal-open { overflow:hidden; }
 .option-record-actions form { margin:0; }
 .archived-record { background:#f9fafb; }
 @media (max-width:759px) {
+  .trend-global-heading { flex-direction:column; }
+  .trend-settings-scope { align-self:flex-start; }
+  .trend-settings-grid { grid-template-columns:1fr 1fr; padding-inline:10px; }
+  .trend-global-actions { position:sticky; bottom:0; z-index:5; flex-direction:column; align-items:stretch; }
+  .trend-global-save { width:100%; min-width:0; }
   .option-record { align-items:stretch; flex-direction:column; }
   .option-record-actions { justify-content:stretch; }
   .option-record-actions > *, .option-record-actions details { width:100%; min-width:0; }
@@ -565,6 +570,145 @@ body.modal-open { overflow:hidden; }
 
 /* Rectangular trends editor */
 .trend-page-header .module-toolbar { align-items:center; }
+
+.trend-global-settings-panel {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--surface), var(--surface-soft));
+}
+.trend-global-heading {
+  align-items:flex-start;
+  gap:14px;
+}
+.trend-global-heading h3 { margin:3px 0 5px; font-size:20px; }
+.trend-global-heading p { max-width:760px; margin:0; line-height:1.7; }
+.trend-settings-scope {
+  flex:0 0 auto;
+  padding:7px 10px;
+  border-radius:999px;
+  background:var(--accent-soft);
+  color:var(--accent);
+  font-size:10px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.trend-global-settings-form { display:grid; gap:10px; }
+.trend-settings-note {
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  padding:11px 12px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--surface);
+}
+.trend-settings-note > span {
+  flex:0 0 auto;
+  width:30px;
+  height:30px;
+  display:grid;
+  place-items:center;
+  border-radius:9px;
+  background:var(--accent-soft);
+  color:var(--accent);
+  font-weight:900;
+}
+.trend-settings-note div { display:grid; gap:3px; }
+.trend-settings-note strong { font-size:12px; }
+.trend-settings-note small { color:var(--muted); line-height:1.55; }
+.trend-global-settings-form details {
+  border:1px solid var(--border);
+  border-radius:14px;
+  background:var(--surface);
+  overflow:hidden;
+}
+.trend-global-settings-form summary {
+  list-style:none;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px 13px;
+  cursor:pointer;
+  font-size:12px;
+  font-weight:900;
+}
+.trend-global-settings-form summary::-webkit-details-marker { display:none; }
+.trend-global-settings-form summary::after {
+  content:"⌄";
+  color:var(--muted);
+  font-size:14px;
+}
+.trend-global-settings-form details[open] summary::after { transform:rotate(180deg); }
+.trend-global-settings-form summary span { min-width:0; }
+.trend-global-settings-form summary small {
+  color:var(--muted);
+  font-size:10px;
+  font-weight:600;
+  text-align:start;
+}
+.trend-settings-grid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:9px;
+  padding:0 12px 12px;
+}
+.trend-settings-grid label {
+  display:grid;
+  gap:5px;
+  min-width:0;
+  font-weight:800;
+  font-size:11px;
+}
+.trend-settings-grid label small {
+  color:var(--muted);
+  font-size:9.5px;
+  line-height:1.45;
+  font-weight:500;
+}
+.trend-settings-grid input,
+.trend-settings-grid select {
+  width:100%;
+  min-height:40px;
+}
+.trend-settings-grid input[type="color"] {
+  min-height:40px;
+  padding:3px;
+}
+.trend-settings-grid .check-row {
+  min-height:40px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.trend-settings-grid .check-row input {
+  width:18px;
+  min-height:18px;
+}
+.trend-settings-helper {
+  margin:0 12px 12px;
+  padding:9px 11px;
+  border-radius:11px;
+  background:var(--surface-soft);
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.6;
+}
+.trend-settings-helper strong { color:var(--text); }
+.trend-global-actions {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px;
+  border-top:1px solid var(--border);
+  background:var(--surface);
+}
+.trend-global-actions > div { display:grid; gap:3px; min-width:0; }
+.trend-global-actions strong { font-size:11px; }
+.trend-global-actions small { color:var(--muted); font-size:9.5px; line-height:1.5; }
+.trend-global-save { min-width:220px; }
+
 .trend-admin-grid { display:grid; gap:14px; margin-top:4px; }
 .trend-admin-card { overflow:hidden; padding:0; }
 .trend-card-cover { position:relative; aspect-ratio:2.35 / 1; background:var(--surface-soft); overflow:hidden; }
