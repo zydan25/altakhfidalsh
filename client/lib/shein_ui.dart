@@ -1015,8 +1015,10 @@ class _HomeFixedHeader extends StatelessWidget {
     ];
     final topInset = MediaQuery.of(context).padding.top;
     final effectiveGap = categoryGap.clamp(-30.0, 120.0).toDouble();
-    final extraHeaderSpace = effectiveGap > 3.0 ? effectiveGap - 3.0 : 0.0;
-    final categoryShift = effectiveGap < 3.0 ? effectiveGap - 3.0 : 0.0;
+    final searchRowHeight = effectiveGap >= 0
+        ? 45.0 + effectiveGap
+        : 45.0;
+    final categoryShift = effectiveGap < 0 ? effectiveGap : 0.0;
     return Positioned(
       top: 0,
       left: 0,
@@ -1040,9 +1042,9 @@ class _HomeFixedHeader extends StatelessWidget {
           children: [
             SizedBox(height: topInset),
             SizedBox(
-              height: 48 + extraHeaderSpace,
+              height: searchRowHeight,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 2, 10, 3),
+                padding: const EdgeInsets.fromLTRB(10, 2, 10, 0),
                 child: Directionality(
                   textDirection: TextDirection.rtl,
                   child: Row(
