@@ -6045,7 +6045,7 @@ class SxTrendsScreen extends StatefulWidget {
 }
 
 class _SxTrendsScreenState extends State<SxTrendsScreen> {
-  final PageController _trendPager = PageController(viewportFraction: .84);
+  final PageController _trendPager = PageController(viewportFraction: .82);
   final ScrollController _scroll = ScrollController();
 
   List<Map<String, dynamic>> trends = <Map<String, dynamic>>[];
@@ -6058,26 +6058,45 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
   int? hashtagId;
   bool loading = true;
   bool loadingPicks = false;
+  bool _collapsedHeader = false;
   double _pullExtent = 0;
 
   @override
   void initState() {
     super.initState();
+    _scroll.addListener(_handleScroll);
     _load();
   }
 
   @override
   void dispose() {
+    _scroll.removeListener(_handleScroll);
     _trendPager.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!mounted || ui['header_collapse_enabled'] == false) return;
+    final threshold = _sxTrendNumber(ui, 'header_collapse_offset', 46);
+    final next = _scroll.hasClients && _scroll.offset >= threshold;
+    if (next != _collapsedHeader) {
+      setState(() => _collapsedHeader = next);
+    }
   }
 
   Future<void> _load() async {
     try {
       final payload = await api.trendsPage();
       final nextTrends = sxMaps(payload['items']);
-      final nextTags = sxMaps(payload['hashtags']);
+      final rawTags = sxMaps(payload['hashtags']);
+      final byId = <int, Map<String, dynamic>>{};
+      for (final tag in rawTags) {
+        final id = sxInt(tag['id']);
+        if (id > 0) byId[id] = tag;
+      }
+      final nextTags = byId.values.toList();
+
       final nextUi = payload['settings'] is Map
           ? Map<String, dynamic>.from(payload['settings'] as Map)
           : <String, dynamic>{};
@@ -6095,6 +6114,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
         ui = nextUi;
         trendIndex = nextTrends.isEmpty ? 0 : 0;
         loading = false;
+        _collapsedHeader = false;
         _pullExtent = 0;
       });
 
@@ -6191,14 +6211,20 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
     final width = MediaQuery.sizeOf(context).width;
     final scale = (width / 360.0).clamp(.86, 1.15).toDouble();
     final heroHeight =
-        (_sxTrendNumber(ui, 'hero_height', 278) * scale).clamp(250.0, 430.0);
+        (_sxTrendNumber(ui, 'hero_height', 238) * scale).clamp(218.0, 380.0);
     final cardHeight =
-        _sxTrendNumber(ui, 'hero_card_height', 198) * scale;
+        (_sxTrendNumber(ui, 'hero_card_height', 168) * scale)
+            .clamp(135.0, 240.0);
     final cardWidth =
-        (_sxTrendNumber(ui, 'hero_card_width', 300) * scale)
-            .clamp(220.0, width - 18.0)
+        (_sxTrendNumber(ui, 'hero_card_width', 282) * scale)
+            .clamp(210.0, width - 22.0)
             .toDouble();
     final contentRadius = _sxTrendNumber(ui, 'content_top_radius', 14);
+    final picksExtent =
+        (_sxTrendNumber(ui, 'picks_card_extent', 350) * scale)
+            .clamp(300.0, 520.0);
+    final compactHeaderHeight =
+        _sxTrendNumber(ui, 'compact_header_height', 58) * scale;
 
     return Scaffold(
       backgroundColor:
@@ -6325,7 +6351,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
                                             dense: true,
                                             contentPadding: EdgeInsets.zero,
                                             title: Text(
-                                              sxText(tag['display_name']),
+                                              _tagText(tag),
                                               style: const TextStyle(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.w700,
@@ -6386,7 +6412,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
                                         EdgeInsets.only(bottom: 9 * scale),
                                     child: _TrendStoreCard(
                                       trend: trend,
-                                      height: heroHeight * .76,
+                                      height: picksExtent,
                                       ui: ui,
                                       onTap: () => Navigator.push(
                                         context,
@@ -6452,6 +6478,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
                                               orElse: () =>
                                                   <String, dynamic>{},
                                             ),
+                                      ui: ui,
                                     ),
                                     childCount: picks.length,
                                   ),
@@ -6460,7 +6487,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
                                     crossAxisCount: 2,
                                     crossAxisSpacing: 4 * scale,
                                     mainAxisSpacing: 5 * scale,
-                                    mainAxisExtent: 334 * scale,
+                                    mainAxisExtent: picksExtent,
                                   ),
                                 ),
                     ),
@@ -6468,6 +6495,46 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
               ),
             ),
           ),
+          if (_collapsedHeader && ui['header_collapse_enabled'] != false)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Material(
+                elevation: 7,
+                color: Colors.black,
+                child: SafeArea(
+                  bottom: false,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    height: compactHeaderHeight,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: _sxTrendNumber(
+                        ui,
+                        'search_horizontal_padding',
+                        10,
+                      ) * scale,
+                      vertical: 5 * scale,
+                    ),
+                    child: _TrendCompactHeader(
+                      ui: ui,
+                      onSearch: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SxSearchScreen(),
+                        ),
+                      ),
+                      onWishlist: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SxWishlistScreen(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (ui['pull_enabled'] != false && _pullExtent > 1)
             Positioned(
               top: 0,
