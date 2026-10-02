@@ -4237,9 +4237,8 @@ class _SxResultsState extends State<SxResults> {
   }
 
   List<int> _currentCategoryScopeIds() {
-    if (selectedCategoryId != null && selectedCategoryId! > 0) {
-      return [selectedCategoryId!];
-    }
+    // Filters and the result-page rail belong to the original entry scope.
+    // Selecting a circle/category below it changes products only.
     return _entryCategoryIds();
   }
 
@@ -4365,25 +4364,18 @@ class _SxResultsState extends State<SxResults> {
   }
 
   Future<void> _selectCategory(int? id) async {
-    if (changingCategory) return;
-    setState(() {
-      selectedCategoryId = id;
-      // Selecting a catalog category changes the active product scope from
-      // a circle to that category branch. "الكل" restores the entry circle.
-      activeCircleId = id == null ? widget.circleId : null;
-      changingCategory = true;
-      values.clear();
-      minPrice = null;
-      maxPrice = null;
-      minRating = null;
-    });
+    if (_changingCategoryNotifier.value) return;
+
+    // Category chips on the results page are product filters, not navigation.
+    // Keep the rail and server-defined filter taxonomy unchanged.
+    selectedCategoryId = id;
+    activeCircleId = null;
     _changingCategoryNotifier.value = true;
-    _buildCategoryRail();
-    await _loadFiltersForCurrentScope();
+
     try {
       final next = await _fetch();
       if (mounted) {
-        setState(() => products = next);
+        products = next;
         _visibleProductsNotifier.value = next;
       }
     } catch (e) {
@@ -4392,10 +4384,8 @@ class _SxResultsState extends State<SxResults> {
           SnackBar(content: Text(sxText(e, 'تعذر تحديث النتائج'))),
         );
       }
-    }
-    if (mounted) {
-      setState(() => changingCategory = false);
-      _changingCategoryNotifier.value = false;
+    } finally {
+      if (mounted) _changingCategoryNotifier.value = false;
     }
   }
 
