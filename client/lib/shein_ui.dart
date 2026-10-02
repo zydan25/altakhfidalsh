@@ -1576,30 +1576,55 @@ class _SxBannerLandingScreenState extends State<SxBannerLandingScreen> {
 
   Future<void> _route() async {
     final targets = sxMaps(widget.banner['targets']);
-    final target = targets.isEmpty ? <String, dynamic>{} : targets.first;
-    final type = sxText(target['type']);
-    final id = sxInt(target['id']);
-    Widget destination;
+    final categoryTargets = targets
+        .where((target) => sxText(target['type']) == 'category' && sxInt(target['id']) > 0)
+        .toList();
+    final hashtagTargets = targets
+        .where((target) => sxText(target['type']) == 'hashtag' && sxInt(target['id']) > 0)
+        .toList();
 
-    if (type == 'product' && id > 0) {
-      destination = SxProductScreen(id: id);
-    } else if (type == 'category' && id > 0) {
+    Widget destination;
+    final bannerTitle = sxText(widget.banner['title'], 'العروض');
+
+    // A banner with multiple category targets represents one combined storefront
+    // scope. A single category keeps the normal category-entry behavior.
+    if (categoryTargets.length > 1) {
       destination = SxResults(
-        title: sxText(target['name'], sxText(widget.banner['title'], 'العروض')),
-        categoryId: id,
+        title: bannerTitle,
+        categoryIds: categoryTargets.map((target) => sxInt(target['id'])).toList(),
       );
-    } else if ((type == 'circle' || type == 'side_category_circle') && id > 0) {
+    } else if (categoryTargets.length == 1) {
+      final target = categoryTargets.first;
       destination = SxResults(
-        title: sxText(target['name'], sxText(widget.banner['title'], 'العروض')),
-        circleId: id,
+        title: sxText(target['name'], bannerTitle),
+        categoryId: sxInt(target['id']),
       );
-    } else if (type == 'hashtag' && id > 0) {
+    } else if (hashtagTargets.length > 1) {
       destination = SxResults(
-        title: sxText(target['name'], sxText(widget.banner['title'], 'العروض')),
-        hashtagId: id,
+        title: bannerTitle,
+        hashtagIds: hashtagTargets.map((target) => sxInt(target['id'])).toList(),
+      );
+    } else if (hashtagTargets.length == 1) {
+      final target = hashtagTargets.first;
+      destination = SxResults(
+        title: sxText(target['name'], bannerTitle),
+        hashtagId: sxInt(target['id']),
       );
     } else {
-      destination = SxResults(title: sxText(widget.banner['title'], 'العروض'));
+      final target = targets.isEmpty ? <String, dynamic>{} : targets.first;
+      final type = sxText(target['type']);
+      final id = sxInt(target['id']);
+
+      if (type == 'product' && id > 0) {
+        destination = SxProductScreen(id: id);
+      } else if ((type == 'circle' || type == 'side_category_circle') && id > 0) {
+        destination = SxResults(
+          title: sxText(target['name'], bannerTitle),
+          circleId: id,
+        );
+      } else {
+        destination = SxResults(title: bannerTitle);
+      }
     }
 
     if (!mounted) return;
@@ -3421,8 +3446,16 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
       return;
     }
     final id = sxInt(item['id']);
-    if (id <= 0 || id == selectedSideCategoryId) return;
-    setState(() => selectedSideCategoryId = id);
+    if (id <= 0) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SxResults(
+          title: sxText(item['name'], 'الفئة'),
+          sideCategoryId: id,
+        ),
+      ),
+    );
   }
 
   void _openCircle(BuildContext context, Map<String, dynamic> circle) {
