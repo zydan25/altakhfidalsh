@@ -1541,7 +1541,7 @@ def public_trends():
     limit = min(max(request.args.get("limit", 20, type=int), 1), 50)
     return {
         "items": CatalogService.list_public_trends(limit=limit),
-        "hashtags": CatalogService.list_public_trend_hashtags(limit=50),
+        "hashtags": CatalogService.list_public_trend_hashtags(limit=500),
         "settings": CatalogService.trend_display_settings(),
     }
 
