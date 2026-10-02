@@ -31,6 +31,9 @@ class ProductModel {
   final double? rating;
   final int reviewCount;
   final int soldQty;
+  final String? brandName;
+  final List<Map<String, dynamic>> colors;
+  final bool isTrend;
 
   const ProductModel({
     required this.id,
@@ -48,6 +51,9 @@ class ProductModel {
     this.rating,
     this.reviewCount = 0,
     this.soldQty = 0,
+    this.brandName,
+    this.colors = const [],
+    this.isTrend = false,
   });
 
   factory ProductModel.fromJson(Map<String,dynamic> j) {
@@ -56,6 +62,14 @@ class ProductModel {
     final rawImages=(j['images'] as List?)?.whereType<String>().where((x)=>x.isNotEmpty).toList() ?? <String>[];
     final merged=<String>[if(primary!=null && primary.isNotEmpty) primary, ...rawImages];
     final unique=merged.toSet().toList();
+    final rawBrand = j['brand'];
+    final brandName = rawBrand is Map ? rawBrand['name']?.toString() : null;
+    final rawColors = j['colors'];
+    final colors = rawColors is List
+        ? rawColors.whereType<Map>().map((x) => Map<String, dynamic>.from(x)).toList()
+        : <Map<String, dynamic>>[];
+    final isTrend = j['is_trend'] == true;
+
     final rawBadges=j['badges'];
     final badges=rawBadges is List
         ? rawBadges.whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList()
@@ -88,6 +102,9 @@ class ProductModel {
       rating: rawRating != null && rawRating > 0 ? rawRating : null,
       reviewCount: reviewCount,
       soldQty: soldQty,
+      brandName: brandName,
+      colors: colors,
+      isTrend: isTrend,
     );
   }
 }
