@@ -1180,11 +1180,11 @@ def register_entity_views(admin_bp):
                 ("title_font_weight", 400, 900, True),
                 ("title_spacing", 0, 20, True),
                 ("title_arrow_font_size", 9, 28, False),
+                ("title_arrow_gap", 0, 20, True),
                 ("promo_font_size", 7, 18, False),
                 ("promo_font_weight", 400, 900, True),
                 ("promo_max_lines", 1, 3, True),
                 ("product_width", 0, 180, False),
-                ("product_height", 55, 180, True),
                 ("product_gap", 0, 20, True),
                 ("product_radius", 0, 20, True),
                 ("product_info_height", 16, 55, True),
@@ -1267,6 +1267,7 @@ def register_entity_views(admin_bp):
                 "trend_store_title_color",
                 "trend_store_title_arrow_color",
                 "trend_store_promo_color",
+                "product_text_color",
                 "title_arrow_color",
             ):
                 settings[name] = color(name, str(defaults[name]))
