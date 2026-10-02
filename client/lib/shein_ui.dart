@@ -6412,7 +6412,6 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
                                         EdgeInsets.only(bottom: 9 * scale),
                                     child: _TrendStoreCard(
                                       trend: trend,
-                                      height: picksExtent,
                                       ui: ui,
                                       onTap: () => Navigator.push(
                                         context,
