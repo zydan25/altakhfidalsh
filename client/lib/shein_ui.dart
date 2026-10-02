@@ -6613,7 +6613,7 @@ class _TrendHeroCard extends StatelessWidget {
     final cardBorderWidth =
         _sxTrendNumber(ui, 'hero_card_border_width', 1);
     final cardOverlayColor =
-        _sxTrendHex(ui['hero_card_border_color'], Colors.black);
+        _sxTrendHex(ui['hero_background_overlay_color'], Colors.black);
     final cardOverlayOpacity =
         _sxTrendNumber(ui, 'hero_card_overlay_opacity', .48);
     final contentPadding = _sxTrendNumber(ui, 'content_padding', 10);
@@ -6622,7 +6622,7 @@ class _TrendHeroCard extends StatelessWidget {
     final configuredProductWidth =
         _sxTrendNumber(ui, 'product_width', 0);
     final availableWidth =
-        width - (contentPadding * 2).clamp(0, width / 2);
+        width - (contentPadding * 2).clamp(0.0, width / 2).toDouble();
     final safeWidth = availableWidth > 0 ? availableWidth : width;
     final productWidth = configuredProductWidth > 0
         ? (configuredProductWidth <
