@@ -147,79 +147,57 @@
     if (!root) return;
 
     const query = (document.getElementById("sideCategoryCircleSearch")?.value || "").trim().toLocaleLowerCase();
-    const categories = configRefs?.categories || [];
-    const categoryMap = new Map(categories.map(row => [Number(row.id), row]));
-    const allowedRootIds = new Set();
-
-    const resolveRoot = id => {
-      let current = Number(id);
-      const visited = new Set();
-      while (current && !visited.has(current)) {
-        visited.add(current);
-        const row = categoryMap.get(current);
-        if (!row) return null;
-        if (row.parent_id == null) return current;
-        current = Number(row.parent_id);
-      }
-      return null;
-    };
-
-    draftCategoryIds.forEach(id => {
-      const rootId = resolveRoot(id);
-      if (rootId) allowedRootIds.add(rootId);
-    });
-
-    const hasCategoryContext = allowedRootIds.size > 0;
-    const groups = (configRefs?.side_categories || []).filter(group =>
-      group.is_active &&
-      (!hasCategoryContext || allowedRootIds.has(Number(group.root_category_id))) &&
-      (group.circles || []).some(circle =>
-        circle.is_active &&
-        (!query ||
-          String(circle.name).toLocaleLowerCase().includes(query) ||
-          String(group.name).toLocaleLowerCase().includes(query) ||
-          String(group.root_category_name || "").toLocaleLowerCase().includes(query))
-      )
+    const circles = (configRefs?.available_side_category_circles || []).filter(circle =>
+      circle &&
+      (!query ||
+        String(circle.name || "").toLocaleLowerCase().includes(query) ||
+        String(circle.side_category_name || "").toLocaleLowerCase().includes(query) ||
+        String(circle.root_category_name || "").toLocaleLowerCase().includes(query))
     );
 
     if (count) count.textContent = draftSideCircleIds.size + " دائرة";
 
-    if (!hasCategoryContext) {
-      root.innerHTML = '<div class="empty-state compact"><strong>اختر تصنيف المنتج أولًا.</strong><span class="muted">بعد تحديد القسم الأساسي/أحد فروعه ستظهر لك فقط الفئات الجانبية المناسبة له.</span></div>';
+    if (!circles.length) {
+      root.innerHTML = '<div class="empty-state compact"><strong>لا توجد دوائر فئات جانبية متاحة.</strong><span class="muted">أنشئ الفئة الجانبية ودوائرها من إدارة الفئات الجانبية أولًا.</span></div>';
       return;
     }
 
-    if (!groups.length) {
-      root.innerHTML = '<div class="empty-state compact"><strong>لا توجد دوائر مناسبة لهذا المنتج.</strong><span class="muted">أنشئ دائرة للفئة الجانبية التابعة للقسم الذي ينتمي إليه المنتج.</span></div>';
-      return;
-    }
+    const groups = new Map();
+    circles.forEach(circle => {
+      const key = String(circle.side_category_id);
+      if (!groups.has(key)) {
+        groups.set(key, {
+          name: circle.side_category_name || "فئة جانبية",
+          rootCategoryName: circle.root_category_name || "—",
+          circles: [],
+        });
+      }
+      groups.get(key).circles.push(circle);
+    });
 
-    root.innerHTML = groups.map(group => {
-      const circles = (group.circles || []).filter(circle =>
-        circle.is_active &&
-        (!query ||
-          String(circle.name).toLocaleLowerCase().includes(query) ||
-          String(group.name).toLocaleLowerCase().includes(query) ||
-          String(group.root_category_name || "").toLocaleLowerCase().includes(query))
-      );
-      if (!circles.length) return "";
+    root.innerHTML = [...groups.values()].map(group => {
+      const visible = group.circles.filter(circle => circle.compatible !== false || circle.selected);
+      if (!visible.length) return "";
       return '<section class="side-circle-picker-group">' +
-        '<div class="side-circle-picker-heading"><div><span class="eyebrow">القسم الجانبي · ' +
-        escapeHtml(group.root_category_name || "—") +
+        '<div class="side-circle-picker-heading"><div><span class="eyebrow">القسم الرئيسي · ' +
+        escapeHtml(group.rootCategoryName) +
         '</span><strong>' + escapeHtml(group.name) +
-        '</strong></div><span class="status-pill">' + circles.length + ' دائرة</span></div>' +
+        '</strong></div><span class="status-pill">' + visible.length + ' دائرة</span></div>' +
         '<div class="side-circle-picker-grid">' +
-        circles.map(circle => {
+        visible.map(circle => {
           const checked = draftSideCircleIds.has(Number(circle.id));
           return '<label class="side-circle-picker-card ' + (checked ? "is-selected" : "") + '">' +
             '<input type="checkbox" value="' + circle.id + '" data-side-circle-checkbox ' + (checked ? 'checked' : '') + '>' +
-            '<span class="side-circle-picker-media">' + (circle.image_url ? '<img src="' + escapeHtml(circle.image_url) + '" alt="' + escapeHtml(circle.name) + '">' : '<span>○</span>') + '</span>' +
-            '<span class="side-circle-picker-copy"><strong>' + escapeHtml(circle.name) + '</strong><small>' + (circle.product_count || 0) + ' منتج</small></span>' +
+            '<span class="side-circle-picker-media">' +
+            (circle.image_url ? '<img src="' + escapeHtml(circle.image_url) + '" alt="' + escapeHtml(circle.name) + '">' : '<span>○</span>') +
+            '</span>' +
+            '<span class="side-circle-picker-copy"><strong>' + escapeHtml(circle.name) + '</strong><small>' +
+            escapeHtml(group.name) + ' · ' + (circle.product_count || 0) + ' منتج</small></span>' +
             '<span class="side-circle-picker-check">' + (checked ? "✓" : "○") + '</span>' +
-          '</label>';
+            '</label>';
         }).join("") +
         '</div></section>';
-    }).join("");
+    }).join("") || '<div class="empty-state compact"><strong>لا توجد دوائر مناسبة لهذا المنتج.</strong><span class="muted">تأكد من أن المنتج مرتبط بالقسم الرئيسي الصحيح.</span></div>';
   };
 
   const renderDimensionChoices = () => {
@@ -419,7 +397,7 @@
     const steps = {
       basics: snapshot.steps.basics,
       categories: snapshot.steps.categories,
-      "side-categories": (configRefs?.side_categories || []).length > 0,
+      "side-categories": snapshot.steps["side-categories"],
       media: snapshot.steps.media,
       options: snapshot.steps.options,
       variants: snapshot.steps.variants,
@@ -429,6 +407,7 @@
     document.querySelector("[data-panel='publish'] .checklist").innerHTML = [
       ["الأساس", steps.basics],
       ["التصنيفات", steps.categories],
+      ["الفئات الجانبية", steps["side-categories"]],
       ["الوسائط", steps.media],
       ["الخيارات", steps.options],
       ["المتغيرات", steps.variants],
