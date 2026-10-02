@@ -6037,6 +6037,36 @@ BoxFit _sxTrendFit(dynamic value) {
   }
 }
 
+TextAlign _sxTrendTextAlign(dynamic value, [TextAlign fallback = TextAlign.center]) {
+  switch (sxText(value).toLowerCase()) {
+    case 'right':
+    case 'end':
+      return TextAlign.right;
+    case 'left':
+    case 'start':
+      return TextAlign.left;
+    case 'center':
+      return TextAlign.center;
+    default:
+      return fallback;
+  }
+}
+
+Alignment _sxTrendAlignment(dynamic value, [Alignment fallback = Alignment.center]) {
+  switch (sxText(value).toLowerCase()) {
+    case 'right':
+    case 'end':
+      return Alignment.centerRight;
+    case 'left':
+    case 'start':
+      return Alignment.centerLeft;
+    case 'center':
+      return Alignment.center;
+    default:
+      return fallback;
+  }
+}
+
 class SxTrendsScreen extends StatefulWidget {
   const SxTrendsScreen({super.key});
 
@@ -7110,75 +7140,97 @@ class _TrendHeroCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  textDirection: TextDirection.ltr,
-                  children: [
-                    const Icon(
-                      Icons.chevron_left,
-                      color: Colors.white,
-                      size: 19,
-                    ),
-                    Flexible(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: _sxTrendHex(
-                            ui['title_color'],
-                            Colors.white,
+                if (ui['show_title'] != false)
+                  Align(
+                    alignment: _sxTrendAlignment(ui['title_align']),
+                    child: Directionality(
+                      textDirection: TextDirection.rtl,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: _sxTrendTextAlign(
+                                ui['title_align'],
+                              ),
+                              style: TextStyle(
+                                color: _sxTrendHex(
+                                  ui['title_color'],
+                                  Colors.white,
+                                ),
+                                fontSize: _sxTrendNumber(
+                                  ui,
+                                  'title_font_size',
+                                  18,
+                                ),
+                                fontWeight: _sxTrendWeight(
+                                  ui['title_font_weight'],
+                                  FontWeight.w900,
+                                ),
+                              ),
+                            ),
                           ),
-                          fontSize:
-                              _sxTrendNumber(ui, 'title_font_size', 18),
-                          fontWeight: _sxTrendWeight(
-                            ui['title_font_weight'],
-                            FontWeight.w900,
-                          ),
-                        ),
+                          if (ui['title_show_arrow'] != false)
+                            SizedBox(
+                              width: _sxTrendNumber(
+                                ui,
+                                'title_arrow_gap',
+                                4,
+                              ),
+                            ),
+                          if (ui['title_show_arrow'] != false)
+                            Text(
+                              sxText(ui['title_arrow'], '>'),
+                              style: TextStyle(
+                                color: _sxTrendHex(
+                                  ui['title_arrow_color'],
+                                  Colors.white,
+                                ),
+                                fontSize: _sxTrendNumber(
+                                  ui,
+                                  'title_arrow_font_size',
+                                  16,
+                                ),
+                                fontWeight: FontWeight.w900,
+                                height: 1,
+                              ),
+                            ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      '#',
-                      style: TextStyle(
-                        color: _sxTrendHex(
-                          ui['title_color'],
-                          Colors.white,
-                        ),
-                        fontSize:
-                            _sxTrendNumber(ui, 'title_font_size', 18),
-                        fontWeight: _sxTrendWeight(
-                          ui['title_font_weight'],
-                          FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(
-                  height: _sxTrendNumber(ui, 'title_spacing', 5),
-                ),
-                Text(
-                  promo,
-                  maxLines: sxInt(ui['promo_max_lines'], 2),
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _sxTrendHex(ui['promo_color'], Colors.white),
-                    fontSize: _sxTrendNumber(
-                      ui,
-                      'promo_font_size',
-                      10.5,
-                    ),
-                    height: 1.25,
-                    fontWeight: _sxTrendWeight(
-                      ui['promo_font_weight'],
-                      FontWeight.w700,
                     ),
                   ),
-                ),
+                if (ui['show_title'] != false &&
+                    ui['show_description'] != false &&
+                    promo.isNotEmpty)
+                  SizedBox(
+                    height: _sxTrendNumber(ui, 'title_spacing', 5),
+                  ),
+                if (ui['show_description'] != false && promo.isNotEmpty)
+                  Align(
+                    alignment: _sxTrendAlignment(ui['description_align']),
+                    child: Text(
+                      promo,
+                      maxLines: sxInt(ui['promo_max_lines'], 2),
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: _sxTrendTextAlign(ui['description_align']),
+                      style: TextStyle(
+                        color: _sxTrendHex(ui['promo_color'], Colors.white),
+                        fontSize: _sxTrendNumber(
+                          ui,
+                          'promo_font_size',
+                          10.5,
+                        ),
+                        height: 1.25,
+                        fontWeight: _sxTrendWeight(
+                          ui['promo_font_weight'],
+                          FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -7428,51 +7480,32 @@ class _TrendStoreCard extends StatelessWidget {
     required this.onTap,
   });
 
-  Alignment _align(dynamic value) {
-    switch (sxText(value)) {
-      case 'start':
-        return Alignment.centerLeft;
-      case 'end':
-        return Alignment.centerRight;
-      default:
-        return Alignment.center;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final title = sxText(
       (trend['hashtag'] as Map?)?['display_name'],
       '#ترندات',
     );
+    final description = sxText(
+      trend['promo_text'],
+      sxText((trend['overlay'] as Map?)?['text']),
+    );
     final cardHeight =
         _sxTrendNumber(ui, 'trend_store_card_height', 330);
-    final imageHeight = _sxTrendNumber(
-      ui,
-      'trend_store_image_height',
-      252,
-    );
-    final contentHeight = _sxTrendNumber(
-      ui,
-      'trend_store_content_height',
-      78,
-    );
+    final imageHeight =
+        _sxTrendNumber(ui, 'trend_store_image_height', 252);
+    final contentHeight =
+        _sxTrendNumber(ui, 'trend_store_content_height', 78);
     final radius = _sxTrendNumber(ui, 'trend_store_radius', 10);
-    final padding = _sxTrendNumber(
-      ui,
-      'trend_store_content_padding',
-      9,
-    );
-    final titleOffset = _sxTrendNumber(
-      ui,
-      'trend_store_title_offset',
-      0,
-    );
-    final promoOffset = _sxTrendNumber(
-      ui,
-      'trend_store_promo_offset',
-      2,
-    );
+    final padding =
+        _sxTrendNumber(ui, 'trend_store_content_padding', 9);
+    final titleOffset =
+        _sxTrendNumber(ui, 'trend_store_title_offset', 0);
+    final promoOffset =
+        _sxTrendNumber(ui, 'trend_store_promo_offset', 2);
+    final titleAlign = _sxTrendTextAlign(ui['trend_store_title_align']);
+    final descriptionAlign =
+        _sxTrendTextAlign(ui['trend_store_promo_align']);
 
     return InkWell(
       onTap: onTap,
@@ -7503,85 +7536,117 @@ class _TrendStoreCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Transform.translate(
-                        offset: Offset(0, titleOffset),
-                        child: Align(
-                          alignment: _align(
-                            ui['trend_store_title_align'],
-                          ),
-                          child: Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign:
-                                sxText(ui['trend_store_title_align']) == 'start'
-                                    ? TextAlign.left
-                                    : sxText(
-                                              ui['trend_store_title_align'],
-                                            ) ==
-                                            'end'
-                                        ? TextAlign.right
-                                        : TextAlign.center,
-                            style: TextStyle(
-                              color: _sxTrendHex(
-                                ui['trend_store_title_color'],
-                                const Color(0xFF111111),
+                      if (ui['trend_store_show_title'] != false)
+                        Transform.translate(
+                          offset: Offset(0, titleOffset),
+                          child: Align(
+                            alignment: _sxTrendAlignment(
+                              ui['trend_store_title_align'],
+                            ),
+                            child: Directionality(
+                              textDirection: TextDirection.rtl,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: titleAlign,
+                                      style: TextStyle(
+                                        color: _sxTrendHex(
+                                          ui['trend_store_title_color'],
+                                          const Color(0xFF111111),
+                                        ),
+                                        fontSize: _sxTrendNumber(
+                                          ui,
+                                          'trend_store_title_font_size',
+                                          14,
+                                        ),
+                                        fontWeight: _sxTrendWeight(
+                                          ui['trend_store_title_font_weight'],
+                                          FontWeight.w800,
+                                        ),
+                                        height: 1.05,
+                                      ),
+                                    ),
+                                  ),
+                                  if (ui['trend_store_title_show_arrow'] != false)
+                                    SizedBox(
+                                      width: _sxTrendNumber(
+                                        ui,
+                                        'trend_store_title_arrow_gap',
+                                        4,
+                                      ),
+                                    ),
+                                  if (ui['trend_store_title_show_arrow'] != false)
+                                    Text(
+                                      sxText(
+                                        ui['trend_store_title_arrow'],
+                                        '>',
+                                      ),
+                                      style: TextStyle(
+                                        color: _sxTrendHex(
+                                          ui['trend_store_title_arrow_color'],
+                                          const Color(0xFF111111),
+                                        ),
+                                        fontSize: _sxTrendNumber(
+                                          ui,
+                                          'trend_store_title_arrow_font_size',
+                                          14,
+                                        ),
+                                        fontWeight: FontWeight.w900,
+                                        height: 1,
+                                      ),
+                                    ),
+                                ],
                               ),
-                              fontSize: _sxTrendNumber(
-                                ui,
-                                'trend_store_title_font_size',
-                                14,
-                              ),
-                              fontWeight: _sxTrendWeight(
-                                ui['trend_store_title_font_weight'],
-                                FontWeight.w800,
-                              ),
-                              height: 1.05,
                             ),
                           ),
                         ),
-                      ),
-                      Transform.translate(
-                        offset: Offset(0, promoOffset),
-                        child: Align(
-                          alignment: _align(
-                            ui['trend_store_promo_align'],
+                      if (ui['trend_store_show_title'] != false &&
+                          ui['trend_store_show_description'] != false &&
+                          description.isNotEmpty)
+                        SizedBox(
+                          height: _sxTrendNumber(
+                            ui,
+                            'trend_store_title_spacing',
+                            3,
                           ),
-                          child: Text(
-                            sxText(
-                              trend['promo_text'],
-                              sxText((trend['overlay'] as Map?)?['text']),
+                        ),
+                      if (ui['trend_store_show_description'] != false &&
+                          description.isNotEmpty)
+                        Transform.translate(
+                          offset: Offset(0, promoOffset),
+                          child: Align(
+                            alignment: _sxTrendAlignment(
+                              ui['trend_store_promo_align'],
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign:
-                                sxText(ui['trend_store_promo_align']) == 'start'
-                                    ? TextAlign.left
-                                    : sxText(
-                                              ui['trend_store_promo_align'],
-                                            ) ==
-                                            'end'
-                                        ? TextAlign.right
-                                        : TextAlign.center,
-                            style: TextStyle(
-                              color: _sxTrendHex(
-                                ui['trend_store_promo_color'],
-                                const Color(0xFF777777),
+                            child: Text(
+                              description,
+                              maxLines: sxInt(ui['promo_max_lines'], 2),
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: descriptionAlign,
+                              style: TextStyle(
+                                color: _sxTrendHex(
+                                  ui['trend_store_promo_color'],
+                                  const Color(0xFF777777),
+                                ),
+                                fontSize: _sxTrendNumber(
+                                  ui,
+                                  'trend_store_promo_font_size',
+                                  10,
+                                ),
+                                fontWeight: _sxTrendWeight(
+                                  ui['trend_store_promo_font_weight'],
+                                  FontWeight.w500,
+                                ),
+                                height: 1.15,
                               ),
-                              fontSize: _sxTrendNumber(
-                                ui,
-                                'trend_store_promo_font_size',
-                                10,
-                              ),
-                              fontWeight: _sxTrendWeight(
-                                ui['trend_store_promo_font_weight'],
-                                FontWeight.w500,
-                              ),
-                              height: 1.15,
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -7643,9 +7708,25 @@ class _TrendProductTileState extends State<_TrendProductTile> {
     return ((1 - current / old) * 100).round();
   }
 
+  Future<void> _addToCart(BuildContext context) async {
+    try {
+      if (widget.product.variantId == null) return;
+      await api.addCart(widget.product.variantId!);
+      _CartBadge.value.value += 1;
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تمت إضافة المنتج إلى الحقيبة'),
+          duration: Duration(milliseconds: 850),
+        ),
+      );
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scale = (MediaQuery.sizeOf(context).width / 360.0).clamp(.86, 1.15).toDouble();
+    final scale =
+        (MediaQuery.sizeOf(context).width / 360.0).clamp(.86, 1.15).toDouble();
     final imageHeight =
         _sxTrendNumber(widget.ui, 'picks_image_height', 258) * scale;
     final contentHeight =
@@ -7683,11 +7764,13 @@ class _TrendProductTileState extends State<_TrendProductTile> {
                       onHorizontalDragEnd: (details) {
                         if (gallery.length <= 1) return;
                         final velocity = details.primaryVelocity ?? 0;
+                        if (velocity.abs() < 30) return;
                         final direction = velocity < 0 ? 1 : -1;
                         final next =
                             (imageIndex + direction) % gallery.length;
                         setState(() {
-                          imageIndex = next < 0 ? next + gallery.length : next;
+                          imageIndex =
+                              next < 0 ? next + gallery.length : next;
                         });
                       },
                       child: AnimatedSwitcher(
@@ -7814,151 +7897,144 @@ class _TrendProductTileState extends State<_TrendProductTile> {
             ),
             SizedBox(
               height: contentHeight,
-              child: Container(
-                padding: const EdgeInsets.only(top: 0, bottom: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    height: 25,
-                    color: const Color(0xFFF1EAFE),
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    child: Row(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(7, 0, 7, 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      height: 25,
+                      color: const Color(0xFFF1EAFE),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      child: Row(
+                        textDirection: TextDirection.ltr,
+                        children: [
+                          const Icon(
+                            Icons.chevron_left,
+                            size: 17,
+                            color: Color(0xFF8D65E8),
+                          ),
+                          Expanded(
+                            child: Text(
+                              hashtagLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF7751CA),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const Text(
+                            'ترندات',
+                            style: TextStyle(
+                              color: Color(0xFF8C5AE8),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    if (widget.ui['show_product_name'] != false)
+                      Text(
+                        widget.product.name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: _sxTrendTextAlign(
+                          widget.ui['product_name_align'],
+                          TextAlign.right,
+                        ),
+                        style: TextStyle(
+                          color: _sxTrendHex(
+                            widget.ui['product_text_color'],
+                            Colors.black,
+                          ),
+                          fontSize: _sxTrendNumber(
+                            widget.ui,
+                            'product_name_font_size',
+                            8.5,
+                          ),
+                          fontWeight: FontWeight.w800,
+                          height: 1.15,
+                        ),
+                      ),
+                    if (widget.product.soldQty > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          'sold +' + widget.product.soldQty.toString(),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: Color(0xFF333333),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    const Spacer(),
+                    Row(
                       textDirection: TextDirection.ltr,
                       children: [
-                        const Icon(
-                          Icons.chevron_left,
-                          size: 17,
-                          color: Color(0xFF8D65E8),
-                        ),
-                        Expanded(
-                          child: Text(
-                            hashtagLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFF7751CA),
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const Text(
-                          'ترندات',
-                          style: TextStyle(
-                            color: Color(0xFF8C5AE8),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w900,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(7, 5, 7, 0),
-                    child: Text(
-                      widget.product.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.black,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        height: 1.15,
-                      ),
-                    ),
-                  ),
-                  if (widget.product.soldQty > 0)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(7, 3, 7, 0),
-                      child: Text(
-                        'sold +' + widget.product.soldQty.toString(),
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(
-                          color: Color(0xFF333333),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        height: 39,
-                        margin: const EdgeInsets.only(top: 2),
-                        padding: const EdgeInsets.fromLTRB(7, 4, 7, 4),
-                        child: Row(
-                          textDirection: TextDirection.ltr,
-                          children: [
-                            Material(
-                              color: const Color(0xFFF6F6F6),
-                              child: InkWell(
-                                onTap: () async {
-                                  try {
-                                    if (widget.product.variantId == null) return;
-                                    await api.addCart(
-                                      widget.product.variantId!,
-                                    );
-                                    _CartBadge.value.value += 1;
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'تمت إضافة المنتج إلى الحقيبة',
-                                          ),
-                                          duration:
-                                              Duration(milliseconds: 850),
-                                        ),
-                                      );
-                                    }
-                                  } catch (_) {}
-                                },
-                                child: const SizedBox(
-                                  width: 33,
-                                  height: 33,
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.add_shopping_cart_outlined,
-                                      size: 19,
-                                      color: Colors.black,
-                                    ),
-                                  ),
+                        Material(
+                          color: const Color(0xFFF6F6F6),
+                          child: InkWell(
+                            onTap: () => _addToCart(context),
+                            child: const SizedBox(
+                              width: 33,
+                              height: 33,
+                              child: Center(
+                                child: Icon(
+                                  Icons.add_shopping_cart_outlined,
+                                  size: 19,
+                                  color: Colors.black,
                                 ),
                               ),
                             ),
-                            const Spacer(),
-                            if (discount > 0)
-                              Padding(
-                                padding: const EdgeInsets.only(right: 6),
-                                child: Text(
-                                  'خصم $discount%',
-                                  style: const TextStyle(
-                                    color: Color(0xFFDF5B37),
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
+                          ),
+                        ),
+                        const Spacer(),
+                        if (discount > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Text(
+                              'خصم $discount%',
+                              style: const TextStyle(
+                                color: Color(0xFFDF5B37),
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
                               ),
-                            Text(
+                            ),
+                          ),
+                        if (widget.ui['show_product_price'] != false)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: Text(
                               widget.product.price +
                                   ' ' +
                                   state.currencySymbol,
                               textDirection: TextDirection.ltr,
-                              style: const TextStyle(
-                                color: Colors.black,
-                                fontSize: 16,
+                              style: TextStyle(
+                                color: _sxTrendHex(
+                                  widget.ui['product_text_color'],
+                                  Colors.black,
+                                ),
+                                fontSize: _sxTrendNumber(
+                                  widget.ui,
+                                  'product_price_font_size',
+                                  9.5,
+                                ),
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
