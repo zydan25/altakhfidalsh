@@ -328,6 +328,54 @@ class CatalogService:
         ]
 
     @staticmethod
+    def product_side_category_references(category_ids):
+        """Return side categories and their circles for the roots of selected catalog categories."""
+        normalized_category_ids = []
+        for raw in category_ids or []:
+            try:
+                category_id = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if category_id > 0 and category_id not in normalized_category_ids:
+                normalized_category_ids.append(category_id)
+
+        if not normalized_category_ids:
+            return []
+
+        active_categories = Category.query.filter(Category.is_active.is_(True)).all()
+        parent_by_id = {int(row.id): row.parent_id for row in active_categories}
+        selected_root_ids = set()
+
+        for category_id in normalized_category_ids:
+            current_id = category_id
+            visited = set()
+            while current_id and current_id not in visited:
+                visited.add(current_id)
+                parent_id = parent_by_id.get(int(current_id))
+                if parent_id is None:
+                    if int(current_id) in parent_by_id:
+                        selected_root_ids.add(int(current_id))
+                    break
+                current_id = int(parent_id)
+
+        if not selected_root_ids:
+            return []
+
+        rows = (
+            SideCategory.query
+            .filter(
+                SideCategory.is_active.is_(True),
+                SideCategory.root_category_id.in_(selected_root_ids),
+            )
+            .order_by(SideCategory.sort_order, SideCategory.name, SideCategory.id)
+            .all()
+        )
+        return [
+            CatalogService._serialize_side_category(row, include_circles=True)
+            for row in rows
+        ]
+
+    @staticmethod
     def default_side_circle_display():
         return {
             "grid_columns": 3,
