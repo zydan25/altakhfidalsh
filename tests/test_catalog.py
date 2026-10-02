@@ -516,6 +516,19 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
         CatalogService.set_product_side_category_circles(first.id, [circle_one["id"]])
         CatalogService.set_product_side_category_circles(second.id, [circle_two["id"]])
 
+        circle_feed_response = client.get(
+            "/api/v1/catalog/products/feed",
+            query_string={
+                "side_category_id": side["id"],
+                "circle_id": circle_one["id"],
+            },
+        )
+        assert circle_feed_response.status_code == 200
+        circle_product_ids = {
+            item["id"] for item in circle_feed_response.get_json()["items"]
+        }
+        assert circle_product_ids == {first.id}
+
         circle_filter_response = client.get(
             f"/api/v1/catalog/products/filters?circle_id={circle_one['id']}"
         )
