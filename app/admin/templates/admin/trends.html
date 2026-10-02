@@ -554,6 +554,132 @@
       </div>
     </details>
 
+    <details open>
+      <summary><span>٧. الشريط العلوي والتحول عند التمرير</span><small>زر البحث في الأعلى ثم شريط أسود ثابت عند الصعود</small></summary>
+      <div class="trend-settings-grid">
+        <label class="check-row">
+          <input name="header_collapse_enabled" type="checkbox" {% if trend_display_settings.header_collapse_enabled %}checked{% endif %}>
+          <span><strong>تفعيل التحول عند التمرير</strong><small>يظهر شريط علوي أسود عند تجاوز المسافة.</small></span>
+        </label>
+        <label>مسافة التحول
+          <input name="header_collapse_offset" type="number" min="0" max="140" value="{{ trend_display_settings.header_collapse_offset }}">
+        </label>
+        <label>ارتفاع الشريط المصغر
+          <input name="compact_header_height" type="number" min="44" max="96" value="{{ trend_display_settings.compact_header_height }}">
+        </label>
+        <label>نسبة عرض البحث
+          <input name="search_width_ratio" type="number" min="0.45" max="0.90" step="0.01" value="{{ trend_display_settings.search_width_ratio }}">
+        </label>
+        <label>ارتفاع البحث
+          <input name="search_height" type="number" min="32" max="58" value="{{ trend_display_settings.search_height }}">
+        </label>
+        <label>تدوير البحث
+          <input name="search_radius" type="number" min="0" max="30" value="{{ trend_display_settings.search_radius }}">
+        </label>
+        <label>الحشو الأفقي
+          <input name="search_horizontal_padding" type="number" min="4" max="24" value="{{ trend_display_settings.search_horizontal_padding }}">
+        </label>
+        <label>حجم أيقونة البحث
+          <input name="search_icon_size" type="number" min="14" max="30" value="{{ trend_display_settings.search_icon_size }}">
+        </label>
+        <label>حجم نص البحث
+          <input name="search_font_size" type="number" min="9" max="20" step="0.5" value="{{ trend_display_settings.search_font_size }}">
+        </label>
+        <label>نص البحث
+          <input name="search_hint" maxlength="80" value="{{ trend_display_settings.search_hint }}">
+        </label>
+        <label>خلفية البحث
+          <input name="search_background_color" type="color" value="{{ trend_display_settings.search_background_color }}">
+        </label>
+        <label>لون نص البحث
+          <input name="search_text_color" type="color" value="{{ trend_display_settings.search_text_color }}">
+        </label>
+        <label>لون أيقونة البحث
+          <input name="search_icon_color" type="color" value="{{ trend_display_settings.search_icon_color }}">
+        </label>
+      </div>
+    </details>
+
+    <details open>
+      <summary><span>٨. بطاقات مستطيلات الترند</span><small>الصورة تملأ المساحة ثم منطقة كتابة مستقلة بالأسفل</small></summary>
+      <div class="trend-settings-grid">
+        <label>ارتفاع البطاقة
+          <input name="trend_store_card_height" type="number" min="220" max="520" value="{{ trend_display_settings.trend_store_card_height }}">
+        </label>
+        <label>ارتفاع الصورة
+          <input name="trend_store_image_height" type="number" min="140" max="430" value="{{ trend_display_settings.trend_store_image_height }}">
+        </label>
+        <label>ارتفاع منطقة النص
+          <input name="trend_store_content_height" type="number" min="50" max="140" value="{{ trend_display_settings.trend_store_content_height }}">
+        </label>
+        <label>نصف قطر البطاقة
+          <input name="trend_store_radius" type="number" min="0" max="30" value="{{ trend_display_settings.trend_store_radius }}">
+        </label>
+        <label>حشو منطقة النص
+          <input name="trend_store_content_padding" type="number" min="4" max="24" value="{{ trend_display_settings.trend_store_content_padding }}">
+        </label>
+        <label>إزاحة العنوان
+          <input name="trend_store_title_offset" type="number" min="-30" max="30" value="{{ trend_display_settings.trend_store_title_offset }}">
+        </label>
+        <label>محاذاة العنوان
+          <select name="trend_store_title_align">
+            <option value="start" {% if trend_display_settings.trend_store_title_align == "start" %}selected{% endif %}>بداية</option>
+            <option value="center" {% if trend_display_settings.trend_store_title_align == "center" %}selected{% endif %}>وسط</option>
+            <option value="end" {% if trend_display_settings.trend_store_title_align == "end" %}selected{% endif %}>نهاية</option>
+          </select>
+        </label>
+        <label>حجم العنوان
+          <input name="trend_store_title_font_size" type="number" min="9" max="28" step="0.5" value="{{ trend_display_settings.trend_store_title_font_size }}">
+        </label>
+        <label>وزن العنوان
+          <input name="trend_store_title_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.trend_store_title_font_weight }}">
+        </label>
+        <label>لون العنوان
+          <input name="trend_store_title_color" type="color" value="{{ trend_display_settings.trend_store_title_color }}">
+        </label>
+        <label>إزاحة النص الترويجي
+          <input name="trend_store_promo_offset" type="number" min="-30" max="30" value="{{ trend_display_settings.trend_store_promo_offset }}">
+        </label>
+        <label>محاذاة النص
+          <select name="trend_store_promo_align">
+            <option value="start" {% if trend_display_settings.trend_store_promo_align == "start" %}selected{% endif %}>بداية</option>
+            <option value="center" {% if trend_display_settings.trend_store_promo_align == "center" %}selected{% endif %}>وسط</option>
+            <option value="end" {% if trend_display_settings.trend_store_promo_align == "end" %}selected{% endif %}>نهاية</option>
+          </select>
+        </label>
+        <label>حجم النص الترويجي
+          <input name="trend_store_promo_font_size" type="number" min="8" max="20" step="0.5" value="{{ trend_display_settings.trend_store_promo_font_size }}">
+        </label>
+        <label>وزن النص الترويجي
+          <input name="trend_store_promo_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.trend_store_promo_font_weight }}">
+        </label>
+        <label>لون النص الترويجي
+          <input name="trend_store_promo_color" type="color" value="{{ trend_display_settings.trend_store_promo_color }}">
+        </label>
+        <label>خلفية منطقة الكتابة
+          <input name="trend_store_content_background" type="color" value="{{ trend_display_settings.trend_store_content_background }}">
+        </label>
+      </div>
+    </details>
+
+    <details open>
+      <summary><span>٩. بطاقات المنتجات في اختيارات الترند</span><small>الصور أطول ومساحة العنوان أصغر</small></summary>
+      <div class="trend-settings-grid">
+        <label>الارتفاع الكلي
+          <input name="picks_card_extent" type="number" min="280" max="520" value="{{ trend_display_settings.picks_card_extent }}">
+        </label>
+        <label>ارتفاع صورة المنتج
+          <input name="picks_image_height" type="number" min="190" max="390" value="{{ trend_display_settings.picks_image_height }}">
+        </label>
+        <label>ارتفاع مساحة المعلومات
+          <input name="picks_content_height" type="number" min="60" max="150" value="{{ trend_display_settings.picks_content_height }}">
+        </label>
+        <label>حجم عنوان المنتج
+          <input name="picks_title_font_size" type="number" min="8" max="18" step="0.5" value="{{ trend_display_settings.picks_title_font_size }}">
+        </label>
+      </div>
+    </details>
+
     <div class="trend-global-actions">
       <div>
         <strong>يحفظ كإعداد عام</strong>
