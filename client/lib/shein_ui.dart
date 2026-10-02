@@ -4341,7 +4341,11 @@ class _SxResultsState extends State<SxResults> {
       );
     roots = allCategories.where((x) => x.parentId == null).toList();
 
-    if (sideCircles.isNotEmpty) {
+    // Any explicit side-category entry is an independent results scope.
+    // Never fall back to the normal root-category rail here.
+    final sideScope =
+        widget.circleId != null || widget.sideCategoryId != null;
+    if (sideScope) {
       categories = [];
       return;
     }
@@ -4677,7 +4681,10 @@ class _SxResultsState extends State<SxResults> {
               ),
             ),
           ),
-          if (sideCircles.isNotEmpty)
+          // A parent side-category may show its child circles.
+          // A direct circle entry must NOT show its sibling circles or a
+          // normal category rail; its products are the result scope itself.
+          if (widget.circleId == null && sideCircles.isNotEmpty)
             SliverPersistentHeader(
               pinned: true,
               delegate: _ResultHeaderDelegate(
@@ -4692,7 +4699,9 @@ class _SxResultsState extends State<SxResults> {
                 ),
               ),
             )
-          else if (categories.isNotEmpty)
+          else if (widget.circleId == null &&
+              widget.sideCategoryId == null &&
+              categories.isNotEmpty)
             SliverPersistentHeader(
               pinned: true,
               delegate: _ResultHeaderDelegate(
