@@ -199,10 +199,21 @@ class SxSearchBar extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Center(
-              child: Icon(
-                Icons.search,
-                size: 21,
-                color: iconColor,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  if (iconBackgroundColor == Colors.transparent)
+                    const Icon(
+                      Icons.search,
+                      size: 23,
+                      color: Color(0x66000000),
+                    ),
+                  Icon(
+                    Icons.search,
+                    size: 21,
+                    color: iconColor,
+                  ),
+                ],
               ),
             ),
           ),
