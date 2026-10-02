@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, Index
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, Index, JSON
 from .extensions import db
 
 
@@ -904,6 +904,9 @@ class Trend(TimestampMixin, ActiveMixin, db.Model):
     overlay_text = db.Column(String(220))
     overlay_text_color = db.Column(String(20), nullable=False, default="#ffffff")
     overlay_background_color = db.Column(String(40), nullable=False, default="#111827")
+    # Per-trend responsive storefront design tokens. Values are authored in
+    # logical pixels against a 360px reference width and scaled by the client.
+    settings_json = db.Column(JSON, nullable=False, default=dict, server_default="{}")
     __table_args__ = (
         Index("ix_trend_active_sort", "is_active", "status", "sort_order"),
         Index("ix_trend_hashtag", "hashtag_id", "is_active"),
@@ -918,6 +921,9 @@ class TrendProduct(TimestampMixin, db.Model):
     id = db.Column(Integer, primary_key=True)
     trend_id = db.Column(ForeignKey("trends.id", ondelete="CASCADE"), nullable=False)
     product_id = db.Column(ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    # Optional explicit gallery asset chosen by the admin for this slot.
+    image_asset_id = db.Column(ForeignKey("media_assets.id", ondelete="SET NULL"))
+    settings_json = db.Column(JSON, nullable=False, default=dict, server_default="{}")
     slot = db.Column(Integer, nullable=False)
     __table_args__ = (
         UniqueConstraint("trend_id", "slot", name="uq_trend_product_slot"),
