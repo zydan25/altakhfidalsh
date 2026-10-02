@@ -118,7 +118,8 @@ def test_side_category_tree_is_independent_and_root_only(app):
 
 def test_public_trend_exposes_countdown_and_overlay_metadata(app):
     from datetime import datetime, timezone
-    from app.models import Hashtag, Trend, TrendProduct, ProductHashtag
+    import json
+    from app.models import Hashtag, Trend, TrendProduct, ProductHashtag, AppSetting
 
     with app.app_context():
         currency = Currency(code="SAR", name_ar="ريال سعودي", decimals=2, is_base=True)
@@ -149,6 +150,19 @@ def test_public_trend_exposes_countdown_and_overlay_metadata(app):
             db.session.add(ProductHashtag(product_id=product.id, hashtag_id=hashtag.id))
             products.append(product)
 
+        db.session.add(
+            AppSetting(
+                group_code="trends",
+                key="display_settings",
+                value=json.dumps({
+                    "hero_card_width": 292,
+                    "hero_card_height": 196,
+                    "product_height": 101,
+                    "title_font_size": 19,
+                }, ensure_ascii=False),
+                value_type="json",
+            )
+        )
         trend = Trend(
             hashtag_id=hashtag.id,
             promo_text="عرض محدود",
@@ -161,13 +175,6 @@ def test_public_trend_exposes_countdown_and_overlay_metadata(app):
             overlay_text="خصم اليوم",
             overlay_text_color="#ffffff",
             overlay_background_color="#7c3aed",
-            settings_json={
-                "hero_card_width": 292,
-                "hero_card_height": 196,
-                "product_height": 101,
-                "title_font_size": 19,
-                "badge_text": "HOT",
-            },
             is_active=True,
         )
         db.session.add(trend)
