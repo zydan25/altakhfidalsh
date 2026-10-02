@@ -395,6 +395,28 @@
             <input name="ui_show_counter" type="checkbox" checked>
             <span><strong>إظهار عداد الصفحات</strong><small>مثل 2 / 11.</small></span>
           </label>
+          <label>لون خلفية المؤقت
+            <input name="ui_timer_background_color" type="color" value="#111827">
+          </label>
+          <label>لون نص المؤقت
+            <input name="ui_timer_text_color" type="color" value="#ffffff">
+          </label>
+          <label>حجم المؤقت
+            <input name="ui_timer_font_size" type="number" min="7" max="16" step="0.5" value="9">
+          </label>
+          <label>تدوير المؤقت
+            <input name="ui_timer_radius" type="number" min="0" max="16" value="4">
+          </label>
+          <label>موضع المؤقت
+            <select name="ui_timer_position">
+              <option value="top_left" selected>أعلى اليسار</option>
+              <option value="top_right">أعلى اليمين</option>
+            </select>
+          </label>
+          <label class="check-row">
+            <input name="ui_show_timer" type="checkbox" checked>
+            <span><strong>إظهار المؤقت في البطاقة</strong><small>يظهر فقط إذا كان مؤقت الترند مفعّلًا.</small></span>
+          </label>
         </div>
       </section>
 
