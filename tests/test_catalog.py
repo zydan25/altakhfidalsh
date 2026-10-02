@@ -407,15 +407,26 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
             filter_type="color",
             sort_order=1,
         )
+        second_color_filter = CategoryFilterDefinition(
+            category_id=child_two.id,
+            name="اللون",
+            filter_type="color",
+            sort_order=1,
+        )
+        db.session.add_all([color_filter, second_color_filter])
+        db.session.flush()
         red = CategoryFilterValue(
-            filter_id=color_filter.id if color_filter.id else 0,
+            filter_id=color_filter.id,
             label="أحمر",
             slug="red-results",
             sort_order=1,
         )
-        db.session.add(color_filter)
-        db.session.flush()
-        red.filter_id = color_filter.id
+        blue = CategoryFilterValue(
+            filter_id=second_color_filter.id,
+            label="أزرق",
+            slug="blue-results",
+            sort_order=1,
+        )
 
         first = Product(
             sku="RESULT-SCOPE-001",
@@ -449,9 +460,14 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
                 is_primary=True,
             ),
             red,
+            blue,
             ProductFilterValue(
                 product_id=first.id,
                 filter_value_id=red.id,
+            ),
+            ProductFilterValue(
+                product_id=second.id,
+                filter_value_id=blue.id,
             ),
         ])
         db.session.commit()
@@ -503,6 +519,19 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
         assert union_response.status_code == 200
         union_ids = {item["id"] for item in union_response.get_json()["items"]}
         assert union_ids == {first.id, second.id}
+
+        same_group_response = client.get(
+            "/api/v1/catalog/products/feed",
+            query_string={
+                "category_ids": f"{child_one.id},{child_two.id}",
+                "filter_value_ids": f"{red.id},{blue.id}",
+            },
+        )
+        assert same_group_response.status_code == 200
+        same_group_ids = {
+            item["id"] for item in same_group_response.get_json()["items"]
+        }
+        assert same_group_ids == {first.id, second.id}
 
         side_response = client.get(
             "/api/v1/catalog/products/feed",
