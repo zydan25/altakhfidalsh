@@ -44,6 +44,7 @@
         <div class="trend-card-statuses">
           <span class="status-pill">خلال {{ trend.duration_days }} يوم</span>
           {% if trend.timer_value %}<span class="status-pill trend-timer-pill">⏱ {{ trend.timer_value }} {{ "دقيقة" if trend.timer_unit == "minutes" else "ثانية" }}</span>{% endif %}
+          <span class="status-pill {{ "status-pill-success" if trend.public_ready else "status-pill-warning" }}">{{ trend.public_reason }}</span>
         </div>
       </div>
       <p class="trend-promo">{{ trend.promo_text }}</p>
