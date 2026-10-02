@@ -7092,13 +7092,13 @@ class _TrendsSectionTabs extends StatelessWidget {
           children: [
             Expanded(
               child: _tab(
-                label: 'Trends Store',
+                label: 'متجر الترندات',
                 index: 0,
               ),
             ),
             Expanded(
               child: _tab(
-                label: 'Trending Picks',
+                label: 'اختيارات الترند',
                 index: 1,
               ),
             ),
@@ -7114,9 +7114,7 @@ class _TrendsSectionTabs extends StatelessWidget {
             Expanded(
               child: Center(
                 child: Text(
-                  label == 'Trends Store'
-                      ? 'متجر الترندات'
-                      : 'اختيارات الترند',
+                  label,
                   style: TextStyle(
                     color: index == selected
                         ? _sxTrendHex(ui['tabs_active_color'], Colors.black)
