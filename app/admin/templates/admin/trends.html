@@ -576,6 +576,12 @@
         <label>لون أيقونة البحث
           <input name="search_icon_color" type="color" value="{{ trend_display_settings.search_icon_color }}">
         </label>
+        <label>لون فاصل البحث
+          <input name="search_divider_color" type="color" value="{{ trend_display_settings.search_divider_color }}">
+        </label>
+        <label>سُمك فاصل البحث
+          <input name="search_divider_width" type="number" min="0" max="4" step="0.1" value="{{ trend_display_settings.search_divider_width }}">
+        </label>
       </div>
     </details>
 
@@ -636,6 +642,9 @@
         </label>
         <label>حجم العنوان
           <input name="trend_store_title_font_size" type="number" min="9" max="28" step="0.5" value="{{ trend_display_settings.trend_store_title_font_size }}">
+        </label>
+        <label>المسافة تحت عنوان متجر الترند
+          <input name="trend_store_title_spacing" type="number" min="0" max="30" value="{{ trend_display_settings.trend_store_title_spacing }}">
         </label>
         <label>وزن العنوان
           <input name="trend_store_title_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.trend_store_title_font_weight }}">
