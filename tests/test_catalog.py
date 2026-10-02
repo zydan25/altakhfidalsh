@@ -484,6 +484,7 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
             ),
             red,
             blue,
+            green,
         ])
         db.session.flush()
 
