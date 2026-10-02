@@ -4263,7 +4263,7 @@ class _SxResultsState extends State<SxResults> {
       );
     roots = allCategories.where((x) => x.parentId == null).toList();
 
-    if (resolvedSideCategoryId != null && sideCircles.isNotEmpty) {
+    if (sideCircles.isNotEmpty) {
       categories = [];
       return;
     }
@@ -4592,7 +4592,7 @@ class _SxResultsState extends State<SxResults> {
               ),
             ),
           ),
-          if (resolvedSideCategoryId != null && sideCircles.isNotEmpty)
+          if (sideCircles.isNotEmpty)
             SliverPersistentHeader(
               pinned: true,
               delegate: _ResultHeaderDelegate(
