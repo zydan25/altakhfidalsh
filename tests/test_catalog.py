@@ -172,20 +172,32 @@ def test_public_trend_exposes_countdown_and_overlay_metadata(app):
 def test_product_reference_data_exposes_compatible_side_circles(app):
     with app.app_context():
         currency = Currency(code="SAR", symbol="ر.س", name_ar="ريال سعودي", decimals=2, is_base=True)
-        root = Category(name="نسائي", slug="women", display_style="circle")
-        child = Category(name="فساتين", slug="dresses", display_style="circle", parent_id=None)
-        db.session.add_all([currency, root, child])
+        root = Category(name="نساء", slug="women", display_style="circle")
+        child = Category(name="ملابس نساء", slug="women-clothes", display_style="circle")
+        grandchild = Category(name="فساتين نساء", slug="women-dresses", display_style="circle")
+        other_root = Category(name="رجال", slug="men", display_style="circle")
+        db.session.add_all([currency, root, child, grandchild, other_root])
         db.session.flush()
         child.parent_id = root.id
+        grandchild.parent_id = child.id
 
-        side = CatalogService.create_side_category({
+        women_side = CatalogService.create_side_category({
             "root_category_id": root.id,
-            "name": "فساتين جانبية",
-            "slug": "side-dresses",
+            "name": "دوائر ملابس النساء",
+            "slug": "women-clothes-side",
         })
-        circle = CatalogService.create_side_category_circle(
-            side["id"],
+        women_circle = CatalogService.create_side_category_circle(
+            women_side["id"],
             {"name": "فساتين قصيرة", "slug": "short-dresses"},
+        )
+        men_side = CatalogService.create_side_category({
+            "root_category_id": other_root.id,
+            "name": "دوائر ملابس الرجال",
+            "slug": "men-clothes-side",
+        })
+        men_circle = CatalogService.create_side_category_circle(
+            men_side["id"],
+            {"name": "قمصان", "slug": "shirts"},
         )
 
         product = Product(
@@ -198,16 +210,17 @@ def test_product_reference_data_exposes_compatible_side_circles(app):
         )
         db.session.add(product)
         db.session.flush()
-        db.session.add(ProductCategory(product_id=product.id, category_id=child.id, is_primary=True))
+        db.session.add(ProductCategory(product_id=product.id, category_id=grandchild.id, is_primary=True))
         db.session.commit()
 
         refs = CatalogService.product_reference_data(product_id=product.id)
-        matches = [row for row in refs["available_side_category_circles"] if row["id"] == circle["id"]]
-        assert matches and matches[0]["compatible"] is True
-        assert matches[0]["root_category_id"] == root.id
-        assert matches[0]["side_category_id"] == side["id"]
+        women = [row for row in refs["available_side_category_circles"] if row["id"] == women_circle["id"]]
+        men = [row for row in refs["available_side_category_circles"] if row["id"] == men_circle["id"]]
 
-
+        assert women and women[0]["compatible"] is True
+        assert women[0]["root_category_id"] == root.id
+        assert women[0]["side_category_id"] == women_side["id"]
+        assert men and men[0]["compatible"] is False
 def test_product_wizard_publish_readiness_tracks_basic_fields_and_active_variants(app):
     with app.app_context():
         currency = Currency(code="SAR", symbol="ر.س", name_ar="ريال سعودي", decimals=2, is_base=True)
