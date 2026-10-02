@@ -4188,39 +4188,26 @@ class _SxResultsState extends State<SxResults> {
     sideCircles = [];
     resolvedSideCategoryId = widget.sideCategoryId;
 
-    final entryRootIds = <int>{
-      for (final id in _entryCategoryIds())
-        if (id > 0) id,
-    };
+    // A normal category/banner result must NOT inherit side categories just
+    // because the root category happens to own them. Side-circle navigation
+    // is explicit: it carries circleId or sideCategoryId.
+    final needsSideContext =
+        widget.circleId != null || widget.sideCategoryId != null;
+    if (!needsSideContext) return;
 
-    // A root-category results page owns the category scope. Its side circles
-    // are only a visual/product-scope rail and must never replace that scope.
-    // Collect every configured circle under the matching root category.
-    final collected = <int, Map<String, dynamic>>{};
     for (final side in sxMaps(home['side_categories'])) {
-      final rootId = sxInt(side['root_category_id']);
       final circles = sxMaps(side['circles']);
       final matchesCircle = widget.circleId != null &&
           circles.any((circle) => sxInt(circle['id']) == widget.circleId);
       final matchesSide = widget.sideCategoryId != null &&
           sxInt(side['id']) == widget.sideCategoryId;
-      final matchesRoot = entryRootIds.contains(rootId);
 
-      if (!matchesCircle && !matchesSide && !matchesRoot) continue;
+      if (!matchesCircle && !matchesSide) continue;
 
-      if (matchesCircle || matchesSide) {
-        resolvedSideCategoryId = sxInt(side['id']);
-        categoryContextId ??= rootId > 0 ? rootId : null;
-      }
+      resolvedSideCategoryId = sxInt(side['id']);
+      categoryContextId = sxInt(side['root_category_id']);
 
-      for (final circle in circles) {
-        final id = sxInt(circle['id']);
-        if (id > 0) collected[id] = circle;
-      }
-    }
-
-    if (collected.isNotEmpty) {
-      sideCircles = collected.values.toList()
+      sideCircles = circles
         ..sort((a, b) {
           final ao = sxInt(a['sort_order']);
           final bo = sxInt(b['sort_order']);
@@ -4228,6 +4215,7 @@ class _SxResultsState extends State<SxResults> {
               ? sxInt(a['id']).compareTo(sxInt(b['id']))
               : ao.compareTo(bo);
         });
+      break;
     }
   }
 
