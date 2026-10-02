@@ -2318,6 +2318,15 @@ class CatalogService:
             "hero_card_overlay_color": "#000000",
             "hero_card_overlay_opacity": 0.48,
             "content_padding": 10,
+            "show_title": True,
+            "show_description": True,
+            "title_align": "center",
+            "description_align": "center",
+            "title_show_arrow": True,
+            "title_arrow": ">",
+            "title_arrow_color": "#ffffff",
+            "title_arrow_font_size": 16,
+            "title_arrow_gap": 4,
             "title_color": "#ffffff",
             "title_font_size": 18,
             "title_font_weight": 900,
@@ -2330,8 +2339,12 @@ class CatalogService:
             "product_gap": 4,
             "product_radius": 7,
             "product_info_height": 27,
+            "show_product_name": True,
+            "show_product_price": True,
             "product_name_font_size": 8.5,
             "product_price_font_size": 9.5,
+            "product_name_align": "right",
+            "product_price_align": "right",
             "product_text_color": "#000000",
             "product_image_fit": "cover",
             "badge_text": "",
@@ -2398,8 +2411,15 @@ class CatalogService:
             "trend_store_radius": 10,
             "trend_store_content_background": "#ffffff",
             "trend_store_content_padding": 9,
+            "trend_store_show_title": True,
+            "trend_store_show_description": True,
             "trend_store_title_offset": 0,
             "trend_store_title_align": "center",
+            "trend_store_title_show_arrow": True,
+            "trend_store_title_arrow": ">",
+            "trend_store_title_arrow_color": "#111111",
+            "trend_store_title_arrow_font_size": 14,
+            "trend_store_title_arrow_gap": 4,
             "trend_store_title_font_size": 14,
             "trend_store_title_font_weight": 800,
             "trend_store_title_color": "#111111",
@@ -2488,6 +2508,8 @@ class CatalogService:
             ("trend_store_radius", 0, 30, True),
             ("trend_store_content_padding", 4, 24, True),
             ("trend_store_title_offset", -30, 30, True),
+            ("trend_store_title_arrow_font_size", 9, 28, False),
+            ("trend_store_title_arrow_gap", 0, 20, True),
             ("trend_store_title_font_size", 9, 28, False),
             ("trend_store_title_font_weight", 400, 900, True),
             ("trend_store_promo_offset", -30, 30, True),
@@ -2513,16 +2535,24 @@ class CatalogService:
             if merged.get("product_image_fit") in {"cover", "contain", "fill"}
             else "cover"
         )
-        merged["trend_store_title_align"] = (
-            merged.get("trend_store_title_align")
-            if merged.get("trend_store_title_align") in {"start", "center", "end"}
-            else "center"
-        )
-        merged["trend_store_promo_align"] = (
-            merged.get("trend_store_promo_align")
-            if merged.get("trend_store_promo_align") in {"start", "center", "end"}
-            else "center"
-        )
+        for name in ("product_name_align", "product_price_align", "title_align", "description_align", "trend_store_title_align", "trend_store_promo_align"):
+            merged[name] = (
+                merged.get(name)
+                if merged.get(name) in {"left", "center", "right"}
+                else "center"
+            )
+        merged["title_show_arrow"] = bool(merged.get("title_show_arrow", True))
+        merged["trend_store_title_show_arrow"] = bool(merged.get("trend_store_title_show_arrow", True))
+        merged["show_title"] = bool(merged.get("show_title", True))
+        merged["show_description"] = bool(merged.get("show_description", True))
+        merged["show_product_name"] = bool(merged.get("show_product_name", True))
+        merged["show_product_price"] = bool(merged.get("show_product_price", True))
+        merged["trend_store_show_title"] = bool(merged.get("trend_store_show_title", True))
+        merged["trend_store_show_description"] = bool(merged.get("trend_store_show_description", True))
+        merged["title_arrow"] = merged.get("title_arrow") if merged.get("title_arrow") in {">", "<"} else ">"
+        merged["trend_store_title_arrow"] = merged.get("trend_store_title_arrow") if merged.get("trend_store_title_arrow") in {">", "<"} else ">"
+        merged["title_arrow_gap"] = number("title_arrow_gap", 4, 0, 20, True)
+        merged["trend_store_title_arrow_gap"] = number("trend_store_title_arrow_gap", 4, 0, 20, True)
         merged["timer_position"] = (
             merged.get("timer_position")
             if merged.get("timer_position") in {"top_left", "top_right"}
