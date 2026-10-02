@@ -35,8 +35,11 @@ class ApiService {
 
   String _feedCacheKey({
     int? category,
+    List<int>? categoryIds,
     int? circleId,
     int? hashtagId,
+    List<int>? hashtagIds,
+    int? sideCategoryId,
     String q='',
     List<int>? filterValueIds,
     String sort='recommended',
@@ -46,13 +49,24 @@ class ApiService {
     String? discoveryTab,
     String? minRating,
   }) {
-    final List<int> filters = filterValueIds == null
+    final categories = <int>{
+      if (category != null && category > 0) category,
+      ...?categoryIds?.where((id) => id > 0),
+    }.toList()..sort();
+    final hashtags = <int>{
+      if (hashtagId != null && hashtagId > 0) hashtagId,
+      ...?hashtagIds?.where((id) => id > 0),
+    }.toList()..sort();
+    final filters = filterValueIds == null
         ? <int>[]
         : List<int>.from(filterValueIds)..sort();
     return [
       category ?? 0,
+      categories.join(','),
       circleId ?? 0,
       hashtagId ?? 0,
+      hashtags.join(','),
+      sideCategoryId ?? 0,
       q.trim(),
       filters.join(','),
       sort,
@@ -136,9 +150,67 @@ class ApiService {
     if(rootId==null)return rows;
     return rows.where((e)=>int.tryParse((e['root_category_id']??'').toString())==rootId).toList();
   }
-  Future<List<Map<String,dynamic>>> categoryFilters(int categoryId)async{
-    final d=await get('/catalog/categories/'+categoryId.toString()+'/filters');
-    return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
+  Future<List<Map<String,dynamic>>> categoryFilters(
+    int categoryId, {
+    bool includeDescendants = false,
+  }) async {
+    final d=await get(
+      '/catalog/categories/'+categoryId.toString()+'/filters',
+      q: includeDescendants ? {'include_descendants':'1'} : null,
+    );
+    return ((d['items'] as List?)??const[])
+        .whereType<Map>()
+        .map((e)=>Map<String,dynamic>.from(e))
+        .toList();
+  }
+
+  Future<List<Map<String,dynamic>>> categoryFiltersForCategories(
+    List<int> categoryIds, {
+    bool includeDescendants = true,
+  }) async {
+    final ids = <int>{
+      ...categoryIds.where((id) => id > 0),
+    }.toList()..sort();
+    if (ids.isEmpty) return <Map<String,dynamic>>[];
+
+    final responses = await Future.wait(
+      ids.map(
+        (id) => categoryFilters(
+          id,
+          includeDescendants: includeDescendants,
+        ),
+      ),
+    );
+
+    final merged = <String, Map<String,dynamic>>{};
+    for (final filters in responses) {
+      for (final filter in filters) {
+        final name = (filter['name'] ?? '').toString().trim();
+        final type = (filter['filter_type'] ?? '').toString().trim();
+        final key = (name.toLowerCase()+'|'+type.toLowerCase());
+        final target = merged.putIfAbsent(
+          key,
+          () => <String,dynamic>{
+            'id': filter['id'],
+            'name': filter['name'],
+            'filter_type': filter['filter_type'],
+            'values': <Map<String,dynamic>>[],
+          },
+        );
+        final existing = <int>{
+          for (final value in (target['values'] as List))
+            if (value is Map) int.tryParse((value['id'] ?? '').toString()) ?? 0,
+        };
+        for (final value in ((filter['values'] as List?) ?? const [])) {
+          if (value is! Map) continue;
+          final id = int.tryParse((value['id'] ?? '').toString()) ?? 0;
+          if (id <= 0 || existing.contains(id)) continue;
+          (target['values'] as List).add(Map<String,dynamic>.from(value));
+          existing.add(id);
+        }
+      }
+    }
+    return merged.values.toList();
   }
   Future<Map<String,dynamic>> productReference(int productId)async{
     final d=await get('/catalog/reference/product-config',q:{'product_id':productId.toString()});
@@ -146,8 +218,11 @@ class ApiService {
   }
   Future<List<ProductModel>> feed({
     int? category,
+    List<int>? categoryIds,
     int? circleId,
     int? hashtagId,
+    List<int>? hashtagIds,
+    int? sideCategoryId,
     String q='',
     List<int>? filterValueIds,
     String sort='recommended',
@@ -159,8 +234,11 @@ class ApiService {
   }) async {
     final qp=<String,String>{'limit':'100','sort':sort};
     if(category!=null)qp['category_id']=category.toString();
+    if(categoryIds!=null&&categoryIds.isNotEmpty)qp['category_ids']=categoryIds.join(',');
     if(circleId!=null)qp['circle_id']=circleId.toString();
     if(hashtagId!=null)qp['hashtag_id']=hashtagId.toString();
+    if(hashtagIds!=null&&hashtagIds.isNotEmpty)qp['hashtag_ids']=hashtagIds.join(',');
+    if(sideCategoryId!=null)qp['side_category_id']=sideCategoryId.toString();
     if(q.trim().isNotEmpty)qp['q']=q.trim();
     if(filterValueIds!=null&&filterValueIds.isNotEmpty)qp['filter_value_ids']=filterValueIds.join(',');
     if(minPrice!=null&&minPrice.trim().isNotEmpty)qp['min_price']=minPrice.trim();
@@ -171,8 +249,11 @@ class ApiService {
 
     final cacheKey = _feedCachePrefix + _feedCacheKey(
       category: category,
+      categoryIds: categoryIds,
       circleId: circleId,
       hashtagId: hashtagId,
+      hashtagIds: hashtagIds,
+      sideCategoryId: sideCategoryId,
       q: q,
       filterValueIds: filterValueIds,
       sort: sort,
