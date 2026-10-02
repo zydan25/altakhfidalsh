@@ -3461,6 +3461,9 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
         builder: (_) => SxResults(
           title: sxText(circle['name'], 'الفئة'),
           circleId: id,
+          sideCategoryId: sxInt(circle['side_category_id']) > 0
+              ? sxInt(circle['side_category_id'])
+              : null,
         ),
       ),
     );
@@ -4141,6 +4144,7 @@ class _SxResultsState extends State<SxResults> {
   int? selectedCategoryId;
   int? categoryContextId;
   int? activeCircleId;
+  int? resolvedSideCategoryId;
   bool loading = true;
   bool changingCategory = false;
   int viewMode = _viewGrid;
@@ -4182,13 +4186,24 @@ class _SxResultsState extends State<SxResults> {
 
   void _resolveSideContext() {
     sideCircles = [];
-    final sideId = widget.sideCategoryId;
-    if (sideId == null) return;
+    resolvedSideCategoryId = widget.sideCategoryId;
 
+    // A circle can be opened directly from the categories page or a home
+    // target, where only circleId is carried in the route. Resolve its
+    // owning side-category from the server payload so the result screen keeps
+    // the whole circle rail and the same product/filter scope.
     for (final side in sxMaps(home['side_categories'])) {
-      if (sxInt(side['id']) != sideId) continue;
+      final circles = sxMaps(side['circles']);
+      final matchesCircle = widget.circleId != null &&
+          circles.any((circle) => sxInt(circle['id']) == widget.circleId);
+      final matchesSide = widget.sideCategoryId != null &&
+          sxInt(side['id']) == widget.sideCategoryId;
+
+      if (!matchesCircle && !matchesSide) continue;
+
+      resolvedSideCategoryId = sxInt(side['id']);
       categoryContextId = sxInt(side['root_category_id']);
-      sideCircles = sxMaps(side['circles']);
+      sideCircles = circles;
       break;
     }
   }
@@ -4225,7 +4240,7 @@ class _SxResultsState extends State<SxResults> {
       );
     roots = allCategories.where((x) => x.parentId == null).toList();
 
-    if (widget.sideCategoryId != null) {
+    if (resolvedSideCategoryId != null && sideCircles.isNotEmpty) {
       categories = [];
       return;
     }
@@ -4265,7 +4280,7 @@ class _SxResultsState extends State<SxResults> {
             widget.hashtagId!,
           ...?widget.hashtagIds,
         ],
-        sideCategoryId: widget.sideCategoryId,
+        sideCategoryId: resolvedSideCategoryId,
       );
     } catch (_) {
       // Compatibility fallback: both endpoints are server-defined taxonomy
@@ -4304,7 +4319,7 @@ class _SxResultsState extends State<SxResults> {
     circleId: activeCircleId,
     hashtagId: widget.hashtagId,
     hashtagIds: widget.hashtagIds,
-    sideCategoryId: widget.sideCategoryId,
+    sideCategoryId: resolvedSideCategoryId,
     q: widget.query ?? '',
     filterValueIds: values.toList(),
     sort: sort,
@@ -4554,7 +4569,7 @@ class _SxResultsState extends State<SxResults> {
               ),
             ),
           ),
-          if (widget.sideCategoryId != null && sideCircles.isNotEmpty)
+          if (resolvedSideCategoryId != null && sideCircles.isNotEmpty)
             SliverPersistentHeader(
               pinned: true,
               delegate: _ResultHeaderDelegate(
