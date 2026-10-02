@@ -998,8 +998,16 @@ def create_filter(category_id):
 
 @api_bp.get("/categories/<int:category_id>/filters")
 def category_filters(category_id):
+    include_descendants = str(
+        request.args.get("include_descendants", "")
+    ).strip().lower() in {"1", "true", "yes"}
     try:
-        return {"items": CatalogService.category_filters(category_id)}
+        return {
+            "items": CatalogService.category_filters(
+                category_id,
+                include_descendants=include_descendants,
+            )
+        }
     except LookupError as exc:
         return {"error": "category_not_found", "detail": str(exc)}, 404
 
