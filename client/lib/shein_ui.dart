@@ -5992,77 +5992,1320 @@ class _SizeGuide extends StatelessWidget {
 
 class SxTrendsScreen extends StatefulWidget {
   const SxTrendsScreen({super.key});
-  @override State<SxTrendsScreen> createState() => _SxTrendsScreenState();
+
+  @override
+  State<SxTrendsScreen> createState() => _SxTrendsScreenState();
 }
 
 class _SxTrendsScreenState extends State<SxTrendsScreen> {
-  List<Map<String, dynamic>> trends = []; List<ProductModel> products = []; int selected = 0; bool loading = true;
-  @override void initState() { super.initState(); load(); }
-  Future<void> load() async {
-    try {
-      final h = await api.home();
-      trends = sxMaps(h['trends']);
-      if (trends.isNotEmpty) products = sxMaps(trends.first['products']).map((x) => x['product']).whereType<Map>().map((x) => ProductModel.fromJson(Map<String, dynamic>.from(x))).toList();
-    } catch (_) {}
-    if (mounted) setState(() => loading = false);
+  final PageController _trendPager = PageController(viewportFraction: .84);
+  final ScrollController _scroll = ScrollController();
+
+  List<Map<String, dynamic>> trends = <Map<String, dynamic>>[];
+  List<Map<String, dynamic>> trendTags = <Map<String, dynamic>>[];
+  List<ProductModel> picks = <ProductModel>[];
+
+  int trendIndex = 0;
+  int sectionIndex = 1;
+  int? hashtagId;
+  bool loading = true;
+  bool loadingPicks = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
   }
-  @override Widget build(BuildContext context) {
-    final t = trends.isEmpty ? <String, dynamic>{} : trends[selected.clamp(0, trends.length - 1)];
+
+  @override
+  void dispose() {
+    _trendPager.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final home = await api.home();
+      final nextTrends = sxMaps(home['trends']);
+
+      final seen = <int>{};
+      final tags = <Map<String, dynamic>>[];
+      for (final trend in nextTrends) {
+        final hashtag = trend['hashtag'];
+        if (hashtag is! Map) continue;
+        final id = sxInt(hashtag['id']);
+        if (id <= 0 || seen.contains(id)) continue;
+        seen.add(id);
+        tags.add({
+          'id': id,
+          'display_name': sxText(
+            hashtag['display_name'],
+            '#' + sxText(hashtag['name']),
+          ),
+        });
+      }
+
+      if (!mounted) return;
+      setState(() {
+        trends = nextTrends;
+        trendTags = tags;
+        trendIndex = 0;
+        loading = false;
+      });
+
+      await _loadPicks();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => loading = false);
+    }
+  }
+
+  Future<void> _loadPicks() async {
+    if (mounted) setState(() => loadingPicks = true);
+    try {
+      final rows = hashtagId == null
+          ? await api.feed(
+              currencyId: state.currencyId,
+              sort: 'popular',
+              discoveryTab: 'trends',
+            )
+          : await api.feed(
+              currencyId: state.currencyId,
+              sort: 'popular',
+              hashtagId: hashtagId,
+            );
+
+      if (!mounted) return;
+      setState(() => picks = rows);
+    } catch (_) {
+      if (mounted) setState(() => picks = <ProductModel>[]);
+    } finally {
+      if (mounted) setState(() => loadingPicks = false);
+    }
+  }
+
+  Future<void> _selectHashtag(int? id) async {
+    if (hashtagId == id) return;
+    setState(() => hashtagId = id);
+    await _loadPicks();
+  }
+
+  String _tagText(Map<String, dynamic> tag) {
+    final value = sxText(tag['display_name'], '#' + sxText(tag['name']));
+    return value.startsWith('#') ? value : '#' + value;
+  }
+
+  String _heroTitle(Map<String, dynamic> trend) {
+    final raw = sxText(
+      (trend['hashtag'] as Map?)?['display_name'],
+      '#Trending',
+    );
+    return raw.startsWith('#') ? raw.substring(1) : raw;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
     return Scaffold(
-      body: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : CustomScrollView(slivers: [
-        SliverToBoxAdapter(child: Container(
-          padding: const EdgeInsets.only(top: 10, bottom: 16),
-          decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF383838), Color(0xFF171717)])),
-          child: Column(children: [
-            SafeArea(bottom: false, child: Row(children: [
-              const Expanded(child: Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('ترندات', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w900)))),
-              SxCircleIcon(icon: Icons.search, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxSearchScreen()))),
-              const SizedBox(width: 7),
-            ])),
-            if (trends.isNotEmpty) SizedBox(height: 243, child: ListView.separated(
-              reverse: true, scrollDirection: Axis.horizontal, padding: const EdgeInsets.all(11), itemCount: trends.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 9),
-              itemBuilder: (_, i) => InkWell(onTap: () {
-                setState(() { selected = i; products = sxMaps(trends[i]['products']).map((x) => x['product']).whereType<Map>().map((x) => ProductModel.fromJson(Map<String, dynamic>.from(x))).toList(); });
-              }, child: _BigTrend(t: trends[i], active: selected == i)),
-            )),
-          ]),
-        )),
-        SliverToBoxAdapter(child: Container(
-          padding: const EdgeInsets.fromLTRB(10, 17, 10, 12), color: Colors.white,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            const Text('مختارات رائعة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)), const SizedBox(height: 10),
-            SingleChildScrollView(reverse: true, scrollDirection: Axis.horizontal, child: Row(children: [
-              const SxPill(text: 'لك', background: ClientTheme.accent, foreground: Colors.white), const SizedBox(width: 5),
-              SxPill(text: sxText((t['hashtag'] as Map?)?['display_name'])), const SizedBox(width: 5),
-              const SxPill(text: '#عودة_التراث'), const SizedBox(width: 5), const SxPill(text: '#أناقة_يومية'),
-            ])),
-          ]),
-        )),
-        SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.fromLTRB(7, 8, 7, 18), child: SxProductGrid(products: products))),
-      ]),
+      backgroundColor: Colors.white,
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final scale = width / 360.0;
+          final heroHeight = (278.0 * scale).clamp(260.0, 360.0);
+          final cardHeight = 197.0 * scale;
+          final cardWidth = 300.0 * scale;
+
+          return RefreshIndicator(
+            color: Colors.black,
+            backgroundColor: Colors.white,
+            onRefresh: _load,
+            child: CustomScrollView(
+              controller: _scroll,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: _TrendsHero(
+                    trends: trends,
+                    pageController: _trendPager,
+                    currentIndex: trendIndex,
+                    height: heroHeight,
+                    cardWidth: cardWidth,
+                    cardHeight: cardHeight,
+                    titleFor: _heroTitle,
+                    onPageChanged: (index) {
+                      if (!mounted) return;
+                      setState(() => trendIndex = index);
+                    },
+                    onSearch: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SxSearchScreen(),
+                      ),
+                    ),
+                    onWishlist: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SxWishlistScreen(),
+                      ),
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(14),
+                      ),
+                    ),
+                    child: Column(
+                      children: [
+                        _TrendsSectionTabs(
+                          selected: sectionIndex,
+                          onSelected: (value) {
+                            setState(() => sectionIndex = value);
+                            if (value == 1 && picks.isEmpty) {
+                              _loadPicks();
+                            }
+                          },
+                        ),
+                        _TrendHashtagStrip(
+                          tags: trendTags,
+                          selectedId: hashtagId,
+                          tagText: _tagText,
+                          onMenu: () {
+                            showModalBottomSheet<void>(
+                              context: context,
+                              backgroundColor: Colors.white,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(18),
+                                ),
+                              ),
+                              builder: (_) => SafeArea(
+                                top: false,
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16, 10, 16, 20,
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 38,
+                                        height: 4,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFD6D6D6),
+                                          borderRadius:
+                                              BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 15),
+                                      const Align(
+                                        alignment: Alignment.centerRight,
+                                        child: Text(
+                                          'استكشف الترندات',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      for (final tag in trendTags)
+                                        ListTile(
+                                          dense: true,
+                                          contentPadding: EdgeInsets.zero,
+                                          title: Text(
+                                            sxText(tag['display_name']),
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          trailing: const Icon(
+                                            Icons.chevron_left,
+                                            size: 18,
+                                          ),
+                                          onTap: () {
+                                            Navigator.pop(context);
+                                            _selectHashtag(sxInt(tag['id']));
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                          onSelect: _selectHashtag,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (sectionIndex == 0)
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      8 * scale,
+                      8 * scale,
+                      8 * scale,
+                      20 * scale,
+                    ),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (_, i) {
+                          final trend = trends[i];
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: 9 * scale),
+                            child: _TrendStoreCard(
+                              trend: trend,
+                              height: 210 * scale,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => SxTrendDetailScreen(
+                                    trend: trend,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                        childCount: trends.length,
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      6 * scale,
+                      8 * scale,
+                      6 * scale,
+                      20 * scale,
+                    ),
+                    sliver: loadingPicks
+                        ? const SliverToBoxAdapter(
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 34),
+                              child: Center(
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          )
+                        : picks.isEmpty
+                            ? const SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 34),
+                                  child: Center(
+                                    child: Text(
+                                      'لا توجد منتجات لهذا الترند حالياً',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: ClientTheme.muted,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            : SliverGrid(
+                                delegate: SliverChildBuilderDelegate(
+                                  (_, i) => _TrendProductTile(
+                                    product: picks[i],
+                                    hashtag: hashtagId == null
+                                        ? null
+                                        : trendTags.firstWhere(
+                                            (x) =>
+                                                sxInt(x['id']) == hashtagId,
+                                            orElse: () =>
+                                                <String, dynamic>{},
+                                          ),
+                                  ),
+                                  childCount: picks.length,
+                                ),
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 4 * scale,
+                                  mainAxisSpacing: 5 * scale,
+                                  mainAxisExtent: 334 * scale,
+                                ),
+                              ),
+                  ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
-class _BigTrend extends StatelessWidget {
-  final Map<String, dynamic> t; final bool active;
-  const _BigTrend({required this.t, required this.active});
-  @override Widget build(BuildContext context) {
-    final rows = sxMaps(t['products']); final sec = sxInt((t['timer'] as Map?)?['seconds']);
-    return Container(
-      width: 334,
-      decoration: BoxDecoration(color: const Color(0xFF2D2D2D), borderRadius: BorderRadius.circular(17), border: active ? Border.all(color: Colors.white70) : null),
+class _TrendsHero extends StatelessWidget {
+  final List<Map<String, dynamic>> trends;
+  final PageController pageController;
+  final int currentIndex;
+  final double height;
+  final double cardWidth;
+  final double cardHeight;
+  final String Function(Map<String, dynamic>) titleFor;
+  final ValueChanged<int> onPageChanged;
+  final VoidCallback onSearch;
+  final VoidCallback onWishlist;
+
+  const _TrendsHero({
+    required this.trends,
+    required this.pageController,
+    required this.currentIndex,
+    required this.height,
+    required this.cardWidth,
+    required this.cardHeight,
+    required this.titleFor,
+    required this.onPageChanged,
+    required this.onSearch,
+    required this.onWishlist,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final active = trends.isEmpty
+        ? const <String, dynamic>{}
+        : trends[currentIndex.clamp(0, trends.length - 1)];
+
+    return SizedBox(
+      height: height,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (active['background'] is Map)
+            SxImage(
+              url: active['background']['url'],
+              fit: BoxFit.cover,
+            )
+          else
+            Container(color: const Color(0xFF35312F)),
+          Container(color: Colors.black.withOpacity(.47)),
+          SafeArea(
+            bottom: false,
+            child: SizedBox(
+              height: 54,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 12,
+                    top: 4,
+                    child: Row(
+                      textDirection: TextDirection.ltr,
+                      children: [
+                        _heroIcon(
+                          Icons.favorite_border,
+                          onWishlist,
+                        ),
+                        const SizedBox(width: 7),
+                        _heroIcon(Icons.search, onSearch),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    right: 16,
+                    top: 11,
+                    child: Transform.rotate(
+                      angle: -.06,
+                      child: const Text(
+                        'Trends',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w900,
+                          fontStyle: FontStyle.italic,
+                          letterSpacing: -1.4,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (trends.isNotEmpty)
+            Positioned(
+              top: 68,
+              left: 0,
+              right: 0,
+              height: cardHeight,
+              child: PageView.builder(
+                controller: pageController,
+                itemCount: trends.length,
+                onPageChanged: onPageChanged,
+                clipBehavior: Clip.none,
+                itemBuilder: (_, index) {
+                  final trend = trends[index];
+                  final activePage = index == currentIndex;
+                  return Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: _TrendHeroCard(
+                        trend: trend,
+                        width: cardWidth,
+                        height: cardHeight,
+                        active: activePage,
+                        titleFor: titleFor,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          if (trends.isNotEmpty)
+            Positioned(
+              bottom: 8,
+              left: 0,
+              right: 0,
+              child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: Text(
+                  (currentIndex + 1).toString() +
+                      ' / ' +
+                      trends.length.toString(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _heroIcon(IconData icon, VoidCallback tap) => Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: tap,
+          child: SizedBox(
+            width: 42,
+            height: 42,
+            child: Center(
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: 29,
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+class _TrendHeroCard extends StatelessWidget {
+  final Map<String, dynamic> trend;
+  final double width;
+  final double height;
+  final bool active;
+  final String Function(Map<String, dynamic>) titleFor;
+
+  const _TrendHeroCard({
+    required this.trend,
+    required this.width,
+    required this.height,
+    required this.active,
+    required this.titleFor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final products = sxMaps(trend['products']);
+    final promo = sxText(
+      trend['promo_text'],
+      sxText((trend['overlay'] as Map?)?['text']),
+    );
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF2D2827),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(
+          color: active ? Colors.white70 : Colors.white30,
+          width: active ? 1.1 : .7,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black38,
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
       clipBehavior: Clip.antiAlias,
-      child: Stack(children: [
-        Positioned.fill(child: SxImage(url: (t['background'] as Map?)?['url'])),
-        Positioned.fill(child: Container(color: Colors.black.withOpacity(.42))),
-        Positioned(top: 10, right: 10, child: SxPill(text: sec <= 0 ? 'مستمر' : 'خلال ' + ((sec / 86400).ceil()).toString() + ' يوم', background: ClientTheme.accent, foreground: Colors.white)),
-        Positioned(top: 10, left: 10, child: SxPill(text: sxText((t['hashtag'] as Map?)?['display_name']), background: Colors.black54, foreground: Colors.white)),
-        Positioned(left: 9, right: 9, bottom: 9, child: Row(children: [
-          for (final row in rows.take(3)) Expanded(child: Padding(padding: const EdgeInsets.only(left: 5), child: Container(height: 111, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(11)), clipBehavior: Clip.antiAlias, child: SxImage(url: (row['product'] as Map?)?['image_url'])))),
-        ])),
-      ]),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if ((trend['background'] as Map?)?['url'] != null)
+            SxImage(
+              url: (trend['background'] as Map?)?['url'],
+              fit: BoxFit.cover,
+            ),
+          Container(color: Colors.black.withOpacity(.48)),
+          Positioned(
+            top: 13,
+            left: 12,
+            right: 12,
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.chevron_left,
+                      color: Colors.white,
+                      size: 19,
+                    ),
+                    Flexible(
+                      child: Text(
+                        titleFor(trend),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    const Text(
+                      '#',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  promo,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10.5,
+                    height: 1.25,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 10,
+            right: 10,
+            bottom: 9,
+            height: 103,
+            child: Row(
+              textDirection: TextDirection.ltr,
+              children: [
+                for (int i = 0; i < 3; i++)
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        right: i == 2 ? 0 : 4,
+                      ),
+                      child: _MiniTrendProduct(
+                        row: i < products.length ? products[i] : null,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniTrendProduct extends StatelessWidget {
+  final Map<String, dynamic>? row;
+
+  const _MiniTrendProduct({this.row});
+
+  @override
+  Widget build(BuildContext context) {
+    final product = row?['product'] is Map
+        ? Map<String, dynamic>.from(row!['product'])
+        : null;
+    final name = sxText(product?['name'], 'منتج');
+    final price = sxText(product?['price'], '—');
+    final image = sxText(product?['image_url']);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(7),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Expanded(
+            child: SxImage(
+              url: image,
+              fit: BoxFit.cover,
+            ),
+          ),
+          SizedBox(
+            height: 27,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 5),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    price,
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrendsSectionTabs extends StatelessWidget {
+  final int selected;
+  final ValueChanged<int> onSelected;
+
+  const _TrendsSectionTabs({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 44,
+        child: Row(
+          children: [
+            Expanded(
+              child: _tab(
+                label: 'Trends Store',
+                index: 0,
+              ),
+            ),
+            Expanded(
+              child: _tab(
+                label: 'Trending Picks',
+                index: 1,
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Widget _tab({required String label, required int index}) => InkWell(
+        onTap: () => onSelected(index),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Center(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: index == selected
+                        ? Colors.black
+                        : const Color(0xFF777777),
+                    fontSize: 18,
+                    fontWeight: index == selected
+                        ? FontWeight.w900
+                        : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+            Container(
+              width: 86,
+              height: index == selected ? 2 : 0,
+              color: Colors.black,
+            ),
+          ],
+        ),
+      );
+}
+
+class _TrendHashtagStrip extends StatelessWidget {
+  final List<Map<String, dynamic>> tags;
+  final int? selectedId;
+  final String Function(Map<String, dynamic>) tagText;
+  final VoidCallback onMenu;
+  final ValueChanged<int?> onSelect;
+
+  const _TrendHashtagStrip({
+    required this.tags,
+    required this.selectedId,
+    required this.tagText,
+    required this.onMenu,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 39,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+            children: [
+              _menu(),
+              const SizedBox(width: 6),
+              for (final tag in tags) ...[
+                _chip(
+                  label: tagText(tag),
+                  selected: sxInt(tag['id']) == selectedId,
+                  onTap: () => onSelect(sxInt(tag['id'])),
+                ),
+                const SizedBox(width: 6),
+              ],
+              _chip(
+                label: 'For You',
+                selected: selectedId == null,
+                purple: true,
+                onTap: () => onSelect(null),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  Widget _menu() => Material(
+        color: const Color(0xFFF7F7F7),
+        child: InkWell(
+          onTap: onMenu,
+          child: const SizedBox(
+            width: 35,
+            height: 31,
+            child: Center(
+              child: Icon(
+                Icons.menu,
+                size: 21,
+                color: Color(0xFF8B8B8B),
+              ),
+            ),
+          ),
+        ),
+      );
+
+  Widget _chip({
+    required String label,
+    required bool selected,
+    required VoidCallback onTap,
+    bool purple = false,
+  }) =>
+      Material(
+        color: selected
+            ? (purple ? const Color(0xFFF0E6FF) : const Color(0xFFEDEDED))
+            : const Color(0xFFF3F4F7),
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            height: 31,
+            padding: const EdgeInsets.symmetric(horizontal: 13),
+            alignment: Alignment.center,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: selected && purple
+                    ? const Color(0xFF8355E6)
+                    : const Color(0xFF4C4C4C),
+                fontSize: 11.5,
+                fontWeight:
+                    selected || purple ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+class _TrendStoreCard extends StatelessWidget {
+  final Map<String, dynamic> trend;
+  final double height;
+  final VoidCallback onTap;
+
+  const _TrendStoreCard({
+    required this.trend,
+    required this.height,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final title = sxText(
+      (trend['hashtag'] as Map?)?['display_name'],
+      '#Trending',
+    );
+
+    return InkWell(
+      onTap: onTap,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Stack(
+          children: [
+            SizedBox(
+              height: height,
+              width: double.infinity,
+              child: SxImage(
+                url: (trend['background'] as Map?)?['url'],
+                fit: BoxFit.cover,
+              ),
+            ),
+            Positioned.fill(
+              child: Container(color: Colors.black.withOpacity(.42)),
+            ),
+            Positioned(
+              left: 15,
+              right: 15,
+              top: 16,
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Positioned(
+              left: 15,
+              right: 15,
+              bottom: 13,
+              child: Text(
+                sxText(trend['promo_text']),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrendProductTile extends StatefulWidget {
+  final ProductModel product;
+  final Map<String, dynamic>? hashtag;
+
+  const _TrendProductTile({
+    required this.product,
+    this.hashtag,
+  });
+
+  @override
+  State<_TrendProductTile> createState() => _TrendProductTileState();
+}
+
+class _TrendProductTileState extends State<_TrendProductTile> {
+  late List<String> gallery;
+  int imageIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    gallery = _unique(widget.product.images, widget.product.image);
+  }
+
+  @override
+  void didUpdateWidget(covariant _TrendProductTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.product.id != widget.product.id) {
+      gallery = _unique(widget.product.images, widget.product.image);
+      imageIndex = 0;
+    }
+  }
+
+  List<String> _unique(Iterable<String> images, String? primary) {
+    final rows = <String>[
+      ...images.where((x) => x.isNotEmpty),
+      if (primary != null && primary.isNotEmpty) primary,
+    ];
+    return rows.toSet().toList();
+  }
+
+  int _discount() {
+    final old = sxDouble(widget.product.oldPrice);
+    final current = sxDouble(widget.product.price);
+    if (old <= current || old <= 0) return 0;
+    return ((1 - current / old) * 100).round();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final discount = _discount();
+    final hashtagLabel = widget.hashtag == null
+        ? '#Trends'
+        : sxText(widget.hashtag?['display_name'], '#Trends');
+    final swatches = widget.product.colors.take(4).toList();
+
+    return Container(
+      color: Colors.white,
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SxProductScreen(id: widget.product.id),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: 228,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (gallery.isEmpty)
+                    Container(
+                      color: const Color(0xFFEDEDED),
+                      child: const Icon(Icons.image_outlined),
+                    )
+                  else
+                    GestureDetector(
+                      onHorizontalDragEnd: (details) {
+                        if (gallery.length <= 1) return;
+                        final velocity = details.primaryVelocity ?? 0;
+                        final direction = velocity < 0 ? 1 : -1;
+                        final next =
+                            (imageIndex + direction) % gallery.length;
+                        setState(() {
+                          imageIndex = next < 0 ? next + gallery.length : next;
+                        });
+                      },
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: KeyedSubtree(
+                          key: ValueKey(
+                            widget.product.id.toString() +
+                                '-' +
+                                imageIndex.toString(),
+                          ),
+                          child: SxImage(
+                            url: gallery[imageIndex],
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (widget.product.badges.isNotEmpty)
+                    Positioned(
+                      left: 7,
+                      top: 7,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: widget.product.badges.take(2).map(
+                          (badge) {
+                            final bg = sxColor(
+                              badge['bg_color'],
+                              const Color(0xFF111111),
+                            );
+                            final fg = sxColor(
+                              badge['text_color'],
+                              Colors.white,
+                            );
+                            final label = sxText(
+                              badge['custom_text'],
+                              sxText(
+                                badge['name'],
+                                sxText(badge['code']),
+                              ),
+                            );
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: bg,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                                child: Text(
+                                  label,
+                                  style: TextStyle(
+                                    color: fg,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ).toList(),
+                      ),
+                    ),
+                  if (swatches.isNotEmpty)
+                    Positioned(
+                      right: 7,
+                      bottom: 10,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: swatches.map((color) {
+                          return Container(
+                            width: 22,
+                            height: 22,
+                            margin: const EdgeInsets.only(top: 4),
+                            padding: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(.96),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: const Color(0xFFD5D5D5),
+                                width: .7,
+                              ),
+                            ),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color: sxColor(
+                                  color['hex_code'],
+                                  const Color(0xFFE8E8E8),
+                                ),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  if (gallery.length > 1)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 6,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(
+                          gallery.length.clamp(0, 7),
+                          (i) => Container(
+                            width: i == imageIndex ? 12 : 4,
+                            height: 3,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(
+                                i == imageIndex ? .95 : .55,
+                              ),
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.only(top: 0, bottom: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    height: 25,
+                    color: const Color(0xFFF1EAFE),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Row(
+                      textDirection: TextDirection.ltr,
+                      children: [
+                        const Icon(
+                          Icons.chevron_left,
+                          size: 17,
+                          color: Color(0xFF8D65E8),
+                        ),
+                        Expanded(
+                          child: Text(
+                            hashtagLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF7751CA),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const Text(
+                          'Trends',
+                          style: TextStyle(
+                            color: Color(0xFF8C5AE8),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(7, 5, 7, 0),
+                    child: Text(
+                      widget.product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.black,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        height: 1.15,
+                      ),
+                    ),
+                  ),
+                  if (widget.product.soldQty > 0)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(7, 3, 7, 0),
+                      child: Text(
+                        'sold +' + widget.product.soldQty.toString(),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          color: Color(0xFF333333),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Container(
+                        height: 39,
+                        margin: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.fromLTRB(7, 4, 7, 4),
+                        child: Row(
+                          textDirection: TextDirection.ltr,
+                          children: [
+                            Material(
+                              color: const Color(0xFFF6F6F6),
+                              child: InkWell(
+                                onTap: () async {
+                                  try {
+                                    if (widget.product.variantId == null) return;
+                                    await api.addCart(
+                                      variantId: widget.product.variantId!,
+                                      qty: 1,
+                                    );
+                                    _CartBadge.value.value += 1;
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'تمت إضافة المنتج إلى الحقيبة',
+                                          ),
+                                          duration:
+                                              Duration(milliseconds: 850),
+                                        ),
+                                      );
+                                    }
+                                  } catch (_) {}
+                                },
+                                child: const SizedBox(
+                                  width: 33,
+                                  height: 33,
+                                  child: Center(
+                                    child: Icon(
+                                      Icons.add_shopping_cart_outlined,
+                                      size: 19,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const Spacer(),
+                            if (discount > 0)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: Text(
+                                  'خصم $discount%',
+                                  style: const TextStyle(
+                                    color: Color(0xFFDF5B37),
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            Text(
+                              widget.product.price +
+                                  ' ' +
+                                  state.currencySymbol,
+                              textDirection: TextDirection.ltr,
+                              style: const TextStyle(
+                                color: Colors.black,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
