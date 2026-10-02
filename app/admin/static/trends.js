@@ -83,6 +83,12 @@
     ui_counter_font_size: 12,
     ui_counter_bottom: 8,
     ui_show_counter: true,
+    ui_timer_background_color: "#111827",
+    ui_timer_text_color: "#ffffff",
+    ui_timer_font_size: 9,
+    ui_timer_radius: 4,
+    ui_timer_position: "top_left",
+    ui_show_timer: true,
   };
 
   const setUiFields = (settings = {}) => {
