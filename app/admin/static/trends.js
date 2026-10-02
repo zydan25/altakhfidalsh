@@ -186,6 +186,14 @@
     Array.isArray(product?.images)
       ? product.images.filter((item) => item && item.id && item.url)
       : [];
+  const selectedProductImage = (product, productId) => {
+    const images = productImages(product);
+    const selectedId = Number(selectedImageIds.get(Number(productId)) || 0);
+    return (
+      images.find((image) => Number(image.id) === selectedId)?.url ||
+      productImage(product)
+    );
+  };
 
   const resetProducts = () => {
     products = [];
@@ -240,8 +248,8 @@
       card.innerHTML = `
         <div class="trend-selected-product-slot">${index + 1}</div>
         <div class="trend-selected-product-media">
-          ${productImage(product)
-            ? `<img src="${escapeHtml(productImage(product))}" alt="${escapeHtml(product.name || "منتج")}">`
+          ${selectedProductImage(product, id)
+            ? `<img src="${escapeHtml(selectedProductImage(product, id))}" alt="${escapeHtml(product.name || "منتج")}">`
             : '<span class="trend-product-placeholder">□</span>'}
         </div>
         <div class="trend-selected-product-copy">
