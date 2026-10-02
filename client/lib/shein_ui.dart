@@ -596,6 +596,17 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
     return global;
   }
 
+  double _homeHeaderCategoryGap() {
+    final payload = home['ui_settings'];
+    if (payload is! Map) return 3.0;
+    final raw = payload['home_header_category_gap'];
+    final value = raw is num
+        ? raw.toDouble()
+        : double.tryParse(sxText(raw));
+    if (value == null || !value.isFinite) return 3.0;
+    return value.clamp(-30.0, 120.0).toDouble();
+  }
+
   Map<String, dynamic> _couponDisplaySettings() {
     final payload = home['coupon_strip'];
     const defaults = <String, dynamic>{
@@ -750,6 +761,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         _headerIsSolid ? Colors.black : categoryTextColor;
     final effectiveCategoryActiveColor =
         _headerIsSolid ? Colors.black : categoryActiveColor;
+    final headerCategoryGap = _homeHeaderCategoryGap();
     final categoryDisplay = _categoryDisplaySettings();
     final couponStrip = _couponDisplaySettings();
     final coupons = _homeCoupons();
@@ -942,6 +954,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
             roots: roots,
             selected: selected,
             solidBackground: _headerIsSolid,
+            categoryGap: headerCategoryGap,
             categoryTextColor: effectiveCategoryTextColor,
             categoryActiveColor: effectiveCategoryActiveColor,
             onSelected: (id) {
@@ -975,6 +988,7 @@ class _HomeFixedHeader extends StatelessWidget {
   final List<CategoryModel> roots;
   final int selected;
   final bool solidBackground;
+  final double categoryGap;
   final Color categoryTextColor;
   final Color categoryActiveColor;
   final ValueChanged<int> onSelected;
@@ -984,6 +998,7 @@ class _HomeFixedHeader extends StatelessWidget {
     required this.roots,
     required this.selected,
     required this.solidBackground,
+    required this.categoryGap,
     required this.categoryTextColor,
     required this.categoryActiveColor,
     required this.onSelected,
@@ -999,6 +1014,9 @@ class _HomeFixedHeader extends StatelessWidget {
       ...roots,
     ];
     final topInset = MediaQuery.of(context).padding.top;
+    final effectiveGap = categoryGap.clamp(-30.0, 120.0).toDouble();
+    final extraHeaderSpace = effectiveGap > 3.0 ? effectiveGap - 3.0 : 0.0;
+    final categoryShift = effectiveGap < 3.0 ? effectiveGap - 3.0 : 0.0;
     return Positioned(
       top: 0,
       left: 0,
@@ -1022,7 +1040,7 @@ class _HomeFixedHeader extends StatelessWidget {
           children: [
             SizedBox(height: topInset),
             SizedBox(
-              height: 48,
+              height: 48 + extraHeaderSpace,
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(10, 2, 10, 3),
                 child: Directionality(
@@ -1063,9 +1081,11 @@ class _HomeFixedHeader extends StatelessWidget {
                 ),
               ),
             ),
-            SizedBox(
-              height: 42,
-              child: Directionality(
+            Transform.translate(
+              offset: Offset(0, categoryShift),
+              child: SizedBox(
+                height: 42,
+                child: Directionality(
                 textDirection: TextDirection.rtl,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
@@ -1113,6 +1133,7 @@ class _HomeFixedHeader extends StatelessWidget {
                       ),
                     );
                   }).toList(),
+                ),
                 ),
               ),
             ),
