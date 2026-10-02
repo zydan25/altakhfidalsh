@@ -147,119 +147,6 @@
   </div>
 </section>
 
-<div class="admin-modal trend-editor-modal" data-modal="trendEditorModal" hidden>
-  <div class="admin-modal-backdrop" data-trend-close></div>
-  <section class="admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="trendEditorTitle">
-    <div class="trend-editor-header">
-      <button class="trend-editor-close" type="button" data-trend-close aria-label="إغلاق">×</button>
-      <div>
-        <span class="eyebrow">إدارة المحتوى</span>
-        <h3 id="trendEditorTitle">تعديل مستطيل الترند</h3>
-      </div>
-      <span class="trend-editor-sparkle">✦</span>
-    </div>
-
-    <form id="trendEditorForm" method="post" enctype="multipart/form-data" class="trend-editor-form">
-      <input type="hidden" name="action" id="trendEditorAction" value="create">
-      <input type="hidden" name="id" id="trendEditorId">
-      <input type="hidden" name="hashtag_id" id="trendHashtagId">
-      <div id="trendProductInputs"></div>
-
-      <section class="trend-editor-section">
-        <div class="trend-field-heading">
-          <label for="trendHashtagSelect">الهاشتاج الرئيسي <b class="required-mark">*</b></label>
-          <small>اختر الهاشتاج الذي سيحدد المنتجات المتاحة للترند.</small>
-        </div>
-        <select id="trendHashtagSelect" required>
-          <option value="">اختر الهاشتاج...</option>
-          {% for hashtag in hashtags %}
-          <option value="{{ hashtag.id }}">{{ hashtag.display_name or "#" ~ hashtag.name }} · {{ hashtag_products_count.get(hashtag.id, 0) }} منتج</option>
-          {% endfor %}
-        </select>
-        <div class="trend-hashtag-chips">
-          {% for hashtag in hashtags[:10] %}
-          <button type="button" class="trend-hashtag-chip" data-trend-hashtag="{{ hashtag.id }}">{{ hashtag.display_name or "#" ~ hashtag.name }}</button>
-          {% endfor %}
-        </div>
-      </section>
-
-      <section class="trend-editor-section">
-        <div class="trend-field-heading">
-          <label for="trendPromoText">النص الترويجي تحت الهاشتاج <b class="required-mark">*</b></label>
-        </div>
-        <textarea id="trendPromoText" name="promo_text" rows="2" required placeholder="مثال: كشف جمال التراث بأناقة لا تقاوم!"></textarea>
-      </section>
-
-      <section class="trend-editor-section trend-inline-fields">
-        <label>
-          مدة العرض <b class="required-mark">*</b>
-          <input id="trendDurationDays" name="duration_days" type="number" min="1" max="3650" value="8" required>
-          <small class="field-help">مدة صلاحية الترند بالأيام.</small>
-        </label>
-        <label>
-          ترتيب الظهور
-          <input id="trendSortOrder" name="sort_order" type="number" min="0" value="0">
-        </label>
-        <label>
-          الحالة
-          <select id="trendStatus" name="status">
-            <option value="active" selected>نشط — يظهر في التطبيق</option>
-            <option value="draft">مسودة — لا يظهر</option>
-          </select>
-        </label>
-      </section>
-
-      <section class="trend-editor-section">
-        <div class="trend-field-heading">
-          <label>المؤقت التنازلي</label>
-          <small>مؤقت اختياري يبدأ من لحظة حفظ الترند النشط. يمكن ضبطه بالثواني أو الدقائق.</small>
-        </div>
-        <label class="check-row trend-toggle-row">
-          <input id="trendTimerEnabled" name="timer_enabled" type="checkbox">
-          <span><strong>تفعيل المؤقت</strong><small>عند إلغاء التفعيل لا يظهر أي عداد للعميل.</small></span>
-        </label>
-        <div class="trend-inline-fields trend-timer-fields">
-          <label>
-            قيمة المؤقت
-            <input id="trendTimerValue" name="timer_value" type="number" min="1" max="100000000" value="60" inputmode="numeric">
-          </label>
-          <label>
-            الوحدة
-            <select id="trendTimerUnit" name="timer_unit">
-              <option value="seconds">ثوانٍ</option>
-              <option value="minutes">دقائق</option>
-            </select>
-          </label>
-        </div>
-      </section>
-
-      <section class="trend-editor-section">
-        <div class="trend-field-heading">
-          <label>النص المخصص داخل صورة الترند</label>
-          <small>نص اختياري يثبت فوق الصورة بألوان تختارها.</small>
-        </div>
-        <label>
-          النص المخصص
-          <input id="trendOverlayText" name="overlay_text" maxlength="220" placeholder="مثال: خصم اليوم فقط ✨">
-        </label>
-        <div class="form-grid">
-          <label>
-            لون الخط
-            <span class="color-input-row">
-              <input id="trendOverlayTextColor" name="overlay_text_color" type="color" value="#ffffff">
-              <input id="trendOverlayTextColorText" class="color-text-input" value="#ffffff" dir="ltr" maxlength="7">
-            </span>
-          </label>
-          <label>
-            لون خلفية الخط
-            <span class="color-input-row">
-              <input id="trendOverlayBackgroundColor" name="overlay_background_color" type="color" value="#111827">
-              <input id="trendOverlayBackgroundColorText" class="color-text-input" value="#111827" dir="ltr" maxlength="7">
-            </span>
-          </label>
-        </div>
-      </section>
-
 <section class="panel trend-global-settings-panel">
   <div class="panel-heading trend-global-heading">
     <div>
@@ -809,6 +696,118 @@
   </form>
 </section>
 
+<div class="admin-modal trend-editor-modal" data-modal="trendEditorModal" hidden>
+  <div class="admin-modal-backdrop" data-trend-close></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="trendEditorTitle">
+    <div class="trend-editor-header">
+      <button class="trend-editor-close" type="button" data-trend-close aria-label="إغلاق">×</button>
+      <div>
+        <span class="eyebrow">إدارة المحتوى</span>
+        <h3 id="trendEditorTitle">تعديل مستطيل الترند</h3>
+      </div>
+      <span class="trend-editor-sparkle">✦</span>
+    </div>
+
+    <form id="trendEditorForm" method="post" enctype="multipart/form-data" class="trend-editor-form">
+      <input type="hidden" name="action" id="trendEditorAction" value="create">
+      <input type="hidden" name="id" id="trendEditorId">
+      <input type="hidden" name="hashtag_id" id="trendHashtagId">
+      <div id="trendProductInputs"></div>
+
+      <section class="trend-editor-section">
+        <div class="trend-field-heading">
+          <label for="trendHashtagSelect">الهاشتاج الرئيسي <b class="required-mark">*</b></label>
+          <small>اختر الهاشتاج الذي سيحدد المنتجات المتاحة للترند.</small>
+        </div>
+        <select id="trendHashtagSelect" required>
+          <option value="">اختر الهاشتاج...</option>
+          {% for hashtag in hashtags %}
+          <option value="{{ hashtag.id }}">{{ hashtag.display_name or "#" ~ hashtag.name }} · {{ hashtag_products_count.get(hashtag.id, 0) }} منتج</option>
+          {% endfor %}
+        </select>
+        <div class="trend-hashtag-chips">
+          {% for hashtag in hashtags[:10] %}
+          <button type="button" class="trend-hashtag-chip" data-trend-hashtag="{{ hashtag.id }}">{{ hashtag.display_name or "#" ~ hashtag.name }}</button>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="trend-editor-section">
+        <div class="trend-field-heading">
+          <label for="trendPromoText">النص الترويجي تحت الهاشتاج <b class="required-mark">*</b></label>
+        </div>
+        <textarea id="trendPromoText" name="promo_text" rows="2" required placeholder="مثال: كشف جمال التراث بأناقة لا تقاوم!"></textarea>
+      </section>
+
+      <section class="trend-editor-section trend-inline-fields">
+        <label>
+          مدة العرض <b class="required-mark">*</b>
+          <input id="trendDurationDays" name="duration_days" type="number" min="1" max="3650" value="8" required>
+          <small class="field-help">مدة صلاحية الترند بالأيام.</small>
+        </label>
+        <label>
+          ترتيب الظهور
+          <input id="trendSortOrder" name="sort_order" type="number" min="0" value="0">
+        </label>
+        <label>
+          الحالة
+          <select id="trendStatus" name="status">
+            <option value="active" selected>نشط — يظهر في التطبيق</option>
+            <option value="draft">مسودة — لا يظهر</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="trend-editor-section">
+        <div class="trend-field-heading">
+          <label>المؤقت التنازلي</label>
+          <small>مؤقت اختياري يبدأ من لحظة حفظ الترند النشط. يمكن ضبطه بالثواني أو الدقائق.</small>
+        </div>
+        <label class="check-row trend-toggle-row">
+          <input id="trendTimerEnabled" name="timer_enabled" type="checkbox">
+          <span><strong>تفعيل المؤقت</strong><small>عند إلغاء التفعيل لا يظهر أي عداد للعميل.</small></span>
+        </label>
+        <div class="trend-inline-fields trend-timer-fields">
+          <label>
+            قيمة المؤقت
+            <input id="trendTimerValue" name="timer_value" type="number" min="1" max="100000000" value="60" inputmode="numeric">
+          </label>
+          <label>
+            الوحدة
+            <select id="trendTimerUnit" name="timer_unit">
+              <option value="seconds">ثوانٍ</option>
+              <option value="minutes">دقائق</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      <section class="trend-editor-section">
+        <div class="trend-field-heading">
+          <label>النص المخصص داخل صورة الترند</label>
+          <small>نص اختياري يثبت فوق الصورة بألوان تختارها.</small>
+        </div>
+        <label>
+          النص المخصص
+          <input id="trendOverlayText" name="overlay_text" maxlength="220" placeholder="مثال: خصم اليوم فقط ✨">
+        </label>
+        <div class="form-grid">
+          <label>
+            لون الخط
+            <span class="color-input-row">
+              <input id="trendOverlayTextColor" name="overlay_text_color" type="color" value="#ffffff">
+              <input id="trendOverlayTextColorText" class="color-text-input" value="#ffffff" dir="ltr" maxlength="7">
+            </span>
+          </label>
+          <label>
+            لون خلفية الخط
+            <span class="color-input-row">
+              <input id="trendOverlayBackgroundColor" name="overlay_background_color" type="color" value="#111827">
+              <input id="trendOverlayBackgroundColorText" class="color-text-input" value="#111827" dir="ltr" maxlength="7">
+            </span>
+          </label>
+        </div>
+      </section>
 
       <section class="trend-editor-section">
         <div class="trend-field-heading">
