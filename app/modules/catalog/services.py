@@ -2638,7 +2638,7 @@ class CatalogService:
             Hashtag.query
             .filter(Hashtag.is_active.is_(True))
             .order_by(Hashtag.sort_order, Hashtag.id)
-            .limit(min(max(int(limit), 1), 100))
+            .limit(min(max(int(limit), 1), 500))
             .all()
         )
         return [
