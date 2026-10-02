@@ -427,6 +427,12 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
             slug="blue-results",
             sort_order=1,
         )
+        green = CategoryFilterValue(
+            filter_id=color_filter.id,
+            label="أخضر",
+            slug="green-results-unused",
+            sort_order=2,
+        )
 
         first = Product(
             sku="RESULT-SCOPE-001",
@@ -499,6 +505,12 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
         category_filters = category_filter_response.get_json()["items"]
         assert any(
             value["id"] == red.id
+            for group in category_filters
+            for value in group["values"]
+        )
+        # Filter options come from the server taxonomy, not product assignments.
+        assert any(
+            value["id"] == green.id
             for group in category_filters
             for value in group["values"]
         )
