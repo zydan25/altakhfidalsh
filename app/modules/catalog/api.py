@@ -291,9 +291,9 @@ def public_product_feed():
         ]
 
         if circle_id is not None:
-            // A circle result is narrower than its parent side category.
-            // Use the same relationship JOIN for both constraints instead of
-            // joining ProductSideCategoryCircle twice.
+            # A circle result is narrower than its parent side category.
+            # Use the same relationship JOIN for both constraints instead of
+            # joining ProductSideCategoryCircle twice.
             side_circle_ids = [circle_id] if circle_id in side_circle_ids else []
 
         if not side_circle_ids:
