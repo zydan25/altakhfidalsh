@@ -39,8 +39,63 @@
   let products = [];
   let productMap = new Map();
   let selectedIds = new Set();
+  let selectedImageIds = new Map();
   let loadedHashtagId = null;
   let backgroundObjectUrl = null;
+
+  const uiDefaults = {
+    ui_hero_height: 278,
+    ui_hero_card_top: 68,
+    ui_hero_card_width: 300,
+    ui_hero_card_height: 198,
+    ui_hero_card_radius: 9,
+    ui_hero_card_border_width: 1,
+    ui_hero_card_border_color: "#ffffff",
+    ui_hero_background_overlay_color: "#000000",
+    ui_hero_background_overlay_opacity: .47,
+    ui_hero_card_overlay_opacity: .48,
+    ui_content_padding: 10,
+    ui_title_text: "",
+    ui_title_font_size: 18,
+    ui_title_font_weight: 900,
+    ui_title_color: "#ffffff",
+    ui_title_spacing: 5,
+    ui_promo_font_size: 10.5,
+    ui_promo_font_weight: 700,
+    ui_promo_color: "#ffffff",
+    ui_promo_max_lines: 2,
+    ui_product_width: 0,
+    ui_product_height: 103,
+    ui_product_gap: 4,
+    ui_product_radius: 7,
+    ui_product_info_height: 27,
+    ui_product_name_font_size: 8.5,
+    ui_product_price_font_size: 9.5,
+    ui_product_text_color: "#000000",
+    ui_product_image_fit: "cover",
+    ui_badge_text: "",
+    ui_badge_background_color: "#111827",
+    ui_badge_text_color: "#ffffff",
+    ui_badge_font_size: 9.5,
+    ui_badge_radius: 4,
+    ui_badge_position: "top_right",
+    ui_counter_color: "#ffffff",
+    ui_counter_font_size: 12,
+    ui_counter_bottom: 8,
+    ui_show_counter: true,
+  };
+
+  const setUiFields = (settings = {}) => {
+    Object.entries(uiDefaults).forEach(([name, fallback]) => {
+      const field = form.elements.namedItem(name);
+      if (!field) return;
+      const value = Object.prototype.hasOwnProperty.call(settings, name)
+        ? settings[name]
+        : fallback;
+      if (field.type === "checkbox") field.checked = Boolean(value);
+      else field.value = String(value ?? fallback);
+    });
+  };
 
   try {
     seeds = JSON.parse(seedElement.textContent || "[]") || [];
@@ -121,11 +176,16 @@
 
   const productBrand = (product) => product?.brand?.name || "بدون علامة";
   const productImage = (product) => product?.image_url || "";
+  const productImages = (product) =>
+    Array.isArray(product?.images)
+      ? product.images.filter((item) => item && item.id && item.url)
+      : [];
 
   const resetProducts = () => {
     products = [];
     productMap = new Map();
     selectedIds = new Set();
+    selectedImageIds = new Map();
     loadedHashtagId = null;
     renderSelected();
     renderCandidates();
@@ -139,6 +199,12 @@
       input.name = "product_ids";
       input.value = String(id);
       els.hiddenProducts.appendChild(input);
+
+      const imageInput = document.createElement("input");
+      imageInput.type = "hidden";
+      imageInput.name = "product_image_asset_ids";
+      imageInput.value = String(selectedImageIds.get(id) || "");
+      els.hiddenProducts.appendChild(imageInput);
     });
   };
 
@@ -154,6 +220,17 @@
       const card = document.createElement("article");
       card.className = "trend-selected-product";
       card.dataset.productId = String(id);
+      const images = productImages(product);
+      if (!selectedImageIds.has(id) && images.length) {
+        selectedImageIds.set(id, Number(images[0].id));
+      }
+      const imageOptions = images.length
+        ? images.map((image, imageIndex) => `
+            <option value="${escapeHtml(image.id)}" ${Number(selectedImageIds.get(id)) === Number(image.id) ? "selected" : ""}>
+              صورة ${imageIndex + 1}
+            </option>
+          `).join("")
+        : '<option value="">الصورة الافتراضية</option>';
       card.innerHTML = `
         <div class="trend-selected-product-slot">${index + 1}</div>
         <div class="trend-selected-product-media">
@@ -165,6 +242,10 @@
           <strong>${escapeHtml(productBrand(product))}</strong>
           <span>${escapeHtml(product.name || "منتج")}</span>
           <small>${formatPrice(product.price)} ر.س</small>
+          <label class="trend-selected-image-choice">
+            <span>صورة العرض</span>
+            <select data-product-image-choice="${id}">${imageOptions}</select>
+          </label>
         </div>
         <button class="trend-selected-remove" type="button" data-remove-product="${id}" aria-label="إزالة المنتج">×</button>
       `;
@@ -237,6 +318,7 @@
     if (!Number.isInteger(id)) return;
     if (selectedIds.has(id)) {
       selectedIds.delete(id);
+      selectedImageIds.delete(id);
     } else {
       if (selectedIds.size >= 3) {
         notify("يمكن اختيار 3 منتجات فقط لهذا المستطيل.");
@@ -244,6 +326,8 @@
       }
       if (!productMap.has(id)) return;
       selectedIds.add(id);
+      const images = productImages(productMap.get(id));
+      if (images.length) selectedImageIds.set(id, Number(images[0].id));
     }
     clearNotify();
     renderSelected();
@@ -309,6 +393,7 @@
     resetBackgroundInput();
     setBackgroundPreview("");
     els.search.value = "";
+    setUiFields();
     resetProducts();
     clearNotify();
     openModal();
@@ -341,7 +426,14 @@
     resetBackgroundInput();
     setBackgroundPreview(trend.background_url || "");
     els.search.value = "";
+    setUiFields(trend.settings || {});
 
+    selectedImageIds = new Map(
+      (trend.products || []).map((item) => [
+        Number(item?.product?.id),
+        Number(item?.image_asset_id || item?.product?.images?.[0]?.id || 0),
+      ]),
+    );
     selectedIds = new Set(
       (trend.products || [])
         .map((item) => Number(item?.product?.id))
@@ -404,6 +496,16 @@
     const button = event.target.closest("[data-remove-product]");
     if (!button) return;
     selectProduct(button.dataset.removeProduct);
+  });
+
+  els.selected.addEventListener("change", (event) => {
+    const select = event.target.closest("[data-product-image-choice]");
+    if (!select) return;
+    selectedImageIds.set(
+      Number(select.dataset.productImageChoice),
+      Number(select.value || 0),
+    );
+    syncHiddenProductInputs();
   });
 
   els.search.addEventListener("input", renderCandidates);
