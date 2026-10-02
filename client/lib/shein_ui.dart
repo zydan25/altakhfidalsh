@@ -182,12 +182,13 @@ class SxSearchBar extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            CustomPaint(
-              size: const Size(double.infinity, 43),
-              painter: _SearchBarPainter(
-                backgroundColor: backgroundColor,
-                borderColor: borderColor,
-                iconBackgroundColor: iconBackgroundColor,
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _SearchBarPainter(
+                  backgroundColor: backgroundColor,
+                  borderColor: borderColor,
+                  iconBackgroundColor: iconBackgroundColor,
+                ),
               ),
             ),
             Positioned.fill(
@@ -264,9 +265,6 @@ class _SearchBarPainter extends CustomPainter {
       const Radius.circular(4),
     );
 
-    final fillPath = Path()
-      ..addRRect(outer)
-      ..addRRect(iconRect);
     final whiteBody = Path.combine(
       PathOperation.difference,
       Path()..addRRect(outer),
