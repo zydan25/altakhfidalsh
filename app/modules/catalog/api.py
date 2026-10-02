@@ -40,6 +40,7 @@ from ...models import (
 _COLOR_FILTER_OFFSET = 1_000_000
 _SIZE_FILTER_OFFSET = 2_000_000
 _BRAND_FILTER_OFFSET = 3_000_000
+_CATEGORY_FILTER_OFFSET = 4_000_000
 
 @api_bp.get("/categories")
 def categories():
@@ -1198,66 +1199,12 @@ def product_scope_filters():
     # Standard dimensions are still server-owned taxonomy. They are not
     # assembled by the Flutter client and are not restricted by the selected
     # side circle; the category scope remains authoritative.
-    if category_scope_ids:
-        scoped_product_ids = (
-            db.session.query(Product.id)
-            .join(ProductCategory, ProductCategory.product_id == Product.id)
-            .filter(
-                ProductCategory.category_id.in_(category_scope_ids),
-                Product.is_active.is_(True),
-                Product.status == "published",
-            )
-            .distinct()
-            .subquery()
-        )
-    else:
-        scoped_product_ids = (
-            db.session.query(Product.id)
-            .filter(
-                Product.is_active.is_(True),
-                Product.status == "published",
-            )
-            .distinct()
-            .subquery()
-        )
-
-    def add_standard_group(key_name, filter_type, sort_order, values):
-        key = (key_name.casefold(), filter_type.casefold())
-        if key in merged or not values:
-            return
-        merged[key] = {
-            "id": None,
-            "name": key_name,
-            "filter_type": filter_type,
-            "sort_order": sort_order,
-            "values": values,
-        }
-
-    color_ids = {
-        int(value_id)
-        for (value_id,) in db.session.query(ProductVariant.color_id)
-        .filter(
-            ProductVariant.product_id.in_(db.session.query(scoped_product_ids.c.id)),
-            ProductVariant.color_id.isnot(None),
-            ProductVariant.is_active.is_(True),
-        )
-        .distinct()
-        .all()
-    }
-    color_ids.update(
-        int(value_id)
-        for (value_id,) in db.session.query(ProductColorReference.color_id)
-        .filter(
-            ProductColorReference.product_id.in_(db.session.query(scoped_product_ids.c.id)),
-            ProductColorReference.color_id.isnot(None),
-        )
-        .distinct()
+    colors = (
+        Color.query
+        .filter(Color.is_active.is_(True))
+        .order_by(Color.sort_order, Color.name, Color.id)
         .all()
     )
-    colors = Color.query.filter(
-        Color.is_active.is_(True),
-        Color.id.in_(sorted(color_ids)) if color_ids else Color.id == -1,
-    ).order_by(Color.sort_order, Color.name, Color.id).all()
     add_standard_group(
         "اللون",
         "color",
@@ -1273,32 +1220,13 @@ def product_scope_filters():
         ],
     )
 
-    size_ids = {
-        int(value_id)
-        for (value_id,) in db.session.query(ProductVariant.size_id)
-        .filter(
-            ProductVariant.product_id.in_(db.session.query(scoped_product_ids.c.id)),
-            ProductVariant.size_id.isnot(None),
-            ProductVariant.is_active.is_(True),
-        )
-        .distinct()
-        .all()
-    }
-    size_ids.update(
-        int(value_id)
-        for (value_id,) in db.session.query(ProductSizeReference.size_id)
-        .filter(
-            ProductSizeReference.product_id.in_(db.session.query(scoped_product_ids.c.id)),
-            ProductSizeReference.size_id.isnot(None),
-        )
-        .distinct()
+    from ...models import Size
+    sizes = (
+        Size.query
+        .filter(Size.is_active.is_(True))
+        .order_by(Size.group, Size.sort_order, Size.label, Size.id)
         .all()
     )
-    from ...models import Size
-    sizes = Size.query.filter(
-        Size.is_active.is_(True),
-        Size.id.in_(sorted(size_ids)) if size_ids else Size.id == -1,
-    ).order_by(Size.group, Size.sort_order, Size.label, Size.id).all()
     add_standard_group(
         "المقاس",
         "size",
@@ -1314,20 +1242,12 @@ def product_scope_filters():
         ],
     )
 
-    brand_ids = {
-        int(value_id)
-        for (value_id,) in db.session.query(Product.brand_id)
-        .filter(
-            Product.id.in_(db.session.query(scoped_product_ids.c.id)),
-            Product.brand_id.isnot(None),
-        )
-        .distinct()
+    brands = (
+        Brand.query
+        .filter(Brand.is_active.is_(True))
+        .order_by(Brand.name, Brand.id)
         .all()
-    }
-    brands = Brand.query.filter(
-        Brand.is_active.is_(True),
-        Brand.id.in_(sorted(brand_ids)) if brand_ids else Brand.id == -1,
-    ).order_by(Brand.name, Brand.id).all()
+    )
     add_standard_group(
         "العلامة التجارية",
         "brand",
@@ -1342,6 +1262,43 @@ def product_scope_filters():
             for index, brand in enumerate(brands)
         ],
     )
+
+    if category_scope_ids:
+        category_rows = (
+            Category.query
+            .filter(
+                Category.is_active.is_(True),
+                Category.id.in_(category_scope_ids),
+            )
+            .order_by(Category.parent_id, Category.sort_order, Category.name, Category.id)
+            .all()
+        )
+        # The root itself is navigation context; expose its descendants as
+        # filter values when they exist.
+        descendant_ids = set()
+        for scope_id in category_scope_ids:
+            for descendant_id in CatalogService.category_descendant_ids(scope_id):
+                if descendant_id != scope_id:
+                    descendant_ids.add(int(descendant_id))
+        descendant_rows = (
+            Category.query
+            .filter(
+                Category.is_active.is_(True),
+                Category.id.in_(sorted(descendant_ids)) if descendant_ids else Category.id == -1,
+            )
+            .order_by(Category.parent_id, Category.sort_order, Category.name, Category.id)
+            .all()
+        )
+        category_values = [
+            {
+                "id": -(_CATEGORY_FILTER_OFFSET + int(row.id)),
+                "label": row.name,
+                "slug": row.slug,
+                "sort_order": row.sort_order,
+            }
+            for row in descendant_rows
+        ]
+        add_standard_group("الفئة", "category", 5, category_values)
 
     items = list(merged.values())
     items.sort(key=lambda item: (
