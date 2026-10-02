@@ -1535,3 +1535,66 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
     width: min(100%, 205px);
   }
 }
+
+
+/* Final mobile override: product side-circle picker */
+@media (max-width:759px) {
+  .side-circle-picker-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:8px !important;
+  }
+  .side-circle-picker-card {
+    grid-template-columns:48px minmax(0,1fr) !important;
+    min-width:0 !important;
+    width:100% !important;
+    min-height:62px !important;
+    padding:7px !important;
+    gap:8px !important;
+    box-sizing:border-box;
+  }
+  .side-circle-picker-media {
+    width:48px !important;
+    height:48px !important;
+    min-width:48px !important;
+    border-radius:50% !important;
+  }
+  .side-circle-picker-media img {
+    width:48px !important;
+    height:48px !important;
+    border-radius:50% !important;
+    object-fit:cover !important;
+  }
+  .side-circle-picker-copy {
+    min-width:0 !important;
+    max-width:none !important;
+    width:100% !important;
+    display:block !important;
+    text-align:start !important;
+    overflow:hidden !important;
+  }
+  .side-circle-picker-copy strong {
+    display:block !important;
+    width:100% !important;
+    max-width:100% !important;
+    overflow:hidden !important;
+    text-overflow:ellipsis !important;
+    white-space:nowrap !important;
+    font-size:12px !important;
+    line-height:1.5 !important;
+    color:var(--text) !important;
+  }
+  .side-circle-picker-copy small {
+    display:none !important;
+  }
+  .side-circle-picker-check {
+    position:absolute !important;
+    top:5px !important;
+    inset-inline-end:5px !important;
+    width:18px !important;
+    height:18px !important;
+    min-width:18px !important;
+    border-radius:50% !important;
+    font-size:10px !important;
+    z-index:2;
+  }
+}
