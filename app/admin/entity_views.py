@@ -1272,6 +1272,7 @@ def register_entity_views(admin_bp):
             settings["show_counter"] = request.form.get("show_counter") == "on"
             settings["show_timer"] = request.form.get("show_timer") == "on"
             settings["pull_enabled"] = request.form.get("pull_enabled") == "on"
+            settings["header_collapse_enabled"] = request.form.get("header_collapse_enabled") == "on"
             settings["product_image_fit"] = (
                 request.form.get("product_image_fit") or defaults["product_image_fit"]
             )
