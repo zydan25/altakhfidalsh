@@ -3173,7 +3173,6 @@ class _SxProductCardState extends State<SxProductCard> {
         old > now && old > 0 ? ((1 - now / old) * 100).round() : 0;
     final ratio = sxProductImageRatio(product);
     final gallery = _gallery;
-    final visibleBadges = product.badges.take(2).toList();
     final rating = product.rating;
     final hasRating = rating != null && rating > 0;
 
@@ -3206,14 +3205,6 @@ class _SxProductCardState extends State<SxProductCard> {
               height: 1.2,
             ),
           ),
-          if (visibleBadges.isNotEmpty) ...[
-            const SizedBox(height: 3),
-            Wrap(
-              spacing: 4,
-              runSpacing: 3,
-              children: visibleBadges.map(_badgeChip).toList(),
-            ),
-          ],
           const SizedBox(height: 4),
           Row(
             children: [
