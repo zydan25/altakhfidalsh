@@ -9,13 +9,20 @@
     </div>
     <div class="module-toolbar-actions">
       <span class="status-pill">{{ trend_seeds|length }} ترند</span>
-      <button class="primary-button" type="button" data-trend-create>+ إضافة ترند مستطيل</button>
     </div>
   </div>
 </section>
 
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<div class="trend-create-toolbar">
+  <div>
+    <strong>إضافة محتوى جديد</strong>
+    <span>بعد حفظ التنسيق العام، أنشئ مستطيل ترند واربطه بهاشتاج وثلاثة منتجات.</span>
+  </div>
+  <button class="primary-button" type="button" data-trend-create>+ إضافة ترند مستطيل</button>
+</div>
 
 <section class="trend-admin-grid">
   {% for trend in trend_seeds %}
