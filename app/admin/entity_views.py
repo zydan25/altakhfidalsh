@@ -1526,8 +1526,19 @@ def register_entity_views(admin_bp):
                     "settings": assignment.settings_json if isinstance(assignment.settings_json, dict) else {},
                     "product": selected_product_payload,
                 })
+            public_reasons = []
+            if trend.status != "active":
+                public_reasons.append("الحالة ليست نشطة")
+            if not background:
+                public_reasons.append("لا توجد صورة خلفية")
+            if not selected_products or len(selected_products) != 3:
+                public_reasons.append("يجب توفر 3 منتجات منشورة")
+            if CatalogService.is_trend_timer_expired(trend):
+                public_reasons.append("المؤقت منتهي")
             trend_seeds.append({
                 "id": trend.id,
+                "public_ready": not public_reasons,
+                "public_reason": "جاهز للعميل" if not public_reasons else "غير ظاهر: " + " • ".join(public_reasons),
                 "hashtag_id": trend.hashtag_id,
                 "promo_text": trend.promo_text,
                 "duration_days": trend.duration_days,
