@@ -2663,7 +2663,6 @@ class CatalogService:
         }
 
     @staticmethod
-    @staticmethod
     def list_public_trend_hashtags(limit=50):
         rows = (
             Hashtag.query
