@@ -4153,6 +4153,7 @@ class _SxResultsState extends State<SxResults> {
   int viewMode = _viewGrid;
 
   late final ValueNotifier<int?> _activeCircleNotifier;
+  late final ValueNotifier<int?> _selectedCategoryNotifier;
   late final ValueNotifier<List<ProductModel>> _visibleProductsNotifier;
   late final ValueNotifier<bool> _changingCategoryNotifier;
 
@@ -4161,6 +4162,7 @@ class _SxResultsState extends State<SxResults> {
     super.initState();
     activeCircleId = widget.circleId;
     _activeCircleNotifier = ValueNotifier<int?>(activeCircleId);
+    _selectedCategoryNotifier = ValueNotifier<int?>(null);
     _visibleProductsNotifier = ValueNotifier<List<ProductModel>>(const []);
     _changingCategoryNotifier = ValueNotifier<bool>(false);
     load();
@@ -4169,6 +4171,7 @@ class _SxResultsState extends State<SxResults> {
   @override
   void dispose() {
     _activeCircleNotifier.dispose();
+    _selectedCategoryNotifier.dispose();
     _visibleProductsNotifier.dispose();
     _changingCategoryNotifier.dispose();
     super.dispose();
@@ -4321,24 +4324,37 @@ class _SxResultsState extends State<SxResults> {
     }
   }
 
-  Future<List<ProductModel>> _fetch() => api.feed(
-    category: selectedCategoryId ??
-        ((widget.categoryIds == null || widget.categoryIds!.isEmpty)
-            ? (widget.categoryId ?? categoryContextId)
-            : null),
-    categoryIds: selectedCategoryId == null ? widget.categoryIds : null,
-    circleId: activeCircleId,
-    hashtagId: widget.hashtagId,
-    hashtagIds: widget.hashtagIds,
-    sideCategoryId: widget.sideCategoryId,
-    q: widget.query ?? '',
-    filterValueIds: values.toList(),
-    sort: sort,
-    minPrice: minPrice,
-    maxPrice: maxPrice,
-    minRating: minRating,
-    currencyId: state.currencyId,
-  );
+  Future<List<ProductModel>> _fetch() {
+    // Side-category results are an independent scope. Do not combine them
+    // with the root category, otherwise linked side products may be excluded.
+    final sideScope =
+        widget.circleId != null || widget.sideCategoryId != null;
+    final effectiveSideCategoryId =
+        widget.sideCategoryId ?? resolvedSideCategoryId;
+
+    return api.feed(
+      category: sideScope
+          ? null
+          : selectedCategoryId ??
+              ((widget.categoryIds == null || widget.categoryIds!.isEmpty)
+                  ? (widget.categoryId ?? categoryContextId)
+                  : null),
+      categoryIds: sideScope
+          ? null
+          : (selectedCategoryId == null ? widget.categoryIds : null),
+      circleId: activeCircleId,
+      hashtagId: widget.hashtagId,
+      hashtagIds: widget.hashtagIds,
+      sideCategoryId: sideScope ? effectiveSideCategoryId : null,
+      q: widget.query ?? '',
+      filterValueIds: values.toList(),
+      sort: sort,
+      minPrice: minPrice,
+      maxPrice: maxPrice,
+      minRating: minRating,
+      currencyId: state.currencyId,
+    );
+  }
 
   Future<void> load() async {
     if (mounted) setState(() => loading = true);
@@ -4347,7 +4363,9 @@ class _SxResultsState extends State<SxResults> {
       categoryContextId = _circleRootId(home);
       _resolveSideContext();
       selectedCategoryId = null;
+      _selectedCategoryNotifier.value = null;
       activeCircleId = widget.circleId;
+      _activeCircleNotifier.value = activeCircleId;
 
       await _loadFiltersForCurrentScope();
       products = await _fetch();
@@ -4370,6 +4388,8 @@ class _SxResultsState extends State<SxResults> {
     // Keep the rail and server-defined filter taxonomy unchanged.
     selectedCategoryId = id;
     activeCircleId = null;
+    _selectedCategoryNotifier.value = id;
+    _activeCircleNotifier.value = null;
     _changingCategoryNotifier.value = true;
 
     try {
@@ -4397,6 +4417,7 @@ class _SxResultsState extends State<SxResults> {
     activeCircleId = id;
     selectedCategoryId = null;
     _activeCircleNotifier.value = id;
+    _selectedCategoryNotifier.value = null;
     _changingCategoryNotifier.value = true;
 
     try {
@@ -4591,10 +4612,14 @@ class _SxResultsState extends State<SxResults> {
               pinned: true,
               delegate: _ResultHeaderDelegate(
                 height: 94,
-                child: _ResultsCategoryRail(
-                  categories: categories,
-                  selected: selectedCategoryId,
-                  onSelected: _selectCategory,
+                child: ValueListenableBuilder<int?>(
+                  valueListenable: _selectedCategoryNotifier,
+                  builder: (context, selectedCategory, _) =>
+                      _ResultsCategoryRail(
+                        categories: categories,
+                        selected: selectedCategory,
+                        onSelected: _selectCategory,
+                      ),
                 ),
               ),
             ),
