@@ -7689,16 +7689,39 @@ class _TrendStoreCard extends StatelessWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Flexible(
-                                    child: Text(
-                                      title,
+                                    child: Text.rich(
+                                      TextSpan(
+                                        children: [
+                                          if (ui['show_title_hash'] != false)
+                                            TextSpan(
+                                              text: sxText(
+                                                ui['title_hash_text'],
+                                                '#',
+                                              ),
+                                              style: TextStyle(
+                                                color: _sxTrendHex(
+                                                  ui['title_hash_color'],
+                                                  const Color(0xFF111111),
+                                                ),
+                                              ),
+                                            ),
+                                          TextSpan(
+                                            text: title.startsWith('#')
+                                                ? title.substring(1)
+                                                : title,
+                                            style: TextStyle(
+                                              color: _sxTrendHex(
+                                                ui['trend_store_title_color'],
+                                                const Color(0xFF111111),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       textAlign: titleAlign,
                                       style: TextStyle(
-                                        color: _sxTrendHex(
-                                          ui['trend_store_title_color'],
-                                          const Color(0xFF111111),
-                                        ),
                                         fontSize: _sxTrendNumber(
                                           ui,
                                           'trend_store_title_font_size',
