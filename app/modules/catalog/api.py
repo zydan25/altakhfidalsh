@@ -27,6 +27,7 @@ from ...models import (
     Review,
     Order,
     OrderItem,
+    SideCategory,
     SideCategoryCircle,
 )
 
@@ -219,9 +220,33 @@ def public_product_feed():
         Product.status == "published",
     )
 
+    def _parse_id_list(name):
+        values = []
+        raw_values = (request.args.get(name) or "").split(",")
+        for raw in raw_values:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                value = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if value > 0 and value not in values:
+                values.append(value)
+        return values
+
     category_id = request.args.get("category_id", type=int)
+    category_ids = _parse_id_list("category_ids")
+    if category_id and category_id not in category_ids:
+        category_ids.insert(0, category_id)
+
     circle_id = request.args.get("circle_id", type=int)
     hashtag_id = request.args.get("hashtag_id", type=int)
+    hashtag_ids = _parse_id_list("hashtag_ids")
+    if hashtag_id and hashtag_id not in hashtag_ids:
+        hashtag_ids.insert(0, hashtag_id)
+
+    side_category_id = request.args.get("side_category_id", type=int)
     search = (request.args.get("q") or "").strip()
     currency_id = request.args.get("currency_id", type=int)
     sort = (request.args.get("sort") or "recommended").strip().lower()
@@ -229,12 +254,37 @@ def public_product_feed():
     min_price_raw = (request.args.get("min_price") or "").strip()
     max_price_raw = (request.args.get("max_price") or "").strip()
 
-    if category_id:
-        category_ids = CatalogService.category_descendant_ids(category_id)
+    category_scope_ids = []
+    for requested_category_id in category_ids:
+        category_scope_ids.extend(
+            CatalogService.category_descendant_ids(requested_category_id)
+        )
+    category_scope_ids = sorted(set(category_scope_ids))
+
+    if category_scope_ids:
         query = query.join(
             ProductCategory,
             ProductCategory.product_id == Product.id,
-        ).filter(ProductCategory.category_id.in_(category_ids))
+        ).filter(ProductCategory.category_id.in_(category_scope_ids))
+
+    if side_category_id:
+        side_category = db.session.get(SideCategory, side_category_id)
+        if side_category is None or not side_category.is_active:
+            return {"items": [], "count": 0}
+        side_circle_ids = [
+            row.id
+            for row in SideCategoryCircle.query.filter(
+                SideCategoryCircle.side_category_id == side_category.id,
+                SideCategoryCircle.is_active.is_(True),
+            ).all()
+        ]
+        if not side_circle_ids:
+            query = query.filter(Product.id == -1)
+        else:
+            query = query.join(
+                ProductSideCategoryCircle,
+                ProductSideCategoryCircle.product_id == Product.id,
+            ).filter(ProductSideCategoryCircle.circle_id.in_(side_circle_ids))
 
     if circle_id:
         query = query.join(
@@ -242,11 +292,11 @@ def public_product_feed():
             ProductSideCategoryCircle.product_id == Product.id,
         ).filter(ProductSideCategoryCircle.circle_id == circle_id)
 
-    if hashtag_id:
+    if hashtag_ids:
         query = query.join(
             ProductHashtag,
             ProductHashtag.product_id == Product.id,
-        ).filter(ProductHashtag.hashtag_id == hashtag_id)
+        ).filter(ProductHashtag.hashtag_id.in_(hashtag_ids))
 
     if search:
         needle = "%" + search + "%"
@@ -298,11 +348,22 @@ def public_product_feed():
                 CategoryFilterValue.is_active.is_(True),
             )
         )
-        if category_id:
+        if category_scope_ids:
             valid_values = valid_values.filter(
-                CategoryFilterDefinition.category_id == category_id,
+                CategoryFilterDefinition.category_id.in_(category_scope_ids),
                 CategoryFilterDefinition.is_active.is_(True),
             )
+        elif side_category_id:
+            side_category = db.session.get(SideCategory, side_category_id)
+            if side_category is not None and side_category.is_active:
+                valid_values = valid_values.filter(
+                    CategoryFilterDefinition.category_id.in_(
+                        CatalogService.category_descendant_ids(
+                            side_category.root_category_id
+                        )
+                    ),
+                    CategoryFilterDefinition.is_active.is_(True),
+                )
         rows = valid_values.all()
 
         grouped = {}
@@ -317,6 +378,10 @@ def public_product_feed():
                 .subquery()
             )
             query = query.filter(Product.id.in_(db.session.query(matching_products.c.product_id)))
+
+    # Relation joins above can duplicate a product. Collapse them before the
+    # predictable candidate limit is applied.
+    query = query.distinct()
 
     # Keep the database candidate set predictable; final pricing/sorting is done after
     # customer/city/currency pricing has been resolved.
