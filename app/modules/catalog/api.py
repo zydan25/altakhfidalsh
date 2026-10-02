@@ -281,6 +281,7 @@ def public_product_feed():
         side_category = db.session.get(SideCategory, side_category_id)
         if side_category is None or not side_category.is_active:
             return {"items": [], "count": 0}
+
         side_circle_ids = [
             row.id
             for row in SideCategoryCircle.query.filter(
@@ -288,6 +289,13 @@ def public_product_feed():
                 SideCategoryCircle.is_active.is_(True),
             ).all()
         ]
+
+        if circle_id is not None:
+            // A circle result is narrower than its parent side category.
+            // Use the same relationship JOIN for both constraints instead of
+            // joining ProductSideCategoryCircle twice.
+            side_circle_ids = [circle_id] if circle_id in side_circle_ids else []
+
         if not side_circle_ids:
             query = query.filter(Product.id == -1)
         else:
@@ -296,7 +304,7 @@ def public_product_feed():
                 ProductSideCategoryCircle.product_id == Product.id,
             ).filter(ProductSideCategoryCircle.circle_id.in_(side_circle_ids))
 
-    if circle_id:
+    elif circle_id:
         query = query.join(
             ProductSideCategoryCircle,
             ProductSideCategoryCircle.product_id == Product.id,
