@@ -308,8 +308,8 @@
       </div>
     </details>
 
-    <details open>
-      <summary><span>٣. المنتجات الثلاثة داخل الترند</span><small>أحجام وصور وبطاقات المنتجات الصغيرة</small></summary>
+        <details open>
+      <summary><span>٣. المنتجات الثلاثة داخل البطاقة</span><small>حجم وصورة واسم وسعر المنتجات الثلاثة العلوية فقط</small></summary>
       <div class="trend-settings-grid">
         <label>عرض المنتج
           <input name="product_width" type="number" min="0" max="180" step="0.5" value="{{ trend_display_settings.product_width }}">
@@ -326,72 +326,72 @@
         <label>المسافة بين المنتجات
           <input name="product_gap" type="number" min="0" max="20" value="{{ trend_display_settings.product_gap }}">
         </label>
-        <label>نصف قطر المنتج
-          <input name="product_radius" type="number" min="0" max="20" value="{{ trend_display_settings.product_radius }}">
+        <label>نصف قطر المنتجات الثلاثة
+          <input name="hero_product_radius" type="number" min="0" max="20" value="{{ trend_display_settings.hero_product_radius }}">
         </label>
-        <label>ارتفاع معلومات المنتج
-          <input name="product_info_height" type="number" min="16" max="55" value="{{ trend_display_settings.product_info_height }}">
-        </label>
-        <label class="check-row">
-          <input name="show_product_name" type="checkbox" {% if trend_display_settings.show_product_name %}checked{% endif %}>
-          <span><strong>إظهار اسم المنتج</strong><small>يظهر أسفل صورة كل منتج داخل بطاقة الترند.</small></span>
+        <label>ارتفاع معلومات المنتجات الثلاثة
+          <input name="hero_product_info_height" type="number" min="16" max="55" value="{{ trend_display_settings.hero_product_info_height }}">
         </label>
         <label class="check-row">
-          <input name="show_product_price" type="checkbox" {% if trend_display_settings.show_product_price %}checked{% endif %}>
-          <span><strong>إظهار السعر</strong><small>يظهر بجانب اسم المنتج أسفل صور المنتجات الثلاثة.</small></span>
+          <input name="hero_show_product_name" type="checkbox" {% if trend_display_settings.hero_show_product_name %}checked{% endif %}>
+          <span><strong>إظهار اسم المنتج العلوي</strong><small>يخص المنتجات الثلاثة داخل البطاقة فقط.</small></span>
         </label>
-        <label>محاذاة اسم المنتج
-          <select name="product_name_align">
-            <option value="right" {% if trend_display_settings.product_name_align == "right" %}selected{% endif %}>يمين</option>
-            <option value="center" {% if trend_display_settings.product_name_align == "center" %}selected{% endif %}>وسط</option>
-            <option value="left" {% if trend_display_settings.product_name_align == "left" %}selected{% endif %}>يسار</option>
+        <label class="check-row">
+          <input name="hero_show_product_price" type="checkbox" {% if trend_display_settings.hero_show_product_price %}checked{% endif %}>
+          <span><strong>إظهار سعر المنتج العلوي</strong><small>يخص المنتجات الثلاثة داخل البطاقة فقط.</small></span>
+        </label>
+        <label>محاذاة اسم المنتجات الثلاثة
+          <select name="hero_product_name_align">
+            <option value="right" {% if trend_display_settings.hero_product_name_align == "right" %}selected{% endif %}>يمين</option>
+            <option value="center" {% if trend_display_settings.hero_product_name_align == "center" %}selected{% endif %}>وسط</option>
+            <option value="left" {% if trend_display_settings.hero_product_name_align == "left" %}selected{% endif %}>يسار</option>
           </select>
         </label>
-        <label>محاذاة السعر
-          <select name="product_price_align">
-            <option value="right" {% if trend_display_settings.product_price_align == "right" %}selected{% endif %}>يمين</option>
-            <option value="center" {% if trend_display_settings.product_price_align == "center" %}selected{% endif %}>وسط</option>
-            <option value="left" {% if trend_display_settings.product_price_align == "left" %}selected{% endif %}>يسار</option>
+        <label>محاذاة سعر المنتجات الثلاثة
+          <select name="hero_product_price_align">
+            <option value="right" {% if trend_display_settings.hero_product_price_align == "right" %}selected{% endif %}>يمين</option>
+            <option value="center" {% if trend_display_settings.hero_product_price_align == "center" %}selected{% endif %}>وسط</option>
+            <option value="left" {% if trend_display_settings.hero_product_price_align == "left" %}selected{% endif %}>يسار</option>
           </select>
         </label>
-        <label>حجم اسم المنتج
-          <input name="product_name_font_size" type="number" min="6" max="14" step="0.5" value="{{ trend_display_settings.product_name_font_size }}">
+        <label>حجم اسم المنتجات الثلاثة
+          <input name="hero_product_name_font_size" type="number" min="6" max="14" step="0.5" value="{{ trend_display_settings.hero_product_name_font_size }}">
         </label>
-        <label>حجم السعر
-          <input name="product_price_font_size" type="number" min="7" max="15" step="0.5" value="{{ trend_display_settings.product_price_font_size }}">
+        <label>حجم سعر المنتجات الثلاثة
+          <input name="hero_product_price_font_size" type="number" min="7" max="15" step="0.5" value="{{ trend_display_settings.hero_product_price_font_size }}">
         </label>
-        <label>وزن اسم المنتج
-          <input name="product_name_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.product_name_font_weight }}">
+        <label>وزن خط اسم المنتجات الثلاثة
+          <input name="hero_product_name_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.hero_product_name_font_weight }}">
         </label>
-        <label>وزن السعر
-          <input name="product_price_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.product_price_font_weight }}">
+        <label>وزن خط سعر المنتجات الثلاثة
+          <input name="hero_product_price_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.hero_product_price_font_weight }}">
         </label>
-        <label>أسطر اسم المنتج
-          <input name="product_name_max_lines" type="number" min="1" max="3" value="{{ trend_display_settings.product_name_max_lines }}">
+        <label>أسطر اسم المنتجات الثلاثة
+          <input name="hero_product_name_max_lines" type="number" min="1" max="3" value="{{ trend_display_settings.hero_product_name_max_lines }}">
         </label>
-        <label>لون اسم المنتج
-          <input name="product_name_color" type="color" value="{{ trend_display_settings.product_name_color }}">
+        <label>لون اسم المنتجات الثلاثة
+          <input name="hero_product_name_color" type="color" value="{{ trend_display_settings.hero_product_name_color }}">
         </label>
-        <label>لون السعر
-          <input name="product_price_color" type="color" value="{{ trend_display_settings.product_price_color }}">
+        <label>لون سعر المنتجات الثلاثة
+          <input name="hero_product_price_color" type="color" value="{{ trend_display_settings.hero_product_price_color }}">
         </label>
-        <label>خلفية معلومات المنتج
-          <input name="product_info_background_color" type="color" value="{{ trend_display_settings.product_info_background_color }}">
+        <label>لون النص العام للمنتجات الثلاثة
+          <input name="hero_product_text_color" type="color" value="{{ trend_display_settings.hero_product_text_color }}">
         </label>
-        <label>لون النص العام (احتياطي)
-          <input name="product_text_color" type="color" value="{{ trend_display_settings.product_text_color }}">
+        <label>خلفية معلومات المنتجات الثلاثة
+          <input name="hero_product_info_background_color" type="color" value="{{ trend_display_settings.hero_product_info_background_color }}">
         </label>
-        <label>طريقة عرض الصورة
-          <select name="product_image_fit">
-            <option value="cover" {% if trend_display_settings.product_image_fit == "cover" %}selected{% endif %}>ملء الإطار</option>
-            <option value="contain" {% if trend_display_settings.product_image_fit == "contain" %}selected{% endif %}>داخل الإطار</option>
-            <option value="fill" {% if trend_display_settings.product_image_fit == "fill" %}selected{% endif %}>تمديد</option>
+        <label>طريقة عرض صور المنتجات الثلاثة
+          <select name="hero_product_image_fit">
+            <option value="cover" {% if trend_display_settings.hero_product_image_fit == "cover" %}selected{% endif %}>ملء الإطار</option>
+            <option value="contain" {% if trend_display_settings.hero_product_image_fit == "contain" %}selected{% endif %}>داخل الإطار</option>
+            <option value="fill" {% if trend_display_settings.hero_product_image_fit == "fill" %}selected{% endif %}>تمديد</option>
           </select>
         </label>
       </div>
       <div class="trend-settings-helper">
-        <strong>اختيار الصور يبقى على مستوى المستطيل:</strong>
-        <span>كل مستطيل يحتفظ باختيار صورة كل منتج من Media، بينما حجم البطاقات وشكلها يدار هنا بشكل عام.</span>
+        <strong>هذه المجموعة خاصة بالمنتجات الثلاثة أعلى البطاقة فقط.</strong>
+        <span>إعدادات المنتجات الموجودة أسفل شريط الهاشتاج موجودة في قسم مستقل ولا تتأثر بهذه القيم.</span>
       </div>
     </details>
 
@@ -458,24 +458,9 @@
       </div>
     </details>
 
-    <details>
-      <summary><span>٥. تبويبات وهاشتاجات الصفحة</span><small>الألوان والحجوم وشكل شريط التصفح</small></summary>
+        <details>
+      <summary><span>٥. هاشتاجات الصفحة</span><small>الألوان والحجوم وشكل شريط الهاشتاج</small></summary>
       <div class="trend-settings-grid">
-        <label>لون التبويب النشط
-          <input name="tabs_active_color" type="color" value="{{ trend_display_settings.tabs_active_color }}">
-        </label>
-        <label>لون التبويب غير النشط
-          <input name="tabs_inactive_color" type="color" value="{{ trend_display_settings.tabs_inactive_color }}">
-        </label>
-        <label>لون خط التبويب
-          <input name="tabs_indicator_color" type="color" value="{{ trend_display_settings.tabs_indicator_color }}">
-        </label>
-        <label>عرض خط التبويب
-          <input name="tabs_indicator_width" type="number" min="40" max="180" value="{{ trend_display_settings.tabs_indicator_width }}">
-        </label>
-        <label>حجم نص التبويبات
-          <input name="tabs_font_size" type="number" min="10" max="28" step="0.5" value="{{ trend_display_settings.tabs_font_size }}">
-        </label>
         <label>لون نص الهاشتاج
           <input name="hashtag_text_color" type="color" value="{{ trend_display_settings.hashtag_text_color }}">
         </label>
@@ -589,100 +574,10 @@
       </div>
     </details>
 
-    <details open>
-      <summary><span>٨. بطاقات مستطيلات الترند</span><small>الصورة تملأ المساحة ثم منطقة كتابة مستقلة بالأسفل</small></summary>
-      <div class="trend-settings-grid">
-        <label>ارتفاع البطاقة
-          <input name="trend_store_card_height" type="number" min="220" max="520" value="{{ trend_display_settings.trend_store_card_height }}">
-        </label>
-        <label>ارتفاع الصورة
-          <input name="trend_store_image_height" type="number" min="140" max="430" value="{{ trend_display_settings.trend_store_image_height }}">
-        </label>
-        <label>ارتفاع منطقة النص
-          <input name="trend_store_content_height" type="number" min="50" max="140" value="{{ trend_display_settings.trend_store_content_height }}">
-        </label>
-        <label>نصف قطر البطاقة
-          <input name="trend_store_radius" type="number" min="0" max="30" value="{{ trend_display_settings.trend_store_radius }}">
-        </label>
-        <label>حشو منطقة النص
-          <input name="trend_store_content_padding" type="number" min="4" max="24" value="{{ trend_display_settings.trend_store_content_padding }}">
-        </label>
-        <label class="check-row">
-          <input name="trend_store_show_title" type="checkbox" {% if trend_display_settings.trend_store_show_title %}checked{% endif %}>
-          <span><strong>إظهار اسم الترند</strong><small>الاسم الذي يظهر أسفل صورة بطاقة الترند.</small></span>
-        </label>
-        <label class="check-row">
-          <input name="trend_store_show_description" type="checkbox" {% if trend_display_settings.trend_store_show_description %}checked{% endif %}>
-          <span><strong>إظهار الوصف</strong><small>النص الترويجي أسفل اسم الترند.</small></span>
-        </label>
-        <label class="check-row">
-          <input name="trend_store_title_show_arrow" type="checkbox" {% if trend_display_settings.trend_store_title_show_arrow %}checked{% endif %}>
-          <span><strong>علامة بعد الاسم</strong><small>اختيار &gt; أو &lt; مع اللون والحجم.</small></span>
-        </label>
-        <label>العلامة
-          <select name="trend_store_title_arrow">
-            <option value="&gt;" {% if trend_display_settings.trend_store_title_arrow == ">" %}selected{% endif %}>&gt; أكبر من</option>
-            <option value="&lt;" {% if trend_display_settings.trend_store_title_arrow == "<" %}selected{% endif %}>&lt; أصغر من</option>
-          </select>
-        </label>
-        <label>لون العلامة
-          <input name="trend_store_title_arrow_color" type="color" value="{{ trend_display_settings.trend_store_title_arrow_color }}">
-        </label>
-        <label>حجم العلامة
-          <input name="trend_store_title_arrow_font_size" type="number" min="9" max="28" step="0.5" value="{{ trend_display_settings.trend_store_title_arrow_font_size }}">
-        </label>
-        <label>المسافة بين الاسم والعلامة
-          <input name="trend_store_title_arrow_gap" type="number" min="0" max="20" value="{{ trend_display_settings.trend_store_title_arrow_gap }}">
-        </label>
-        <label>إزاحة العنوان
-          <input name="trend_store_title_offset" type="number" min="-30" max="30" value="{{ trend_display_settings.trend_store_title_offset }}">
-        </label>
-        <label>محاذاة العنوان
-          <select name="trend_store_title_align">
-            <option value="start" {% if trend_display_settings.trend_store_title_align == "start" %}selected{% endif %}>بداية</option>
-            <option value="center" {% if trend_display_settings.trend_store_title_align == "center" %}selected{% endif %}>وسط</option>
-            <option value="end" {% if trend_display_settings.trend_store_title_align == "end" %}selected{% endif %}>نهاية</option>
-          </select>
-        </label>
-        <label>حجم العنوان
-          <input name="trend_store_title_font_size" type="number" min="9" max="28" step="0.5" value="{{ trend_display_settings.trend_store_title_font_size }}">
-        </label>
-        <label>المسافة تحت عنوان متجر الترند
-          <input name="trend_store_title_spacing" type="number" min="0" max="30" value="{{ trend_display_settings.trend_store_title_spacing }}">
-        </label>
-        <label>وزن العنوان
-          <input name="trend_store_title_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.trend_store_title_font_weight }}">
-        </label>
-        <label>لون العنوان
-          <input name="trend_store_title_color" type="color" value="{{ trend_display_settings.trend_store_title_color }}">
-        </label>
-        <label>إزاحة النص الترويجي
-          <input name="trend_store_promo_offset" type="number" min="-30" max="30" value="{{ trend_display_settings.trend_store_promo_offset }}">
-        </label>
-        <label>محاذاة النص
-          <select name="trend_store_promo_align">
-            <option value="start" {% if trend_display_settings.trend_store_promo_align == "start" %}selected{% endif %}>بداية</option>
-            <option value="center" {% if trend_display_settings.trend_store_promo_align == "center" %}selected{% endif %}>وسط</option>
-            <option value="end" {% if trend_display_settings.trend_store_promo_align == "end" %}selected{% endif %}>نهاية</option>
-          </select>
-        </label>
-        <label>حجم النص الترويجي
-          <input name="trend_store_promo_font_size" type="number" min="8" max="20" step="0.5" value="{{ trend_display_settings.trend_store_promo_font_size }}">
-        </label>
-        <label>وزن النص الترويجي
-          <input name="trend_store_promo_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.trend_store_promo_font_weight }}">
-        </label>
-        <label>لون النص الترويجي
-          <input name="trend_store_promo_color" type="color" value="{{ trend_display_settings.trend_store_promo_color }}">
-        </label>
-        <label>خلفية منطقة الكتابة
-          <input name="trend_store_content_background" type="color" value="{{ trend_display_settings.trend_store_content_background }}">
-        </label>
-      </div>
-    </details>
+    
 
-    <details open>
-      <summary><span>٩. بطاقات المنتجات في اختيارات الترند</span><small>الصور أطول ومساحة العنوان أصغر</small></summary>
+        <details>
+      <summary><span>٨. بطاقات المنتجات في اختيارات الترند</span><small>إعدادات المنتجات الموجودة أسفل بطاقة الترند بشكل مستقل</small></summary>
       <div class="trend-settings-grid">
         <label>الارتفاع الكلي
           <input name="picks_card_extent" type="number" min="280" max="520" value="{{ trend_display_settings.picks_card_extent }}">
@@ -693,9 +588,69 @@
         <label>ارتفاع مساحة المعلومات
           <input name="picks_content_height" type="number" min="60" max="150" value="{{ trend_display_settings.picks_content_height }}">
         </label>
-        <label>حجم عنوان المنتج
+        <label>حجم عنوان المنتج القديم
           <input name="picks_title_font_size" type="number" min="8" max="18" step="0.5" value="{{ trend_display_settings.picks_title_font_size }}">
         </label>
+        <label class="check-row">
+          <input name="show_product_name" type="checkbox" {% if trend_display_settings.show_product_name %}checked{% endif %}>
+          <span><strong>إظهار اسم المنتجات السفلية</strong><small>يخص شبكة اختيارات الترند فقط.</small></span>
+        </label>
+        <label class="check-row">
+          <input name="show_product_price" type="checkbox" {% if trend_display_settings.show_product_price %}checked{% endif %}>
+          <span><strong>إظهار سعر المنتجات السفلية</strong><small>يخص شبكة اختيارات الترند فقط.</small></span>
+        </label>
+        <label>محاذاة اسم المنتجات السفلية
+          <select name="product_name_align">
+            <option value="right" {% if trend_display_settings.product_name_align == "right" %}selected{% endif %}>يمين</option>
+            <option value="center" {% if trend_display_settings.product_name_align == "center" %}selected{% endif %}>وسط</option>
+            <option value="left" {% if trend_display_settings.product_name_align == "left" %}selected{% endif %}>يسار</option>
+          </select>
+        </label>
+        <label>محاذاة سعر المنتجات السفلية
+          <select name="product_price_align">
+            <option value="right" {% if trend_display_settings.product_price_align == "right" %}selected{% endif %}>يمين</option>
+            <option value="center" {% if trend_display_settings.product_price_align == "center" %}selected{% endif %}>وسط</option>
+            <option value="left" {% if trend_display_settings.product_price_align == "left" %}selected{% endif %}>يسار</option>
+          </select>
+        </label>
+        <label>حجم اسم المنتجات السفلية
+          <input name="product_name_font_size" type="number" min="6" max="14" step="0.5" value="{{ trend_display_settings.product_name_font_size }}">
+        </label>
+        <label>حجم سعر المنتجات السفلية
+          <input name="product_price_font_size" type="number" min="7" max="15" step="0.5" value="{{ trend_display_settings.product_price_font_size }}">
+        </label>
+        <label>وزن خط اسم المنتجات السفلية
+          <input name="product_name_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.product_name_font_weight }}">
+        </label>
+        <label>وزن خط سعر المنتجات السفلية
+          <input name="product_price_font_weight" type="number" min="400" max="900" step="100" value="{{ trend_display_settings.product_price_font_weight }}">
+        </label>
+        <label>أسطر اسم المنتجات السفلية
+          <input name="product_name_max_lines" type="number" min="1" max="3" value="{{ trend_display_settings.product_name_max_lines }}">
+        </label>
+        <label>لون اسم المنتجات السفلية
+          <input name="product_name_color" type="color" value="{{ trend_display_settings.product_name_color }}">
+        </label>
+        <label>لون سعر المنتجات السفلية
+          <input name="product_price_color" type="color" value="{{ trend_display_settings.product_price_color }}">
+        </label>
+        <label>لون النص العام للمنتجات السفلية
+          <input name="product_text_color" type="color" value="{{ trend_display_settings.product_text_color }}">
+        </label>
+        <label>خلفية معلومات المنتجات السفلية
+          <input name="product_info_background_color" type="color" value="{{ trend_display_settings.product_info_background_color }}">
+        </label>
+        <label>طريقة عرض صور المنتجات السفلية
+          <select name="product_image_fit">
+            <option value="cover" {% if trend_display_settings.product_image_fit == "cover" %}selected{% endif %}>ملء الإطار</option>
+            <option value="contain" {% if trend_display_settings.product_image_fit == "contain" %}selected{% endif %}>داخل الإطار</option>
+            <option value="fill" {% if trend_display_settings.product_image_fit == "fill" %}selected{% endif %}>تمديد</option>
+          </select>
+        </label>
+      </div>
+      <div class="trend-settings-helper">
+        <strong>هذا القسم لا يؤثر على المنتجات الثلاثة أعلى البطاقة.</strong>
+        <span>يمكنك تغيير ألوان وخطوط وأحجام اسم وسعر المنتجات السفلية دون تغيير المنتجات العلوية.</span>
       </div>
     </details>
 
