@@ -2367,18 +2367,16 @@ class SxHomeCategoryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rootIds = rootCategories.map((category) => category.id).toSet();
-
-    // The root tabs already represent parent categories. The circle grid
-    // therefore starts at their children; when a root is selected, every
-    // descendant can be shown according to the configured row count.
+    // The root tabs already represent parent categories. With "الكل",
+    // include every descendant branch of every root; when a root is selected,
+    // include that root's complete descendant tree.
     final categories = selectedRootId < 0
-        ? rootCategories
-            .expand(_descendantsOf)
-            .toList()
-          ..sort((a, b) => a.sortOrder == b.sortOrder
-              ? a.id.compareTo(b.id)
-              : a.sortOrder.compareTo(b.sortOrder))
+        ? (rootCategories
+              .expand((root) => _descendantsOf(root.id))
+              .toList()
+            ..sort((a, b) => a.sortOrder == b.sortOrder
+                ? a.id.compareTo(b.id)
+                : a.sortOrder.compareTo(b.sortOrder)))
         : _descendantsOf(selectedRootId);
 
     return _CategoryCircleGrid(
