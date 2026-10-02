@@ -1539,7 +1539,11 @@ def create_hashtag_reference():
 @api_bp.get("/trends")
 def public_trends():
     limit = min(max(request.args.get("limit", 20, type=int), 1), 50)
-    return {"items": CatalogService.list_public_trends(limit=limit)}
+    return {
+        "items": CatalogService.list_public_trends(limit=limit),
+        "hashtags": CatalogService.list_public_trend_hashtags(limit=50),
+        "settings": CatalogService.trend_display_settings(),
+    }
 
 
 @api_bp.get("/trends/<int:trend_id>")
