@@ -254,6 +254,152 @@
 
       <section class="trend-editor-section">
         <div class="trend-field-heading">
+          <label>أبعاد وتصميم الترند في التطبيق</label>
+          <small>كل القيم بالـdp على مرجع عرض 360px، ويقوم تطبيق Flutter بتوسيعها تلقائيًا حسب عرض الهاتف. لا توجد أبعاد ثابتة مفروضة على الجهاز.</small>
+        </div>
+
+        <div class="form-grid trend-design-grid">
+          <label>ارتفاع مساحة الـHero
+            <input name="ui_hero_height" type="number" min="180" max="520" value="278">
+            <small>الارتفاع الكلي للخلفية قبل بداية المحتوى الأبيض.</small>
+          </label>
+          <label>عرض بطاقة الترند
+            <input name="ui_hero_card_width" type="number" min="220" max="520" value="300">
+          </label>
+          <label>ارتفاع بطاقة الترند
+            <input name="ui_hero_card_height" type="number" min="120" max="360" value="198">
+          </label>
+          <label>موضع البطاقة من الأعلى
+            <input name="ui_hero_card_top" type="number" min="35" max="180" value="68">
+          </label>
+          <label>تدوير البطاقة
+            <input name="ui_hero_card_radius" type="number" min="0" max="40" value="9">
+          </label>
+          <label>سُمك إطار البطاقة
+            <input name="ui_hero_card_border_width" type="number" min="0" max="5" step="0.1" value="1">
+          </label>
+          <label>تغميق الخلفية
+            <span class="color-input-row"><input name="ui_hero_background_overlay_color" type="color" value="#000000"></span>
+          </label>
+          <label>شفافية تغميق الخلفية
+            <input name="ui_hero_background_overlay_opacity" type="number" min="0" max="1" step="0.01" value="0.47">
+          </label>
+          <label>شفافية تغميق محتوى البطاقة
+            <input name="ui_hero_card_overlay_opacity" type="number" min="0" max="1" step="0.01" value="0.48">
+          </label>
+          <label>لون إطار البطاقة
+            <input name="ui_hero_card_border_color" type="color" value="#ffffff">
+          </label>
+        </div>
+
+        <div class="form-grid trend-design-grid">
+          <label>عنوان البطاقة (Override)
+            <input name="ui_title_text" maxlength="180" placeholder="اتركه فارغًا لاستخدام اسم الهاشتاج">
+          </label>
+          <label>حجم عنوان البطاقة
+            <input name="ui_title_font_size" type="number" min="10" max="34" value="18">
+          </label>
+          <label>وزن العنوان
+            <input name="ui_title_font_weight" type="number" min="400" max="900" step="100" value="900">
+          </label>
+          <label>لون العنوان
+            <input name="ui_title_color" type="color" value="#ffffff">
+          </label>
+          <label>المسافة تحت العنوان
+            <input name="ui_title_spacing" type="number" min="0" max="20" value="5">
+          </label>
+          <label>حجم النص الترويجي
+            <input name="ui_promo_font_size" type="number" min="7" max="18" step="0.5" value="10.5">
+          </label>
+          <label>وزن النص الترويجي
+            <input name="ui_promo_font_weight" type="number" min="400" max="900" step="100" value="700">
+          </label>
+          <label>لون النص الترويجي
+            <input name="ui_promo_color" type="color" value="#ffffff">
+          </label>
+          <label>عدد أسطر النص
+            <input name="ui_promo_max_lines" type="number" min="1" max="3" value="2">
+          </label>
+          <label>حشو محتوى البطاقة
+            <input name="ui_content_padding" type="number" min="0" max="30" value="10">
+          </label>
+        </div>
+
+        <div class="form-grid trend-design-grid">
+          <label>عرض كل بطاقة منتج
+            <input name="ui_product_width" type="number" min="40" max="180" value="0">
+            <small>0 = توزيع متساوٍ تلقائيًا على عرض البطاقة.</small>
+          </label>
+          <label>ارتفاع بطاقات المنتجات
+            <input name="ui_product_height" type="number" min="55" max="180" value="103">
+          </label>
+          <label>المسافة بين المنتجات
+            <input name="ui_product_gap" type="number" min="0" max="20" value="4">
+          </label>
+          <label>تدوير بطاقات المنتجات
+            <input name="ui_product_radius" type="number" min="0" max="20" value="7">
+          </label>
+          <label>ارتفاع معلومات المنتج
+            <input name="ui_product_info_height" type="number" min="16" max="55" value="27">
+          </label>
+          <label>حجم اسم المنتج
+            <input name="ui_product_name_font_size" type="number" min="6" max="14" step="0.5" value="8.5">
+          </label>
+          <label>حجم سعر المنتج
+            <input name="ui_product_price_font_size" type="number" min="7" max="15" step="0.5" value="9.5">
+          </label>
+          <label>لون نص المنتج
+            <input name="ui_product_text_color" type="color" value="#000000">
+          </label>
+          <label>طريقة قص صورة المنتج
+            <select name="ui_product_image_fit">
+              <option value="cover" selected>Cover</option>
+              <option value="contain">Contain</option>
+              <option value="fill">Fill</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="form-grid trend-design-grid">
+          <label>نص الشارة
+            <input name="ui_badge_text" maxlength="80" placeholder="مثال: NEW أو HOT">
+          </label>
+          <label>لون خلفية الشارة
+            <input name="ui_badge_background_color" type="color" value="#111827">
+          </label>
+          <label>لون نص الشارة
+            <input name="ui_badge_text_color" type="color" value="#ffffff">
+          </label>
+          <label>حجم نص الشارة
+            <input name="ui_badge_font_size" type="number" min="7" max="16" step="0.5" value="9.5">
+          </label>
+          <label>تدوير الشارة
+            <input name="ui_badge_radius" type="number" min="0" max="16" value="4">
+          </label>
+          <label>موضع الشارة
+            <select name="ui_badge_position">
+              <option value="top_right" selected>أعلى اليمين</option>
+              <option value="top_left">أعلى اليسار</option>
+            </select>
+          </label>
+          <label>لون عداد الترند
+            <input name="ui_counter_color" type="color" value="#ffffff">
+          </label>
+          <label>حجم عداد الترند
+            <input name="ui_counter_font_size" type="number" min="7" max="18" value="12">
+          </label>
+          <label>بعد العداد عن الأسفل
+            <input name="ui_counter_bottom" type="number" min="0" max="30" value="8">
+          </label>
+          <label class="check-row">
+            <input name="ui_show_counter" type="checkbox" checked>
+            <span><strong>إظهار عداد الصفحات</strong><small>مثل 2 / 11.</small></span>
+          </label>
+        </div>
+      </section>
+
+      <section class="trend-editor-section">
+        <div class="trend-field-heading">
           <label>صورة الخلفية للمستطيل <b class="required-mark">*</b></label>
           <small>صورة أفقية مناسبة للقص المستطيل في تطبيق العميل.</small>
         </div>
