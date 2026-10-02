@@ -1556,6 +1556,7 @@ def register_entity_views(admin_bp):
             active_trends=active_trends,
             archived_trends=archived_trends,
             trend_seeds=trend_seeds,
+            trend_display_settings=CatalogService.trend_display_settings(),
             hashtag_seeds=[
                 {
                     "id": hashtag.id,
