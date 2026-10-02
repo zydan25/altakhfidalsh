@@ -4,7 +4,7 @@ from flask import request
 from . import api_bp
 from ...security import admin_api_required
 from ...extensions import db
-from ...models import Banner, BannerTarget, Campaign, Category, Hashtag, Look, LookTarget, LookProduct, LookCircle, SideCategory, SideCategoryCircle, MediaAsset, Product, StorefrontPage, StorefrontSection, StorefrontSectionItem, HomeCouponDisplaySetting, HomeCouponCard
+from ...models import Banner, BannerTarget, Campaign, Category, Hashtag, Look, LookTarget, LookProduct, LookCircle, SideCategory, SideCategoryCircle, MediaAsset, Product, StorefrontPage, StorefrontSection, StorefrontSectionItem, HomeCouponDisplaySetting, HomeCouponCard, AppSetting
 from sqlalchemy import or_
 
 
@@ -353,7 +353,19 @@ def home():
     root_category_id = request.args.get("root_category_id", type=int)
     banner_payload = banners(root_category_id=root_category_id).get("items", [])
     look_payload = looks().get("items", [])
+
+    header_gap_row = AppSetting.query.filter_by(
+        group_code="storefront", key="home_header_category_gap"
+    ).first()
+    try:
+        header_category_gap = int(str(header_gap_row.value).strip()) if header_gap_row and header_gap_row.value is not None else 3
+    except (TypeError, ValueError):
+        header_category_gap = 3
+    header_category_gap = max(-30, min(120, header_category_gap))
     return {
+        "ui_settings": {
+            "home_header_category_gap": header_category_gap,
+        },
         "page": page_payload,
         "categories": CatalogService.list_categories(),
         "category_display": CatalogService.list_home_category_display(),
