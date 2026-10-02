@@ -1099,7 +1099,9 @@ class _HomeFixedHeader extends StatelessWidget {
                                 ? const Color(0xFF111111)
                                 : Colors.transparent,
                             backgroundColor: Colors.white,
-                            iconColor: Colors.white,
+                            iconColor: solidBackground
+                                ? Colors.white
+                                : Colors.black,
                             iconBackgroundColor: solidBackground
                                 ? Colors.black
                                 : Colors.transparent,
