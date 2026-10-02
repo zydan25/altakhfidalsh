@@ -6,6 +6,8 @@ from app.models import (
     CategoryFilterDefinition,
     CategoryFilterValue,
     Currency,
+    Color,
+    Size,
     InventoryLocation,
     Product,
     ProductFilterValue,
@@ -454,6 +456,21 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
         )
         db.session.add_all([first, second])
         db.session.flush()
+
+        color = Color(name="أحمر", hex_code="#ff0000", sort_order=1)
+        size = Size(group="نساء", code="M", label="M", sort_order=1)
+        db.session.add_all([color, size])
+        db.session.flush()
+        db.session.add(
+            ProductVariant(
+                product_id=first.id,
+                sku="RESULT-SCOPE-001-M-RED",
+                color_id=color.id,
+                size_id=size.id,
+            )
+        )
+        db.session.flush()
+
         db.session.add_all([
             ProductCategory(
                 product_id=first.id,
@@ -510,6 +527,16 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
         )
         assert any(
             value["id"] == green.id
+            for group in circle_filters
+            for value in group["values"]
+        )
+        assert any(
+            value["id"] == -(1_000_000 + color.id)
+            for group in circle_filters
+            for value in group["values"]
+        )
+        assert any(
+            value["id"] == -(2_000_000 + size.id)
             for group in circle_filters
             for value in group["values"]
         )
@@ -580,3 +607,16 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
         assert circle_response.status_code == 200
         circle_ids = {item["id"] for item in circle_response.get_json()["items"]}
         assert circle_ids == {first.id}
+
+        color_filtered_response = client.get(
+            "/api/v1/catalog/products/feed",
+            query_string={
+                "circle_id": circle_one["id"],
+                "filter_value_ids": str(-(1_000_000 + color.id)),
+            },
+        )
+        assert color_filtered_response.status_code == 200
+        color_filtered_ids = {
+            item["id"] for item in color_filtered_response.get_json()["items"]
+        }
+        assert color_filtered_ids == {first.id}
