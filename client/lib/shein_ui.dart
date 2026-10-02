@@ -4074,18 +4074,23 @@ class SxCircleGroupScreen extends StatelessWidget {
   }
 }
 
+
 class SxResults extends StatefulWidget {
   final String title;
   final String? query;
-  final int? categoryId, circleId, hashtagId;
+  final int? categoryId, circleId, hashtagId, sideCategoryId;
+  final List<int>? categoryIds, hashtagIds;
 
   const SxResults({
     super.key,
     required this.title,
     this.query,
     this.categoryId,
+    this.categoryIds,
     this.circleId,
     this.hashtagId,
+    this.hashtagIds,
+    this.sideCategoryId,
   });
 
   @override State<SxResults> createState() => _SxResultsState();
@@ -4100,6 +4105,7 @@ class _SxResultsState extends State<SxResults> {
   List<CategoryModel> roots = [];
   List<CategoryModel> allCategories = [];
   List<Map<String, dynamic>> filters = [];
+  List<Map<String, dynamic>> sideCircles = [];
   Map<String, dynamic> home = {};
 
   final Set<int> values = {};
@@ -4107,6 +4113,7 @@ class _SxResultsState extends State<SxResults> {
   String? minPrice, maxPrice, minRating;
   int? selectedCategoryId;
   int? categoryContextId;
+  int? activeCircleId;
   bool loading = true;
   bool changingCategory = false;
   int viewMode = _viewGrid;
@@ -4114,6 +4121,7 @@ class _SxResultsState extends State<SxResults> {
   @override
   void initState() {
     super.initState();
+    activeCircleId = widget.circleId;
     load();
   }
 
@@ -4122,44 +4130,111 @@ class _SxResultsState extends State<SxResults> {
     if (id == null) return null;
     for (final side in sxMaps(payload['side_categories'])) {
       for (final circle in sxMaps(side['circles'])) {
-        if (sxInt(circle['id']) == id) return sxInt(side['root_category_id']);
+        if (sxInt(circle['id']) == id) {
+          return sxInt(side['root_category_id']);
+        }
       }
     }
     return null;
+  }
+
+  void _resolveSideContext() {
+    sideCircles = [];
+    final sideId = widget.sideCategoryId;
+    if (sideId == null) return;
+
+    for (final side in sxMaps(home['side_categories'])) {
+      if (sxInt(side['id']) != sideId) continue;
+      categoryContextId = sxInt(side['root_category_id']);
+      sideCircles = sxMaps(side['circles']);
+      break;
+    }
+  }
+
+  List<int> _entryCategoryIds() {
+    final ids = <int>{};
+    for (final id in widget.categoryIds ?? const <int>[]) {
+      if (id > 0) ids.add(id);
+    }
+    if (widget.categoryId != null && widget.categoryId! > 0) {
+      ids.add(widget.categoryId!);
+    }
+    if (ids.isEmpty && categoryContextId != null && categoryContextId! > 0) {
+      ids.add(categoryContextId!);
+    }
+    return ids.toList()..sort();
+  }
+
+  List<int> _currentCategoryScopeIds() {
+    if (selectedCategoryId != null && selectedCategoryId! > 0) {
+      return [selectedCategoryId!];
+    }
+    return _entryCategoryIds();
   }
 
   void _buildCategoryRail() {
     allCategories = sxMaps(home['categories'])
         .map(CategoryModel.fromJson)
         .toList()
-      ..sort((a, b) => a.sortOrder == b.sortOrder
-          ? a.id.compareTo(b.id)
-          : a.sortOrder.compareTo(b.sortOrder));
+      ..sort(
+        (a, b) => a.sortOrder == b.sortOrder
+            ? a.id.compareTo(b.id)
+            : a.sortOrder.compareTo(b.sortOrder),
+      );
     roots = allCategories.where((x) => x.parentId == null).toList();
 
-    final scope = widget.categoryId ?? categoryContextId;
-    if (scope != null) {
-      categories = allCategories.where((x) => x.parentId == scope).toList()
-        ..sort((a, b) => a.sortOrder == b.sortOrder
-            ? a.id.compareTo(b.id)
-            : a.sortOrder.compareTo(b.sortOrder));
-    } else {
-      categories = roots;
+    if (widget.sideCategoryId != null) {
+      categories = [];
+      return;
     }
+
+    final scopeIds = _currentCategoryScopeIds();
+    if (scopeIds.isEmpty) {
+      categories = roots;
+      return;
+    }
+
+    final scope = scopeIds.toSet();
+    final unique = <int, CategoryModel>{};
+    for (final category in allCategories) {
+      if (category.parentId != null && scope.contains(category.parentId)) {
+        unique[category.id] = category;
+      }
+    }
+    categories = unique.values.toList()
+      ..sort(
+        (a, b) => a.sortOrder == b.sortOrder
+            ? a.id.compareTo(b.id)
+            : a.sortOrder.compareTo(b.sortOrder),
+      );
   }
 
-  Future<void> _loadFilters(int? categoryId) async {
+  Future<void> _loadFiltersForCurrentScope() async {
     filters = [];
-    if (categoryId == null) return;
     try {
-      filters = await api.categoryFilters(categoryId);
+      filters = await api.scopedFilters(
+        categoryIds: _currentCategoryScopeIds(),
+        circleId: activeCircleId,
+        hashtagIds: [
+          if (widget.hashtagId != null && widget.hashtagId! > 0)
+            widget.hashtagId!,
+          ...?widget.hashtagIds,
+        ],
+        sideCategoryId: widget.sideCategoryId,
+      );
     } catch (_) {}
   }
 
   Future<List<ProductModel>> _fetch() => api.feed(
-    category: selectedCategoryId ?? widget.categoryId,
-    circleId: widget.circleId,
+    category: selectedCategoryId ??
+        ((widget.categoryIds == null || widget.categoryIds!.isEmpty)
+            ? widget.categoryId
+            : null),
+    categoryIds: selectedCategoryId == null ? widget.categoryIds : null,
+    circleId: activeCircleId,
     hashtagId: widget.hashtagId,
+    hashtagIds: widget.hashtagIds,
+    sideCategoryId: widget.sideCategoryId,
     q: widget.query ?? '',
     filterValueIds: values.toList(),
     sort: sort,
@@ -4174,9 +4249,11 @@ class _SxResultsState extends State<SxResults> {
     try {
       home = await api.home();
       categoryContextId = _circleRootId(home);
+      _resolveSideContext();
       selectedCategoryId = null;
+      activeCircleId = widget.circleId;
 
-      await _loadFilters(widget.categoryId ?? categoryContextId);
+      await _loadFiltersForCurrentScope();
       products = await _fetch();
       _buildCategoryRail();
     } catch (e) {
@@ -4193,13 +4270,17 @@ class _SxResultsState extends State<SxResults> {
     if (changingCategory) return;
     setState(() {
       selectedCategoryId = id;
+      // Selecting a catalog category changes the active product scope from
+      // a circle to that category branch. "الكل" restores the entry circle.
+      activeCircleId = id == null ? widget.circleId : null;
       changingCategory = true;
       values.clear();
       minPrice = null;
       maxPrice = null;
       minRating = null;
     });
-    await _loadFilters(id ?? widget.categoryId ?? categoryContextId);
+    _buildCategoryRail();
+    await _loadFiltersForCurrentScope();
     try {
       final next = await _fetch();
       if (mounted) setState(() => products = next);
@@ -4207,6 +4288,31 @@ class _SxResultsState extends State<SxResults> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(sxText(e, 'تعذر تحديث النتائج'))),
+        );
+      }
+    }
+    if (mounted) setState(() => changingCategory = false);
+  }
+
+  Future<void> _selectSideCircle(int? id) async {
+    if (changingCategory) return;
+    setState(() {
+      activeCircleId = id;
+      selectedCategoryId = null;
+      changingCategory = true;
+      values.clear();
+      minPrice = null;
+      maxPrice = null;
+      minRating = null;
+    });
+    await _loadFiltersForCurrentScope();
+    try {
+      final next = await _fetch();
+      if (mounted) setState(() => products = next);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(sxText(e, 'تعذر تحديث المنتجات'))),
         );
       }
     }
@@ -4228,10 +4334,9 @@ class _SxResultsState extends State<SxResults> {
   }
 
   Future<void> filterSheet() async {
-    final filterCategory = selectedCategoryId ?? widget.categoryId ?? categoryContextId;
-    if (filterCategory == null || filters.isEmpty) {
+    if (filters.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا توجد فلاتر مخصصة لهذه الفئة حاليًا')),
+        const SnackBar(content: Text('لا توجد خيارات تصفية متاحة لهذا النطاق حاليًا')),
       );
       return;
     }
@@ -4355,7 +4460,7 @@ class _SxResultsState extends State<SxResults> {
               child: _ResultsTopBar(
                 title: _scopeLabel,
                 viewMode: viewMode,
-                onViewMode: () => setState(() => viewMode = (viewMode + 1) % 3),
+                onViewMode: () => setState(() => viewMode = (viewMode + 1) % 2),
                 onBack: () => Navigator.pop(context),
                 onSearch: () => Navigator.push(
                   context,
@@ -4368,7 +4473,19 @@ class _SxResultsState extends State<SxResults> {
               ),
             ),
           ),
-          if (categories.isNotEmpty)
+          if (widget.sideCategoryId != null && sideCircles.isNotEmpty)
+            SliverPersistentHeader(
+              pinned: true,
+              delegate: _ResultHeaderDelegate(
+                height: 94,
+                child: _ResultsCircleRail(
+                  circles: sideCircles,
+                  selected: activeCircleId,
+                  onSelected: _selectSideCircle,
+                ),
+              ),
+            )
+          else if (categories.isNotEmpty)
             SliverPersistentHeader(
               pinned: true,
               delegate: _ResultHeaderDelegate(
