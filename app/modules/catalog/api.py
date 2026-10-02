@@ -12,6 +12,9 @@ from ...models import (
     CategoryFilterValue,
     MediaAsset,
     Badge,
+    Color,
+    Trend,
+    TrendProduct,
     Product,
     ProductBadge,
     ProductCategory,
@@ -325,6 +328,7 @@ def public_product_feed():
         media_rows = (
             db.session.query(
                 ProductMedia.product_id,
+                ProductMedia.color_id,
                 MediaAsset.url,
                 MediaAsset.width,
                 MediaAsset.height,
@@ -334,12 +338,54 @@ def public_product_feed():
             .order_by(ProductMedia.product_id, ProductMedia.sort_order, ProductMedia.id)
             .all()
         )
-        for product_id, media_url, width, height in media_rows:
+        for product_id, color_id, media_url, width, height in media_rows:
             media_by_product.setdefault(product_id, []).append({
                 "url": media_url,
                 "width": width,
                 "height": height,
+                "color_id": color_id,
             })
+
+    color_ids = {
+        int(media["color_id"])
+        for rows_for_product in media_by_product.values()
+        for media in rows_for_product
+        if media.get("color_id")
+    }
+    colors_by_id = {}
+    if color_ids:
+        color_rows = (
+            db.session.query(Color, MediaAsset)
+            .outerjoin(MediaAsset, MediaAsset.id == Color.swatch_asset_id)
+            .filter(Color.id.in_(color_ids))
+            .all()
+        )
+        colors_by_id = {
+            color.id: {
+                "id": color.id,
+                "name": color.name,
+                "hex_code": color.hex_code,
+                "swatch_url": swatch.url if swatch else None,
+            }
+            for color, swatch in color_rows
+        }
+
+    trend_product_ids = set()
+    if product_ids:
+        trend_product_ids = {
+            int(product_id)
+            for (product_id,) in (
+                db.session.query(TrendProduct.product_id)
+                .join(Trend, Trend.id == TrendProduct.trend_id)
+                .filter(
+                    TrendProduct.product_id.in_(product_ids),
+                    Trend.is_active.is_(True),
+                    Trend.status == "published",
+                )
+                .distinct()
+                .all()
+            )
+        }
 
     display_by_product = {
         row.product_id: row
@@ -437,6 +483,18 @@ def public_product_feed():
         item = CatalogService._serialize_trend_product(row)
         row_media = media_by_product.get(row.id, [])
         item["images"] = [x["url"] for x in row_media]
+        seen_color_ids = set()
+        item_colors = []
+        for media in row_media:
+            color_id = media.get("color_id")
+            if not color_id:
+                continue
+            color = colors_by_id.get(int(color_id))
+            if color is not None and int(color_id) not in seen_color_ids:
+                seen_color_ids.add(int(color_id))
+                item_colors.append(color)
+        item["colors"] = item_colors[:8]
+        item["is_trend"] = row.id in trend_product_ids
         first_media = row_media[0] if row_media else None
         if first_media and first_media.get("width") and first_media.get("height"):
             item["image_aspect_ratio"] = float(first_media["width"]) / float(first_media["height"])
