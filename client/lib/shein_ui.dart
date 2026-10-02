@@ -6376,7 +6376,18 @@ Color _sxTrendHex(
 ) => sxColor(value, fallback);
 
 FontWeight _sxTrendWeight(dynamic value, FontWeight fallback) {
-  final n = sxInt(value, fallback.value);
+  final fallbackNumber = fallback == FontWeight.w900
+      ? 900
+      : fallback == FontWeight.w800
+          ? 800
+          : fallback == FontWeight.w700
+              ? 700
+              : fallback == FontWeight.w600
+                  ? 600
+                  : fallback == FontWeight.w500
+                      ? 500
+                      : 400;
+  final n = sxInt(value, fallbackNumber);
   if (n >= 900) return FontWeight.w900;
   if (n >= 800) return FontWeight.w800;
   if (n >= 700) return FontWeight.w700;
@@ -6580,6 +6591,127 @@ class _TrendsHero extends StatelessWidget {
       );
 }
 
+class _TrendCountdownBadge extends StatefulWidget {
+  final Map<String, dynamic> trend;
+  final Map<String, dynamic> ui;
+
+  const _TrendCountdownBadge({
+    required this.trend,
+    required this.ui,
+  });
+
+  @override
+  State<_TrendCountdownBadge> createState() => _TrendCountdownBadgeState();
+}
+
+class _TrendCountdownBadgeState extends State<_TrendCountdownBadge> {
+  Timer? _timer;
+  Duration _remaining = Duration.zero;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncRemaining();
+    _timer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _syncRemaining(),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _TrendCountdownBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final oldEnds = sxText((oldWidget.trend['timer'] as Map?)?['ends_at']);
+    final newEnds = sxText((widget.trend['timer'] as Map?)?['ends_at']);
+    if (oldEnds != newEnds) _syncRemaining();
+  }
+
+  void _syncRemaining() {
+    final timer = widget.trend['timer'];
+    if (timer is! Map || timer['enabled'] != true) {
+      if (mounted) setState(() => _remaining = Duration.zero);
+      return;
+    }
+    final endsText = sxText(timer['ends_at']);
+    if (endsText.isEmpty) return;
+    final ends = DateTime.tryParse(endsText);
+    if (ends == null) return;
+    final remaining = ends.difference(DateTime.now().toUtc());
+    if (!mounted) return;
+    setState(() {
+      _remaining = remaining.isNegative ? Duration.zero : remaining;
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  String _format(Duration value) {
+    final total = value.inSeconds;
+    final days = total ~/ 86400;
+    final hours = (total % 86400) ~/ 3600;
+    final minutes = (total % 3600) ~/ 60;
+    final seconds = total % 60;
+    if (days > 0) {
+      return days.toString().padLeft(2, '0') +
+          ':' +
+          hours.toString().padLeft(2, '0') +
+          ':' +
+          minutes.toString().padLeft(2, '0');
+    }
+    return hours.toString().padLeft(2, '0') +
+        ':' +
+        minutes.toString().padLeft(2, '0') +
+        ':' +
+        seconds.toString().padLeft(2, '0');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final timer = widget.trend['timer'];
+    if (timer is! Map ||
+        timer['enabled'] != true ||
+        widget.ui['show_timer'] == false ||
+        _remaining == Duration.zero) {
+      return const SizedBox.shrink();
+    }
+    final top = sxText(widget.ui['timer_position']) == 'top_right'
+        ? Alignment.centerRight
+        : Alignment.centerLeft;
+
+    return Align(
+      alignment: top,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: sxColor(
+            widget.ui['timer_background_color'],
+            const Color(0xFF111827),
+          ),
+          borderRadius: BorderRadius.circular(
+            _sxTrendNumber(widget.ui, 'timer_radius', 4),
+          ),
+        ),
+        child: Text(
+          _format(_remaining),
+          textDirection: TextDirection.ltr,
+          style: TextStyle(
+            color: sxColor(
+              widget.ui['timer_text_color'],
+              Colors.white,
+            ),
+            fontSize: _sxTrendNumber(widget.ui, 'timer_font_size', 9),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _TrendHeroCard extends StatelessWidget {
   final Map<String, dynamic> trend;
   final double width;
@@ -6668,6 +6800,13 @@ class _TrendHeroCard extends StatelessWidget {
             right: contentPadding,
             child: Column(
               children: [
+                _TrendCountdownBadge(
+                  trend: trend,
+                  ui: ui,
+                ),
+                SizedBox(
+                  height: ui['show_timer'] == false ? 0 : 4,
+                ),
                 if (sxText(ui['badge_text']).isNotEmpty)
                   Align(
                     alignment: sxText(ui['badge_position']) == 'top_left'
