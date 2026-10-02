@@ -1227,6 +1227,7 @@ def register_entity_views(admin_bp):
                 ("trend_store_title_offset", -30, 30, True),
                 ("trend_store_title_arrow_font_size", 9, 28, False),
                 ("trend_store_title_arrow_gap", 0, 20, True),
+                ("trend_store_title_spacing", 0, 30, True),
                 ("trend_store_title_font_size", 9, 28, False),
                 ("trend_store_title_font_weight", 400, 900, True),
                 ("trend_store_promo_offset", -30, 30, True),
@@ -1283,6 +1284,7 @@ def register_entity_views(admin_bp):
             for name in ("logo_text", "pull_text", "pull_release_text", "badge_text"):
                 settings[name] = (request.form.get(name) or defaults[name]).strip()[:120]
             settings["title_hash_text"] = (request.form.get("title_hash_text") or defaults["title_hash_text"]).strip()[:3] or "#"
+            settings["search_hint"] = (request.form.get("search_hint") or defaults["search_hint"]).strip()[:80]
 
             settings["show_counter"] = request.form.get("show_counter") == "on"
             settings["show_timer"] = request.form.get("show_timer") == "on"
