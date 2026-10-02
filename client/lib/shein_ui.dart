@@ -2326,10 +2326,7 @@ class SxHomeLookCarousel extends StatelessWidget {
     final sectionHeight = maxCardHeight.clamp(40.0, 500.0) + 24;
 
     return Container(
-      color: _sxTrendHex(
-        widget.ui['product_info_background_color'],
-        Colors.white,
-      ),
+      color: Colors.white,
       padding: const EdgeInsets.fromLTRB(0, 7, 0, 8),
       child: SizedBox(
         height: sectionHeight,
