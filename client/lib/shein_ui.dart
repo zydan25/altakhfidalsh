@@ -176,35 +176,58 @@ class SxSearchBar extends StatelessWidget {
   });
   @override Widget build(BuildContext context) => SizedBox(
     height: 43,
-    child: TextField(
-      controller: controller,
-      autofocus: autofocus,
-      readOnly: onTap != null && controller == null,
-      onTap: onTap,
-      onChanged: onChanged,
-      onSubmitted: onSubmitted,
-      style: const TextStyle(color: Colors.black, fontSize: 13),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
-        // Keep the search icon on the visual left side of the RTL field.
-        prefixIcon: null,
-        suffixIcon: iconBackgroundColor == Colors.transparent
-            ? SizedBox(
-                width: 40,
-                child: Center(
-                  child: Icon(
-                    Icons.search,
-                    size: 21,
-                    color: iconColor,
-                  ),
-                ),
-              )
-            : Padding(
-                padding: const EdgeInsets.all(3),
-                child: Container(
+    child: Stack(
+      clipBehavior: Clip.none,
+      children: [
+        TextField(
+          controller: controller,
+          autofocus: autofocus,
+          readOnly: onTap != null && controller == null,
+          onTap: onTap,
+          onChanged: onChanged,
+          onSubmitted: onSubmitted,
+          style: const TextStyle(color: Colors.black, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
+            // The icon is layered over the field so its idle state has no
+            // separate white/filled icon box.
+            suffixIcon: null,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+            filled: true,
+            fillColor: backgroundColor,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(7),
+              borderSide: BorderSide(color: borderColor, width: .8),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(7),
+              borderSide: BorderSide(color: borderColor, width: .8),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(7),
+              borderSide: BorderSide(color: borderColor, width: 1.1),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 4,
+          top: 3,
+          bottom: 3,
+          child: iconBackgroundColor == Colors.transparent
+              ? SizedBox(
                   width: 36,
-                  height: 36,
+                  child: Center(
+                    child: Icon(
+                      Icons.search,
+                      size: 21,
+                      color: iconColor,
+                    ),
+                  ),
+                )
+              : Container(
+                  width: 36,
+                  height: 37,
                   decoration: BoxDecoration(
                     color: iconBackgroundColor,
                     borderRadius: BorderRadius.circular(4),
@@ -217,23 +240,8 @@ class SxSearchBar extends StatelessWidget {
                     ),
                   ),
                 ),
-              ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-        filled: true,
-        fillColor: backgroundColor,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(7),
-          borderSide: BorderSide(color: borderColor, width: .8),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(7),
-          borderSide: BorderSide(color: borderColor, width: .8),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(7),
-          borderSide: BorderSide(color: borderColor, width: 1.1),
-        ),
-      ),
+      ],
     ),
   );
 }
