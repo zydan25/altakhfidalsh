@@ -548,6 +548,7 @@ def public_product_feed():
     except (InvalidOperation, ValueError):
         min_price = max_price = min_rating = None
 
+    items = []
     for row in rows:
         item = CatalogService._serialize_trend_product(row)
         row_media = media_by_product.get(row.id, [])
