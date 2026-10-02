@@ -164,6 +164,34 @@ class ApiService {
         .toList();
   }
 
+  Future<List<Map<String,dynamic>>> scopedFilters({
+    List<int>? categoryIds,
+    int? circleId,
+    List<int>? hashtagIds,
+    int? sideCategoryId,
+  }) async {
+    final q = <String,String>{};
+    final categories = <int>{
+      ...?categoryIds?.where((id) => id > 0),
+    }.toList()..sort();
+    final hashtags = <int>{
+      ...?hashtagIds?.where((id) => id > 0),
+    }.toList()..sort();
+
+    if (categories.isNotEmpty) q['category_ids'] = categories.join(',');
+    if (circleId != null && circleId > 0) q['circle_id'] = circleId.toString();
+    if (hashtags.isNotEmpty) q['hashtag_ids'] = hashtags.join(',');
+    if (sideCategoryId != null && sideCategoryId > 0) {
+      q['side_category_id'] = sideCategoryId.toString();
+    }
+
+    final d = await get('/catalog/products/filters', q: q.isEmpty ? null : q);
+    return ((d['items'] as List?)??const[])
+        .whereType<Map>()
+        .map((e)=>Map<String,dynamic>.from(e))
+        .toList();
+  }
+
   Future<List<Map<String,dynamic>>> categoryFiltersForCategories(
     List<int> categoryIds, {
     bool includeDescendants = true,
