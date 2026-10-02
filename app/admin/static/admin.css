@@ -545,6 +545,8 @@ body.modal-open { overflow:hidden; }
   .trend-settings-scope { align-self:flex-start; }
   .trend-settings-grid { grid-template-columns:1fr 1fr; padding-inline:10px; }
   .trend-global-actions { position:sticky; bottom:0; z-index:5; flex-direction:column; align-items:stretch; }
+  .trend-create-toolbar { flex-direction:column; align-items:stretch; }
+  .trend-create-toolbar .primary-button { width:100%; }
   .trend-global-save { width:100%; min-width:0; }
   .option-record { align-items:stretch; flex-direction:column; }
   .option-record-actions { justify-content:stretch; }
@@ -709,6 +711,20 @@ body.modal-open { overflow:hidden; }
 .trend-global-actions small { color:var(--muted); font-size:9.5px; line-height:1.5; }
 .trend-global-save { min-width:220px; }
 
+.trend-create-toolbar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:14px 0 8px;
+  padding:11px 13px;
+  border:1px dashed var(--border);
+  border-radius:14px;
+  background:var(--surface-soft);
+}
+.trend-create-toolbar > div { min-width:0; display:grid; gap:3px; }
+.trend-create-toolbar strong { font-size:12px; }
+.trend-create-toolbar span { color:var(--muted); font-size:10px; line-height:1.5; }
 .trend-admin-grid { display:grid; gap:14px; margin-top:4px; }
 .trend-admin-card { overflow:hidden; padding:0; }
 .trend-card-cover { position:relative; aspect-ratio:2.35 / 1; background:var(--surface-soft); overflow:hidden; }
