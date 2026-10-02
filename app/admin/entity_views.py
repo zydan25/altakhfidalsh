@@ -1241,11 +1241,19 @@ def register_entity_views(admin_bp):
                     "counter_font_size": _number("ui_counter_font_size", 12, 7, 18, True),
                     "counter_bottom": _number("ui_counter_bottom", 8, 0, 30, True),
                     "show_counter": request.form.get("ui_show_counter") == "on",
+                    "timer_background_color": _hex("ui_timer_background_color", "#111827"),
+                    "timer_text_color": _hex("ui_timer_text_color", "#ffffff"),
+                    "timer_font_size": _number("ui_timer_font_size", 9, 7, 16),
+                    "timer_radius": _number("ui_timer_radius", 4, 0, 16, True),
+                    "timer_position": (request.form.get("ui_timer_position") or "top_left").strip(),
+                    "show_timer": request.form.get("ui_show_timer") == "on",
                 }
                 if trend_ui["product_image_fit"] not in {"cover", "contain", "fill"}:
                     trend_ui["product_image_fit"] = "cover"
                 if trend_ui["badge_position"] not in {"top_left", "top_right"}:
                     trend_ui["badge_position"] = "top_right"
+                if trend_ui["timer_position"] not in {"top_left", "top_right"}:
+                    trend_ui["timer_position"] = "top_left"
                 if len(product_ids) != 3:
                     raise ValueError("يجب اختيار 3 منتجات بالضبط للترند.")
                 if len(product_image_asset_ids) not in {0, 3}:
