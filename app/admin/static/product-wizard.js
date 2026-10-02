@@ -19,6 +19,7 @@
     }
   })();
   let sideCategoryReferences = [];
+  let categoryReferences = [];
   let draftColorIds = new Set();
   let draftSizeIds = new Set();
   let draftCategoryIds = new Set();
@@ -66,9 +67,10 @@
       requestJson("/api/v1/catalog/reference/marketing"),
       requestJson("/api/v1/catalog/reference/options?product_id=" + encodeURIComponent(productId)),
       requestJson("/api/v1/catalog/reference/product-config?product_id=" + encodeURIComponent(productId)),
+      requestJson("/api/v1/catalog/categories"),
     ]);
 
-    const [result, refs, marketing, options, config] = requests;
+    const [result, refs, marketing, options, config, categories] = requests;
     if (result.status === "rejected") {
       notify(result.reason?.message || "تعذر تحميل بيانات المنتج.", "error");
       return;
@@ -80,6 +82,9 @@
     if (options.status === "fulfilled") optionRefs = options.value.item || options.value;
     if (config.status === "fulfilled") {
       configRefs = { ...(configRefs || {}), ...(config.value.item || config.value) };
+    }
+    if (categories.status === "fulfilled") {
+      categoryReferences = categories.value?.items || [];
     }
 
     hydrate();
@@ -144,7 +149,9 @@
   };
 
   const selectedRootCategoryIds = () => {
-    const categories = configRefs?.categories || [];
+    const categories = categoryReferences.length
+      ? categoryReferences
+      : (configRefs?.categories || []);
     const byId = new Map(categories.map(row => [Number(row.id), row]));
     const roots = new Set();
 
