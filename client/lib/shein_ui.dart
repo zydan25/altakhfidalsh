@@ -7548,8 +7548,7 @@ class _TrendProductTileState extends State<_TrendProductTile> {
                                   try {
                                     if (widget.product.variantId == null) return;
                                     await api.addCart(
-                                      variantId: widget.product.variantId!,
-                                      qty: 1,
+                                      widget.product.variantId!,
                                     );
                                     _CartBadge.value.value += 1;
                                     if (context.mounted) {
