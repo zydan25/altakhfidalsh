@@ -159,6 +159,8 @@ class SxSearchBar extends StatelessWidget {
   final bool autofocus;
   final Color borderColor;
   final Color backgroundColor;
+  final Color iconColor;
+  final Color iconBackgroundColor;
   const SxSearchBar({
     super.key,
     this.onTap,
@@ -169,6 +171,8 @@ class SxSearchBar extends StatelessWidget {
     this.autofocus = false,
     this.borderColor = const Color(0xFFD5D5D5),
     this.backgroundColor = Colors.white,
+    this.iconColor = Colors.black,
+    this.iconBackgroundColor = Colors.transparent,
   });
   @override Widget build(BuildContext context) => SizedBox(
     height: 43,
@@ -185,7 +189,24 @@ class SxSearchBar extends StatelessWidget {
         hintStyle: const TextStyle(color: Colors.black54, fontSize: 13),
         // Keep the search icon on the visual left side of the RTL field.
         prefixIcon: null,
-        suffixIcon: const Icon(Icons.search, size: 22, color: Colors.black),
+        suffixIcon: Padding(
+          padding: const EdgeInsets.all(3),
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: iconBackgroundColor,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Center(
+              child: Icon(
+                Icons.search,
+                size: 21,
+                color: iconColor,
+              ),
+            ),
+          ),
+        ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 10),
         filled: true,
         fillColor: backgroundColor,
@@ -1060,11 +1081,17 @@ class _HomeFixedHeader extends StatelessWidget {
                         child: GestureDetector(
                           onTap: onSearch,
                           child: SxSearchBar(
+                            // Keep the search field white. The search icon
+                            // switches presentation with the sticky header
+                            // state, matching the SHEIN-style header treatment.
                             borderColor: solidBackground
                                 ? const Color(0xFF111111)
-                                : Colors.white,
-                            backgroundColor:
-                                solidBackground ? Colors.white : Colors.transparent,
+                                : Colors.transparent,
+                            backgroundColor: Colors.white,
+                            iconColor: Colors.white,
+                            iconBackgroundColor: solidBackground
+                                ? Colors.black
+                                : Colors.transparent,
                           ),
                         ),
                       ),
