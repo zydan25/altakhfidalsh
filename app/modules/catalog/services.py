@@ -1727,15 +1727,77 @@ class CatalogService:
         hashtags = active_or_current(Hashtag, current_hashtag_ids, (Hashtag.sort_order, Hashtag.name))
         strips = active_or_current(PromotionalStrip, current_strip_ids, (PromotionalStrip.id.desc(),))
         campaigns = active_or_current(Campaign, current_campaign_ids, (Campaign.display_priority.desc(), Campaign.name))
-        side_circles = (
-            SideCategoryCircle.query
-            .filter(or_(
+
+        # Build a flat, deterministic list for the admin product wizard.
+        # The backend remains the authority for root-category compatibility.
+        category_rows = Category.query.filter(Category.is_active.is_(True)).all()
+        category_parent = {int(row.id): row.parent_id for row in category_rows}
+        selected_root_ids = set()
+        for category_id in current_category_ids:
+            current = int(category_id)
+            visited = set()
+            while current and current not in visited:
+                visited.add(current)
+                parent_id = category_parent.get(current)
+                if parent_id is None:
+                    if current in category_parent:
+                        selected_root_ids.add(current)
+                    break
+                current = int(parent_id)
+
+        side_circle_rows = (
+            db.session.query(SideCategoryCircle, SideCategory)
+            .join(SideCategory, SideCategory.id == SideCategoryCircle.side_category_id)
+            .filter(
                 SideCategoryCircle.is_active.is_(True),
-                SideCategoryCircle.id.in_(current_side_circle_ids) if current_side_circle_ids else False,
-            ))
-            .order_by(SideCategoryCircle.side_category_id, SideCategoryCircle.sort_order, SideCategoryCircle.name)
+                SideCategory.is_active.is_(True),
+            )
+            .order_by(
+                SideCategory.root_category_id,
+                SideCategory.sort_order,
+                SideCategory.name,
+                SideCategoryCircle.sort_order,
+                SideCategoryCircle.name,
+                SideCategoryCircle.id,
+            )
             .all()
         )
+
+        available_side_category_circles = []
+        for circle, side_category in side_circle_rows:
+            root_id = int(side_category.root_category_id)
+            root = db.session.get(Category, root_id)
+            image = db.session.get(MediaAsset, circle.image_asset_id) if circle.image_asset_id else None
+            available_side_category_circles.append({
+                "id": circle.id,
+                "side_category_id": side_category.id,
+                "side_category_name": side_category.name,
+                "root_category_id": root_id,
+                "root_category_name": root.name if root else "—",
+                "name": circle.name,
+                "slug": circle.slug,
+                "image_asset_id": circle.image_asset_id,
+                "image_url": image.url if image else None,
+                "badge_id": circle.badge_id,
+                "sort_order": circle.sort_order,
+                "product_count": (
+                    db.session.query(ProductSideCategoryCircle.id)
+                    .join(Product, Product.id == ProductSideCategoryCircle.product_id)
+                    .filter(
+                        ProductSideCategoryCircle.circle_id == circle.id,
+                        Product.is_active.is_(True),
+                        Product.status == "published",
+                    )
+                    .count()
+                ),
+                "compatible": (
+                    not selected_root_ids
+                    or root_id in selected_root_ids
+                    or circle.id in current_side_circle_ids
+                ),
+                "selected": circle.id in current_side_circle_ids,
+            })
+
         colors = active_or_current(Color, current_color_ids, (Color.sort_order, Color.name))
 
         from ...models import Size
@@ -1830,6 +1892,7 @@ class CatalogService:
                 for row in campaigns
             ],
             "side_categories": CatalogService.list_side_categories(include_archived=False),
+            "available_side_category_circles": available_side_category_circles,
             "selected_side_category_circle_ids": sorted(current_side_circle_ids),
             "policies": policies,
             "size_guides": [
@@ -1976,6 +2039,16 @@ class CatalogService:
         ]
         display = db.session.get(ProductDisplaySettings, product_id)
         policies = db.session.get(ProductPolicyAssignment, product_id)
+        basics_ready = bool(
+            (product.sku or "").strip()
+            and (product.name or "").strip()
+            and product.base_price is not None
+            and product.base_price >= 0
+        )
+        active_variant_count = ProductVariant.query.filter_by(
+            product_id=product_id,
+            is_active=True,
+        ).count()
         return {
             "product": CatalogService._serialize_product(product),
             "categories": categories,
@@ -2003,15 +2076,16 @@ class CatalogService:
                 "return_policy_id": policies.return_policy_id if policies else None,
                 "warranty_policy_id": policies.warranty_policy_id if policies else None,
             },
-            "publishable": bool(categories and variants and media),
+            "publishable": bool(basics_ready and categories and active_variant_count and media),
             "steps": {
-                "basics": True,
+                "basics": basics_ready,
                 "categories": bool(categories),
+                "side-categories": bool(available_side_category_circles),
                 "media": bool(media),
                 "options": bool(reference_colors or reference_sizes or options),
-                "variants": bool(variants),
+                "variants": bool(active_variant_count),
                 "inventory": bool(inventory),
-                "publish": bool(categories and variants and media),
+                "publish": bool(basics_ready and categories and active_variant_count and media),
             },
         }
 
