@@ -3471,9 +3471,24 @@ class _SxCategoriesScreenState extends State<SxCategoriesScreen> {
       return;
     }
     final id = sxInt(item['id']);
-    if (id <= 0 || id == selectedSideCategoryId) return;
-    // Side-category selection is local to the Categories page. Only a
-    // circular item below it opens the results page.
+    if (id <= 0) return;
+
+    final circles = sxMaps(item['circles']);
+    if (circles.isEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SxResults(
+            title: sxText(item['name'], 'الفئة'),
+            sideCategoryId: id,
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (id == selectedSideCategoryId) return;
+    // A side category that has child circles remains a local explorer.
     setState(() => selectedSideCategoryId = id);
   }
 
@@ -4244,43 +4259,53 @@ class _SxResultsState extends State<SxResults> {
 
   void _resolveSideContext() {
     sideCircles = [];
-    resolvedSideCategoryId = widget.sideCategoryId;
+    resolvedSideCategoryId = null;
 
-    // A normal category/banner result must NOT inherit side categories just
-    // because the root category happens to own them. Side-circle navigation
-    // is explicit: it carries circleId or sideCategoryId.
-    final needsSideContext =
-        widget.circleId != null || widget.sideCategoryId != null;
-    if (!needsSideContext) return;
+    // When opening a result from a circle, the circle itself is the source
+    // of truth. Do not let a stale/mismatched sideCategoryId make us resolve
+    // a sibling side category under the same root.
+    Map<String, dynamic>? matchedSide;
+    final sides = sxMaps(home['side_categories']);
 
-    for (final side in sxMaps(home['side_categories'])) {
-      final circles = sxMaps(side['circles']);
-      final matchesCircle = widget.circleId != null &&
-          circles.any((circle) => sxInt(circle['id']) == widget.circleId);
-      final matchesSide = widget.sideCategoryId != null &&
-          sxInt(side['id']) == widget.sideCategoryId;
-
-      if (!matchesCircle && !matchesSide) continue;
-
-      resolvedSideCategoryId = sxInt(side['id']);
-      categoryContextId = sxInt(side['root_category_id']);
-
-      // Result-page circle rail must belong to the selected side category
-      // only. Do not allow sibling side categories under the same root to
-      // leak into this rail, even if the home payload is broader than expected.
-      sideCircles = circles
-          .where((circle) =>
-              sxInt(circle['side_category_id']) == resolvedSideCategoryId)
-          .toList()
-        ..sort((a, b) {
-          final ao = sxInt(a['sort_order']);
-          final bo = sxInt(b['sort_order']);
-          return ao == bo
-              ? sxInt(a['id']).compareTo(sxInt(b['id']))
-              : ao.compareTo(bo);
-        });
-      break;
+    if (widget.circleId != null && widget.circleId! > 0) {
+      for (final side in sides) {
+        final circles = sxMaps(side['circles']);
+        if (circles.any((circle) => sxInt(circle['id']) == widget.circleId)) {
+          matchedSide = side;
+          break;
+        }
+      }
+    } else if (widget.sideCategoryId != null &&
+        widget.sideCategoryId! > 0) {
+      matchedSide = sides.cast<Map<String, dynamic>?>().firstWhere(
+        (side) => sxInt(side?['id']) == widget.sideCategoryId,
+        orElse: () => null,
+      );
     }
+
+    if (matchedSide == null) {
+      resolvedSideCategoryId = widget.sideCategoryId;
+      return;
+    }
+
+    resolvedSideCategoryId = sxInt(matchedSide['id']);
+    categoryContextId = sxInt(matchedSide['root_category_id']);
+    final circles = sxMaps(matchedSide['circles']);
+
+    // Result-page circle rail belongs to the resolved side category only.
+    sideCircles = circles
+        .where(
+          (circle) =>
+              sxInt(circle['side_category_id']) == resolvedSideCategoryId,
+        )
+        .toList()
+      ..sort((a, b) {
+        final ao = sxInt(a['sort_order']);
+        final bo = sxInt(b['sort_order']);
+        return ao == bo
+            ? sxInt(a['id']).compareTo(sxInt(b['id']))
+            : ao.compareTo(bo);
+      });
   }
 
   List<int> _entryCategoryIds() {
