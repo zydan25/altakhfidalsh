@@ -741,6 +741,8 @@ body.modal-open { overflow:hidden; }
 .trend-mini-product strong, .trend-mini-product small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .trend-mini-product small { color:var(--muted); margin-top:3px; }
 .trend-card-actions { display:flex; gap:8px; align-items:center; }
+.status-pill-success { background:#ecfdf3; color:#047857; border-color:#a7f3d0; }
+.status-pill-warning { background:#fff7ed; color:#b45309; border-color:#fed7aa; white-space:normal; text-align:start; max-width:100%; line-height:1.4; }
 .inline-form { display:inline-flex; margin:0; }
 .trend-empty { padding:30px 16px; }
 .trend-archive-panel, .hashtag-admin-panel { margin-top:18px; }
