@@ -3671,6 +3671,33 @@ class _SideCategoryExplorer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Apply the selected side category scope one final time at the rendering
+    // boundary. This prevents circles belonging to sibling side categories
+    // under the same root from leaking into the visible grid/groups.
+    final scopedCircles = selectedId == null
+        ? circles
+        : circles
+            .where((circle) => sxInt(circle['side_category_id']) == selectedId)
+            .toList();
+
+    final scopedGroups = groups
+        .map((group) {
+          final items = sxMaps(group['circles']);
+          final filteredItems = selectedId == null
+              ? items
+              : items
+                  .where((circle) =>
+                      sxInt(circle['side_category_id']) == selectedId)
+                  .toList();
+          if (filteredItems.isEmpty) return null;
+          return <String, dynamic>{
+            ...group,
+            'circles': filteredItems,
+          };
+        })
+        .whereType<Map<String, dynamic>>()
+        .toList();
+
     final railWidth = 116.0;
     final columns = _int('grid_columns', 3).clamp(2, 5).toInt();
     final spacing = _double('item_spacing', 8).clamp(0, 30).toDouble();
@@ -3729,9 +3756,9 @@ class _SideCategoryExplorer extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (circles.isNotEmpty)
+                      if (scopedCircles.isNotEmpty)
                         _SideCircleGrid(
-                          circles: circles,
+                          circles: scopedCircles,
                           columns: columns,
                           spacing: spacing,
                           width: adaptiveWidth,
@@ -3758,9 +3785,9 @@ class _SideCategoryExplorer extends StatelessWidget {
                             ),
                           ),
                         ),
-                      if (groups.isNotEmpty) ...[
+                      if (scopedGroups.isNotEmpty) ...[
                         SizedBox(height: sectionSpacing),
-                        for (final group in groups) ...[
+                        for (final group in scopedGroups) ...[
                           _SideCircleGroupHeader(
                             title: sxText(group['name'], 'مجموعة'),
                             fontSize: titleSize,
