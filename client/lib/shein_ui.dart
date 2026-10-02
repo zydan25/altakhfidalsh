@@ -998,7 +998,7 @@ class _HomeFixedHeader extends StatelessWidget {
     required this.roots,
     required this.selected,
     required this.solidBackground,
-    required this.categoryGap,
+    this.categoryGap = 3,
     required this.categoryTextColor,
     required this.categoryActiveColor,
     required this.onSelected,
