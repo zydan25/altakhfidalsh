@@ -565,32 +565,31 @@ class ApiService {
     final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['jpg','jpeg','png','webp','pdf'],
-      allowMultiple: false,
-      withData: true,
     );
-    if (picked == null || picked.files.isEmpty) {
+    if (picked.isEmpty) {
       throw Exception('لم يتم اختيار ملف.');
     }
-    return sendMessageWithFiles(id, body, picked.files.take(1).toList());
+    return sendMessageWithFiles(id, body, [picked.first]);
   }
 
   Future<List<Map<String,dynamic>>> pickAndUploadPaymentProof(int orderId) async {
     final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['jpg','jpeg','png','webp','pdf'],
-      allowMultiple: false,
-      withData: true,
     );
-    if (picked == null || picked.files.isEmpty) {
+    if (picked.isEmpty) {
       throw Exception('لم يتم اختيار ملف.');
     }
-    return uploadPaymentProof(orderId, picked.files.take(1).toList());
+    return uploadPaymentProof(orderId, [picked.first]);
   }
 
   Future<List<Map<String,dynamic>>> sendMessageWithFiles(int id,String body,List<PlatformFile> files)async{
     final req=http.MultipartRequest('POST',Uri.parse(baseUrl+'/support/conversations/'+id.toString()+'/attachments'));
     req.headers.addAll(headers()); if(body.trim().isNotEmpty)req.fields['body']=body.trim();
-    for(final f in files){if(f.bytes!=null)req.files.add(http.MultipartFile.fromBytes('files',f.bytes!,filename:f.name));}
+    for(final f in files){
+      final bytes = await f.readAsBytes();
+      req.files.add(http.MultipartFile.fromBytes('files',bytes,filename:f.name));
+    }
     final response=await http.Response.fromStream(
       await req.send().timeout(const Duration(seconds:25)),
     );
