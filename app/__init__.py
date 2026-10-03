@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from flask import Flask, render_template, send_from_directory
+from flask.signals import appcontext_pushed
 from flask_cors import CORS
 
 from config import Config
@@ -14,6 +15,13 @@ def create_app(config_class=Config):
         static_folder="static",
     )
     app.config.from_object(config_class)
+
+    if app.config.get("TESTING"):
+        @appcontext_pushed.connect_via(app)
+        def _configure_test_session(sender, **kwargs):
+            # Keep identifiers on ORM objects available after test commits;
+            # production sessions retain SQLAlchemy's normal expiration behavior.
+            db.session().expire_on_commit = False
     CORS(
         app,
         resources={r"/api/*": {"origins": app.config.get("CORS_ORIGINS", "*")}},
