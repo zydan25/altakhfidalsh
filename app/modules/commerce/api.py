@@ -445,6 +445,14 @@ def update_my_cart_item(item_id):
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "cart_update_failed", "detail": str(exc)}, 400
 
+@api_bp.delete("/me/cart/items/<int:item_id>")
+@customer_required
+def remove_my_cart_item(item_id):
+    try:
+        return {"item": CartService.remove_item(current_customer().id, item_id)}
+    except LookupError as exc:
+        return {"error": "cart_item_not_found", "detail": str(exc)}, 404
+
 
 @api_bp.delete("/me/cart")
 @customer_required
