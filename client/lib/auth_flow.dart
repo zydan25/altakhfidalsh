@@ -5,6 +5,7 @@ import 'app_state.dart';
 import 'shein_ui.dart';
 import 'theme.dart';
 import 'widgets.dart';
+import 'notifications_service.dart';
 
 class SxWelcomeScreen extends StatefulWidget {
   const SxWelcomeScreen({super.key});
