@@ -1,70 +1,109 @@
 {% extends "admin/base.html" %}
 
 {% block content %}
-<section class="module-header mobile-module-header">
-  <span class="eyebrow">الكتالوج</span>
-  <h2>إضافة منتج</h2>
-  <p class="muted">أنشئ المسودة أولًا، ثم أكمل الصور والألوان والمقاسات والشارات والمخزون من المعالج.</p>
-</section>
+<style>
+.product-create-page{display:grid;gap:10px;max-width:980px;margin:0 auto;padding:8px 0 84px}
+.product-create-hero{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.product-create-hero h2{margin:4px 0 3px;font-size:20px}
+.product-create-hero p{margin:0;font-size:10px;line-height:1.6}
+.product-create-progress{padding:5px 8px;border-radius:999px;background:#f7f7f7;border:1px solid #ececec;font-size:8px;font-weight:900;white-space:nowrap}
+.product-create-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:10px}
+.product-create-stack{display:grid;gap:10px}
+.product-create-card{padding:13px;border-radius:14px}
+.product-create-card h3{margin:2px 0 3px;font-size:14px}
+.product-create-card .hint{margin:0 0 10px;font-size:9px;line-height:1.55;color:#888}
+.product-create-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.product-create-fields .full{grid-column:1/-1}
+.product-create-fields label,.product-create-category-list label{font-size:10px;font-weight:800}
+.product-create-fields input,.product-create-fields select,.product-create-fields textarea{margin-top:5px;width:100%;box-sizing:border-box;border-radius:10px;min-height:42px}
+.product-create-fields textarea{min-height:92px;resize:vertical}
+.product-create-preview{padding:12px;background:#fafafa;border:1px dashed #ddd;border-radius:14px}
+.product-create-preview-icon{width:56px;height:56px;display:grid;place-items:center;border-radius:14px;background:#eee;color:#777;font-size:24px;margin-bottom:8px}
+.product-create-preview strong{font-size:12px}
+.product-create-preview small{display:block;margin-top:4px;color:#888;font-size:9px;line-height:1.55}
+.product-create-category-list{max-height:360px;overflow:auto;display:grid;gap:4px}
+.product-create-category-list .category-picker-choice{min-height:42px;border-radius:9px}
+.product-create-footer{position:sticky;bottom:8px;z-index:20;display:flex;gap:7px;padding:8px;background:rgba(255,255,255,.96);border:1px solid #e7e7e7;border-radius:14px;box-shadow:0 14px 30px rgba(0,0,0,.10)}
+.product-create-footer>*{flex:1;text-align:center}
+@media(max-width:720px){
+ .product-create-hero h2{font-size:16px}
+ .product-create-grid{grid-template-columns:1fr}
+ .product-create-fields{grid-template-columns:1fr}
+ .product-create-fields .full{grid-column:auto}
+ .product-create-fields input,.product-create-fields select,.product-create-fields textarea{font-size:14px}
+}
+</style>
 
-{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
-{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
-
-<form method="post" class="product-quick-form" data-slug-form>
-  <section class="product-quick-preview panel">
-    <div class="product-quick-preview-icon">＋</div>
-    <div>
-      <strong>منتج جديد</strong>
-      <span>ستظهر البطاقة تلقائيًا بعد رفع صورة المنتج.</span>
-    </div>
-  </section>
-
-  <section class="product-form-panel panel">
-    <div class="product-form-panel-head"><div><span class="eyebrow">الهوية</span><h3>المعلومات الأساسية</h3></div><span class="step-counter">1 / 2</span></div>
-    <div class="form-stack">
-      <label>اسم المنتج<input id="productName" name="name" required placeholder="مثال: فستان صيفي أنيق"></label>
-      <div class="form-grid">
-        <label>SKU<input name="sku" required dir="ltr" placeholder="SHP-10001"></label>
-        <label>Slug<input name="slug" dir="ltr" data-slug-source="#productName" placeholder="يولد تلقائيًا"></label>
+<div class="product-create-page">
+  <section class="panel product-create-card">
+    <div class="product-create-hero">
+      <div>
+        <span class="eyebrow">الكتالوج · منتج جديد</span>
+        <h2>إنشاء منتج</h2>
+        <p class="muted">أدخل المعلومات الأساسية بطريقة مريحة للهاتف، ثم أكمل الصور والألوان والشارات والمخزون في المعالج.</p>
       </div>
-      <label>الوصف القصير<textarea name="description" rows="3" maxlength="1000" placeholder="وصف مختصر يظهر عند تفعيل وصف البطاقة"></textarea></label>
+      <span class="product-create-progress">المرحلة 1 · الأساسيات</span>
     </div>
   </section>
 
-  <section class="product-form-panel panel">
-    <div class="product-form-panel-head"><div><span class="eyebrow">السعر</span><h3>السعر والعملة</h3></div></div>
-    <div class="form-grid">
-      <label>السعر الأساسي<input name="base_price" required type="number" inputmode="decimal" min="0" step="0.0001" placeholder="0"></label>
-      <label>العملة
-        <select name="base_currency_id" required>
-          <option value="">اختر العملة</option>
-          {% for currency in currencies %}
-          <option value="{{ currency.id }}" {% if currency.code == "SAR" %}selected{% endif %}>{{ currency.code }} — {{ currency.name_ar }}</option>
+  {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+  <form method="post" class="product-create-grid" data-slug-form>
+    <div class="product-create-stack">
+      <section class="panel product-create-card">
+        <span class="eyebrow">هوية المنتج</span>
+        <h3>المعلومات الأساسية</h3>
+        <p class="hint">هذه البيانات ستظهر في لوحة الإدارة، وتصبح الأساس لبطاقة المنتج في المتجر.</p>
+        <div class="product-create-fields">
+          <label>اسم المنتج<input id="productName" name="name" required placeholder="مثال: فستان صيفي أنيق"></label>
+          <label>SKU<input name="sku" required dir="ltr" placeholder="SHP-10001"></label>
+          <label>Slug<input name="slug" dir="ltr" data-slug-source="#productName" placeholder="يولد تلقائيًا"></label>
+          <label>نوع المنتج<input name="product_type" placeholder="فستان / قميص / إلكترونيات"></label>
+          <label class="full">الوصف القصير<textarea name="description" maxlength="2000" placeholder="وصف مختصر وواضح للمنتج"></textarea></label>
+        </div>
+      </section>
+
+      <section class="panel product-create-card">
+        <span class="eyebrow">السعر</span>
+        <h3>السعر والعملة</h3>
+        <p class="hint">أدخل السعر الحالي والسعر المرجعي قبل الخصم، بينما تنسيق العرض والألوان يُدار لاحقًا.</p>
+        <div class="product-create-fields">
+          <label>السعر الأساسي<input name="base_price" required type="number" inputmode="decimal" min="0" step="0.0001" placeholder="0"></label>
+          <label>العملة<select name="base_currency_id" required><option value="">اختر العملة</option>{% for currency in currencies %}<option value="{{ currency.id }}" {% if currency.code == "SAR" %}selected{% endif %}>{{ currency.code }} — {{ currency.name_ar }}</option>{% endfor %}</select></label>
+        </div>
+      </section>
+    </div>
+
+    <div class="product-create-stack">
+      <section class="product-create-preview">
+        <div class="product-create-preview-icon">▧</div>
+        <strong>معاينة المسودة</strong>
+        <small>بعد الإنشاء ستظهر في صفحة المنتجات كبطاقة مختصرة بصورة واسم وسعر وإحصائيات وقائمة إجراءات.</small>
+      </section>
+
+      <section class="panel product-create-card">
+        <span class="eyebrow">الربط</span>
+        <h3>التصنيفات</h3>
+        <p class="hint">اختر التصنيف الأساسي الآن، ويمكن تغيير وربط بقية التصنيفات من معالج المنتج.</p>
+        <div class="product-create-category-list">
+          {% for category, depth in category_tree %}
+          <label class="category-picker-choice {% if depth == 0 %}category-picker-root{% endif %}" style="--depth:{{ depth }}">
+            <input type="checkbox" name="category_ids" value="{{ category.id }}">
+            <span class="category-picker-marker">{{ "▾" if depth == 0 else "•" }}</span>
+            <span class="category-picker-copy"><strong>{{ category.name }}</strong><small>{{ category.slug }}</small></span>
+          </label>
+          {% else %}
+          <div class="empty-state compact"><strong>لا توجد تصنيفات.</strong><span class="muted">أضف تصنيفًا من قسم الكتالوج أولًا.</span></div>
           {% endfor %}
-        </select>
-      </label>
+        </div>
+      </section>
     </div>
-    <p class="form-inline-help">السعر قبل الخصم والشارات وتنسيق السعر يتم ضبطها داخل إعداد المنتج بعد الإنشاء.</p>
-  </section>
 
-  <section class="product-form-panel panel">
-    <div class="product-form-panel-head"><div><span class="eyebrow">التصنيف</span><h3>الفئات</h3></div></div>
-    <div class="category-picker-tree product-category-picker">
-      {% for category, depth in category_tree %}
-      <label class="category-picker-choice {% if depth == 0 %}category-picker-root{% endif %}" style="--depth:{{ depth }}">
-        <input type="checkbox" name="category_ids" value="{{ category.id }}">
-        <span class="category-picker-marker">{{ "▾" if depth == 0 else "•" }}</span>
-        <span class="category-picker-copy"><strong>{{ category.name }}</strong><small>{{ category.slug }}</small></span>
-      </label>
-      {% else %}
-      <div class="empty-state compact"><strong>لا توجد تصنيفات.</strong><span class="muted">أضف التصنيفات من قسم الكتالوج أولًا.</span></div>
-      {% endfor %}
+    <div class="product-create-footer" style="grid-column:1/-1">
+      <a class="ghost-button" href="/admin/products">إلغاء</a>
+      <button class="primary-button" type="submit">حفظ كمسودة وفتح إعداد المنتج</button>
     </div>
-  </section>
-
-  <div class="mobile-form-actionbar">
-    <a class="ghost-button" href="/admin/products">إلغاء</a>
-    <button class="primary-button" type="submit">حفظ كمسودة ومتابعة</button>
-  </div>
-</form>
+  </form>
+</div>
 {% endblock %}
