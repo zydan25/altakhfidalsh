@@ -10497,8 +10497,12 @@ class SxOrderDetailScreen extends StatefulWidget {
 
 class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
   Map<String, dynamic> order = {};
+  List<Map<String, dynamic>> paymentMethods = <Map<String, dynamic>>[];
+  int? selectedPaymentMethodId;
   bool loading = true;
   bool feedbackPromptShown = false;
+  bool paymentBusy = false;
+  bool uploadingPaymentProof = false;
 
   static const stages = <String>[
     'created',
@@ -10517,8 +10521,19 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
     try {
       final v = await api.order(widget.id);
       final item = v['item'] is Map ? v['item'] : v;
+      final loadedOrder = Map<String, dynamic>.from(item);
+      List<Map<String, dynamic>> loadedMethods = <Map<String, dynamic>>[];
+      if (sxText(loadedOrder['status']) == 'awaiting_payment') {
+        try {
+          loadedMethods = await api.paymentMethods();
+        } catch (_) {}
+      }
       if (mounted) setState(() {
-        order = Map<String, dynamic>.from(item);
+        order = loadedOrder;
+        paymentMethods = loadedMethods;
+        selectedPaymentMethodId = sxInt(loadedOrder['payment_method_id']) > 0
+            ? sxInt(loadedOrder['payment_method_id'])
+            : null;
         loading = false;
       });
       final delivered = sxText(item is Map ? item['status'] : '') == 'delivered';
@@ -10584,6 +10599,78 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
       ),
     );
     if (mounted) await load();
+  }
+
+  Map<String, dynamic>? get selectedPaymentMethod {
+    if (selectedPaymentMethodId == null) return null;
+    for (final method in paymentMethods) {
+      if (sxInt(method['id']) == selectedPaymentMethodId) return method;
+    }
+    return null;
+  }
+
+  String _paymentType(Map<String, dynamic>? method) {
+    if (method == null) return '';
+    final settings = method['settings'] is Map
+        ? Map<String, dynamic>.from(method['settings'] as Map)
+        : <String, dynamic>{};
+    return sxText(settings['type'], sxText(method['code'])).trim().toLowerCase();
+  }
+
+  Future<void> choosePaymentMethod(Map<String, dynamic> method) async {
+    final id = sxInt(method['id']);
+    if (id <= 0 || paymentBusy) return;
+    setState(() => paymentBusy = true);
+    try {
+      await api.recordOrderPayment(
+        widget.id,
+        methodId: id,
+        amount: sxText(order['total'], '0'),
+        currencyId: sxInt(order['currency_id'], state.currencyId ?? 0),
+      );
+      selectedPaymentMethodId = id;
+      await load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(
+            _paymentType(method) == 'cod'
+                ? 'تم اختيار الدفع عند الاستلام وبدأ تجهيز الطلب.'
+                : 'تم اختيار طريقة الدفع. يمكنك الآن رفع إثبات الدفع.',
+          )),
+        );
+      }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(sxText(error).replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => paymentBusy = false);
+    }
+  }
+
+  Future<void> uploadPaymentProofDirect() async {
+    if (uploadingPaymentProof) return;
+    final selected = selectedPaymentMethod;
+    if (selected == null || selected['supports_proof'] != true || _paymentType(selected) == 'cod') {
+      await openPayment();
+      return;
+    }
+    setState(() => uploadingPaymentProof = true);
+    try {
+      await api.pickAndUploadPaymentProof(widget.id);
+      await load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم رفع إثبات الدفع وتسجيله في محادثة الطلب أيضًا.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(sxText(error).replaceFirst('Exception: ', ''))),
+      );
+    } finally {
+      if (mounted) setState(() => uploadingPaymentProof = false);
+    }
   }
 
   Future<void> showFeedbackDialog() async {
@@ -10770,6 +10857,80 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                         '  •  الشحن: ' + shippingStatusLabel(sxText(order['shipping_status'], 'غير محدد')),
                     style: const TextStyle(fontSize: 8.7, color: ClientTheme.muted),
                   ),
+                ],
+              ),
+            ),
+            if (status == 'awaiting_payment') ...[
+              const SxSectionTitle(title: 'معلومات الدفع'),
+              if (paymentMethods.isEmpty)
+                const Text(
+                  'لا توجد طرق دفع مفعلة حاليًا.',
+                  style: TextStyle(fontSize: 9, color: ClientTheme.muted),
+                )
+              else
+                for (final method in paymentMethods)
+                  SxPaymentInfoCard(
+                    method: method,
+                    selected: sxInt(method['id']) == selectedPaymentMethodId,
+                    onSelect: _paymentType(method) == 'cod'
+                        ? null
+                        : () => choosePaymentMethod(method),
+                  ),
+              Container(
+                margin: const EdgeInsets.only(top: 1, bottom: 3),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F8F8),
+                  borderRadius: BorderRadius.circular(11),
+                  border: Border.all(color: ClientTheme.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'تعليمات الدفع',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      selectedPaymentMethod == null
+                          ? 'اختر إحدى طرق الدفع أعلاه، ثم نفّذ التحويل حسب التعليمات الظاهرة في البطاقة.'
+                          : 'بعد اختيار طريقة الدفع، ارفع صورة إثبات التحويل من الزر التالي. سيظهر الإثبات تلقائيًا أيضًا داخل محادثة الطلب.',
+                      style: const TextStyle(
+                        fontSize: 8.7,
+                        color: ClientTheme.muted,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 44,
+                      child: FilledButton.icon(
+                        onPressed: uploadingPaymentProof || paymentBusy
+                            ? null
+                            : uploadPaymentProofDirect,
+                        icon: uploadingPaymentProof
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.upload_file_outlined, size: 18),
+                        label: Text(
+                          uploadingPaymentProof
+                              ? 'جارٍ رفع الإثبات...'
+                              : 'رفع إثبات الدفع',
+                        ),
+                        style: FilledButton.styleFrom(backgroundColor: Colors.black),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
                 ],
               ),
             ),
