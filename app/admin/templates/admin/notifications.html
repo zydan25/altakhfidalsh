@@ -1,0 +1,149 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <div class="module-heading-copy">
+    <span class="eyebrow">التواصل</span>
+    <h2>مركز الإشعارات</h2>
+    <p class="muted">إرسال إشعار فوري عبر WebSocket مع حفظه في سجل العميل، ودعم فتح المنتج أو الطلب أو المحادثة مباشرة.</p>
+  </div>
+</section>
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="panel" style="padding:16px;margin-bottom:14px">
+  <form method="post" id="notificationForm">
+    <div class="form-grid">
+      <label>
+        <span>المستلمون</span>
+        <select name="recipient_type" id="recipientType">
+          <option value="all">كل العملاء المسموح لهم بالإشعارات</option>
+          <option value="customer">عميل محدد</option>
+        </select>
+      </label>
+      <label id="customerWrap" hidden>
+        <span>العميل</span>
+        <select name="customer_id">
+          <option value="">اختر العميل</option>
+          {% for customer in customers %}
+          <option value="{{ customer.id }}">{{ customer.id }} · {{ customer.name or customer.phone_normalized }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        <span>عنوان الإشعار</span>
+        <input name="title" maxlength="240" required placeholder="عرض جديد">
+      </label>
+      <label>
+        <span>نوع الوجهة</span>
+        <select name="screen_type" id="screenType">
+          <option value="home">الرئيسية</option>
+          <option value="product_details">تفاصيل منتج</option>
+          <option value="order_details">تفاصيل طلب</option>
+          <option value="conversation">المحادثة</option>
+          <option value="category">الفئة</option>
+          <option value="url">رابط</option>
+        </select>
+      </label>
+    </div>
+
+    <label style="display:block;margin-top:12px">
+      <span>نص الإشعار</span>
+      <textarea name="body" rows="4" maxlength="10000" required placeholder="اكتب الرسالة التي ستظهر في الإشعار"></textarea>
+    </label>
+
+    <div id="productField" style="margin-top:12px">
+      <label>
+        <span>المنتج</span>
+        <select name="product_id">
+          <option value="">اختر المنتج</option>
+          {% for product in products %}
+          <option value="{{ product.id }}">{{ product.id }} · {{ product.name }} · {{ product.sku }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+
+    <div id="orderField" style="margin-top:12px" hidden>
+      <label>
+        <span>الطلب</span>
+        <select name="order_id">
+          <option value="">اختر الطلب</option>
+          {% for order in orders %}
+          <option value="{{ order.id }}">{{ order.id }} · {{ order.order_no }} · العميل {{ order.customer_id }}</option>
+          {% endfor %}
+        </select>
+      </label>
+    </div>
+
+    <div id="genericField" style="margin-top:12px" hidden>
+      <label>
+        <span id="genericLabel">بيانات الوجهة</span>
+        <input name="conversation_id" id="conversationId" inputmode="numeric" placeholder="رقم المحادثة">
+        <input name="category_id" id="categoryId" inputmode="numeric" placeholder="رقم الفئة" hidden style="margin-top:8px">
+        <input name="target_url" id="targetUrl" type="url" placeholder="https://..." hidden style="margin-top:8px">
+      </label>
+    </div>
+
+    <label style="display:block;margin-top:12px">
+      <span>Payload إضافي (JSON)</span>
+      <textarea name="payload" rows="5" dir="ltr" placeholder='{"campaign_id": 10, "source": "admin"}'></textarea>
+    </label>
+
+    <div style="margin-top:14px;display:flex;justify-content:flex-start">
+      <button class="primary-button" type="submit">إرسال الإشعار الآن</button>
+    </div>
+  </form>
+</section>
+
+<section class="panel" style="overflow:auto">
+  <div style="padding:14px 14px 4px">
+    <strong>آخر الإشعارات</strong>
+  </div>
+  <table class="data-table">
+    <thead><tr><th>ID</th><th>العميل</th><th>النوع</th><th>العنوان</th><th>الحالة</th><th>التاريخ</th></tr></thead>
+    <tbody>
+    {% for row in rows %}
+      <tr>
+        <td>{{ row.id }}</td>
+        <td>{{ row.customer_id }}</td>
+        <td>{{ row.type }}</td>
+        <td>{{ row.title }}</td>
+        <td>{{ row.status }}</td>
+        <td>{{ row.created_at }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6">لا توجد إشعارات بعد.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<script>
+(() => {
+  const recipient = document.getElementById('recipientType');
+  const customer = document.getElementById('customerWrap');
+  const screen = document.getElementById('screenType');
+  const product = document.getElementById('productField');
+  const order = document.getElementById('orderField');
+  const generic = document.getElementById('genericField');
+  const conversation = document.getElementById('conversationId');
+  const category = document.getElementById('categoryId');
+  const url = document.getElementById('targetUrl');
+
+  function sync() {
+    customer.hidden = recipient.value !== 'customer';
+    const v = screen.value;
+    product.hidden = v !== 'product_details';
+    order.hidden = v !== 'order_details';
+    generic.hidden = !['conversation', 'category', 'url'].includes(v);
+    conversation.hidden = v !== 'conversation';
+    category.hidden = v !== 'category';
+    url.hidden = v !== 'url';
+  }
+  recipient.addEventListener('change', sync);
+  screen.addEventListener('change', sync);
+  sync();
+})();
+</script>
+{% endblock %}
