@@ -135,3 +135,59 @@ def test_delete_customer_permanently_removes_orders_and_releases_reserved_stock(
         refreshed_stock = db.session.get(StockInventory, stock.id)
         assert refreshed_stock.reserved == 0
         assert refreshed_stock.available == 10
+
+
+def test_customer_can_permanently_delete_own_account_with_password(app, client):
+    from app.modules.customer.auth import CustomerAuthService
+    from werkzeug.security import generate_password_hash
+    from app.models import AuthSession
+
+    with app.app_context():
+        customer = Customer(
+            phone_normalized="967700000099",
+            name="عميل API",
+            password_hash=generate_password_hash("secret123"),
+            status="active",
+            onboarding_completed=True,
+        )
+        db.session.add(customer)
+        db.session.flush()
+        session = CustomerAuthService._issue_session(customer, "test-delete-device")
+        db.session.commit()
+
+    response = client.post(
+        "/api/v1/customer/me/delete",
+        json={
+            "confirmation": "DELETE",
+            "password": "secret123",
+        },
+        headers={"Authorization": "Bearer " + session["access_token"]},
+    )
+    assert response.status_code == 200
+
+    with app.app_context():
+        assert db.session.get(Customer, customer.id) is None
+        assert AuthSession.query.filter_by(customer_id=customer.id).count() == 0
+
+
+def test_public_store_info_reads_storefront_settings(app, client):
+    from app.models import AppSetting
+
+    with app.app_context():
+        db.session.add_all([
+            AppSetting(group_code="storefront", key="support_phone", value="967700000111", value_type="text"),
+            AppSetting(group_code="storefront", key="whatsapp_phone", value="967700000222", value_type="text"),
+            AppSetting(group_code="storefront", key="store_address", value="العنوان التجريبي", value_type="text"),
+            AppSetting(group_code="storefront", key="store_latitude", value="13.5795", value_type="text"),
+            AppSetting(group_code="storefront", key="store_longitude", value="44.0200", value_type="text"),
+        ])
+        db.session.commit()
+
+    response = client.get("/api/v1/system/store-info")
+    assert response.status_code == 200
+    item = response.get_json()["item"]
+    assert item["support_phone"] == "967700000111"
+    assert item["whatsapp_phone"] == "967700000222"
+    assert item["address"] == "العنوان التجريبي"
+    assert item["latitude"] == "13.5795"
+    assert item["longitude"] == "44.0200"
