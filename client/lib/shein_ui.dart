@@ -1802,7 +1802,7 @@ class _SxBannerLandingScreenState extends State<SxBannerLandingScreen> {
     }
 
     if (!mounted) return;
-    Navigator.pushReplacement(
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => destination),
     );
@@ -7952,10 +7952,9 @@ class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
       cartBadge.value = 0;
       if(!mounted)return;
       if(id>0){
-        Navigator.pushAndRemoveUntil(
+        await Navigator.push(
           context,
           MaterialPageRoute(builder:(_)=>SxOrderDetailScreen(id:id)),
-          (route)=>route.isFirst,
         );
       }
     }catch(e){
