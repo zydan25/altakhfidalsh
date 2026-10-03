@@ -644,9 +644,11 @@ def register_pricing_views(admin_bp):
                             raise ValueError("قاعدة التوصيل غير موجودة.")
                         ShippingRuleTarget.query.filter_by(rule_id=rule.id).delete()
                     else:
-                        rule = ShippingRule(method_id=method.id)
+                        # Do not flush a new rule before rule_type and the other
+                        # NOT NULL fields are assigned. PostgreSQL correctly
+                        # rejects the old intermediate NULL insert.
+                        rule = ShippingRule(method_id=method.id, rule_type=rule_type)
                         db.session.add(rule)
-                        db.session.flush()
                     rule.method_id = method.id
                     rule.rule_type = rule_type
                     rule.min_order_sar = min_order
@@ -658,6 +660,9 @@ def register_pricing_views(admin_bp):
                     selected = [x.strip().lower() for x in request.form.getlist("rule_target") if ":" in x]
                     applies_to_all = request.form.get("rule_applies_to_all") == "on" or not selected
                     rule.applies_to_all = applies_to_all
+                    # Assign all required rule fields before the first flush.
+                    # The generated id is then available for target rows below.
+                    db.session.flush()
                     if not applies_to_all:
                         parsed = []
                         for raw in selected:
