@@ -1,5 +1,55 @@
-{% extends "admin/base.html" %}{% block content %}
-<section class="module-header"><span class="eyebrow">الترندات</span><h2>الهاشتاجات</h2></section>
-{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
-<section class="two-panel"><article class="panel"><form method="post" class="form-stack"><label>الاسم<input name="name" required></label><label>Slug<input name="slug" required dir="ltr"></label><label>الاسم الظاهر<input name="display_name"></label><button class="primary-button">إضافة وسم</button></form></article><article class="panel"><div class="stack-list">{% for x in hashtags %}<div class="stack-row"><strong>{{ x.display_name or x.name }}</strong><span>#{{ x.slug }}</span></div>{% else %}<div class="empty-state compact"><div class="empty-icon">#</div><strong>لا توجد وسوم</strong></div>{% endfor %}</div></article></section>
+{% extends "admin/base.html" %}
+{% block content %}
+<style>
+.hashtag-admin-page{display:grid;gap:10px;max-width:980px;margin:0 auto}
+.hashtag-admin-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hashtag-admin-toolbar h2{margin:3px 0;font-size:18px}
+.hashtag-admin-card{padding:12px;border-radius:14px}
+.hashtag-admin-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.hashtag-item{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.hashtag-item strong{display:block;font-size:11px}.hashtag-item small{display:block;margin-top:3px;color:#888;font-size:8px}
+.hashtag-item .hash-mark{width:30px;height:30px;border-radius:9px;background:#f5f5f5;display:grid;place-items:center;font-weight:900}
+.hashtag-create details{background:#fff;border:1px solid #e8e8e8;border-radius:12px;overflow:hidden}
+.hashtag-create summary{cursor:pointer;list-style:none;padding:12px;font-size:11px;font-weight:900}
+.hashtag-create summary::-webkit-details-marker{display:none}
+.hashtag-create form{padding:12px;border-top:1px solid #eee}
+@media(max-width:650px){.hashtag-admin-list{grid-template-columns:1fr}.hashtag-admin-toolbar{align-items:center}.hashtag-admin-toolbar h2{font-size:15px}}
+</style>
+<div class="hashtag-admin-page">
+  <section class="panel hashtag-admin-card">
+    <div class="hashtag-admin-toolbar">
+      <div><span class="eyebrow">المحتوى والمتجر</span><h2>الهاشتاجات</h2></div>
+      <span class="status-pill">{{ hashtags|length }} وسم</span>
+    </div>
+    <p class="muted" style="font-size:9px;line-height:1.5">بطاقات منفصلة وواضحة. إنشاء هاشتاج يفتح فورمه فقط عند الحاجة.</p>
+  </section>
+
+  {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+  <section class="hashtag-create">
+    <details>
+      <summary>＋ إضافة هاشتاج جديد</summary>
+      <form method="post" class="form-stack" data-slug-form>
+        <input type="hidden" name="action" value="create">
+        <label>الاسم<input name="name" required placeholder="مثال: عودة_التراث"></label>
+        <label>Slug<input name="slug" required dir="ltr" placeholder="returns-heritage"></label>
+        <label>الاسم الظاهر<input name="display_name" placeholder="#عودة_التراث"></label>
+        <label>الترتيب<input name="hashtag_sort_order" type="number" min="0" value="0"></label>
+        <div class="modal-actions"><button class="primary-button">حفظ الهاشتاج</button></div>
+      </form>
+    </details>
+  </section>
+
+  <section class="hashtag-admin-list">
+    {% for x in hashtags %}
+    <article class="hashtag-item">
+      <div><strong>{{ x.display_name or x.name }}</strong><small>#{{ x.slug }}</small></div>
+      <span class="hash-mark">#</span>
+    </article>
+    {% else %}
+    <section class="empty-state panel"><strong>لا توجد هاشتاجات.</strong><span class="muted">أضف أول هاشتاج.</span></section>
+    {% endfor %}
+  </section>
+</div>
 {% endblock %}
