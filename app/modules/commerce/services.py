@@ -1029,14 +1029,29 @@ class CommerceService:
             if selected_shipping_method_id is None and order.shipping_rate_id:
                 previous_rate = db.session.get(ShippingRate, order.shipping_rate_id)
                 selected_shipping_method_id = previous_rate.method_id if previous_rate else None
-            shipping_quote = CommerceService._resolve_shipping(
-                customer_id,
-                address.city_id,
-                address.city_area_id,
-                subtotal_sar,
-                first_price.fx_rate if first_price else order.fx_rate,
-                selected_shipping_method_id,
-            )
+            try:
+                shipping_quote = CommerceService._resolve_shipping(
+                    customer_id,
+                    address.city_id,
+                    address.city_area_id,
+                    subtotal_sar,
+                    first_price.fx_rate if first_price else order.fx_rate,
+                    selected_shipping_method_id,
+                )
+            except ValueError as exc:
+                # A method selected on the previous address/order total may no
+                # longer match the new address or subtotal. Re-resolve using
+                # the current best applicable rule instead of blocking save.
+                if selected_shipping_method_id is None or "طريقة الشحن المحددة" not in str(exc):
+                    raise
+                shipping_quote = CommerceService._resolve_shipping(
+                    customer_id,
+                    address.city_id,
+                    address.city_area_id,
+                    subtotal_sar,
+                    first_price.fx_rate if first_price else order.fx_rate,
+                    None,
+                )
             order.address_snapshot = CommerceService._address_snapshot(address)
             order.city_id = address.city_id
             order.currency_id = first_context.currency_id if first_context else order.currency_id
@@ -1074,6 +1089,77 @@ class CommerceService:
             ))
 
         db.session.commit()
+        return CommerceService.serialize_order_detail(order)
+
+    @staticmethod
+    def cancel_customer_order(customer_id, order_id):
+        order = db.session.get(Order, int(order_id))
+        if order is None or order.customer_id != int(customer_id):
+            raise LookupError("order not found")
+        if order.status not in {"created", "awaiting_payment"}:
+            raise ValueError("لا يمكن إلغاء الطلب بعد بدء التجهيز أو الشحن.")
+        if order.payment_status not in {"unpaid", "", None}:
+            raise ValueError("لا يمكن إلغاء طلب تم دفعه. تواصل مع خدمة العملاء لاسترداد المبلغ.")
+
+        items = OrderItem.query.filter_by(order_id=order.id).all()
+        with db.session.begin_nested():
+            for item in items:
+                if not item.variant_id:
+                    continue
+                remaining = int(item.qty or 0)
+                stocks = []
+                if item.stock_location_id:
+                    stock = (
+                        StockInventory.query
+                        .filter_by(
+                            variant_id=item.variant_id,
+                            location_id=item.stock_location_id,
+                        )
+                        .with_for_update()
+                        .first()
+                    )
+                    if stock is not None:
+                        stocks.append(stock)
+                if not stocks:
+                    stocks = (
+                        StockInventory.query
+                        .filter_by(variant_id=item.variant_id)
+                        .with_for_update()
+                        .all()
+                    )
+                for stock in stocks:
+                    released = min(remaining, int(stock.reserved or 0))
+                    if released:
+                        stock.reserved = int(stock.reserved or 0) - released
+                        stock.available = int(stock.on_hand or 0) - int(stock.reserved or 0)
+                        remaining -= released
+                    if remaining <= 0:
+                        break
+
+            previous = order.status
+            order.status = "cancelled"
+            order.shipping_status = "cancelled"
+            db.session.add(OrderStatusHistory(
+                order_id=order.id,
+                from_status=previous,
+                to_status="cancelled",
+                actor_type="customer",
+                actor_id=int(customer_id),
+                note="Customer cancelled order",
+            ))
+        db.session.commit()
+
+        conversation = Conversation.query.filter_by(order_id=order.id).order_by(Conversation.id).first()
+        if conversation is not None:
+            db.session.add(Message(
+                conversation_id=conversation.id,
+                sender_type="admin",
+                sender_id=0,
+                message_type="text",
+                body="تم إلغاء الطلب بناءً على طلب العميل.",
+            ))
+            conversation.last_message_at = db.func.now()
+            db.session.commit()
         return CommerceService.serialize_order_detail(order)
 
     @staticmethod
