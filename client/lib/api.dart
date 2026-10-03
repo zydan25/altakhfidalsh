@@ -673,6 +673,21 @@ class ApiService {
     return ((data['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
   }
   Future<Map<String,dynamic>> policies()async=>Map<String,dynamic>.from(await get('/system/policies'));
+  Future<Map<String,dynamic>> storeInfo() async {
+    final d = Map<String, dynamic>.from(await get('/system/store-info'));
+    final item = d['item'];
+    return item is Map ? Map<String, dynamic>.from(item) : d;
+  }
+  Future<void> deleteMyAccount({String? password}) async {
+    await post('/customer/me/delete', {
+      'confirmation': 'DELETE',
+      if (password != null && password.trim().isNotEmpty)
+        'password': password.trim(),
+    });
+    token = '';
+    final p = await SharedPreferences.getInstance();
+    await p.remove('access_token');
+  }
   Future<void> logout() async {
     final oldToken = token;
     if (oldToken.isNotEmpty) {
