@@ -63,7 +63,7 @@ jobs:
 
           updated = re.sub(
               r'(android:label=")[^"]*(")',
-              r'\\1التخفيض الصح\\2',
+              r'\1التخفيض الصح\2',
               text,
               count=1,
           )
