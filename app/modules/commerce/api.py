@@ -478,7 +478,14 @@ def upload_my_payment_proof():
     from ..catalog.services import MediaService
     try:
         assets = MediaService.save_generic_files(files[:3], f"payments/{order.id}")
-        tx = PaymentTransaction.query.filter_by(order_id=order.id).order_by(PaymentTransaction.id.desc()).first()
+        tx = (
+            PaymentTransaction.query
+            .filter_by(order_id=order.id, status="pending")
+            .order_by(PaymentTransaction.id.desc())
+            .first()
+        )
+        if tx is None:
+            raise ValueError("اختر طريقة الدفع أولًا قبل رفع إثبات الدفع.")
         rows = []
         for asset in assets:
             row = PaymentShippingService.attach_payment_proof({
