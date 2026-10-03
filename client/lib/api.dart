@@ -499,10 +499,17 @@ class ApiService {
     final d=await get('/commerce/payment-methods');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
   }
-  Future<Map<String,dynamic>> shippingQuote({int? cityId,int? cityAreaId,int? currencyId,String? subtotal})async=>Map<String,dynamic>.from(await post('/commerce/shipping/quote',{
+  Future<Map<String,dynamic>> shippingQuote({
+    int? cityId,
+    int? cityAreaId,
+    int? currencyId,
+    int? shippingMethodId,
+    String? subtotal,
+  }) async => Map<String,dynamic>.from(await post('/commerce/shipping/quote',{
     if(cityId!=null)'city_id':cityId,
     if(cityAreaId!=null)'city_area_id':cityAreaId,
     if(currencyId!=null)'currency_id':currencyId,
+    if(shippingMethodId!=null)'shipping_method_id':shippingMethodId,
     if(subtotal!=null)'subtotal_sar':subtotal,
   }));
   Future<List<int>> wishlistIds()async{
