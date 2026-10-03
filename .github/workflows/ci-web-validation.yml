@@ -1,0 +1,34 @@
+name: Temporary Customer Web Validation
+
+on:
+  pull_request:
+    paths:
+      - 'client/**'
+      - '.github/workflows/ci-web-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Generate web runner
+        working-directory: client
+        run: flutter create --platforms=web .
+      - name: Dependencies
+        working-directory: client
+        run: flutter pub get
+      - name: Build Flutter web
+        working-directory: client
+        env:
+          API_BASE_URL: https://takhfidsh.alattab.site/api/v1
+        run: |
+          flutter build web --release             --pwa-strategy=none             --base-href "/${GITHUB_REPOSITORY#*/}/"             --dart-define=API_BASE_URL="$API_BASE_URL"
