@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
+import 'notifications_service.dart';
 
 final api = ApiService();
 final cartBadge = ValueNotifier<int>(0);
@@ -114,6 +115,7 @@ class ClientState {
     cityName = null;
     cartBadge.value = 0;
     notificationBadge.value = 0;
+    await AltakhfidNotificationService.stop();
     await api.logout();
     final p = await SharedPreferences.getInstance();
     await p.remove('city_id');
