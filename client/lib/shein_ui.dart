@@ -43,6 +43,7 @@ class SxAppShell extends StatefulWidget {
 class _SxAppShellState extends State<SxAppShell> {
   int index = 0;
   Timer? _notificationTimer;
+  int _lastNotificationCount = -1;
   final GlobalKey<_SxHomeScreenState> _homeKey = GlobalKey<_SxHomeScreenState>();
   final GlobalKey<_SxCartScreenState> _cartKey = GlobalKey<_SxCartScreenState>();
   late final List<Widget> pages;
@@ -56,10 +57,10 @@ class _SxAppShellState extends State<SxAppShell> {
       SxCartScreen(key: _cartKey),
       const SxAccountScreen(),
     ];
-    refreshNotificationBadge();
+    _pollNotifications();
     _notificationTimer = Timer.periodic(
       const Duration(seconds: 4),
-      (_) => refreshNotificationBadge(),
+      (_) => _pollNotifications(),
     );
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -71,6 +72,51 @@ class _SxAppShellState extends State<SxAppShell> {
   void dispose() {
     _notificationTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _pollNotifications() async {
+    if (!state.loggedIn) return;
+    try {
+      final data = await api.notificationSummary();
+      final count = sxInt(data['unread_count']);
+      if (_lastNotificationCount >= 0 &&
+          count > _lastNotificationCount &&
+          mounted) {
+        final items = sxMaps(data['items']);
+        final firstUnread = items.cast<Map<String, dynamic>?>().firstWhere(
+          (row) => row != null && sxText(row!['read_at']).isEmpty,
+          orElse: () => null,
+        );
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                firstUnread == null
+                    ? 'لديك إشعار جديد من التخفيض الصح.'
+                    : sxText(
+                        firstUnread['title'],
+                        'لديك إشعار جديد من التخفيض الصح.',
+                      ),
+              ),
+              duration: const Duration(seconds: 3),
+              action: SnackBarAction(
+                label: 'عرض',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SxNotificationsScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+          );
+      }
+      _lastNotificationCount = count;
+      notificationBadge.value = count;
+    } catch (_) {}
   }
 
   Future<void> _handleBack() async {
