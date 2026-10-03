@@ -10,6 +10,7 @@ from flask import current_app
 from sqlalchemy import or_
 
 from ...extensions import db
+from ...services.pricing import price_for_customer
 from ...models import (
     Category,
     CategoryHomeDisplaySetting,
