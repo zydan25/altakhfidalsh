@@ -499,6 +499,71 @@ class ApiService {
     final d=await get('/commerce/payment-methods');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
   }
+  Future<Map<String,dynamic>> policies() async {
+    return Map<String,dynamic>.from(await get('/system/policies'));
+  }
+  Future<Map<String,dynamic>> uploadPaymentProof(int orderId) async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg','jpeg','png','webp','pdf'],
+      withData: true,
+    );
+    if (picked == null || picked.files.isEmpty) {
+      throw Exception('لم يتم اختيار ملف.');
+    }
+    final file = picked.files.single;
+    final bytes = file.bytes;
+    if (bytes == null || bytes.isEmpty) {
+      throw Exception('تعذر قراءة الملف المختار.');
+    }
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse(baseUrl + '/commerce/me/payment-proofs/upload'),
+    );
+    request.headers.addAll(headers());
+    request.fields['order_id'] = orderId.toString();
+    request.files.add(http.MultipartFile.fromBytes(
+      'files',
+      bytes,
+      filename: file.name.isEmpty ? 'payment-proof' : file.name,
+    ));
+    final response = await request.send();
+    final body = await response.stream.toBytes();
+    return Map<String,dynamic>.from(
+      decode(http.Response.bytes(body, response.statusCode, headers: response.headers)),
+    );
+  }
+  Future<Map<String,dynamic>> sendMessageWithFile(int conversationId,{String? body}) async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg','jpeg','png','webp','pdf'],
+      withData: true,
+    );
+    if (picked == null || picked.files.isEmpty) {
+      throw Exception('لم يتم اختيار ملف.');
+    }
+    final file = picked.files.single;
+    final bytes = file.bytes;
+    if (bytes == null || bytes.isEmpty) {
+      throw Exception('تعذر قراءة الملف المختار.');
+    }
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse(baseUrl + '/support/conversations/' + conversationId.toString() + '/attachments'),
+    );
+    request.headers.addAll(headers());
+    if (body != null && body.trim().isNotEmpty) request.fields['body'] = body.trim();
+    request.files.add(http.MultipartFile.fromBytes(
+      'files',
+      bytes,
+      filename: file.name.isEmpty ? 'attachment' : file.name,
+    ));
+    final response = await request.send();
+    final raw = await response.stream.toBytes();
+    return Map<String,dynamic>.from(
+      decode(http.Response.bytes(raw, response.statusCode, headers: response.headers)),
+    );
+  }
   Future<Map<String,dynamic>> shippingQuote({int? cityId,int? cityAreaId,int? currencyId,String? subtotal})async=>Map<String,dynamic>.from(await post('/commerce/shipping/quote',{
     if(cityId!=null)'city_id':cityId,
     if(cityAreaId!=null)'city_area_id':cityAreaId,
