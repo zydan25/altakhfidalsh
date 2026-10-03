@@ -9,13 +9,18 @@ from ...models import Admin, AppSetting, FeatureFlag, Role, Theme, ThemeToken, S
 
 @api_bp.get("/policies")
 def public_policies():
-    from ...models import ReturnPolicy
-    privacy_row = AppSetting.query.filter_by(group_code="storefront", key="privacy_policy").first()
+    from ...models import ReturnPolicy, ShippingPolicy, WarrantyPolicy
+    privacy_row = AppSetting.query.filter_by(
+        group_code="storefront",
+        key="privacy_policy",
+    ).first()
     privacy = privacy_row.value if privacy_row and privacy_row.value else (
         "نلتزم بحماية بياناتك واستخدامها فقط لتقديم خدمات المتجر والطلب والتوصيل والدعم، "
         "ونحتفظ بالبيانات اللازمة لإدارة الحسابات والطلبات وفق الأنظمة المعمول بها."
     )
     policy = ReturnPolicy.query.filter_by(is_active=True).order_by(ReturnPolicy.id).first()
+    shipping = ShippingPolicy.query.filter_by(is_active=True).order_by(ShippingPolicy.id).first()
+    warranty = WarrantyPolicy.query.filter_by(is_active=True).order_by(WarrantyPolicy.id).first()
     return {
         "privacy": {"title": "سياسة الخصوصية", "body": privacy},
         "return": {
@@ -24,18 +29,34 @@ def public_policies():
                 "\n".join(
                     part for part in [
                         policy.conditions if policy else None,
-                        (f"مدة الإرجاع: {policy.return_window_days} يومًا" if policy and policy.return_window_days else None),
-                        (f"الرسوم: {policy.fee_rule}" if policy and policy.fee_rule else None),
-                        (f"الاسترداد: {policy.refund_method}" if policy and policy.refund_method else None),
-                    ] if part
+                        f"مدة الإرجاع: {policy.return_window_days} يومًا"
+                        if policy and policy.return_window_days else None,
+                        f"الرسوم: {policy.fee_rule}"
+                        if policy and policy.fee_rule else None,
+                        f"الاسترداد: {policy.refund_method}"
+                        if policy and policy.refund_method else None,
+                    ]
+                    if part
                 )
-                if policy else "تطبق سياسة الإرجاع والاسترداد المعتمدة في المتجر."
+                if policy
+                else "تطبق سياسة الإرجاع والاسترداد المعتمدة في المتجر."
             ),
         },
+        "shipping": {
+            "name": shipping.name,
+            "free_shipping_enabled": bool(shipping.free_shipping_enabled),
+            "min_order_amount": str(shipping.min_order_amount) if shipping.min_order_amount is not None else None,
+            "promo_text": shipping.promo_text,
+            "delivery_window": shipping.delivery_window,
+        } if shipping else {},
+        "warranty": {
+            "name": warranty.name,
+            "duration_days": warranty.duration_days,
+            "coverage": warranty.coverage,
+            "exclusions": warranty.exclusions,
+            "claim_method": warranty.claim_method,
+        } if warranty else {},
     }
-
-
-
 
 
 @api_bp.get("/health")
