@@ -6466,6 +6466,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
   List<Map<String, dynamic>> trendTags = <Map<String, dynamic>>[];
   List<ProductModel> picks = <ProductModel>[];
   Map<String, dynamic> ui = <String, dynamic>{};
+  Map<String, dynamic> productCardSettings = <String, dynamic>{};
 
   int trendIndex = 0;
   int? hashtagId;
@@ -6513,6 +6514,11 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
       final nextUi = payload['settings'] is Map
           ? Map<String, dynamic>.from(payload['settings'] as Map)
           : <String, dynamic>{};
+      final nextProductCardSettings = payload['product_card_settings'] is Map
+          ? Map<String, dynamic>.from(
+              payload['product_card_settings'] as Map,
+            )
+          : <String, dynamic>{};
 
       if (!mounted) return;
       setState(() {
@@ -6525,6 +6531,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
                 .map((tag) => Map<String, dynamic>.from(tag))
                 .toList();
         ui = nextUi;
+        productCardSettings = nextProductCardSettings;
         trendIndex = nextTrends.isEmpty ? 0 : 0;
         loading = false;
         _collapsedHeader = false;
@@ -6828,6 +6835,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
                                             orElse: () => <String, dynamic>{},
                                           ),
                                     ui: ui,
+                                    displaySettings: productCardSettings,
                                   ),
                                   childCount: picks.length,
                                 ),
@@ -7874,11 +7882,13 @@ class _TrendProductTile extends StatefulWidget {
   final ProductModel product;
   final Map<String, dynamic>? hashtag;
   final Map<String, dynamic> ui;
+  final Map<String, dynamic>? displaySettings;
 
   const _TrendProductTile({
     required this.product,
     this.hashtag,
     required this.ui,
+    this.displaySettings,
   });
 
   @override
@@ -7934,8 +7944,177 @@ class _TrendProductTileState extends State<_TrendProductTile> {
     } catch (_) {}
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Map<String, dynamic> get _cardSettings =>
+      widget.displaySettings ?? const <String, dynamic>{};
+
+  dynamic _cardValue(String key, dynamic fallback) {
+    final value = _cardSettings[key];
+    return value ?? fallback;
+  }
+
+  bool _cardBool(String key, bool fallback) {
+    final value = _cardValue(key, fallback);
+    return value is bool ? value : (value.toString().toLowerCase() == 'true');
+  }
+
+  double _cardNumber(String key, double fallback) {
+    final value = _cardValue(key, fallback);
+    final parsed = value is num
+        ? value.toDouble()
+        : double.tryParse(value.toString());
+    return (parsed == null || !parsed.isFinite) ? fallback : parsed;
+  }
+
+  String _cardText(String key, String fallback) {
+    final value = _cardValue(key, fallback).toString().trim();
+    return value.isEmpty ? fallback : value;
+  }
+
+  Widget _cornerPositioned(
+    String position,
+    Widget child, {
+    double offset = 7,
+    double? bottomOffset,
+  }) {
+    final bottom = bottomOffset ?? offset;
+    switch (position) {
+      case 'top_left':
+        return Positioned(top: offset, left: offset, child: child);
+      case 'top_right':
+        return Positioned(top: offset, right: offset, child: child);
+      case 'bottom_left':
+        return Positioned(bottom: bottom, left: offset, child: child);
+      default:
+        return Positioned(bottom: bottom, right: offset, child: child);
+    }
+  }
+
+  Widget _colorSwatches() {
+    final colors = widget.product.colors;
+    if (!_cardBool('colors_show', true) || colors.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final swatchSize = _cardNumber('colors_size', 13);
+    final containerSize =
+        _cardNumber('colors_container_size', 16)
+            .clamp(swatchSize, 28)
+            .toDouble();
+    final gap = _cardNumber('colors_gap', 2);
+    final max = _cardNumber('colors_max', 6).round().clamp(1, 8).toInt();
+
+    final items = colors.take(max).map((color) {
+      final hex = sxText(color['hex_code']);
+      final swatchUrl = sxText(color['swatch_url']);
+      return Container(
+        width: containerSize,
+        height: containerSize,
+        padding: EdgeInsets.all(
+          ((containerSize - swatchSize) / 2).clamp(0, 8).toDouble(),
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(.94),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: Colors.white,
+            width: _cardNumber('colors_border_width', 1),
+          ),
+          boxShadow: const [
+            BoxShadow(
+              blurRadius: 2,
+              offset: Offset(0, 1),
+              color: Colors.black26,
+            ),
+          ],
+        ),
+        child: swatchUrl.isNotEmpty
+            ? ClipOval(
+                child: Image.network(
+                  api.url(swatchUrl),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: sxColor(hex, const Color(0xFFE5E7EB)),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              )
+            : DecoratedBox(
+                decoration: BoxDecoration(
+                  color: sxColor(hex, const Color(0xFFE5E7EB)),
+                  shape: BoxShape.circle,
+                ),
+              ),
+      );
+    }).toList();
+
+    final direction = _cardText('colors_direction', 'vertical');
+    if (direction == 'vertical') {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (int i = 0; i < items.length; i++)
+            Padding(
+              padding: EdgeInsets.only(
+                bottom: i == items.length - 1 ? 0 : gap,
+              ),
+              child: items[i],
+            ),
+        ],
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (int i = 0; i < items.length; i++)
+          Padding(
+            padding: EdgeInsets.only(
+              left: i == items.length - 1 ? 0 : gap,
+            ),
+            child: items[i],
+          ),
+      ],
+    );
+  }
+
+  Widget _badgeChip(Map<String, dynamic> badge) {
+    final tab = sxText(badge['storefront_tab']);
+    final fallback = tab == 'new'
+        ? const Color(0xFF16A34A)
+        : tab == 'offers'
+            ? const Color(0xFFDC2626)
+            : const Color(0xFF111827);
+    final bg = sxColor(sxText(badge['bg_color']), fallback);
+    final fg = sxColor(sxText(badge['text_color']), Colors.white);
+    final text = sxText(
+      badge['custom_text'],
+      sxText(badge['name'], sxText(badge['code'])),
+    );
+    return Container(
+      margin: const EdgeInsets.only(bottom: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(
+          _cardNumber('product_badge_radius', 3),
+        ),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: fg,
+          fontSize: _cardNumber('product_badge_font_size', 8),
+          fontWeight: FontWeight.w900,
+          height: 1,
+        ),
+      ),
+    );
+  }
+
     final scale =
         (MediaQuery.sizeOf(context).width / 360.0).clamp(.86, 1.15).toDouble();
     final imageHeight =
@@ -7946,7 +8125,6 @@ class _TrendProductTileState extends State<_TrendProductTile> {
     final hashtagLabel = widget.hashtag == null
         ? '#ترندات'
         : sxText(widget.hashtag?['display_name'], '#ترندات');
-    final swatches = widget.product.colors.take(4).toList();
 
     return Container(
       color: Colors.white,
@@ -7999,86 +8177,33 @@ class _TrendProductTileState extends State<_TrendProductTile> {
                         ),
                       ),
                     ),
-                  if (widget.product.badges.isNotEmpty)
-                    Positioned(
-                      left: 7,
-                      top: 7,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: widget.product.badges.take(2).map(
-                          (badge) {
-                            final bg = sxColor(
-                              badge['bg_color'],
-                              const Color(0xFF111111),
-                            );
-                            final fg = sxColor(
-                              badge['text_color'],
-                              Colors.white,
-                            );
-                            final label = sxText(
-                              badge['custom_text'],
-                              sxText(
-                                badge['name'],
-                                sxText(badge['code']),
-                              ),
-                            );
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 3,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: bg,
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                                child: Text(
-                                  label,
-                                  style: TextStyle(
-                                    color: fg,
-                                    fontSize: 8,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
-                        ).toList(),
+                  if (_cardBool('show_product_badges', true) &&
+                      widget.product.badges.isNotEmpty)
+                    _cornerPositioned(
+                      _cardText('product_badge_position', 'top_right'),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 0),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: widget.product.badges
+                              .take(
+                                _cardNumber('product_badge_max', 2)
+                                    .round()
+                                    .clamp(1, 4)
+                                    .toInt(),
+                              )
+                              .map(_badgeChip)
+                              .toList(),
+                        ),
                       ),
                     ),
-                  if (swatches.isNotEmpty)
-                    Positioned(
-                      right: 7,
-                      bottom: 10,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: swatches.map((color) {
-                          return Container(
-                            width: 22,
-                            height: 22,
-                            margin: const EdgeInsets.only(top: 4),
-                            padding: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(.96),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(
-                                color: const Color(0xFFD5D5D5),
-                                width: .7,
-                              ),
-                            ),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                color: sxColor(
-                                  color['hex_code'],
-                                  const Color(0xFFE8E8E8),
-                                ),
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
+                  if (_cardBool('colors_show', true) &&
+                      widget.product.colors.isNotEmpty)
+                    _cornerPositioned(
+                      _cardText('colors_position', 'bottom_right'),
+                      _colorSwatches(),
+                      bottomOffset: 10,
                     ),
                   if (gallery.length > 1)
                     Positioned(
