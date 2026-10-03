@@ -606,7 +606,7 @@ class ApiService {
     }),
   );
   Future<void> sendMessage(int id,String body)async{await post('/support/conversations/'+id.toString()+'/messages',{'body':body});}
-  Future<List<Map<String,dynamic>>> pickAndSendMessageWithFile(int id,{String body=''}) async {
+  Future<List<Map<String,dynamic>>> pickAndSendMessageWithFile(int id,{String body='',bool paymentProof=false}) async {
     final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['jpg','jpeg','png','webp','pdf'],
@@ -614,7 +614,7 @@ class ApiService {
     if (picked.isEmpty) {
       throw Exception('لم يتم اختيار ملف.');
     }
-    return sendMessageWithFiles(id, body, [picked.first]);
+    return sendMessageWithFiles(id, body, [picked.first], paymentProof: paymentProof);
   }
 
   Future<List<Map<String,dynamic>>> pickAndUploadPaymentProof(int orderId) async {
