@@ -1060,6 +1060,7 @@ class CatalogService:
             status="draft",
             material=(payload.get("material") or "").strip() or None,
             care_instructions=(payload.get("care_instructions") or "").strip() or None,
+            product_type=(payload.get("product_type") or "").strip() or None,
         )
         db.session.add(product)
         db.session.flush()
