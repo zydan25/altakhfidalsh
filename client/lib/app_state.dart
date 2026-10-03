@@ -4,6 +4,21 @@ import 'api.dart';
 
 final api = ApiService();
 final cartBadge = ValueNotifier<int>(0);
+final notificationBadge = ValueNotifier<int>(0);
+
+Future<void> refreshNotificationBadge() async {
+  if (api.token.isEmpty) {
+    notificationBadge.value = 0;
+    return;
+  }
+  try {
+    final data = await api.notificationSummary();
+    notificationBadge.value = int.tryParse(
+          (data['unread_count'] ?? 0).toString(),
+        ) ??
+        0;
+  } catch (_) {}
+}
 
 class ClientState {
   Set<int> wishlist = <int>{};
@@ -98,6 +113,7 @@ class ClientState {
     cityId = null;
     cityName = null;
     cartBadge.value = 0;
+    notificationBadge.value = 0;
     await api.logout();
     final p = await SharedPreferences.getInstance();
     await p.remove('city_id');
