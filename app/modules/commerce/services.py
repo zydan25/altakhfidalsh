@@ -847,6 +847,19 @@ class CommerceService:
             note="تعيين/تعديل رسوم التوصيل يدويًا",
         ))
         db.session.commit()
+        from ...services.notifications import NotificationService
+        NotificationService.create(
+            order.customer_id,
+            "shipping",
+            "تم تحديث رسوم التوصيل",
+            "تم تحديث رسوم توصيل طلبك. الإجمالي الجديد: " + str(order.total),
+            {
+                "order_id": order.id,
+                "order_no": order.order_no,
+                "shipping": str(order.shipping),
+                "target": "order",
+            },
+        )
         return CommerceService.serialize_order_detail(order)
 
     @staticmethod
