@@ -979,10 +979,36 @@ class _SxProductCardState extends State<SxProductCard> {
       return settings['visible'] != false;
     }).toList();
 
-    List<Map<String, dynamic>> at(String position) => badges
-        .where((badge) => _badgePosition(badge) == position)
-        .take(_cardNumber('product_badge_max', 4).round().clamp(1, 8).toInt())
-        .toList();
+    List<Map<String, dynamic>> at(String position) {
+      const aliases = <String, String>{
+        'before_name_same_row': 'before_name',
+        'before_name_new_row': 'before_name_row',
+        'after_name_same_row': 'after_name',
+        'after_name_new_row': 'after_name_row',
+        'after_price': 'below_price',
+      };
+      final actual = aliases[position] ?? position;
+      return badges
+          .where((badge) => _badgePosition(badge) == actual)
+          .take(_cardNumber('product_badge_max', 4).round().clamp(1, 8).toInt())
+          .toList();
+    }
+
+    Widget badgeRow(String position) {
+      final items = at(position);
+      if (items.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Wrap(
+            spacing: 4,
+            runSpacing: 3,
+            children: items.map(_badgeChip).toList(),
+          ),
+        ),
+      );
+    }
 
     Widget inlineBadges(String position) {
       final items = at(position);
@@ -1026,15 +1052,8 @@ class _SxProductCardState extends State<SxProductCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (at('above_image').isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(5, 4, 5, 1),
-                child: Wrap(
-                  spacing: 4,
-                  runSpacing: 3,
-                  children: at('above_image').map(_badgeChip).toList(),
-                ),
-              ),
+            badgeRow('first'),
+            badgeRow('above_image'),
             _imageStack(
               ratio: ratio,
               masonry: widget.masonry,
@@ -1043,6 +1062,7 @@ class _SxProductCardState extends State<SxProductCard> {
             ),
             if (_cardBool('show_trend_badge', true) || _cardBool('show_trend_hashtag', true))
               _trendRibbon(),
+            badgeRow('before_name_new_row'),
             inlineBadges('before_name'),
             if (_cardBool('show_name', true))
               Container(
@@ -1061,6 +1081,7 @@ class _SxProductCardState extends State<SxProductCard> {
                 ),
               ),
             inlineBadges('after_name'),
+            badgeRow('after_name_new_row'),
             if (_cardBool('show_short_description', false) &&
                 product.shortDescription.trim().isNotEmpty)
               Container(
@@ -1141,6 +1162,7 @@ class _SxProductCardState extends State<SxProductCard> {
                   ],
                 ),
               ),
+            badgeRow('after_price'),
             inlineBadges('below_price'),
             if (hasRating)
               Padding(
@@ -1176,6 +1198,9 @@ class _SxProductCardState extends State<SxProductCard> {
               ),
             if (!hasRating && !_cardBool('show_size', false))
               const SizedBox(height: 5),
+            badgeRow('below_description'),
+            badgeRow('after_details'),
+            badgeRow('last'),
           ],
         ),
       ),
