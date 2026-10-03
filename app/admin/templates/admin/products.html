@@ -69,7 +69,7 @@
     <div class="admin-product-menu" data-menu-for="{{ product.id }}" hidden>
       <a href="/admin/products/{{ product.id }}">عرض التفاصيل</a>
       <a href="/admin/products/{{ product.id }}/edit">تعديل المنتج</a>
-      <a href="/admin/products/{{ product.id }}/edit#marketing">الشارات والمظهر</a>
+      <a href="/admin/products/{{ product.id }}/presentation">الشارات والمظهر</a>
       {% if product.is_active %}
       <form method="post"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ product.id }}"><button type="submit">أرشفة المنتج</button></form>
       {% else %}
@@ -93,7 +93,7 @@
     </div>
     <div class="admin-product-card-actions">
       <a class="primary-button compact" href="/admin/products/{{ product.id }}">فتح المنتج</a>
-      <a class="ghost-button compact" href="/admin/products/{{ product.id }}/edit#marketing">المظهر</a>
+      <a class="ghost-button compact" href="/admin/products/{{ product.id }}/presentation">الشارات والمظهر</a>
     </div>
   </div>
 </article>
