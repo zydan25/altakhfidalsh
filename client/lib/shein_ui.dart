@@ -8709,49 +8709,380 @@ class _Choices extends StatelessWidget {
 }
 
 class SxAddressForm extends StatefulWidget {
-  const SxAddressForm({super.key});
+  final Map<String, dynamic>? initial;
+  const SxAddressForm({super.key, this.initial});
   @override State<SxAddressForm> createState() => _SxAddressFormState();
 }
 
 class _SxAddressFormState extends State<SxAddressForm> {
-  final name = TextEditingController(), phone = TextEditingController(), district = TextEditingController(), street = TextEditingController(), landmark = TextEditingController();
-  List<Map<String, dynamic>> cities = [], areas = []; int? cityId, areaId;
-  @override void initState() { super.initState(); api.cities().then((v) { if (mounted) setState(() => cities = v); }); }
-  @override void dispose() { name.dispose(); phone.dispose(); district.dispose(); street.dispose(); landmark.dispose(); super.dispose(); }
-  Future<void> areasFor(int id) async { try { final v = await api.cityAreas(cityId: id); if (mounted) setState(() { areas = v; areaId = null; }); } catch (_) {} }
-  @override Widget build(BuildContext context) => SafeArea(child: DraggableScrollableSheet(
-    expand: false, initialChildSize: .9, minChildSize: .65, maxChildSize: .96,
-    builder: (_, scroll) => Column(children: [
-      const _Handle(),
-      const Padding(padding: EdgeInsets.fromLTRB(15, 1, 15, 9), child: Align(alignment: Alignment.centerRight, child: Text('إضافة عنوان', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)))),
-      Expanded(child: ListView(controller: scroll, padding: const EdgeInsets.fromLTRB(15, 0, 15, 15), children: [
-        TextField(controller: name, decoration: const InputDecoration(labelText: 'اسم المستلم')),
-        const SizedBox(height: 7),
-        TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'رقم الهاتف')),
-        const SizedBox(height: 7),
-        DropdownButtonFormField<int>(value: cityId, decoration: const InputDecoration(labelText: 'المدينة'), items: cities.map((x) => DropdownMenuItem(value: sxInt(x['id']), child: Text(sxText(x['name']), style: const TextStyle(fontSize: 11)))).toList(), onChanged: (v) { if (v == null) return; setState(() => cityId = v); areasFor(v); }),
-        if (areas.isNotEmpty) ...[
-          const SizedBox(height: 7),
-          DropdownButtonFormField<int>(value: areaId, decoration: const InputDecoration(labelText: 'المنطقة'), items: areas.map((x) => DropdownMenuItem(value: sxInt(x['id']), child: Text(sxText(x['name']), style: const TextStyle(fontSize: 11)))).toList(), onChanged: (v) => setState(() => areaId = v)),
+  final name = TextEditingController();
+  final phone = TextEditingController();
+  final district = TextEditingController();
+  final street = TextEditingController();
+  final landmark = TextEditingController();
+
+  List<Map<String, dynamic>> countries = [];
+  List<Map<String, dynamic>> regions = [];
+  List<Map<String, dynamic>> cities = [];
+  List<Map<String, dynamic>> areas = [];
+  int? countryId;
+  int? regionId;
+  int? cityId;
+  int? areaId;
+  bool isDefault = false;
+  bool loadingGeo = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initial;
+    if (initial != null) {
+      name.text = sxText(initial['recipient_name']);
+      phone.text = sxText(initial['phone']);
+      district.text = sxText(initial['district']);
+      street.text = sxText(initial['street']);
+      landmark.text = sxText(initial['landmark']);
+      countryId = sxInt(initial['country_id']);
+      regionId = sxInt(initial['region_id']);
+      cityId = sxInt(initial['city_id']);
+      areaId = sxInt(initial['city_area_id']);
+      isDefault = initial['is_default'] == true;
+    }
+    _loadGeo();
+  }
+
+  Future<void> _loadGeo() async {
+    try {
+      countries = await api.countries();
+      final allRegions = await api.regions();
+      if ((countryId == null || countryId! <= 0) && countries.isNotEmpty) {
+        countryId = sxInt(countries.first['id']);
+      }
+      if (regionId != null && regionId! > 0) {
+        final selectedRegion = allRegions.firstWhere(
+          (x) => sxInt(x['id']) == regionId,
+          orElse: () => <String, dynamic>{},
+        );
+        final selectedCountryId = sxInt(selectedRegion['country_id']);
+        if (selectedCountryId > 0) countryId = selectedCountryId;
+      }
+      regions = countryId != null && countryId! > 0
+          ? await api.regions(countryId: countryId)
+          : allRegions;
+      if ((regionId == null || regionId! <= 0) && cityId != null && cityId! > 0) {
+        final allCities = await api.cities();
+        final selectedCity = allCities.firstWhere(
+          (x) => sxInt(x['id']) == cityId,
+          orElse: () => <String, dynamic>{},
+        );
+        final rid = sxInt(selectedCity['region_id']);
+        if (rid > 0) {
+          regionId = rid;
+          final region = allRegions.firstWhere(
+            (x) => sxInt(x['id']) == rid,
+            orElse: () => <String, dynamic>{},
+          );
+          final cid = sxInt(region['country_id']);
+          if (cid > 0) {
+            countryId = cid;
+            regions = await api.regions(countryId: cid);
+          }
+        }
+      }
+      cities = regionId != null && regionId! > 0
+          ? await api.cities(regionId: regionId)
+          : await api.cities();
+      if (cityId != null && cityId! > 0 &&
+          !cities.any((x) => sxInt(x['id']) == cityId)) {
+        cityId = null;
+        areaId = null;
+      }
+      areas = cityId != null && cityId! > 0
+          ? await api.cityAreas(cityId: cityId)
+          : <Map<String, dynamic>>[];
+      if (areaId != null && areaId! > 0 &&
+          !areas.any((x) => sxInt(x['id']) == areaId)) {
+        areaId = null;
+      }
+    } catch (_) {
+    } finally {
+      if (mounted) setState(() => loadingGeo = false);
+    }
+  }
+
+  Future<void> _countryChanged(int id) async {
+    setState(() {
+      countryId = id;
+      regionId = null;
+      cityId = null;
+      areaId = null;
+      cities = [];
+      areas = [];
+    });
+    try {
+      final v = await api.regions(countryId: id);
+      if (mounted) setState(() => regions = v);
+    } catch (_) {}
+  }
+
+  Future<void> _regionChanged(int id) async {
+    setState(() {
+      regionId = id;
+      cityId = null;
+      areaId = null;
+      areas = [];
+    });
+    try {
+      final v = await api.cities(regionId: id);
+      if (mounted) setState(() => cities = v);
+    } catch (_) {}
+  }
+
+  Future<void> _cityChanged(int id) async {
+    setState(() {
+      cityId = id;
+      areaId = null;
+      areas = [];
+    });
+    try {
+      final v = await api.cityAreas(cityId: id);
+      if (mounted) setState(() => areas = v);
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    name.dispose();
+    phone.dispose();
+    district.dispose();
+    street.dispose();
+    landmark.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: .92,
+      minChildSize: .65,
+      maxChildSize: .98,
+      builder: (_, scroll) => Column(
+        children: [
+          const _Handle(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(15, 2, 15, 10),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: ClientTheme.soft,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.location_on_outlined, size: 20),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        widget.initial == null ? 'إضافة عنوان' : 'تعديل العنوان',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'اختر الموقع من الخادم ثم أضف التفاصيل الأدق مثل الحي والشارع.',
+                        style: TextStyle(fontSize: 9.5, color: ClientTheme.muted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              controller: scroll,
+              padding: const EdgeInsets.fromLTRB(15, 0, 15, 18),
+              children: [
+                const _AddressFormSectionTitle(title: 'بيانات المستلم'),
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(
+                    labelText: 'اسم المستلم',
+                    prefixIcon: Icon(Icons.person_outline, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: phone,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'رقم الهاتف',
+                    prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const _AddressFormSectionTitle(title: 'الموقع من الخادم'),
+                if (loadingGeo)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 22),
+                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  )
+                else ...[
+                  if (countries.isNotEmpty) ...[
+                    DropdownButtonFormField<int>(
+                      value: countries.any((x) => sxInt(x['id']) == countryId) ? countryId : null,
+                      decoration: const InputDecoration(
+                        labelText: 'الدولة',
+                        prefixIcon: Icon(Icons.public_outlined, size: 20),
+                      ),
+                      items: countries.map((x) => DropdownMenuItem(
+                        value: sxInt(x['id']),
+                        child: Text(
+                          sxText(x['name_ar'], sxText(x['name_en'])),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      )).toList(),
+                      onChanged: (v) { if (v != null) _countryChanged(v); },
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  DropdownButtonFormField<int>(
+                    value: regions.any((x) => sxInt(x['id']) == regionId) ? regionId : null,
+                    decoration: const InputDecoration(
+                      labelText: 'المنطقة / المحافظة',
+                      prefixIcon: Icon(Icons.map_outlined, size: 20),
+                    ),
+                    items: regions.map((x) => DropdownMenuItem(
+                      value: sxInt(x['id']),
+                      child: Text(sxText(x['name']), style: const TextStyle(fontSize: 11)),
+                    )).toList(),
+                    onChanged: (v) { if (v != null) _regionChanged(v); },
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<int>(
+                    value: cities.any((x) => sxInt(x['id']) == cityId) ? cityId : null,
+                    decoration: const InputDecoration(
+                      labelText: 'المدينة',
+                      prefixIcon: Icon(Icons.location_city_outlined, size: 20),
+                    ),
+                    items: cities.map((x) => DropdownMenuItem(
+                      value: sxInt(x['id']),
+                      child: Text(sxText(x['name']), style: const TextStyle(fontSize: 11)),
+                    )).toList(),
+                    onChanged: (v) { if (v != null) _cityChanged(v); },
+                  ),
+                  if (areas.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<int>(
+                      value: areas.any((x) => sxInt(x['id']) == areaId) ? areaId : null,
+                      decoration: const InputDecoration(
+                        labelText: 'المنطقة داخل المدينة',
+                        prefixIcon: Icon(Icons.near_me_outlined, size: 20),
+                      ),
+                      items: areas.map((x) => DropdownMenuItem(
+                        value: sxInt(x['id']),
+                        child: Text(sxText(x['name']), style: const TextStyle(fontSize: 11)),
+                      )).toList(),
+                      onChanged: (v) => setState(() => areaId = v),
+                    ),
+                  ],
+                ],
+                const SizedBox(height: 14),
+                const _AddressFormSectionTitle(title: 'عنوان أدق'),
+                TextField(
+                  controller: district,
+                  decoration: const InputDecoration(
+                    labelText: 'الحي',
+                    hintText: 'مثال: حي المروج',
+                    prefixIcon: Icon(Icons.domain_outlined, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: street,
+                  decoration: const InputDecoration(
+                    labelText: 'الشارع / رقم المبنى',
+                    hintText: 'اسم الشارع أو رقم المبنى',
+                    prefixIcon: Icon(Icons.signpost_outlined, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: landmark,
+                  decoration: const InputDecoration(
+                    labelText: 'معلم قريب',
+                    hintText: 'بجوار المسجد أو المتجر أو أي علامة واضحة',
+                    prefixIcon: Icon(Icons.place_outlined, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  decoration: BoxDecoration(
+                    color: ClientTheme.soft,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: SwitchListTile.adaptive(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                    title: const Text(
+                      'اجعل هذا العنوان افتراضيًا',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: const Text(
+                      'سيُستخدم تلقائيًا عند إتمام الطلب.',
+                      style: TextStyle(fontSize: 8.5, color: ClientTheme.muted),
+                    ),
+                    value: isDefault,
+                    onChanged: (v) => setState(() => isDefault = v),
+                  ),
+                ),
+                const SizedBox(height: 13),
+                SizedBox(
+                  height: 50,
+                  child: FilledButton(
+                    onPressed: cityId == null ||
+                            name.text.trim().isEmpty ||
+                            phone.text.trim().isEmpty
+                        ? null
+                        : () => Navigator.pop(context, <String, dynamic>{
+                            'recipient_name': name.text.trim(),
+                            'phone': phone.text.trim(),
+                            if (countryId != null) 'country_id': countryId,
+                            'city_id': cityId,
+                            if (areaId != null) 'city_area_id': areaId,
+                            'district': district.text.trim(),
+                            'street': street.text.trim(),
+                            'landmark': landmark.text.trim(),
+                            'is_default': isDefault,
+                          }),
+                    style: FilledButton.styleFrom(backgroundColor: Colors.black),
+                    child: Text(
+                      widget.initial == null ? 'إضافة العنوان' : 'حفظ التعديلات',
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
-        const SizedBox(height: 7),
-        TextField(controller: district, decoration: const InputDecoration(labelText: 'الحي')),
-        const SizedBox(height: 7),
-        TextField(controller: street, decoration: const InputDecoration(labelText: 'الشارع')),
-        const SizedBox(height: 7),
-        TextField(controller: landmark, decoration: const InputDecoration(labelText: 'معلم قريب')),
-        const SizedBox(height: 13),
-        SizedBox(height: 49, child: FilledButton(
-          onPressed: cityId == null || name.text.trim().isEmpty || phone.text.trim().isEmpty ? null : () => Navigator.pop(context, {
-            'recipient_name': name.text.trim(), 'phone': phone.text.trim(), 'city_id': cityId, 'city_area_id': areaId,
-            'district': district.text.trim(), 'street': street.text.trim(), 'landmark': landmark.text.trim(), 'is_default': true,
-          }),
-          style: FilledButton.styleFrom(backgroundColor: Colors.black),
-          child: const Text('حفظ العنوان', style: TextStyle(fontWeight: FontWeight.w900)),
-        )),
-      ])),
-    ]),
-  ));
+      ),
+    ),
+  );
+}
+
+class _AddressFormSectionTitle extends StatelessWidget {
+  final String title;
+  const _AddressFormSectionTitle({required this.title});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 7),
+    child: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+  );
 }
 
 class SxOrderSuccess extends StatelessWidget {
