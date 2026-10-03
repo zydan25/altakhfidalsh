@@ -15,6 +15,7 @@ import 'theme.dart';
 import 'product_card.dart';
 import 'order_edit.dart';
 import 'product_detail.dart';
+import 'widgets.dart';
 
 String sxText(dynamic v, [String fallback = '']) => (v ?? fallback).toString();
 int sxInt(dynamic v, [int fallback = 0]) => int.tryParse(sxText(v)) ?? fallback;
