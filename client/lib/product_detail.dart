@@ -208,6 +208,48 @@ class _SxProductScreenState extends State<SxProductScreen> {
     }
   }
 
+  Map<String, dynamic> _selectedOptions() {
+    final result = <String, dynamic>{};
+    final colors = _colors();
+    final sizes = _sizes();
+    if (colorId != null) {
+      final row = colors.where((x) => sxInt(x['id']) == colorId).firstOrNull;
+      if (row != null) result['اللون'] = sxText(row['name']);
+    }
+    if (sizeId != null) {
+      final row = sizes.where((x) => sxInt(x['id']) == sizeId).firstOrNull;
+      if (row != null) result['المقاس'] = sxText(row['label'], sxText(row['code']));
+    }
+    return result;
+  }
+
+  Future<int?> _confirmAddQuantity() async {
+    if (!mounted) return null;
+    final colors = _colors();
+    final sizes = _sizes();
+    return showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => _AddToCartConfirmation(
+        productName: sxText((data['product'] as Map?)?['name'], 'منتج'),
+        color: colorId == null
+            ? ''
+            : sxText(
+                colors.where((x) => sxInt(x['id']) == colorId).firstOrNull?['name'],
+              ),
+        size: sizeId == null
+            ? ''
+            : sxText(
+                sizes.where((x) => sxInt(x['id']) == sizeId).firstOrNull?['label'],
+              ),
+      ),
+    );
+  }
+
   Future<bool> _addToCart() async {
     final variant = _variantId();
     if (variant == null || variant <= 0) {
@@ -218,13 +260,17 @@ class _SxProductScreenState extends State<SxProductScreen> {
       }
       return false;
     }
+
+    final quantity = await _confirmAddQuantity();
+    if (quantity == null || quantity < 1) return false;
+
     try {
-      await api.addCart(variant);
+      await api.addCart(variant, quantity, _selectedOptions());
       final cart = await api.cart(currencyId: state.currencyId);
       cartBadge.value = sxIntListLength(cart['item']?['items']);
       if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تمت إضافة المنتج إلى الحقيبة')),
+        SnackBar(content: Text('تمت إضافة $quantity إلى عربة التسوق')),
       );
       return true;
     } catch (error) {
@@ -267,10 +313,20 @@ class _SxProductScreenState extends State<SxProductScreen> {
     final colors = _colors();
     final sizes = _sizes();
     final price = sxText(
-      product['price'],
-      sxText(product['base_price_sar'], '0'),
+      product['display_price'],
+      sxText(product['price'], sxText(product['base_price_sar'], '0')),
     );
-    final oldPrice = sxText(product['compare_at_price']);
+    final oldPrice = sxText(
+      product['display_compare_price'],
+      sxText(product['compare_at_price']),
+    );
+    final displayCurrency = product['display_currency'] is Map
+        ? Map<String, dynamic>.from(product['display_currency'] as Map)
+        : <String, dynamic>{};
+    final detailCurrency = sxText(
+      displayCurrency['symbol'],
+      state.currencySymbol,
+    );
     final discount = _discount(price, oldPrice);
     final summary = Map<String, dynamic>.from(
       (data['rating_summary'] as Map?) ?? <String, dynamic>{},
@@ -341,7 +397,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       sku: sxText(product['sku']),
                       price: price,
                       oldPrice: oldPrice,
-                      currency: state.currencySymbol,
+                      currency: detailCurrency,
                       discount: discount,
                       average: average,
                       reviewCount: reviewCount,
@@ -359,6 +415,13 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       productType: sxText(product['product_type']),
                       material: sxText(product['material']),
                       sku: sxText(product['sku']),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: SxGalleryThumbs(
+                      rows: media,
+                      page: page,
+                      changed: (index) => setState(() => page = index),
                     ),
                   ),
                   if (colors.isNotEmpty || sizes.isNotEmpty)
@@ -471,9 +534,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
               top: false,
               child: _ProductBottomBar(
                 price: price,
-                currency: state.currencySymbol,
+                currency: detailCurrency,
                 onAdd: _addToCart,
-                onBuy: _buyNow,
               ),
             ),
           ],
@@ -581,79 +643,202 @@ class SxGallery extends StatelessWidget {
         : rows;
     return Container(
       color: Colors.white,
-      child: Column(
-        children: [
-          AspectRatio(
-            aspectRatio: .78,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                PageView.builder(
-                  reverse: true,
-                  itemCount: data.length,
-                  onPageChanged: changed,
-                  itemBuilder: (_, index) => _DetailNetworkImage(
-                    url: sxText(data[index]['url']),
-                  ),
+      child: AspectRatio(
+        aspectRatio: .78,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Directionality(
+              textDirection: TextDirection.rtl,
+              child: PageView.builder(
+                itemCount: data.length,
+                onPageChanged: changed,
+                itemBuilder: (_, index) => _DetailNetworkImage(
+                  url: sxText(data[index]['url']),
                 ),
-                if (data.length > 1)
-                  Positioned(
-                    left: 10,
-                    bottom: 10,
-                    child: _DetailCounter(
-                      text: page.toString() + '/' + data.length.toString(),
-                    ),
-                  ),
-                if (data.length > 1)
-                  Positioned(
-                    right: 10,
-                    bottom: 10,
-                    child: Row(
-                      children: List.generate(
-                        data.length.clamp(1, 8),
-                        (index) => AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          width: index == page ? 18 : 6,
-                          height: 3,
-                          margin: const EdgeInsets.only(left: 3),
-                          decoration: BoxDecoration(
-                            color: index == page ? Colors.white : Colors.white70,
-                            borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            if (data.length > 1)
+              Positioned(
+                left: 10,
+                bottom: 10,
+                child: _DetailCounter(
+                  text: (page + 1).toString() + '/' + data.length.toString(),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SxGalleryThumbs extends StatelessWidget {
+  final List<Map<String, dynamic>> rows;
+  final int page;
+  final ValueChanged<int> changed;
+
+  const SxGalleryThumbs({
+    super.key,
+    required this.rows,
+    required this.page,
+    required this.changed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (rows.length < 2) return const SizedBox.shrink();
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(9, 7, 9, 8),
+      child: SizedBox(
+        height: 76,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          reverse: false,
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (int index = 0; index < rows.length; index++)
+                  Padding(
+                    padding: EdgeInsets.only(left: index == rows.length - 1 ? 0 : 6),
+                    child: InkWell(
+                      onTap: () => changed(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 130),
+                        width: 62,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(
+                            color: index == page ? Colors.black : ClientTheme.border,
+                            width: index == page ? 1.5 : .7,
                           ),
+                          borderRadius: BorderRadius.circular(4),
                         ),
+                        clipBehavior: Clip.antiAlias,
+                        child: _DetailNetworkImage(url: sxText(rows[index]['url'])),
                       ),
                     ),
                   ),
               ],
             ),
           ),
-          if (data.length > 1)
-            SizedBox(
-              height: 82,
-              child: ListView.separated(
-                reverse: true,
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.all(7),
-                itemCount: data.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 6),
-                itemBuilder: (_, index) => InkWell(
-                  onTap: () => changed(index),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 130),
-                    width: 62,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border.all(
-                        color: index == page ? Colors.black : ClientTheme.border,
-                        width: index == page ? 1.5 : .7,
-                      ),
-                    ),
-                    child: _DetailNetworkImage(url: sxText(data[index]['url'])),
+        ),
+      ),
+    );
+  }
+}
+
+class _AddToCartConfirmation extends StatefulWidget {
+  final String productName;
+  final String color;
+  final String size;
+  const _AddToCartConfirmation({
+    required this.productName,
+    required this.color,
+    required this.size,
+  });
+
+  @override
+  State<_AddToCartConfirmation> createState() => _AddToCartConfirmationState();
+}
+
+class _AddToCartConfirmationState extends State<_AddToCartConfirmation> {
+  int quantity = 1;
+
+  @override
+  Widget build(BuildContext context) {
+    final details = <String>[
+      if (widget.color.trim().isNotEmpty) 'اللون: ' + widget.color,
+      if (widget.size.trim().isNotEmpty) 'المقاس: ' + widget.size,
+    ];
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 17),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _DetailHandle(),
+            const SizedBox(height: 10),
+            const Text(
+              'تأكيد الإضافة إلى عربة التسوق',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              widget.productName,
+              textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+            ),
+            if (details.isNotEmpty) ...[
+              const SizedBox(height: 5),
+              Text(
+                details.join('  •  '),
+                style: const TextStyle(fontSize: 9.5, color: ClientTheme.muted),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text('الكمية', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+                ),
+                Container(
+                  height: 39,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: ClientTheme.border),
+                    borderRadius: BorderRadius.circular(5),
                   ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: quantity >= 99 ? null : () => setState(() => quantity++),
+                        icon: const Icon(Icons.add, size: 18),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(width: 39, height: 39),
+                      ),
+                      SizedBox(
+                        width: 42,
+                        child: Center(
+                          child: Text(
+                            quantity.toString(),
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: quantity <= 1 ? null : () => setState(() => quantity--),
+                        icon: const Icon(Icons.remove, size: 18),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(width: 39, height: 39),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 48,
+              child: FilledButton.icon(
+                onPressed: () => Navigator.pop(context, quantity),
+                icon: const Icon(Icons.shopping_bag_outlined, size: 18),
+                style: FilledButton.styleFrom(backgroundColor: Colors.black),
+                label: const Text(
+                  'أضف إلى عربة التسوق',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
                 ),
               ),
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1650,72 +1835,45 @@ class _ProductBottomBar extends StatelessWidget {
   final String price;
   final String currency;
   final VoidCallback onAdd;
-  final VoidCallback onBuy;
 
   const _ProductBottomBar({
     required this.price,
     required this.currency,
     required this.onAdd,
-    required this.onBuy,
   });
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          border: Border(
-            top: BorderSide(color: ClientTheme.border, width: .8),
+    padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
+    decoration: const BoxDecoration(
+      color: Colors.white,
+      border: Border(
+        top: BorderSide(color: ClientTheme.border, width: .8),
+      ),
+    ),
+    child: Row(
+      children: [
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.shopping_bag_outlined, size: 18),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.black,
+              minimumSize: const Size.fromHeight(48),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            ),
+            label: Text(
+              'أضف إلى عربة التسوق  ·  $price $currency',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+            ),
           ),
         ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 86,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('السعر', style: TextStyle(fontSize: 7.5, color: ClientTheme.muted)),
-                  const SizedBox(height: 2),
-                  Text(
-                    price + ' ' + currency,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 5),
-            Expanded(
-              child: OutlinedButton(
-                onPressed: onAdd,
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(46),
-                  side: const BorderSide(color: Colors.black),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
-                ),
-                child: const Text('أضف إلى الحقيبة', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900)),
-              ),
-            ),
-            const SizedBox(width: 5),
-            Expanded(
-              child: FilledButton(
-                onPressed: onBuy,
-                style: FilledButton.styleFrom(
-                  backgroundColor: Colors.black,
-                  minimumSize: const Size.fromHeight(46),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(2)),
-                ),
-                child: const Text('اشترِ الآن', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900)),
-              ),
-            ),
-          ],
-        ),
-      );
+      ],
+    ),
+  );
 }
-
 class _DetailSectionTitle extends StatelessWidget {
   final String title;
   const _DetailSectionTitle({required this.title});
