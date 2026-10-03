@@ -298,6 +298,10 @@ class CommerceService:
             )
 
         db.session.commit()
+        cart = Cart.query.filter_by(customer_id=customer_id).first()
+        if cart is not None:
+            CartItem.query.filter_by(cart_id=cart.id).delete(synchronize_session=False)
+            db.session.commit()
         return CommerceService.serialize_order(order)
 
     @staticmethod
