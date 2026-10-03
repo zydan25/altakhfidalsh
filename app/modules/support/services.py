@@ -91,14 +91,43 @@ class SupportService:
 
 
     @staticmethod
-    def send_message_with_files(conversation_id, sender_type, sender_id, body, files):
+    def send_message_with_files(conversation_id, sender_type, sender_id, body, files, payment_proof=False):
         from ..catalog.services import MediaService
+        from ...models import Order, PaymentProof, PaymentTransaction
+        conversation = db.session.get(Conversation, conversation_id)
+        if conversation is None:
+            raise LookupError("conversation not found")
+        if payment_proof and conversation.order_id is None:
+            raise ValueError("إثبات الدفع يجب أن يكون داخل محادثة مرتبطة بطلب.")
         assets = MediaService.save_generic_files(files, f"conversations/{conversation_id}")
-        return SupportService.send_message(
+        message = SupportService.send_message(
             conversation_id,
             sender_type,
             sender_id,
             body,
-            "attachment",
+            "payment_proof" if payment_proof else "attachment",
             assets,
         )
+        if payment_proof:
+            order = db.session.get(Order, conversation.order_id)
+            tx = (
+                PaymentTransaction.query
+                .filter_by(order_id=order.id, status="pending")
+                .order_by(PaymentTransaction.id.desc())
+                .first()
+            )
+            if tx is None:
+                raise ValueError("اختر طريقة الدفع للطلب أولًا.")
+            proof = PaymentProof(
+                order_id=order.id,
+                transaction_id=tx.id,
+                asset_id=assets[0]["id"],
+                submitted_by=sender_id,
+                status="pending",
+            )
+            db.session.add(proof)
+            order.payment_status = "pending_proof"
+            db.session.commit()
+            message["payment_proof_id"] = proof.id
+            message["payment_proof_status"] = proof.status
+        return message

@@ -62,6 +62,22 @@ def order_detail(order_id):
     return {"item": CommerceService.serialize_order_detail(item)}
 
 
+@api_bp.patch("/orders/<int:order_id>/shipping-fee")
+@admin_api_required("order.manage")
+def set_order_shipping_fee(order_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        amount = payload["amount"]
+        return {"item": CommerceService.set_shipping_override(
+            order_id,
+            amount,
+            payload.get("note"),
+            request.args.get("admin_id", type=int),
+        )}
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "shipping_fee_update_failed", "detail": str(exc)}, 400
+
+
 @api_bp.post("/orders/<int:order_id>/status")
 @admin_api_required("order.manage")
 def transition_order(order_id):
@@ -172,6 +188,7 @@ def shipping_quote():
             method_id=method_id,
         )
         return {"item": {
+            "configured": quote.rate_id is not None,
             "rate_id": quote.rate_id,
             "method_id": quote.method_id,
             "method_name": quote.method_name,
@@ -296,6 +313,57 @@ def my_orders():
     return {"items": [CommerceService.serialize_order(x) for x in rows]}
 
 
+@api_bp.get("/me/wallet")
+@customer_required
+def my_wallet():
+    from ...models import Wallet, Currency
+    customer = current_customer()
+    currency_id = request.args.get("currency_id", type=int)
+    if currency_id is None:
+        from ...services.pricing import resolve_pricing_context
+        try:
+            currency_id = resolve_pricing_context(customer_id=customer.id).currency_id
+        except Exception:
+            currency_id = None
+    wallet = (
+        Wallet.query.filter_by(customer_id=customer.id, currency_id=currency_id, status="active", is_active=True).first()
+        if currency_id
+        else None
+    )
+    currency = db.session.get(Currency, currency_id) if currency_id else None
+    return {"item": {
+        "wallet_id": wallet.id if wallet else None,
+        "currency_id": currency_id,
+        "currency_code": currency.code if currency else None,
+        "currency_symbol": (currency.symbol or currency.code) if currency else None,
+        "balance": str(wallet.balance) if wallet else "0",
+    }}
+
+
+@api_bp.post("/me/orders/<int:order_id>/pay-with-wallet")
+@customer_required
+def customer_order_wallet_payment(order_id):
+    try:
+        return {"item": CommerceService.pay_order_from_wallet(order_id, current_customer().id)}
+    except (ValueError, LookupError) as exc:
+        return {"error": "wallet_payment_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/me/orders/<int:order_id>/feedback")
+@customer_required
+def customer_order_feedback(order_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CommerceService.save_customer_feedback(
+            order_id,
+            current_customer().id,
+            payload.get("rating"),
+            payload.get("feedback"),
+        )}
+    except (ValueError, LookupError) as exc:
+        return {"error": "feedback_failed", "detail": str(exc)}, 400
+
+
 @api_bp.post("/me/orders/<int:order_id>/payment")
 @customer_required
 def customer_order_payment(order_id):
@@ -410,7 +478,14 @@ def upload_my_payment_proof():
     from ..catalog.services import MediaService
     try:
         assets = MediaService.save_generic_files(files[:3], f"payments/{order.id}")
-        tx = PaymentTransaction.query.filter_by(order_id=order.id).order_by(PaymentTransaction.id.desc()).first()
+        tx = (
+            PaymentTransaction.query
+            .filter_by(order_id=order.id, status="pending")
+            .order_by(PaymentTransaction.id.desc())
+            .first()
+        )
+        if tx is None:
+            raise ValueError("اختر طريقة الدفع أولًا قبل رفع إثبات الدفع.")
         rows = []
         for asset in assets:
             row = PaymentShippingService.attach_payment_proof({

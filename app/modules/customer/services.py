@@ -13,6 +13,13 @@ class CustomerService:
             customer.name = (payload["name"] or "").strip() or None
         if "email" in payload:
             customer.email = (payload["email"] or "").strip() or None
+        if "gender" in payload:
+            gender = str(payload.get("gender") or "").strip().lower()
+            if gender not in {"male", "female"}:
+                raise ValueError("اختر الجنس.")
+            customer.gender = gender
+        if "onboarding_completed" in payload:
+            customer.onboarding_completed = bool(payload.get("onboarding_completed"))
         city_id = customer.city_id
         if "city_id" in payload:
             city_id = payload["city_id"] or None
@@ -212,6 +219,9 @@ class CustomerService:
             "phone_normalized": customer.phone_normalized,
             "name": customer.name,
             "email": customer.email,
+            "gender": customer.gender,
+            "onboarding_completed": bool(customer.onboarding_completed),
+            "privacy_accepted": customer.privacy_accepted_at is not None,
             "city_id": customer.city_id,
             "city_area_id": customer.city_area_id,
             "city_name": city.name if city else None,

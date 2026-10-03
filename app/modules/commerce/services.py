@@ -42,6 +42,8 @@ from ...models import (
     ShippingRate,
     StockInventory,
     WarrantyClaim,
+    Wallet,
+    WalletTransaction,
 )
 from ...services.pricing import price_for_customer
 from ...services.shipping import ShippingService
@@ -102,7 +104,8 @@ class CommerceService:
         customer_id = int(payload["customer_id"])
         address_id = int(payload["address_id"])
         requested_currency_id = payload.get("currency_id")
-        payment_method_id = int(payload["payment_method_id"]) if payload.get("payment_method_id") else None
+        # Payment is intentionally selected after the order is created.
+        payment_method_id = None
         shipping_method_id = int(payload["shipping_method_id"]) if payload.get("shipping_method_id") else None
         items = payload.get("items") or []
         if not items:
@@ -116,12 +119,6 @@ class CommerceService:
             raise ValueError("shipping address is invalid")
         if address.city_id is None:
             raise ValueError("shipping address must have a city")
-
-        payment_method = db.session.get(PaymentMethod, payment_method_id) if payment_method_id else None
-        if payment_method is not None and not payment_method.is_active:
-            raise ValueError("طريقة الدفع المحددة غير مفعلة.")
-        if payment_method is None and payment_method_id:
-            raise ValueError("طريقة الدفع المحددة غير موجودة.")
 
         with db.session.begin_nested():
             context, _ = price_for_customer(
@@ -226,7 +223,9 @@ class CommerceService:
                 status="created",
                 payment_status="unpaid",
                 shipping_status="pending",
-                payment_method_id=payment_method_id,
+                payment_method_id=None,
+                shipping_override=None,
+                shipping_override_note=None,
                 customer_note=str(payload.get("customer_note") or payload.get("note") or "").strip()[:4000] or None,
                 shipping_rule_ids_json=list(shipping_quote.applied_rule_ids or []),
             )
@@ -279,19 +278,10 @@ class CommerceService:
                             option_value=option_value,
                         ))
 
-            method_type = str((payment_method.settings_json or {}).get("type") or "manual").strip().lower() if payment_method else ""
-            order.status = "created" if (payment_method and method_type == "cod") else (
-                "awaiting_payment" if payment_method else "created"
-            )
-            if payment_method is not None:
-                db.session.add(PaymentTransaction(
-                    order_id=order.id,
-                    method_id=payment_method.id,
-                    amount=total,
-                    currency_id=context.currency_id,
-                    provider_ref="ORDER-" + order.order_no,
-                    status="cod_pending" if method_type == "cod" else "pending",
-                ))
+            # Customer submission creates a reviewable order.
+            # Admin confirmation moves it to awaiting_payment.
+            order.status = "created"
+            order.payment_status = "unpaid"
             db.session.add(
                 OrderStatusHistory(
                     order_id=order.id,
@@ -304,6 +294,17 @@ class CommerceService:
             )
 
         db.session.commit()
+        conversation = Conversation.query.filter_by(order_id=order.id).first()
+        if conversation is None:
+            db.session.add(Conversation(
+                customer_id=customer_id,
+                order_id=order.id,
+                type="order_support",
+                subject=f"الطلب {order.order_no}",
+                status="open",
+                last_message_at=datetime.now(timezone.utc),
+            ))
+            db.session.commit()
         cart = Cart.query.filter_by(customer_id=customer_id).first()
         if cart is not None:
             CartItem.query.filter_by(cart_id=cart.id).delete(synchronize_session=False)
@@ -583,6 +584,12 @@ class CommerceService:
                 "supports_cod": bool(shipping_method.supports_cod),
             } if shipping_method else None,
             "total": str(order.total),
+            "shipping_override": str(order.shipping_override) if order.shipping_override is not None else None,
+            "shipping_override_note": order.shipping_override_note,
+            "shipping_configured": bool(order.shipping_rate_id or order.shipping_override is not None),
+            "shipping_source": "manual" if order.shipping_override is not None else ("rate" if order.shipping_rate_id else "unconfigured"),
+            "customer_feedback": order.customer_feedback,
+            "customer_rating": order.customer_rating,
             "status": order.status,
             "payment_status": order.payment_status,
             "shipping_status": order.shipping_status,
@@ -607,20 +614,214 @@ class CommerceService:
     @staticmethod
     def record_customer_payment(order_id, customer_id, method_id, amount=None, currency_id=None):
         order = db.session.get(Order, int(order_id))
-        if order is None or order.customer_id != int(customer_id): raise LookupError("order not found")
-        if order.status not in {"created","awaiting_payment"}: raise ValueError("هذا الطلب لم يعد في حالة تسمح بالدفع.")
+        if order is None or order.customer_id != int(customer_id):
+            raise LookupError("order not found")
+        if order.status != "awaiting_payment":
+            raise ValueError("يجب اعتماد الطلب من المتجر أولًا قبل الدفع.")
+        if not (order.shipping_rate_id or order.shipping_override is not None):
+            raise ValueError("لم يتم تحديد رسوم التوصيل لهذا الطلب بعد.")
         method = db.session.get(PaymentMethod, int(method_id))
-        if method is None or not method.is_active: raise ValueError("طريقة الدفع غير متاحة.")
-        amount = Decimal(str(amount if amount not in (None,"") else order.total))
-        if amount <= 0: raise ValueError("مبلغ الدفع غير صحيح.")
+        if method is None or not method.is_active:
+            raise ValueError("طريقة الدفع غير متاحة.")
+        amount = Decimal(str(amount if amount not in (None, "") else order.total))
+        if amount != Decimal(order.total):
+            raise ValueError("يجب دفع إجمالي الطلب كاملًا.")
         currency_id = int(currency_id or order.currency_id)
         settings = dict(method.settings_json or {})
-        if method.supports_cod and settings.get("type") == "cod":
-            order.payment_status = "cod"; order.status = "created"; db.session.commit()
-            return {"order_id": order.id, "status": "cod", "payment_status": order.payment_status}
-        transaction = PaymentTransaction(order_id=order.id, method_id=method.id, amount=amount, currency_id=currency_id, provider_ref="CUSTOMER-"+uuid4().hex[:10].upper(), status="pending")
-        db.session.add(transaction); order.payment_status="pending"; order.status="awaiting_payment"; db.session.commit()
-        return {"order_id":order.id,"transaction_id":transaction.id,"status":"pending","payment_status":order.payment_status,"method":{"id":method.id,"name":method.name,"code":method.code,"settings":settings}}
+        method_type = str(settings.get("type") or method.code).strip().lower()
+        if method.code == "wallet" or method_type == "wallet":
+            return CommerceService.pay_order_from_wallet(order.id, customer_id)
+
+        order.payment_method_id = method.id
+        transaction = (
+            PaymentTransaction.query
+            .filter_by(order_id=order.id, status="pending")
+            .order_by(PaymentTransaction.id.desc())
+            .first()
+        )
+        if transaction is None:
+            transaction = PaymentTransaction(
+                order_id=order.id,
+                method_id=method.id,
+                amount=amount,
+                currency_id=currency_id,
+                provider_ref="CUSTOMER-" + uuid4().hex[:10].upper(),
+                status="cod_pending" if method_type == "cod" else "pending",
+            )
+            db.session.add(transaction)
+        else:
+            transaction.method_id = method.id
+            transaction.amount = amount
+            transaction.currency_id = currency_id
+        if method_type == "cod":
+            order.payment_status = "cod"
+            previous = order.status
+            order.status = "processing"
+            db.session.add(OrderStatusHistory(
+                order_id=order.id,
+                from_status=previous,
+                to_status="processing",
+                actor_type="customer",
+                actor_id=customer_id,
+                note="اختار العميل الدفع عند الاستلام",
+            ))
+            transaction.status = "cod_pending"
+            db.session.commit()
+            return {
+                "order_id": order.id,
+                "transaction_id": transaction.id,
+                "status": "cod",
+                "payment_status": "cod",
+                "order_status": "processing",
+                "method": {
+                    "id": method.id,
+                    "name": method.name,
+                    "code": method.code,
+                    "settings": settings,
+                    "supports_proof": False,
+                },
+            }
+
+        order.payment_status = "pending"
+        order.status = "awaiting_payment"
+        db.session.commit()
+        return {
+            "order_id": order.id,
+            "transaction_id": transaction.id,
+            "status": transaction.status,
+            "payment_status": order.payment_status,
+            "method": {
+                "id": method.id,
+                "name": method.name,
+                "code": method.code,
+                "settings": settings,
+                "supports_proof": bool(method.supports_proof),
+            },
+        }
+
+    @staticmethod
+    def pay_order_from_wallet(order_id, customer_id):
+        order = db.session.get(Order, int(order_id))
+        if order is None or order.customer_id != int(customer_id):
+            raise LookupError("order not found")
+        if order.status != "awaiting_payment":
+            raise ValueError("يجب اعتماد الطلب من المتجر أولًا قبل الدفع.")
+        if not (order.shipping_rate_id or order.shipping_override is not None):
+            raise ValueError("لم يتم تحديد رسوم التوصيل لهذا الطلب بعد.")
+        from ...models import Currency
+        currency = db.session.get(Currency, order.currency_id)
+        if currency is None:
+            raise LookupError("عملة الطلب غير موجودة.")
+        wallet = (
+            Wallet.query
+            .filter_by(customer_id=customer_id, currency_id=order.currency_id, status="active", is_active=True)
+            .with_for_update()
+            .first()
+        )
+        if wallet is None or Decimal(wallet.balance) < Decimal(order.total):
+            raise ValueError("رصيدك غير كافٍ لإتمام الدفع.")
+        method = PaymentMethod.query.filter_by(code="wallet").first()
+        if method is None:
+            method = PaymentMethod(
+                name="الدفع من الرصيد",
+                code="wallet",
+                provider="internal_wallet",
+                supports_proof=False,
+                settings_json={"type": "wallet"},
+            )
+            db.session.add(method)
+            db.session.flush()
+
+        wallet.balance = Decimal(wallet.balance) - Decimal(order.total)
+        db.session.add(WalletTransaction(
+            wallet_id=wallet.id,
+            type="order_payment",
+            amount=-Decimal(order.total),
+            currency_id=order.currency_id,
+            reference_type="order",
+            reference_id=order.id,
+            balance_after=wallet.balance,
+        ))
+        tx = PaymentTransaction(
+            order_id=order.id,
+            method_id=method.id,
+            amount=Decimal(order.total),
+            currency_id=order.currency_id,
+            provider_ref="WALLET-" + uuid4().hex[:10].upper(),
+            status="paid",
+            paid_at=datetime.now(timezone.utc),
+        )
+        db.session.add(tx)
+        order.payment_method_id = method.id
+        order.payment_status = "paid"
+        previous = order.status
+        order.status = "processing"
+        db.session.add(OrderStatusHistory(
+            order_id=order.id,
+            from_status=previous,
+            to_status="processing",
+            actor_type="customer",
+            actor_id=customer_id,
+            note="Paid from customer wallet",
+        ))
+        db.session.commit()
+        return {
+            "order_id": order.id,
+            "transaction_id": tx.id,
+            "status": "paid",
+            "payment_status": "paid",
+            "order_status": "processing",
+            "wallet_balance": str(wallet.balance),
+        }
+
+    @staticmethod
+    def set_shipping_override(order_id, amount, note=None, actor_id=None):
+        order = db.session.get(Order, int(order_id))
+        if order is None:
+            raise LookupError("order not found")
+        if order.status in {"shipped", "delivered", "returned", "cancelled"}:
+            raise ValueError("لا يمكن تعديل رسوم الشحن بعد بدء التسليم.")
+        value = Decimal(str(amount))
+        if value < 0:
+            raise ValueError("رسوم الشحن لا يمكن أن تكون سالبة.")
+        order.shipping_override = value
+        order.shipping_override_note = (str(note or "").strip()[:1000] or None)
+        order.shipping = value
+        order.shipping_base_sar = (
+            value / Decimal(order.fx_rate) if Decimal(order.fx_rate or 0) != 0 else value
+        )
+        order.total = Decimal(order.subtotal) - Decimal(order.discount or 0) + value
+        db.session.add(OrderStatusHistory(
+            order_id=order.id,
+            from_status=order.status,
+            to_status=order.status,
+            actor_type="admin",
+            actor_id=actor_id,
+            note="تعيين/تعديل رسوم التوصيل يدويًا",
+        ))
+        db.session.commit()
+        return CommerceService.serialize_order_detail(order)
+
+    @staticmethod
+    def save_customer_feedback(order_id, customer_id, rating=None, feedback=None):
+        order = db.session.get(Order, int(order_id))
+        if order is None or order.customer_id != int(customer_id):
+            raise LookupError("order not found")
+        if order.status != "delivered":
+            raise ValueError("يمكن تقييم الطلب بعد تسليمه.")
+        if rating not in (None, ""):
+            rating = int(rating)
+            if rating < 1 or rating > 5:
+                raise ValueError("التقييم من 1 إلى 5.")
+            order.customer_rating = rating
+        if feedback is not None:
+            order.customer_feedback = str(feedback).strip()[:4000] or None
+        db.session.commit()
+        return {
+            "order_id": order.id,
+            "rating": order.customer_rating,
+            "feedback": order.customer_feedback,
+        }
 
     @staticmethod
     def update_pending_order(order_id, customer_id, payload):
@@ -675,8 +876,8 @@ class CommerceService:
         order = db.session.get(Order, int(order_id))
         if order is None or order.customer_id != int(customer_id):
             raise LookupError("order not found")
-        if order.status not in {"created", "awaiting_payment"}:
-            raise ValueError("لا يمكن تعديل الطلب بعد اعتماده أو بدء تنفيذه.")
+        if order.status != "created":
+            raise ValueError("يمكن تعديل الطلب من قبل العميل قبل تأكيد المتجر فقط.")
         items = payload.get("items") or []
         if not items:
             raise ValueError("يجب أن يحتوي الطلب على منتج واحد على الأقل.")
@@ -847,6 +1048,8 @@ class CommerceService:
             order.shipping_rate_id = shipping_quote.rate_id
             order.shipping_rule_ids_json = list(shipping_quote.applied_rule_ids or [])
             order.total = subtotal + shipping_quote.price_display
+            order.shipping_override = None
+            order.shipping_override_note = None
             if "customer_note" in payload:
                 order.customer_note = str(payload.get("customer_note") or "").strip()[:4000] or None
 
@@ -890,18 +1093,116 @@ class CommerceService:
             raise ValueError("illegal status transition")
 
         previous = order.status
-        order.status = to_status
-        db.session.add(
-            OrderStatusHistory(
+        if to_status == "awaiting_payment":
+            order.payment_status = "unpaid"
+            if order.shipping_override is None and not order.shipping_rate_id:
+                item_rows = OrderItem.query.filter_by(order_id=order.id).all()
+                subtotal_sar = sum(
+                    (Decimal(item.base_price_sar or 0) * int(item.qty or 0))
+                    for item in item_rows
+                )
+                address = (order.address_snapshot or {})
+                quote = CommerceService._resolve_shipping(
+                    order.customer_id,
+                    order.city_id or address.get("city_id"),
+                    address.get("city_area_id"),
+                    subtotal_sar,
+                    Decimal(order.fx_rate or 1),
+                    None,
+                )
+                if quote.rate_id is not None:
+                    order.shipping = quote.price_display
+                    order.shipping_base_sar = quote.price_sar
+                    order.shipping_rate_id = quote.rate_id
+                    order.shipping_rule_ids_json = list(quote.applied_rule_ids or [])
+                    order.total = Decimal(order.subtotal) - Decimal(order.discount or 0) + quote.price_display
+        with db.session.begin_nested():
+            items = OrderItem.query.filter_by(order_id=order.id).all()
+            if to_status == "cancelled":
+                for item in items:
+                    if not item.variant_id:
+                        continue
+                    stocks = StockInventory.query.filter_by(
+                        variant_id=item.variant_id,
+                    ).with_for_update().all()
+                    remaining = int(item.qty or 0)
+                    for stock in stocks:
+                        released = min(remaining, int(stock.reserved or 0))
+                        if released:
+                            stock.reserved = int(stock.reserved or 0) - released
+                            stock.available = int(stock.on_hand or 0) - int(stock.reserved or 0)
+                            remaining -= released
+                        if remaining <= 0:
+                            break
+            elif to_status == "shipped":
+                for item in items:
+                    if not item.variant_id:
+                        continue
+                    stock = None
+                    if item.stock_location_id:
+                        stock = StockInventory.query.filter_by(
+                            variant_id=item.variant_id,
+                            location_id=item.stock_location_id,
+                        ).with_for_update().first()
+                    if stock is None:
+                        stock = StockInventory.query.filter_by(
+                            variant_id=item.variant_id,
+                        ).order_by(StockInventory.reserved.desc(), StockInventory.id.desc()).with_for_update().first()
+                    if stock is None:
+                        raise ValueError("مخزون عنصر الطلب غير موجود.")
+                    qty = int(item.qty or 0)
+                    if int(stock.reserved or 0) < qty or int(stock.on_hand or 0) < qty:
+                        raise ValueError("لا يمكن شحن كمية غير محجوزة من المخزون.")
+                    stock.reserved = int(stock.reserved or 0) - qty
+                    stock.on_hand = int(stock.on_hand or 0) - qty
+                    stock.available = int(stock.on_hand or 0) - int(stock.reserved or 0)
+
+            order.status = to_status
+            db.session.add(OrderStatusHistory(
                 order_id=order.id,
                 from_status=previous,
                 to_status=to_status,
                 actor_type=actor_type,
                 actor_id=actor_id,
                 note=note,
-            )
-        )
+            ))
         db.session.commit()
+
+        message_by_status = {
+            "awaiting_payment": (
+                "تم تأكيد طلبك من المتجر. أصبح الطلب بانتظار الدفع ويمكنك اختيار طريقة الدفع من صفحة الطلب."
+                if order.shipping_rate_id or order.shipping_override is not None
+                else "تم تأكيد طلبك من المتجر، لكن رسوم التوصيل لم تُحدد بعد. سيحدث الدفع بعد تحديدها."
+            ),
+            "processing": "بدأ المتجر تجهيز طلبك.",
+            "shipped": "تم شحن طلبك وبدأت رحلة التوصيل.",
+            "delivered": "تم تسليم طلبك بنجاح. شكرًا لاختيار التخفيض الصح.",
+            "cancelled": "تم إلغاء الطلب. يمكنك التواصل مع خدمة العملاء عند الحاجة.",
+            "returned": "تم تسجيل إرجاع الطلب.",
+        }
+        message = message_by_status.get(to_status)
+        if message:
+            conversation = Conversation.query.filter_by(order_id=order.id).order_by(Conversation.id.desc()).first()
+            if conversation is None:
+                conversation = Conversation(
+                    customer_id=order.customer_id,
+                    order_id=order.id,
+                    type="order_support",
+                    subject="الطلب " + order.order_no,
+                    status="open",
+                )
+                db.session.add(conversation)
+                db.session.flush()
+            db.session.add(Message(
+                conversation_id=conversation.id,
+                sender_type="admin",
+                sender_id=int(actor_id or 0),
+                message_type="text",
+                body=message,
+            ))
+            conversation.last_message_at = db.func.now()
+            db.session.commit()
+
         return CommerceService.serialize_order(order)
 
     @staticmethod

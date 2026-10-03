@@ -14,6 +14,59 @@ def _authorized_customer_id():
     return customer.id if customer else None
 
 
+@api_bp.post("/auth/check-phone")
+def check_phone():
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CustomerAuthService.check_phone(payload.get("phone"))}
+    except ValueError as exc:
+        return {"error": "phone_check_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/auth/password/login")
+def password_login():
+    payload = request.get_json(silent=True) or {}
+    try:
+        result = CustomerAuthService.password_login(
+            payload.get("phone"), payload.get("password"), payload.get("device_id") or "flutter-client"
+        )
+        return {"item": result}
+    except ValueError as exc:
+        return {"error": "password_login_failed", "detail": str(exc)}, 401
+
+
+@api_bp.post("/me/password")
+@customer_required
+def set_my_password():
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CustomerAuthService.set_password(current_customer().id, payload.get("new_password"))}
+    except (ValueError, LookupError) as exc:
+        return {"error": "password_update_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/auth/password/request-reset")
+def request_password_reset():
+    payload = request.get_json(silent=True) or {}
+    try:
+        result = CustomerAuthService.request_otp(payload.get("phone"), "password_reset")
+        return {"item": result}
+    except ValueError as exc:
+        return {"error": "password_reset_request_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/auth/password/reset")
+def reset_password():
+    payload = request.get_json(silent=True) or {}
+    try:
+        result = CustomerAuthService.reset_password(
+            payload.get("otp_request_id"), payload.get("code"), payload.get("new_password")
+        )
+        return {"item": result}
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "password_reset_failed", "detail": str(exc)}, 400
+
+
 @api_bp.post("/auth/request-otp")
 def request_otp():
     payload = request.get_json(silent=True) or {}
@@ -37,6 +90,7 @@ def verify_otp():
             str(payload["code"]),
             payload.get("device_id"),
             phone=payload.get("phone"),
+            registration=payload.get("registration"),
         )
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "otp_verification_failed", "detail": str(exc)}, 400
@@ -69,6 +123,16 @@ def logout():
 @customer_required
 def me():
     return {"item": CustomerService.serialize(current_customer())}
+
+
+@api_bp.post("/me/privacy-acceptance")
+@customer_required
+def accept_privacy():
+    customer = current_customer()
+    customer.privacy_accepted_at = db.func.now()
+    customer.privacy_policy_version = CustomerAuthService.PRIVACY_POLICY_VERSION
+    db.session.commit()
+    return {"item": {"accepted": True, "version": customer.privacy_policy_version}}
 
 
 @api_bp.patch("/me")

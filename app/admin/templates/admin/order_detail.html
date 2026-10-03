@@ -39,6 +39,29 @@
   </article>
 
   <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">إدارة قبل التنفيذ</span><h3>تعديل المحتوى ورسوم التوصيل</h3></div></div>
+    {% if order.status in ["created","awaiting_payment"] %}
+    <form method="post" class="form-stack">
+      <input type="hidden" name="action" value="edit">
+      {% for item in order.items %}
+      <label>الكمية — {{ item.name }} / {{ item.sku }}
+        <input name="qty_{{ item.id }}" type="number" min="0" value="{{ item.qty }}">
+      </label>
+      {% endfor %}
+      <label>ملاحظة الطلب<textarea name="customer_note" rows="2">{{ order.customer_note or "" }}</textarea></label>
+      <button class="primary-button">حفظ التعديل وإعادة الحساب</button>
+    </form>
+    <form method="post" class="form-stack" style="margin-top:10px">
+      <input type="hidden" name="action" value="shipping_fee">
+      <label>رسوم التوصيل النهائية <input name="shipping_fee" type="number" min="0" step="0.01" value="{{ order.shipping }}"></label>
+      <label>ملاحظة الرسوم<textarea name="shipping_note" rows="2">{{ order.shipping_override_note or "" }}</textarea></label>
+      <button class="ghost-button">تعيين/تحديث رسوم التوصيل</button>
+    </form>
+    {% else %}
+      <span class="muted">التعديل متاح فقط قبل بدء التنفيذ.</span>
+    {% endif %}
+  </article>
+  <article class="panel">
     <div class="panel-heading"><div><span class="eyebrow">إدارة الحالة</span><h3>تشغيل الطلب</h3></div></div>
     <form method="post" class="form-stack">
       <input type="hidden" name="action" value="status">

@@ -1,0 +1,35 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<div class="split-heading"><div><h2>رسوم التوصيل وقواعدها</h2><p class="muted">اربط الرسوم بالعميل أو المدينة أو المنطقة، مع إمكانية وضع قاعدة عامة.</p></div></div>
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+<section class="panel" style="margin-top:12px">
+<form method="post" class="form-stack">
+<input type="hidden" name="action" value="create">
+<div class="form-grid">
+<label>طريقة الشحن<select name="method_id" required>{% for x in methods %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+<label>العميل (اختياري)<select name="customer_id"><option value="">كل العملاء</option>{% for x in customers %}<option value="{{ x.id }}">{{ x.name or x.phone_normalized }}</option>{% endfor %}</select></label>
+<label>المنطقة الإدارية<select name="region_id"><option value="">—</option>{% for x in regions %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+<label>المدينة<select name="city_id"><option value="">—</option>{% for x in cities %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+<label>منطقة المدينة<select name="city_area_id"><option value="">—</option>{% for x in areas %}<option value="{{ x.id }}">{{ x.name }}</option>{% endfor %}</select></label>
+<label>الرسوم SAR<input name="price_sar" type="number" min="0" step="0.01" required></label>
+<label>الحد الأدنى SAR<input name="min_order_sar" type="number" min="0" step="0.01"></label>
+<label>مجاني فوق SAR<input name="free_over_sar" type="number" min="0" step="0.01"></label>
+<label>الأولوية<input name="priority" type="number" value="0"></label>
+</div>
+<button class="primary-button">إضافة قاعدة رسوم</button>
+</form>
+</section>
+<section class="panel" style="margin-top:12px">
+<div class="panel-heading"><div><span class="eyebrow">القواعد المفعلة</span><h3>{{ rows|length }}</h3></div></div>
+<div class="stack-list">
+{% for row in rows %}
+<div class="stack-row">
+<strong>#{{ row.id }} · {{ row.price_sar }} SAR</strong>
+<span>طريقة #{{ row.method_id }} · العميل {{ row.customer_id or "الجميع" }} · النطاق {{ row.city_area_id or row.city_id or row.region_id or "عام" }} · أولوية {{ row.priority }}</span>
+<form method="post"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button">أرشفة</button></form>
+</div>
+{% else %}<span class="muted">لا توجد قواعد رسوم مفعلة.</span>{% endfor %}
+</div>
+</section>
+{% endblock %}

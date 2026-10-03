@@ -235,6 +235,38 @@ def register_entity_views(admin_bp):
                         note=(request.form.get("note") or "").strip() or None,
                     )
                     success = "تم تحديث حالة الطلب."
+                elif action == "edit":
+                    if order.status != "created":
+                        raise ValueError("لا يمكن تعديل الطلب بعد تأكيده.")
+                    from ..models import OrderItem, OrderItemOption
+                    items = []
+                    for item in OrderItem.query.filter_by(order_id=order.id).order_by(OrderItem.id).all():
+                        qty = request.form.get("qty_%s" % item.id, type=int)
+                        if qty is None:
+                            qty = item.qty
+                        if qty > 0:
+                            options = {}
+                            for option in OrderItemOption.query.filter_by(order_item_id=item.id).all():
+                                options[option.option_name] = option.option_value
+                            items.append({"variant_id": item.variant_id, "qty": qty, "selected_options": options})
+                    CommerceService.update_customer_order(
+                        order.customer_id,
+                        order.id,
+                        {
+                            "address_id": (order.address_snapshot or {}).get("id"),
+                            "items": items,
+                            "customer_note": request.form.get("customer_note"),
+                        },
+                    )
+                    success = "تم تحديث محتويات الطلب وإعادة احتساب السعر."
+                elif action == "shipping_fee":
+                    CommerceService.set_shipping_override(
+                        order.id,
+                        request.form.get("shipping_fee"),
+                        request.form.get("shipping_note"),
+                        session.get("admin_id"),
+                    )
+                    success = "تم تعيين رسوم التوصيل يدويًا لهذا الطلب."
                 elif action == "message":
                     conversation = Conversation.query.filter_by(order_id=order.id).order_by(Conversation.id.desc()).first()
                     if conversation is None:
@@ -312,7 +344,25 @@ def register_entity_views(admin_bp):
                     tx=db.session.get(PaymentTransaction,proof.transaction_id) if proof.transaction_id else None
                     if tx: tx.status="paid"; tx.paid_at=db.func.now()
                     order=db.session.get(Order,proof.order_id)
-                    if order: order.payment_status="paid"; order.status="paid" if order.status in {"created","awaiting_payment"} else order.status
+                    if order:
+                        order.payment_status="paid"
+                        if order.status in {"created","awaiting_payment","paid"}:
+                            previous=order.status
+                            order.status="processing"
+                            db.session.add(__import__("app.models", fromlist=["OrderStatusHistory"]).OrderStatusHistory(
+                                order_id=order.id,
+                                from_status=previous,
+                                to_status="processing",
+                                actor_type="admin",
+                                actor_id=session.get("admin_id"),
+                                note="تم اعتماد إثبات الدفع",
+                            ))
+                            conversation=Conversation.query.filter_by(order_id=order.id).order_by(Conversation.id.desc()).first()
+                            if conversation is None:
+                                conversation=Conversation(customer_id=order.customer_id,order_id=order.id,type="order_support",subject="الطلب %s" % order.order_no,status="open")
+                                db.session.add(conversation)
+                                db.session.flush()
+                            SupportService.send_message(conversation.id,"admin",session.get("admin_id") or 0,"تم تأكيد الدفع وبدأ تجهيز الطلب.","text")
                     success="تم اعتماد إثبات الدفع."
                 elif action=="proof_reject":
                     proof=db.session.get(PaymentProof,request.form.get("proof_id",type=int))
