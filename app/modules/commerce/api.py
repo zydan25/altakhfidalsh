@@ -148,6 +148,7 @@ def shipping_quote():
         city_id = int(payload["city_id"]) if payload.get("city_id") else customer.city_id
         area_id = int(payload["city_area_id"]) if payload.get("city_area_id") else customer.city_area_id
         currency_id = int(payload["currency_id"]) if payload.get("currency_id") else None
+        method_id = int(payload["shipping_method_id"]) if payload.get("shipping_method_id") else None
         subtotal_sar = Decimal(str(payload.get("subtotal_sar", "0")))
         if subtotal_sar < 0:
             raise ValueError("subtotal_sar cannot be negative")
@@ -168,6 +169,7 @@ def shipping_quote():
             subtotal_sar=subtotal_sar,
             currency_id=currency_id,
             fx_rate=fx,
+            method_id=method_id,
         )
         return {"item": {
             "rate_id": quote.rate_id,
