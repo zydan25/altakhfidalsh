@@ -11886,9 +11886,11 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
             (next.isNotEmpty && messages.isNotEmpty &&
                 sxInt(next.last['id']) != sxInt(messages.last['id']));
         setState((){messages=next;loading=false;});
-        await api.markConversationRead(widget.conversationId);
-        await refreshNotificationBadge();
-        if (hadNewMessage || !silent) _scrollToBottom();
+        if (hadNewMessage || !silent) {
+          await api.markConversationRead(widget.conversationId);
+          await refreshNotificationBadge();
+          _scrollToBottom();
+        }
       }
     }catch(e){
       if(mounted && !silent)setState(()=>loading=false);
