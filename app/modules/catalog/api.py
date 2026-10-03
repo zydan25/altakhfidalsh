@@ -982,7 +982,9 @@ def create_draft_product():
 @api_bp.get("/products/<int:product_id>")
 def product_detail(product_id):
     try:
-        return {"item": CatalogService.get_product(product_id)}
+        from ..customer.security import current_customer
+        customer = current_customer()
+        return {"item": CatalogService.get_product(product_id, customer_id=customer.id if customer else None, currency_id=request.args.get("currency_id",type=int))}
     except LookupError as exc:
         return {"error": "not_found", "detail": str(exc)}, 404
 

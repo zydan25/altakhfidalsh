@@ -9,7 +9,7 @@ from .services import CommerceService
 from ...services.pricing import resolve_exchange_rate
 from ...services.shipping import ShippingService
 from ...extensions import db
-from ...models import Order
+from ...models import Order, PaymentTransaction, PaymentProof
 
 
 @api_bp.get("/orders")
@@ -101,7 +101,7 @@ from .payment_shipping import PaymentShippingService
 def payment_methods():
     from ...models import PaymentMethod
     rows = PaymentMethod.query.filter_by(is_active=True).order_by(PaymentMethod.id).all()
-    return {"items": [{"id": x.id, "name": x.name, "code": x.code, "provider": x.provider, "supports_proof": x.supports_proof} for x in rows]}
+    return {"items": [{"id": x.id, "name": x.name, "code": x.code, "provider": x.provider, "supports_proof": x.supports_proof, "settings": dict(x.settings_json or {})} for x in rows]}
 
 
 @api_bp.post("/payment-methods")
@@ -272,6 +272,36 @@ def my_orders():
     rows = Order.query.filter_by(customer_id=current_customer().id).order_by(Order.id.desc()).limit(200).all()
     return {"items": [CommerceService.serialize_order(x) for x in rows]}
 
+
+@api_bp.post("/me/orders/<int:order_id>/payment")
+@customer_required
+def customer_order_payment(order_id):
+    payload=request.get_json(silent=True) or {}
+    try:
+        return {"item": CommerceService.record_customer_payment(order_id,current_customer().id,int(payload["method_id"]),payload.get("amount"),payload.get("currency_id"))}
+    except (KeyError,ValueError,LookupError) as exc: return {"error":"payment_failed","detail":str(exc)},400
+
+@api_bp.post("/me/orders/<int:order_id>/payment-proof")
+@customer_required
+def customer_order_payment_proof(order_id):
+    order=db.session.get(Order,order_id)
+    if order is None or order.customer_id!=current_customer().id: return {"error":"not_found"},404
+    files=request.files.getlist("files")
+    if not files: return {"error":"payment_proof_missing","detail":"ارفع صورة إثبات الدفع."},400
+    try:
+        from ..catalog.services import MediaService
+        assets=MediaService.save_generic_files(files[:3],f"payment-proofs/{order.id}")
+        tx=PaymentTransaction.query.filter(PaymentTransaction.order_id==order.id,PaymentTransaction.status=="pending").order_by(PaymentTransaction.id.desc()).first()
+        proof=PaymentProof(order_id=order.id,transaction_id=tx.id if tx else None,asset_id=assets[0]["id"],submitted_by=current_customer().id,status="pending")
+        db.session.add(proof); db.session.commit()
+        return {"item":{"id":proof.id,"status":proof.status,"url":assets[0]["url"]}},201
+    except (ValueError,LookupError) as exc: db.session.rollback(); return {"error":"payment_proof_failed","detail":str(exc)},400
+
+@api_bp.patch("/me/orders/<int:order_id>")
+@customer_required
+def update_my_order(order_id):
+    try: return {"item": CommerceService.update_pending_order(order_id,current_customer().id,request.get_json(silent=True) or {})}
+    except (KeyError,ValueError,LookupError) as exc: return {"error":"order_update_failed","detail":str(exc)},400
 
 @api_bp.get("/me/orders/<int:order_id>")
 @customer_required

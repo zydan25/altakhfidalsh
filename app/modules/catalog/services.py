@@ -1079,7 +1079,7 @@ class CatalogService:
         return CatalogService._serialize_product(product)
 
     @staticmethod
-    def get_product(product_id):
+    def get_product(product_id, customer_id=None, currency_id=None):
         product = db.session.get(Product, product_id)
         if not product:
             raise LookupError("product not found")
@@ -1093,8 +1093,30 @@ class CatalogService:
             "id": brand.id,
             "name": brand.name,
         } if brand else None
-        # The detail endpoint intentionally returns the base SAR values; the
-        # storefront feed remains responsible for customer/city/currency pricing.
+        # Resolve the exact customer-facing price for the detail screen when available.
+        if customer_id:
+            from ...models import Customer
+            customer = db.session.get(Customer, int(customer_id))
+            if customer:
+                try:
+                    ctx, price = price_for_customer(
+                        base_price_sar=Decimal(product.base_price),
+                        customer_id=customer.id,
+                        city_id=customer.city_id,
+                        currency_id=int(currency_id) if currency_id else None,
+                    )
+                    currency = db.session.get(Currency, ctx.currency_id)
+                    snapshot["product"]["display_price"] = str(price.final)
+                    snapshot["product"]["display_compare_price"] = (
+                        str(Decimal(product.compare_at_price) * price.fx_rate)
+                        if product.compare_at_price is not None else None
+                    )
+                    snapshot["product"]["display_currency"] = {
+                        "id": ctx.currency_id, "code": ctx.currency_code,
+                        "symbol": currency.symbol if currency else ctx.currency_code,
+                    }
+                except Exception:
+                    pass
         snapshot["product"]["short_description"] = product.description or ""
         return snapshot
 
@@ -2917,7 +2939,7 @@ class CatalogService:
             merged["brand_position"] = defaults["brand_position"]
         allowed_badge_positions = {
             "top_left", "top_right", "bottom_left", "bottom_right",
-            "above_image", "before_name", "after_name", "right_of_image", "below_price",
+            "above_image", "before_name", "before_name_new_row", "before_name_same_row", "after_name", "after_name_new_row", "after_name_same_row", "after_price", "after_details", "first", "last", "right_of_image", "below_price",
         }
         if merged["product_badge_position"] not in allowed_badge_positions:
             merged["product_badge_position"] = defaults["product_badge_position"]

@@ -4,7 +4,7 @@ from . import api_bp
 from ..customer.security import customer_required, current_customer
 from .services import SupportService
 from ...extensions import db
-from ...models import Conversation, Message
+from ...models import Conversation, Message, MessageAttachment, MediaAsset
 
 
 @api_bp.post("/conversations")
@@ -57,6 +57,10 @@ def messages(conversation_id):
             "message_type": x.message_type,
             "body": x.body,
             "created_at": x.created_at.isoformat(),
+            "attachments": [
+                {"id": a.id, "asset_id": a.asset_id, "url": (db.session.get(MediaAsset,a.asset_id).url if db.session.get(MediaAsset,a.asset_id) else None), "mime_type": a.mime_type}
+                for a in MessageAttachment.query.filter_by(message_id=x.id).order_by(MessageAttachment.sort_order, MessageAttachment.id).all()
+            ],
         }
         for x in rows
     ]}

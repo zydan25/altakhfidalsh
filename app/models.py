@@ -1318,6 +1318,8 @@ class Order(TimestampMixin, db.Model):
     status = db.Column(String(40), nullable=False, default="created")
     payment_status = db.Column(String(40), nullable=False, default="unpaid")
     shipping_status = db.Column(String(40), nullable=False, default="pending")
+    customer_note = db.Column(Text)
+    shipping_rule_ids_json = db.Column(db.JSON, nullable=False, default=list, server_default="[]"
 
 
 class OrderItem(TimestampMixin, db.Model):
@@ -1390,6 +1392,7 @@ class PaymentMethod(TimestampMixin, ActiveMixin, db.Model):
     code = db.Column(String(60), nullable=False, unique=True)
     provider = db.Column(String(80))
     supports_proof = db.Column(Boolean, nullable=False, default=False)
+    settings_json = db.Column(db.JSON, nullable=False, default=dict, server_default="{}")
 
 
 class PaymentTransaction(TimestampMixin, db.Model):

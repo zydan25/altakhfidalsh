@@ -215,6 +215,8 @@ class CommerceService:
                 status="created",
                 payment_status="unpaid",
                 shipping_status="pending",
+                customer_note=str(payload.get("customer_note") or payload.get("note") or "").strip()[:4000] or None,
+                shipping_rule_ids_json=list(shipping_quote.applied_rule_ids or []),
             )
             db.session.add(order)
             db.session.flush()
@@ -332,6 +334,10 @@ class CommerceService:
                     {"name": option.option_name, "value": option.option_value}
                     for option in OrderItemOption.query.filter_by(order_item_id=item.id).order_by(OrderItemOption.id).all()
                 ],
+                "selected_options": {
+                    option.option_name: option.option_value
+                    for option in OrderItemOption.query.filter_by(order_item_id=item.id).order_by(OrderItemOption.id).all()
+                },
             })
 
         data["status_history"] = [
@@ -533,6 +539,8 @@ class CommerceService:
             "discount": str(order.discount),
             "shipping": str(order.shipping),
             "shipping_base_sar": str(order.shipping_base_sar),
+            "customer_note": order.customer_note,
+            "shipping_rule_ids": list(order.shipping_rule_ids_json or []),
             "shipping_rate_id": order.shipping_rate_id,
             "total": str(order.total),
             "status": order.status,
@@ -540,10 +548,77 @@ class CommerceService:
             "shipping_status": order.shipping_status,
             "item_count": sum(int(x.qty or 0) for x in order_items),
             "items_preview": previews,
+            "customer_note": order.customer_note,
             "created_at": order.created_at.isoformat() if order.created_at else None,
             "updated_at": order.updated_at.isoformat() if order.updated_at else None,
             "address_snapshot": order.address_snapshot,
         }
+
+    @staticmethod
+    def record_customer_payment(order_id, customer_id, method_id, amount=None, currency_id=None):
+        order = db.session.get(Order, int(order_id))
+        if order is None or order.customer_id != int(customer_id): raise LookupError("order not found")
+        if order.status not in {"created","awaiting_payment"}: raise ValueError("هذا الطلب لم يعد في حالة تسمح بالدفع.")
+        method = db.session.get(PaymentMethod, int(method_id))
+        if method is None or not method.is_active: raise ValueError("طريقة الدفع غير متاحة.")
+        amount = Decimal(str(amount if amount not in (None,"") else order.total))
+        if amount <= 0: raise ValueError("مبلغ الدفع غير صحيح.")
+        currency_id = int(currency_id or order.currency_id)
+        settings = dict(method.settings_json or {})
+        if method.supports_cod and settings.get("type") == "cod":
+            order.payment_status = "cod"; order.status = "created"; db.session.commit()
+            return {"order_id": order.id, "status": "cod", "payment_status": order.payment_status}
+        transaction = PaymentTransaction(order_id=order.id, method_id=method.id, amount=amount, currency_id=currency_id, provider_ref="CUSTOMER-"+uuid4().hex[:10].upper(), status="pending")
+        db.session.add(transaction); order.payment_status="pending"; order.status="awaiting_payment"; db.session.commit()
+        return {"order_id":order.id,"transaction_id":transaction.id,"status":"pending","payment_status":order.payment_status,"method":{"id":method.id,"name":method.name,"code":method.code,"settings":settings}}
+
+    @staticmethod
+    def update_pending_order(order_id, customer_id, payload):
+        order=db.session.get(Order,int(order_id))
+        if order is None or order.customer_id != int(customer_id): raise LookupError("order not found")
+        if order.status not in {"created","awaiting_payment"}: raise ValueError("لا يمكن تعديل الطلب بعد تأكيده أو بدء معالجته.")
+        address_id=payload.get("address_id")
+        if address_id:
+            address=db.session.get(CustomerAddress,int(address_id))
+            if address is None or address.customer_id!=order.customer_id or not address.is_active: raise ValueError("عنوان التوصيل غير صالح.")
+        else:
+            address=db.session.get(CustomerAddress,(order.address_snapshot or {}).get("id"))
+        if address is None: raise ValueError("تعذر تحديد عنوان الطلب.")
+        raw_items=payload.get("items") or []
+        if not raw_items: raise ValueError("الطلب يجب أن يحتوي على منتج واحد على الأقل.")
+        requested=[]
+        for raw in raw_items:
+            item=db.session.get(OrderItem,int(raw.get("order_item_id") or raw.get("id") or 0))
+            if item is None or item.order_id!=order.id: raise ValueError("عنصر الطلب غير صالح.")
+            qty=int(raw.get("qty",item.qty))
+            if qty<1: raise ValueError("الكمية يجب أن تكون 1 أو أكثر.")
+            requested.append((item,qty,raw.get("selected_options") or raw.get("options") or {}))
+        for item,new_qty,_ in requested:
+            delta=new_qty-int(item.qty)
+            if delta>0:
+                rows=(StockInventory.query.join(InventoryLocation,InventoryLocation.id==StockInventory.location_id).filter(StockInventory.variant_id==item.variant_id,StockInventory.available>=delta,InventoryLocation.is_active.is_(True)).with_for_update().order_by(InventoryLocation.city_id.isnot(address.city_id),StockInventory.available.desc()).all())
+                if not rows: raise ValueError("الكمية المطلوبة غير متوفرة.")
+                rows[0].reserved+=delta; rows[0].available=rows[0].on_hand-rows[0].reserved
+            elif delta<0:
+                remaining=-delta
+                for stock in StockInventory.query.filter_by(variant_id=item.variant_id).with_for_update().all():
+                    release=min(remaining,int(stock.reserved or 0))
+                    if release: stock.reserved-=release; stock.available=stock.on_hand-stock.reserved; remaining-=release
+                    if remaining<=0: break
+        by_id={x.id:(q,o) for x,q,o in requested}
+        currency_id=int(payload.get("currency_id") or order.currency_id); subtotal=Decimal("0"); subtotal_sar=Decimal("0"); last_price=None; last_context=None
+        for item in OrderItem.query.filter_by(order_id=order.id).order_by(OrderItem.id).all():
+            qty,opts=by_id.get(item.id,(item.qty,None)); product=db.session.get(Product,item.product_id)
+            ctx,price=price_for_customer(base_price_sar=Decimal(product.base_price),customer_id=order.customer_id,city_id=address.city_id,currency_id=currency_id); last_price=price; last_context=ctx
+            item.qty=qty; item.base_price_sar=price.base_sar; item.fx_rate=price.fx_rate; item.markup_percent=ctx.override_percent if ctx.override_percent is not None else ctx.rule.percent_markup; item.markup_fixed=ctx.override_fixed if ctx.override_fixed is not None else ctx.rule.fixed_markup; item.sale_price_display=price.final; item.total=price.final*qty
+            if isinstance(opts,dict):
+                OrderItemOption.query.filter_by(order_item_id=item.id).delete()
+                for k,v in opts.items():
+                    if str(k).strip() and str(v).strip(): db.session.add(OrderItemOption(order_item_id=item.id,option_name=str(k).strip()[:120],option_value=str(v).strip()[:160]))
+            subtotal+=item.total; subtotal_sar+=price.base_sar*qty
+        quote=ShippingService.quote(customer_id=order.customer_id,city_id=address.city_id,area_id=address.city_area_id,subtotal_sar=subtotal_sar,fx_rate=last_price.fx_rate)
+        order.address_snapshot=CommerceService._address_snapshot(address); order.city_id=address.city_id; order.currency_id=currency_id; order.fx_rate=last_price.fx_rate; order.subtotal=subtotal; order.shipping=quote.price_display; order.shipping_base_sar=quote.price_sar; order.shipping_rate_id=quote.rate_id; order.shipping_rule_ids_json=list(quote.applied_rule_ids or []); order.total=subtotal+quote.price_display; order.customer_note=str(payload.get("customer_note") or payload.get("note") or order.customer_note or "").strip()[:4000] or None
+        order.payment_status="unpaid"; order.status="created"; db.session.commit(); return CommerceService.serialize_order_detail(order)
 
     @staticmethod
     def transition_order(order_id, to_status, actor_type="admin", actor_id=None, note=None):

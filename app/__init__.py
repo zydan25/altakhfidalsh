@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from flask import Flask, send_from_directory
+from flask import Flask, render_template, send_from_directory
 from flask_cors import CORS
 
 from config import Config
@@ -33,6 +33,14 @@ def create_app(config_class=Config):
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(webhooks_bp)
     register_module_blueprints(app)
+
+    @app.get("/policies")
+    def policies_page():
+        from .models import AppSetting, ShippingPolicy, ReturnPolicy
+        privacy=AppSetting.query.filter_by(group_code="storefront",key="privacy_policy").first()
+        shipping=ShippingPolicy.query.filter_by(is_active=True).order_by(ShippingPolicy.id.desc()).first()
+        returns=ReturnPolicy.query.filter_by(is_active=True).order_by(ReturnPolicy.id.desc()).first()
+        return render_template("policies.html",privacy=privacy.value if privacy and privacy.value else "نحترم خصوصيتك ونستخدم بياناتك لتشغيل الطلبات وخدمة العملاء وتحسين تجربة المتجر.",shipping_policy=shipping,return_policy=returns)
 
     @app.get("/health")
     def health():

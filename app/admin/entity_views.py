@@ -286,7 +286,7 @@ def register_entity_views(admin_bp):
 
     @admin_bp.route("/payments", methods=["GET", "POST"])
     def payments():
-        from ..models import Currency, Order, PaymentMethod
+        from ..models import Currency, Order, PaymentMethod, PaymentProof, PaymentTransaction
         error=None; success=request.args.get("success")
         if request.method=="POST":
             try:
@@ -295,16 +295,29 @@ def register_entity_views(admin_bp):
                     name=(request.form.get("name") or "").strip(); code=(request.form.get("code") or "").strip().lower()
                     if not name or not code: raise ValueError("اسم وطريقة الدفع والكود مطلوبان.")
                     from ..modules.commerce.payment_shipping import PaymentShippingService
-                    PaymentShippingService.create_payment_method({"name":name,"code":code,"provider":request.form.get("provider"),"supports_proof":request.form.get("supports_proof")=="on"}); success="تم إنشاء طريقة الدفع."
+                    PaymentShippingService.create_payment_method({"name":name,"code":code,"provider":request.form.get("provider"),"supports_proof":request.form.get("supports_proof")=="on","settings":{"type":request.form.get("method_type") or "manual","account_number":(request.form.get("account_number") or "").strip(),"account_name":(request.form.get("account_name") or "").strip(),"point_number":(request.form.get("point_number") or "").strip(),"point_name":(request.form.get("point_name") or "").strip(),"notes":(request.form.get("notes") or "").strip(),"instructions":(request.form.get("instructions") or "").strip()}}); success="تم إنشاء طريقة الدفع."
                 elif action=="method_update":
                     if row is None: raise ValueError("طريقة الدفع غير موجودة.")
                     name=(request.form.get("name") or "").strip(); code=(request.form.get("code") or "").strip().lower()
                     if not name or not code: raise ValueError("اسم وكود طريقة الدفع مطلوبان.")
                     if PaymentMethod.query.filter(PaymentMethod.id!=row.id,PaymentMethod.code==code).first(): raise ValueError("كود طريقة الدفع مستخدم.")
-                    row.name=name; row.code=code; row.provider=(request.form.get("provider") or "").strip() or None; row.supports_proof=request.form.get("supports_proof")=="on"; success="تم تحديث طريقة الدفع."
+                    row.name=name; row.code=code; row.provider=(request.form.get("provider") or "").strip() or None; row.supports_proof=request.form.get("supports_proof")=="on"; row.settings_json={"type":request.form.get("method_type") or "manual","account_number":(request.form.get("account_number") or "").strip(),"account_name":(request.form.get("account_name") or "").strip(),"point_number":(request.form.get("point_number") or "").strip(),"point_name":(request.form.get("point_name") or "").strip(),"notes":(request.form.get("notes") or "").strip(),"instructions":(request.form.get("instructions") or "").strip()}; success="تم تحديث طريقة الدفع."
                 elif action=="method_archive":
                     if row is None: raise ValueError("طريقة الدفع غير موجودة.")
                     row.is_active=False; success="تمت أرشفة طريقة الدفع."
+                elif action=="proof_approve":
+                    proof=db.session.get(PaymentProof,request.form.get("proof_id",type=int))
+                    if proof is None: raise ValueError("إثبات الدفع غير موجود.")
+                    proof.status="approved"; proof.reviewed_by=session.get("admin_id"); proof.reviewed_at=db.func.now()
+                    tx=db.session.get(PaymentTransaction,proof.transaction_id) if proof.transaction_id else None
+                    if tx: tx.status="paid"; tx.paid_at=db.func.now()
+                    order=db.session.get(Order,proof.order_id)
+                    if order: order.payment_status="paid"; order.status="paid" if order.status in {"created","awaiting_payment"} else order.status
+                    success="تم اعتماد إثبات الدفع."
+                elif action=="proof_reject":
+                    proof=db.session.get(PaymentProof,request.form.get("proof_id",type=int))
+                    if proof is None: raise ValueError("إثبات الدفع غير موجود.")
+                    proof.status="rejected"; proof.reviewed_by=session.get("admin_id"); proof.reviewed_at=db.func.now(); success="تم رفض إثبات الدفع."
                 elif action=="transaction":
                     from ..modules.commerce.payment_shipping import PaymentShippingService
                     PaymentShippingService.record_payment({"order_id":request.form.get("order_id"),"method_id":request.form.get("method_id"),"currency_id":request.form.get("currency_id"),"amount":request.form.get("amount"),"provider_ref":request.form.get("provider_ref"),"status":request.form.get("status","pending")}); success="تم تسجيل عملية الدفع."
@@ -312,9 +325,10 @@ def register_entity_views(admin_bp):
                 db.session.commit()
             except (ValueError,TypeError,LookupError) as exc: db.session.rollback(); error=str(exc)
         transactions=PaymentTransaction.query.order_by(PaymentTransaction.id.desc()).limit(200).all()
+        proofs=PaymentProof.query.order_by(PaymentProof.id.desc()).limit(200).all()
         methods=PaymentMethod.query.filter_by(is_active=True).order_by(PaymentMethod.name).all()
         orders=Order.query.order_by(Order.id.desc()).limit(200).all(); currencies=Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
-        return render_template("admin/payments.html",title="الدفعات",transactions=transactions,methods=methods,orders=orders,currencies=currencies,success=success,error=error,**build_admin_context())
+        return render_template("admin/payments.html",title="الدفعات",transactions=transactions,proofs=proofs,methods=methods,orders=orders,currencies=currencies,success=success,error=error,**build_admin_context())
 
 
     @admin_bp.route("/shipping", methods=["GET", "POST"])

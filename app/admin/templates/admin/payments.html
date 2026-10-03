@@ -4,7 +4,15 @@
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
-<section class="panel" style="margin-bottom:12px"><div class="panel-heading"><div><span class="eyebrow">الطرق</span><h3>طرق الدفع الحالية</h3></div><span class="status-pill">{{ methods|length }}</span></div><div class="entity-grid">{% for method in methods %}<article class="entity-card panel"><div class="manage-card-header"><strong>{{ method.name }}</strong><span class="status-pill">{{ method.code }}</span></div><div class="entity-field"><span class="entity-label">المزود</span><strong>{{ method.provider or "—" }}</strong></div><details><summary class="ghost-button">تعديل</summary><form method="post" class="form-stack" style="margin-top:8px"><input type="hidden" name="action" value="method_update"><input type="hidden" name="id" value="{{ method.id }}"><label>الاسم<input name="name" value="{{ method.name }}" required></label><label>Code<input name="code" value="{{ method.code }}" required dir="ltr"></label><label>المزود<input name="provider" value="{{ method.provider or '' }}"></label><label class="check-row"><input name="supports_proof" type="checkbox" {% if method.supports_proof %}checked{% endif %}><span><strong>إثبات دفع</strong></span></label><button class="primary-button">حفظ</button></form></details><form method="post" style="margin-top:8px"><input type="hidden" name="action" value="method_archive"><input type="hidden" name="id" value="{{ method.id }}"><button class="ghost-button">أرشفة</button></form></article>{% else %}<span class="muted">لا توجد طرق دفع.</span>{% endfor %}</div></section>
+<section class="panel" style="margin-bottom:12px"><div class="panel-heading"><div><span class="eyebrow">الطرق</span><h3>طرق الدفع الحالية</h3></div><span class="status-pill">{{ methods|length }}</span></div><div class="entity-grid">{% for method in methods %}<article class="entity-card panel"><div class="manage-card-header"><strong>{{ method.name }}</strong><span class="status-pill">{{ method.code }}</span></div><div class="entity-field"><span class="entity-label">المزود</span><strong>{{ method.provider or "—" }}</strong></div><details><summary class="ghost-button">تعديل</summary><form method="post" class="form-stack" style="margin-top:8px"><input type="hidden" name="action" value="method_update"><input type="hidden" name="id" value="{{ method.id }}"><label>الاسم<input name="name" value="{{ method.name }}" required></label><label>Code<input name="code" value="{{ method.code }}" required dir="ltr"></label><label>المزود<input name="provider" value="{{ method.provider or '' }}"></label>
+<label>نوع الطريقة<select name="method_type"><option value="manual" {% if (method.settings_json or {}).get('type','manual')=='manual' %}selected{% endif %}>تحويل/محفظة</option><option value="cod" {% if (method.settings_json or {}).get('type')=='cod' %}selected{% endif %}>الدفع عند الاستلام</option></select></label>
+<label>رقم الحساب<input name="account_number" value="{{ (method.settings_json or {}).get('account_number','') }}"></label>
+<label>اسم صاحب الحساب<input name="account_name" value="{{ (method.settings_json or {}).get('account_name','') }}"></label>
+<label>رقم النقطة / المحفظة<input name="point_number" value="{{ (method.settings_json or {}).get('point_number','') }}"></label>
+<label>اسم النقطة<input name="point_name" value="{{ (method.settings_json or {}).get('point_name','') }}"></label>
+<label>ملاحظات<textarea name="notes" rows="2">{{ (method.settings_json or {}).get('notes','') }}</textarea></label>
+<label>تعليمات للعميل<textarea name="instructions" rows="2">{{ (method.settings_json or {}).get('instructions','') }}</textarea></label><label class="check-row"><input name="supports_proof" type="checkbox" {% if method.supports_proof %}checked{% endif %}><span><strong>إثبات دفع</strong></span></label><button class="primary-button">حفظ</button></form></details><form method="post" style="margin-top:8px"><input type="hidden" name="action" value="method_archive"><input type="hidden" name="id" value="{{ method.id }}"><button class="ghost-button">أرشفة</button></form></article>{% else %}<span class="muted">لا توجد طرق دفع.</span>{% endfor %}</div></section>
+<section class="panel" style="margin-bottom:12px"><div class="panel-heading"><div><span class="eyebrow">إثباتات الدفع</span><h3>مراجعة صور التحويل</h3></div><span class="status-pill">{{ proofs|length }}</span></div><div class="stack-list">{% for proof in proofs %}<div class="stack-row"><strong>#{{ proof.id }} · الطلب #{{ proof.order_id }}</strong><span>{{ proof.status }} · ملف #{{ proof.asset_id }}</span><form method="post" style="display:flex;gap:4px"><input type="hidden" name="proof_id" value="{{ proof.id }}"><button name="action" value="proof_approve" class="ghost-button">اعتماد</button><button name="action" value="proof_reject" class="ghost-button">رفض</button></form></div>{% else %}<span class="muted">لا توجد إثباتات.</span>{% endfor %}</div></section>
 
 <section class="two-panel">
 <article class="panel">
@@ -14,6 +22,13 @@
 <label>الاسم<input name="name" required placeholder="تحويل بنكي"></label>
 <label>Code<input name="code" required dir="ltr" placeholder="bank_transfer"></label>
 <label>المزود<input name="provider" placeholder="manual"></label>
+<label>نوع الطريقة<select name="method_type"><option value="manual">تحويل/محفظة</option><option value="cod">الدفع عند الاستلام</option></select></label>
+<label>رقم الحساب<input name="account_number"></label>
+<label>اسم صاحب الحساب<input name="account_name"></label>
+<label>رقم النقطة / المحفظة<input name="point_number"></label>
+<label>اسم النقطة<input name="point_name"></label>
+<label>ملاحظات<textarea name="notes" rows="2"></textarea></label>
+<label>تعليمات للعميل<textarea name="instructions" rows="2"></textarea></label>
 <label class="check-row"><input name="supports_proof" type="checkbox"><span><strong>يدعم إثبات الدفع</strong></span></label>
 <button class="primary-button">حفظ الطريقة</button>
 </form>

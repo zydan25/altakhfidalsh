@@ -27,10 +27,11 @@ class PaymentShippingService:
             code=code,
             provider=payload.get("provider"),
             supports_proof=bool(payload.get("supports_proof", False)),
+            settings_json=dict(payload.get("settings") or {}),
         )
         db.session.add(row)
         db.session.commit()
-        return {"id": row.id, "name": row.name, "code": row.code, "supports_proof": row.supports_proof}
+        return {"id": row.id, "name": row.name, "code": row.code, "supports_proof": row.supports_proof, "settings": dict(row.settings_json or {})}
 
     @staticmethod
     def record_payment(payload):

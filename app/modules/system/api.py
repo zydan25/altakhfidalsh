@@ -4,8 +4,16 @@ from . import api_bp
 from ...security import admin_api_required
 from .services import SystemService
 from ...extensions import db
-from ...models import Admin, AppSetting, FeatureFlag, Role, Theme, ThemeToken
+from ...models import Admin, AppSetting, FeatureFlag, Role, Theme, ThemeToken, ShippingPolicy, ReturnPolicy, WarrantyPolicy
 
+
+@api_bp.get("/policies")
+def policies():
+    privacy=AppSetting.query.filter_by(group_code="storefront",key="privacy_policy").first()
+    shipping=ShippingPolicy.query.filter_by(is_active=True).order_by(ShippingPolicy.id.desc()).first()
+    returns=ReturnPolicy.query.filter_by(is_active=True).order_by(ReturnPolicy.id.desc()).first()
+    warranty=WarrantyPolicy.query.filter_by(is_active=True).order_by(WarrantyPolicy.id.desc()).first()
+    return {"item":{"privacy":privacy.value if privacy and privacy.value else "نحترم خصوصيتك ونستخدم بياناتك لتشغيل الطلبات وخدمة العملاء وتحسين تجربة المتجر.","shipping":{"name":shipping.name,"free_shipping_enabled":bool(shipping.free_shipping_enabled),"min_order_amount":str(shipping.min_order_amount) if shipping.min_order_amount is not None else None,"promo_text":shipping.promo_text,"delivery_window":shipping.delivery_window} if shipping else None,"returns":{"name":returns.name,"return_window_days":returns.return_window_days,"conditions":returns.conditions,"fee_rule":returns.fee_rule,"refund_method":returns.refund_method} if returns else None,"warranty":{"name":warranty.name,"duration_days":warranty.duration_days,"coverage":warranty.coverage,"exclusions":warranty.exclusions,"claim_method":warranty.claim_method} if warranty else None}}
 
 @api_bp.get("/health")
 def health():
