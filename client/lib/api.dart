@@ -449,7 +449,17 @@ class ApiService {
     final d=await get('/support/conversations/'+id.toString()+'/messages');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
   }
-  Future<Map<String,dynamic>> newConversation()async=>Map<String,dynamic>.from(await post('/support/conversations',{'type':'customer_service'}));
+  Future<Map<String,dynamic>> newConversation({
+    String type='customer_service',
+    int? orderId,
+    String? subject,
+  }) async => Map<String,dynamic>.from(
+    await post('/support/conversations',{
+      'type': type,
+      if(orderId!=null) 'order_id': orderId,
+      if(subject!=null&&subject.trim().isNotEmpty) 'subject': subject.trim(),
+    }),
+  );
   Future<void> sendMessage(int id,String body)async{await post('/support/conversations/'+id.toString()+'/messages',{'body':body});}
   Future<void> logout()async{token='';final p=await SharedPreferences.getInstance();await p.remove('access_token');}
 }
