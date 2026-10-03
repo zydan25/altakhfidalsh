@@ -390,17 +390,32 @@ class ApiService {
     }
     return d;
   }
-  Future<Map<String,dynamic>> requestOtp(String phone)async{
-    final d=Map<String,dynamic>.from(await post('/customer/auth/request-otp',{'phone':phone,'purpose':'login'}));
+  Future<Map<String,dynamic>> checkPhone(String phone) async =>
+      Map<String,dynamic>.from(await post('/customer/auth/check-phone', {'phone': phone}));
+
+  Future<Map<String,dynamic>> passwordLogin(String phone, String password) async {
+    final d=Map<String,dynamic>.from(await post('/customer/auth/password/login',{
+      'phone':phone,'password':password,'device_id':'flutter-client',
+    }));
+    final item=d['item'] is Map?Map<String,dynamic>.from(d['item']):d;
+    token=item['access_token']?.toString()??'';
+    final p=await SharedPreferences.getInstance();
+    if(token.isNotEmpty) await p.setString('access_token',token);
+    return d;
+  }
+
+  Future<Map<String,dynamic>> requestOtp(String phone,{String purpose='login'})async{
+    final d=Map<String,dynamic>.from(await post('/customer/auth/request-otp',{'phone':phone,'purpose':purpose}));
     final item=d['item'];
     if(item is Map)return Map<String,dynamic>.from(item);
     return d;
   }
-  Future<Map<String,dynamic>> verifyOtp(int id,String code,{String? phone})async{
+  Future<Map<String,dynamic>> verifyOtp(int id,String code,{String? phone,Map<String,dynamic>? registration})async{
     final d=Map<String,dynamic>.from(await post('/customer/auth/verify-otp',{
       'otp_request_id':id,
       'code':code,
       if(phone!=null&&phone.trim().isNotEmpty)'phone':phone.trim(),
+      if(registration!=null)'registration':registration,
       'device_id':'flutter-client',
     }));
     final item=d['item'] is Map?Map<String,dynamic>.from(d['item']):d;
@@ -409,8 +424,20 @@ class ApiService {
     if(token.isNotEmpty)await p.setString('access_token',token);
     return d;
   }
+  Future<Map<String,dynamic>> passwordResetRequest(String phone) async {
+    final d=Map<String,dynamic>.from(await post('/customer/auth/password/request-reset',{'phone':phone}));
+    final item=d['item'];
+    return item is Map?Map<String,dynamic>.from(item):d;
+  }
+
+  Future<Map<String,dynamic>> passwordReset(int requestId,String code,String newPassword) async =>
+      Map<String,dynamic>.from(await post('/customer/auth/password/reset',{
+        'otp_request_id':requestId,'code':code,'new_password':newPassword,
+      }));
+
   Future<Map<String,dynamic>> me()async=>Map<String,dynamic>.from(await get('/customer/me'));
   Future<Map<String,dynamic>> updateMe(Map<String,dynamic> body)async=>Map<String,dynamic>.from(await patch('/customer/me',body));
+  Future<Map<String,dynamic>> acceptPrivacy()async=>Map<String,dynamic>.from(await post('/customer/me/privacy-acceptance',{}));
   Future<List<Map<String,dynamic>>> addresses()async{
     final d=await get('/customer/me/addresses');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
@@ -483,11 +510,10 @@ class ApiService {
       if(currencyId!=null)'currency_id':currencyId,
     }),
   );
-  Future<Map<String,dynamic>> createOrder(int addressId,List<Map<String,dynamic>> items,{int? shippingMethodId,int? paymentMethodId,int? currencyId,String? customerNote}) async =>
+  Future<Map<String,dynamic>> createOrder(int addressId,List<Map<String,dynamic>> items,{int? shippingMethodId,int? currencyId,String? customerNote}) async =>
       Map<String,dynamic>.from(await post('/commerce/orders',{
         'address_id':addressId,'items':items,
         if(shippingMethodId!=null)'shipping_method_id':shippingMethodId,
-        if(paymentMethodId!=null)'payment_method_id':paymentMethodId,
         if(currencyId!=null)'currency_id':currencyId,
         if(customerNote!=null&&customerNote.trim().isNotEmpty)'customer_note':customerNote.trim(),
       }));
@@ -495,6 +521,22 @@ class ApiService {
     final d=await get('/commerce/shipping-methods');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
   }
+  Future<Map<String,dynamic>> wallet({int? currencyId}) async {
+    final d=await get('/commerce/me/wallet',q:currencyId==null?null:{'currency_id':currencyId.toString()});
+    return d['item'] is Map?Map<String,dynamic>.from(d['item']):Map<String,dynamic>.from(d);
+  }
+  Future<Map<String,dynamic>> payFromWallet(int orderId) async {
+    final d=await post('/commerce/me/orders/'+orderId.toString()+'/pay-with-wallet',{});
+    return d['item'] is Map?Map<String,dynamic>.from(d['item']):Map<String,dynamic>.from(d);
+  }
+  Future<Map<String,dynamic>> submitOrderFeedback(int orderId,{int? rating,String? feedback}) async {
+    final d=await post('/commerce/me/orders/'+orderId.toString()+'/feedback',{
+      if(rating!=null)'rating':rating,
+      if(feedback!=null)'feedback':feedback,
+    });
+    return d['item'] is Map?Map<String,dynamic>.from(d['item']):Map<String,dynamic>.from(d);
+  }
+
   Future<List<Map<String,dynamic>>> paymentMethods()async{
     final d=await get('/commerce/payment-methods');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
@@ -583,9 +625,11 @@ class ApiService {
     return uploadPaymentProof(orderId, [picked.first]);
   }
 
-  Future<List<Map<String,dynamic>>> sendMessageWithFiles(int id,String body,List<PlatformFile> files)async{
+  Future<List<Map<String,dynamic>>> sendMessageWithFiles(int id,String body,List<PlatformFile> files,{bool paymentProof=false})async{
     final req=http.MultipartRequest('POST',Uri.parse(baseUrl+'/support/conversations/'+id.toString()+'/attachments'));
-    req.headers.addAll(headers()); if(body.trim().isNotEmpty)req.fields['body']=body.trim();
+    req.headers.addAll(headers());
+    if(body.trim().isNotEmpty)req.fields['body']=body.trim();
+    if(paymentProof)req.fields['payment_proof']='1';
     for(final f in files){
       final bytes = await f.readAsBytes();
       req.files.add(http.MultipartFile.fromBytes('files',bytes,filename:f.name));
