@@ -8117,6 +8117,24 @@ class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
   }
 }
 
+class _PaymentLine extends StatelessWidget {
+  final String label;
+  final String value;
+  const _PaymentLine(this.label, this.value);
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 5),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(child: Text(label, style: const TextStyle(fontSize: 8.8, color: ClientTheme.muted))),
+        const SizedBox(width: 8),
+        Flexible(child: Text(value, textAlign: TextAlign.end, style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800))),
+      ],
+    ),
+  );
+}
+
 class SxPaymentScreen extends StatefulWidget {
   final int orderId;
   final String orderNo;
@@ -8178,7 +8196,7 @@ class _SxPaymentScreenState extends State<SxPaymentScreen> {
     return sxText(settings['type'],sxText(m['code'])).trim().toLowerCase();
   }
 
-  bool selectedSupportsProof => selectedMethod?['supports_proof']==true && paymentType(selectedMethod)!='wallet';
+  bool get selectedSupportsProof => selectedMethod?['supports_proof']==true && paymentType(selectedMethod)!='wallet';
 
   String currentStatus(){
     return sxText(order?['payment_status'],'unpaid');
