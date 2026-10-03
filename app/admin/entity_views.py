@@ -773,7 +773,7 @@ def register_entity_views(admin_bp):
 
     @admin_bp.route("/notifications", methods=["GET", "POST"])
     def notifications():
-        from ..models import Notification, Customer, Product, Order
+        from ..models import Notification, Customer, Product, Order, Conversation
         from ..services.notifications import NotificationService
         import json
 
@@ -819,13 +819,23 @@ def register_entity_views(admin_bp):
                     data["product_id"] = product_id
                 elif screen_type == "order_details":
                     order_id = request.form.get("order_id", type=int)
-                    if not order_id or db.session.get(Order, order_id) is None:
+                    order = db.session.get(Order, order_id) if order_id else None
+                    if order is None:
                         raise ValueError("اختر طلبًا صحيحًا.")
+                    if recipient_type != "customer":
+                        raise ValueError("إشعار تفاصيل الطلب يجب أن يرسل إلى عميل محدد.")
+                    if order.customer_id != customer_id:
+                        raise ValueError("الطلب لا يتبع العميل المحدد.")
                     data["order_id"] = order_id
                 elif screen_type == "conversation":
                     conversation_id = request.form.get("conversation_id", type=int)
-                    if not conversation_id:
-                        raise ValueError("أدخل رقم المحادثة الصحيح.")
+                    conversation = db.session.get(Conversation, conversation_id) if conversation_id else None
+                    if conversation is None:
+                        raise ValueError("المحادثة غير موجودة.")
+                    if recipient_type != "customer":
+                        raise ValueError("إشعار المحادثة يجب أن يرسل إلى عميل محدد.")
+                    if conversation.customer_id != customer_id:
+                        raise ValueError("المحادثة لا تتبع العميل المحدد.")
                     data["conversation_id"] = conversation_id
                 elif screen_type == "category":
                     category_id = request.form.get("category_id", type=int)
