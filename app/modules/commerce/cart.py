@@ -1,5 +1,8 @@
 from ...extensions import db
-from ...models import Cart, CartItem, Product, ProductMedia, ProductVariant, MediaAsset, Color, Size, Currency
+from ...models import (
+    Cart, CartItem, Product, ProductMedia, ProductVariant,
+    MediaAsset, Color, Size, Currency, InventoryLocation, StockInventory,
+)
 from ...services.pricing import price_for_customer
 
 
@@ -84,9 +87,28 @@ class CartService:
             db.session.delete(item)
             db.session.commit()
             return {"ok": True, "deleted": True}
+
+        stock_rows = (
+            StockInventory.query
+            .join(InventoryLocation, InventoryLocation.id == StockInventory.location_id)
+            .filter(
+                StockInventory.variant_id == item.variant_id,
+                InventoryLocation.is_active.is_(True),
+            )
+            .with_for_update()
+            .all()
+        )
+        available_qty = sum(max(0, int(row.available or 0)) for row in stock_rows)
+        if qty > available_qty:
+            raise ValueError(f"المتاح لهذا الاختيار {available_qty} فقط.")
         item.qty = qty
         db.session.commit()
-        return {"ok": True, "item_id": item.id, "qty": item.qty}
+        return {
+            "ok": True,
+            "item_id": item.id,
+            "qty": item.qty,
+            "available_qty": available_qty,
+        }
 
 
     @staticmethod
