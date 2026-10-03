@@ -374,7 +374,7 @@
     ["البطاقة والاسم", ["card_","show_name","name_","show_short_description","short_description_"]],
     ["السعر والعملات", ["show_price","price_","show_compare_price","compare_price_","show_currency","currency_"]],
     ["المقاس والعلامة", ["show_size","size_","show_brand","brand_"]],
-    ["الشارات والترند", ["show_product_badges","product_badge_","show_trend_badge","trend_badge_","show_trend_hashtag","trend_hashtag_","trend_"]],
+    ["الشارات والترند", ["show_product_badges","product_badge_","discount_badge_","show_trend_badge","trend_badge_","show_trend_hashtag","trend_hashtag_","trend_"]],
     ["الألوان والمعلومات", ["colors_","meta_"]]
   ];
   const cardGroupFor = key => {
