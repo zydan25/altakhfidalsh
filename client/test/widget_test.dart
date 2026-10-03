@@ -13,4 +13,19 @@ void main() {
     await tester.pumpWidget(const AltakhfidApp());
     expect(find.byType(MaterialApp), findsOneWidget);
   });
+
+  test('check-phone responses expose exists from nested item', () {
+    final response = <String, dynamic>{
+      'item': {
+        'phone': '967771234567',
+        'exists': true,
+        'has_password': true,
+      },
+    };
+    final item = response['item'];
+    final parsed = item is Map ? Map<String, dynamic>.from(item) : response;
+    expect(parsed['exists'], isTrue);
+    expect(parsed['has_password'], isTrue);
+  });
+
 }
