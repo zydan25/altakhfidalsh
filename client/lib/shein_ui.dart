@@ -2832,7 +2832,10 @@ class SxProductGrid extends StatelessWidget {
     }
 
     if (masonry) {
-      return _SxMasonryProductGrid(products: products);
+      return _SxMasonryProductGrid(
+        products: products,
+        displaySettings: displaySettings,
+      );
     }
 
     return Directionality(
@@ -2871,8 +2874,12 @@ class SxProductGrid extends StatelessWidget {
 
 class _SxMasonryProductGrid extends StatelessWidget {
   final List<ProductModel> products;
+  final Map<String, dynamic>? displaySettings;
 
-  const _SxMasonryProductGrid({required this.products});
+  const _SxMasonryProductGrid({
+    required this.products,
+    this.displaySettings,
+  });
 
   @override
   Widget build(BuildContext context) {
