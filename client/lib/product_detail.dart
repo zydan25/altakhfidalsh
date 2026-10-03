@@ -387,10 +387,25 @@ class _SxProductScreenState extends State<SxProductScreen> {
                     ),
                   ),
                   SliverToBoxAdapter(
+                    child: _DetailBadgeStrip(
+                      title: 'الشارات الأولى',
+                      badges: _maps(data['badges']),
+                      positions: const {'first'},
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _DetailBadgeStrip(
+                      title: 'الشارات فوق الصورة',
+                      badges: _maps(data['badges']),
+                      positions: const {'above_image'},
+                    ),
+                  ),
+                  SliverToBoxAdapter(
                     child: SxGallery(
                       rows: media,
                       page: page,
                       changed: (index) => setState(() => page = index),
+                      badges: _maps(data['badges']),
                     ),
                   ),
                   SliverToBoxAdapter(
@@ -638,12 +653,14 @@ class SxGallery extends StatelessWidget {
   final List<Map<String, dynamic>> rows;
   final int page;
   final ValueChanged<int> changed;
+  final List<Map<String, dynamic>> badges;
 
   const SxGallery({
     super.key,
     required this.rows,
     required this.page,
     required this.changed,
+    this.badges = const [],
   });
 
   @override
@@ -680,6 +697,35 @@ class SxGallery extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+List<Widget> _galleryBadgeWidgets(List<Map<String, dynamic>> badges) {
+  final selected = badges.where((badge) {
+    final s = badge['settings'] is Map ? Map<String, dynamic>.from(badge['settings'] as Map) : <String, dynamic>{};
+    return s['visible'] != false && {'top_right','top_left','bottom_right','bottom_left','right_of_image'}.contains(sxText(s['position']));
+  }).toList();
+  return selected.take(8).map((badge) {
+    final s = badge['settings'] is Map ? Map<String, dynamic>.from(badge['settings'] as Map) : <String, dynamic>{};
+    final label = sxText(badge['custom_text'], sxText(badge['name'], 'شارة'));
+    final bg = sxColor(sxText(s['background_color'], sxText(badge['bg_color'], '#111827')), Colors.black)
+      .withOpacity(sxDouble(s['background_opacity'], 1).clamp(0, 1));
+    final fg = sxColor(sxText(s['text_color'], sxText(badge['text_color'], '#ffffff')), Colors.white);
+    final chip = Container(
+      padding: EdgeInsets.symmetric(horizontal: sxDouble(s['padding_horizontal'], 7), vertical: sxDouble(s['padding_vertical'], 3)),
+      decoration: BoxDecoration(color:bg,borderRadius:BorderRadius.circular(sxDouble(s['border_radius'],5))),
+      child: Text(label,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(color:fg,fontSize:sxDouble(s['font_size'],9),fontWeight:_weight(sxInt(s['font_weight'],800)))),
+    );
+    final pos=sxText(s['position']);
+    return _galleryBadgePosition(pos, chip);
+  }).toList();
+}
+Widget _galleryBadgePosition(String position, Widget child) {
+  switch(position) {
+    case 'top_left': return Positioned(top:8,left:8,child:child);
+    case 'bottom_left': return Positioned(bottom:8,left:8,child:child);
+    case 'bottom_right': return Positioned(bottom:8,right:8,child:child);
+    default: return Positioned(top:48,right:8,child:child);
   }
 }
 
@@ -1173,8 +1219,6 @@ class _ProductHeroInfo extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          strip(first),
-          strip(aboveImage, compact: true),
           if (trends.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(bottom: 7),
@@ -1217,11 +1261,6 @@ class _ProductHeroInfo extends StatelessWidget {
                     Text(' · $reviewCount تقييم', style: const TextStyle(fontSize: 9, color: ClientTheme.muted)),
                 ],
               ),
-            ),
-          if (rightImage.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: strip(rightImage, compact: true),
             ),
         ],
       ),
