@@ -683,6 +683,18 @@ class CommerceService:
             ))
             transaction.status = "cod_pending"
             db.session.commit()
+            from ...services.notifications import NotificationService
+            NotificationService.order_status_changed(
+                order,
+                "تم اختيار الدفع عند الاستلام وبدأ المتجر تجهيز طلبك.",
+                "processing",
+            )
+            NotificationService.payment_updated(
+                order,
+                "تم اختيار الدفع عند الاستلام",
+                "تم تسجيل الدفع عند الاستلام لطلبك.",
+                "cod",
+            )
             return {
                 "order_id": order.id,
                 "transaction_id": transaction.id,
@@ -701,6 +713,13 @@ class CommerceService:
         order.payment_status = "pending"
         order.status = "awaiting_payment"
         db.session.commit()
+        from ...services.notifications import NotificationService
+        NotificationService.payment_updated(
+            order,
+            "تم اختيار طريقة الدفع",
+            "تم حفظ طريقة الدفع. يمكنك الآن تنفيذ التحويل ورفع إثبات الدفع من صفحة الطلب.",
+            "pending",
+        )
         return {
             "order_id": order.id,
             "transaction_id": transaction.id,
@@ -781,6 +800,18 @@ class CommerceService:
             note="Paid from customer wallet",
         ))
         db.session.commit()
+        from ...services.notifications import NotificationService
+        NotificationService.payment_updated(
+            order,
+            "تم الدفع من رصيدك",
+            "تم تأكيد الدفع من رصيدك وبدأ المتجر تجهيز طلبك.",
+            "paid",
+        )
+        NotificationService.order_status_changed(
+            order,
+            "بدأ المتجر تجهيز طلبك.",
+            "processing",
+        )
         return {
             "order_id": order.id,
             "transaction_id": tx.id,
