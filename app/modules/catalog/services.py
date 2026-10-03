@@ -2991,7 +2991,16 @@ class CatalogService:
             merged["brand_position"] = defaults["brand_position"]
         allowed_badge_positions = {
             "top_left", "top_right", "bottom_left", "bottom_right",
-            "above_image", "before_name", "before_name_new_row", "before_name_same_row", "after_name", "after_name_new_row", "after_name_same_row", "after_price", "after_details", "first", "last", "right_of_image", "below_price",
+            "above_image", "right_of_image",
+            "before_name", "before_name_same_row", "before_name_new_row",
+            "after_name", "after_name_same_row", "after_name_new_row",
+            "before_description", "before_description_same_row", "before_description_new_row",
+            "after_description", "after_description_same_row", "after_description_new_row",
+            "below_description",
+            "before_price", "before_price_same_row", "before_price_new_row",
+            "after_price", "after_price_same_row", "after_price_new_row", "below_price",
+            "before_details", "after_details", "after_details_same_row", "after_details_new_row",
+            "first", "last",
         }
         if merged["product_badge_position"] not in allowed_badge_positions:
             merged["product_badge_position"] = defaults["product_badge_position"]
