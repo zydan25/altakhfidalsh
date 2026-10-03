@@ -1,6 +1,41 @@
 {% extends "admin/base.html" %}
 
 {% block content %}
+<style>
+.card-inherit-note{display:grid;gap:5px;padding:10px;margin-bottom:10px;background:#fafafa;border:1px dashed #dedede;border-radius:12px;font-size:9px;line-height:1.55}
+.product-card-editor{display:grid;gap:9px}
+.card-setting-group{background:#fff;border:1px solid #e9e9e9;border-radius:12px;overflow:hidden}
+.card-setting-group>summary{list-style:none;cursor:pointer;padding:11px 12px;font-weight:900;font-size:11px;display:flex;justify-content:space-between;align-items:center}
+.card-setting-group>summary::-webkit-details-marker{display:none}
+.card-setting-group>summary small{font-weight:500;color:#888}
+.card-setting-body{padding:10px;border-top:1px solid #efefef;display:grid;gap:9px}
+.card-setting-row{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;align-items:center}
+.card-setting-row>label{font-size:9px;font-weight:800}
+.card-setting-control{display:flex;gap:6px;align-items:center}
+.card-setting-control input[type=text],.card-setting-control input[type=number],.card-setting-control select{width:100%;box-sizing:border-box}
+.card-setting-control input,.card-setting-control select{min-height:38px;border-radius:9px}
+.inherit-toggle{display:flex;gap:5px;align-items:center;font-size:8px;color:#777;white-space:nowrap}
+.inherit-toggle input{margin:0}
+.card-setting-control.is-inherited .setting-value{opacity:.45}
+.card-color-row{display:grid;grid-template-columns:40px minmax(0,1fr);gap:6px;width:100%}
+.card-color-row input[type=color]{width:40px;height:38px;padding:3px}
+.delivery-badge-editor{display:grid;gap:8px}
+.delivery-badge-card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:10px}
+.delivery-badge-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.delivery-badge-preview{padding:4px 7px;border-radius:6px;font-weight:900}
+.delivery-badge-actions{display:flex;gap:4px}
+.delivery-badge-card-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:9px}
+.delivery-badge-card-body label{font-size:9px;font-weight:800}
+.delivery-badge-card-body input,.delivery-badge-card-body select{margin-top:4px;width:100%;min-height:36px;box-sizing:border-box}
+.delivery-badge-card-body .full{grid-column:1/-1}
+.recommendation-editor{display:grid;gap:9px}
+.recommendation-choice{display:flex;gap:9px;align-items:flex-start;border:1px solid #e7e7e7;background:#fff;border-radius:12px;padding:11px}
+.recommendation-choice.is-selected{border-color:#111;background:#fafafa}
+.recommendation-choice input{margin-top:2px}
+.recommendation-choice strong{display:block;font-size:11px}.recommendation-choice small{display:block;margin-top:3px;font-size:8.5px;color:#888;line-height:1.45}
+.recommendation-limit{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:3px}
+@media(max-width:600px){.card-setting-row{grid-template-columns:1fr}.delivery-badge-card-body{grid-template-columns:1fr}.delivery-badge-card-body .full{grid-column:auto}.recommendation-limit{grid-template-columns:1fr}}
+</style>
 <section class="module-header">
   <span class="eyebrow">معالج المنتج</span>
   <h2>{{ product.name }}</h2>
@@ -19,6 +54,9 @@
       ("media","الصور"),
       ("options","الألوان والمقاسات"),
       ("marketing","الشارات والهاشتاج"),
+      ("appearance","مظهر بطاقة المنتج"),
+      ("delivery","التوصيل"),
+      ("recommendations","التوصيات"),
       ("variants","المتغيرات"),
       ("inventory","المخزون"),
       ("policies","السياسات"),
@@ -241,6 +279,36 @@
       </article>
     </div>
     <button id="saveMarketing" class="primary-button" type="button">حفظ الشارات والهاشتاجات وشرائط العروض والحملات</button>
+  </div>
+
+  <div class="wizard-panel" data-panel="appearance" hidden>
+    <div class="panel-heading">
+      <div><span class="eyebrow">العرض</span><h3>مظهر بطاقة المنتج الخاصة بهذا المنتج</h3><small class="muted">كل قيمة تبدأ من الإعداد العام. فعّل «تخصيص» فقط عندما تريد قيمة مختلفة لهذا المنتج.</small></div>
+    </div>
+    <div class="card-inherit-note">
+      <strong>الوراثة من الإعداد العام</strong>
+      <span>عند عدم التخصيص، أي تغيير لاحق في إعدادات بطاقة المنتج العامة يصل تلقائيًا إلى هذا المنتج.</span>
+      <button type="button" class="ghost-button" id="resetProductCardOverrides">إلغاء كل التخصيصات والعودة للعامة</button>
+    </div>
+    <div id="productCardEditor" class="product-card-editor"></div>
+    <button id="saveProductCard" class="primary-button" type="button">حفظ مظهر بطاقة هذا المنتج</button>
+  </div>
+
+  <div class="wizard-panel" data-panel="delivery" hidden>
+    <div class="panel-heading">
+      <div><span class="eyebrow">الشحن</span><h3>شارات التوصيل الخاصة بالمنتج</h3><small class="muted">هذه الشارات تخص هذا المنتج فقط ويمكن ترتيبها وإخفاؤها وتلوينها.</small></div>
+      <button class="primary-button quick-add-button" type="button" id="addDeliveryBadge">＋ إضافة شارة توصيل</button>
+    </div>
+    <div id="deliveryBadgeEditor" class="delivery-badge-editor"></div>
+    <button id="saveDeliveryBadges" class="primary-button" type="button">حفظ شارات التوصيل</button>
+  </div>
+
+  <div class="wizard-panel" data-panel="recommendations" hidden>
+    <div class="panel-heading">
+      <div><span class="eyebrow">الاكتشاف</span><h3>المنتجات في «قد يعجبك أيضًا»</h3><small class="muted">يتم الاختيار عشوائيًا من المصدر الذي تحدده حتى لا يظهر نفس الترتيب لكل عميل.</small></div>
+    </div>
+    <div id="recommendationEditor" class="recommendation-editor"></div>
+    <button id="saveRecommendations" class="primary-button" type="button">حفظ إعدادات التوصيات</button>
   </div>
 
   <div class="wizard-panel" data-panel="variants" hidden>
