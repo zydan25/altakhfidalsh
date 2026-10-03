@@ -35,7 +35,30 @@
 .recommendation-choice strong{display:block;font-size:11px}.recommendation-choice small{display:block;margin-top:3px;font-size:8.5px;color:#888;line-height:1.45}
 .recommendation-limit{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:3px}
 @media(max-width:600px){.card-setting-row{grid-template-columns:1fr}.delivery-badge-card-body{grid-template-columns:1fr}.delivery-badge-card-body .full{grid-column:auto}.recommendation-limit{grid-template-columns:1fr}}
-</style>
+<style>
+.wizard-shell{overflow:visible}
+.wizard-steps{display:flex;gap:5px;overflow-x:auto;padding:4px 1px 9px;scrollbar-width:thin;position:sticky;top:0;z-index:15;background:rgba(255,255,255,.97)}
+.wizard-step{flex:0 0 auto;min-height:34px;padding:7px 10px;border:1px solid #e8e8e8;background:#fff;border-radius:999px;font-size:9px;font-weight:800;white-space:nowrap}
+.wizard-step.is-active{background:#111;color:#fff;border-color:#111}
+.wizard-panel{padding:12px!important;border-radius:14px!important}
+.wizard-panel>.panel-heading{position:sticky;top:48px;z-index:10;padding:8px 0;background:rgba(255,255,255,.97)}
+.wizard-panel .form-stack label{font-size:10px;font-weight:800}
+.wizard-panel .form-stack input,.wizard-panel .form-stack select,.wizard-panel .form-stack textarea{min-height:42px;border-radius:10px}
+.wizard-panel .primary-button{min-height:42px}
+.selection-toolbar,.media-global-upload,.dimension-save-bar{border-radius:12px!important}
+.quick-add-button{min-height:32px!important;padding:6px 8px!important;font-size:9px!important}
+@media(max-width:650px){
+ .wizard-shell{padding:7px!important}
+ .wizard-panel>.panel-heading{top:47px}
+ .wizard-panel .panel-heading h3{font-size:14px}
+ .wizard-panel .panel-heading small,.wizard-panel .panel-heading .muted{font-size:8.5px;line-height:1.5}
+ .wizard-panel .form-stack input,.wizard-panel .form-stack select,.wizard-panel .form-stack textarea{font-size:14px}
+ .reference-actions{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:5px}
+ .reference-actions .inline-search{grid-column:1/-1}
+ .dimension-grid{display:grid!important;grid-template-columns:1fr!important}
+ .mobile-action-bar,.save-bar,.dimension-save-bar{position:sticky;bottom:8px;z-index:20;background:rgba(255,255,255,.97);box-shadow:0 12px 26px rgba(0,0,0,.1)}
+}
+</style></style>
 <section class="module-header">
   <span class="eyebrow">معالج المنتج</span>
   <h2>{{ product.name }}</h2>
