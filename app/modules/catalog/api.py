@@ -30,6 +30,7 @@ from ...models import (
     ProductSizeReference,
     Size,
     Brand,
+    Hashtag,
     Review,
     Order,
     OrderItem,
