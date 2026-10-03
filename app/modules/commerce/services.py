@@ -1213,6 +1213,25 @@ class CommerceService:
             raise LookupError("customer or variant not found")
         if qty <= 0:
             raise ValueError("quantity must be positive")
+
+        stock_rows = (
+            StockInventory.query
+            .join(InventoryLocation, InventoryLocation.id == StockInventory.location_id)
+            .filter(
+                StockInventory.variant_id == variant_id,
+                InventoryLocation.is_active.is_(True),
+            )
+            .with_for_update()
+            .all()
+        )
+        available_qty = sum(max(0, int(row.available or 0)) for row in stock_rows)
+        if available_qty < qty:
+            raise ValueError(
+                f"المخزون المتاح لهذا المنتج هو {available_qty} فقط."
+                if available_qty > 0
+                else "هذا المنتج غير متوفر حاليًا."
+            )
+
         cart = Cart.query.filter_by(customer_id=customer_id).first()
         if cart is None:
             cart = Cart(customer_id=customer_id)
@@ -1221,10 +1240,27 @@ class CommerceService:
         normalized_options = selected_options if isinstance(selected_options, dict) else {}
         candidates = CartItem.query.filter_by(cart_id=cart.id, variant_id=variant_id).all()
         item = next((x for x in candidates if dict(x.selected_options or {}) == dict(normalized_options)), None)
+        current_qty = int(item.qty or 0) if item else 0
+        requested_total = current_qty + qty
+        if requested_total > available_qty:
+            raise ValueError(
+                f"المتاح لهذا الاختيار {available_qty} فقط، "
+                f"وفي السلة لديك {current_qty}."
+            )
         if item:
-            item.qty += qty
+            item.qty = requested_total
         else:
-            item = CartItem(cart_id=cart.id, variant_id=variant_id, qty=qty, selected_options=normalized_options)
+            item = CartItem(
+                cart_id=cart.id,
+                variant_id=variant_id,
+                qty=qty,
+                selected_options=normalized_options,
+            )
             db.session.add(item)
         db.session.commit()
-        return {"cart_id": cart.id, "variant_id": variant_id, "qty": item.qty}
+        return {
+            "cart_id": cart.id,
+            "variant_id": variant_id,
+            "qty": item.qty,
+            "available_qty": available_qty,
+        }
