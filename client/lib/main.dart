@@ -23,7 +23,7 @@ class AltakhfidApp extends StatelessWidget {
       title: 'التخفيض الصح',
       theme: ClientTheme.theme(),
       locale: const Locale('ar'),
-      home: state.loggedIn ? const SxAppShell() : const SxEntryGate(),
+      home: const SxLaunchGate(),
     );
   }
 }
@@ -51,5 +51,41 @@ class _SxEntryGateState extends State<SxEntryGate> {
   Future<bool> _welcomeSeen() async {
     final p = await SharedPreferences.getInstance();
     return p.getBool('welcome_seen_v1') ?? false;
+  }
+}
+
+
+class SxLaunchGate extends StatefulWidget {
+  const SxLaunchGate({super.key});
+
+  @override
+  State<SxLaunchGate> createState() => _SxLaunchGateState();
+}
+
+class _SxLaunchGateState extends State<SxLaunchGate> {
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(const Duration(milliseconds: 1100), () {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => state.loggedIn ? const SxAppShell() : const SxEntryGate(),
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: Colors.black,
+      body: SizedBox.expand(
+        child: Image(
+          image: AssetImage('assets/app_background.jpg'),
+          fit: BoxFit.cover,
+        ),
+      ),
+    );
   }
 }

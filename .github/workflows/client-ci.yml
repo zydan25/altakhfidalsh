@@ -28,6 +28,11 @@ jobs:
         working-directory: client
         run: flutter create --platforms=android .
 
+      - name: Prepare branding asset
+        run: |
+          mkdir -p client/assets
+          cp 20260911_164630.jpg client/assets/app_background.jpg
+
       - name: Enable Android Internet access
         working-directory: client
         run: |
