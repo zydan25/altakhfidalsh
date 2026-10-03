@@ -460,30 +460,6 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       title: 'الشارات قبل الوصف',
                       badges: _maps(data['badges']),
                       positions: const {
-                        'after_price',
-                        'after_price_same_row',
-                        'after_price_new_row',
-                        'below_price',
-                        'after_name',
-                        'after_name_same_row',
-                        'after_name_new_row',
-                        'after_name_row',
-                      },
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _ProductIdentityPanel(
-                      brand: sxText(brand['name']),
-                      productType: sxText(product['product_type']),
-                      material: sxText(product['material']),
-                      sku: sxText(product['sku']),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _DetailBadgeStrip(
-                      title: 'الشارات قبل الوصف',
-                      badges: _maps(data['badges']),
-                      positions: const {
                         'before_description',
                         'before_description_new_row',
                         'before_details',
@@ -520,6 +496,14 @@ class _SxProductScreenState extends State<SxProductScreen> {
                         'after_details_same_row',
                         'after_details_new_row',
                       },
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _ProductIdentityPanel(
+                      brand: sxText(brand['name']),
+                      productType: sxText(product['product_type']),
+                      material: sxText(product['material']),
+                      sku: sxText(product['sku']),
                     ),
                   ),
                   if (colors.isNotEmpty || sizes.isNotEmpty)
