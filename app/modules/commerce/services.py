@@ -1200,15 +1200,20 @@ class CommerceService:
 
         conversation = Conversation.query.filter_by(order_id=order.id).order_by(Conversation.id).first()
         if conversation is not None:
-            db.session.add(Message(
-                conversation_id=conversation.id,
-                sender_type="admin",
-                sender_id=0,
-                message_type="text",
-                body="تم إلغاء الطلب بناءً على طلب العميل.",
-            ))
-            conversation.last_message_at = db.func.now()
-            db.session.commit()
+            from ..support.services import SupportService
+            SupportService.send_message(
+                conversation.id,
+                "system",
+                0,
+                "تم إلغاء الطلب بناءً على طلب العميل.",
+                "text",
+            )
+        from ...services.notifications import NotificationService
+        NotificationService.order_status_changed(
+            order,
+            "تم إلغاء طلبك بناءً على طلبك.",
+            "cancelled",
+        )
         return CommerceService.serialize_order_detail(order)
 
     @staticmethod
