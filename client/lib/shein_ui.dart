@@ -10931,8 +10931,6 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                 ),
               ),
             ],
-              ),
-            ),
             if (status == 'created')
               Container(
                 margin: const EdgeInsets.only(top: 9, bottom: 2),
