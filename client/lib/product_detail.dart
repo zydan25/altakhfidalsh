@@ -416,6 +416,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       reviews: reviews,
                       onWriteReview: _openReviewComposer,
                     ),
+                  ),
                   if (related.isNotEmpty)
                     SliverToBoxAdapter(
                       child: Padding(
