@@ -31,6 +31,33 @@ List<Map<String, dynamic>> sxMaps(dynamic value) {
 }
 String sxImage(dynamic value) => api.url(sxText(value));
 
+Map<String, dynamic> _asMap(dynamic value) =>
+    value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
+
+class _InfoBox extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _InfoBox({required this.icon, required this.text});
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(11),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      border: Border.all(color: ClientTheme.border),
+      borderRadius: BorderRadius.circular(9),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, size: 19),
+        const SizedBox(width: 8),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 9.5, color: ClientTheme.muted, height: 1.45))),
+      ],
+    ),
+  );
+}
+
+
+
 class SxAppShell extends StatefulWidget {
   const SxAppShell({super.key});
   @override State<SxAppShell> createState() => _SxAppShellState();
@@ -10209,18 +10236,7 @@ class _SxOtpScreenState extends State<SxOtpScreen> {
 
 
 
-String _formatDateTime(String value) {
-  if (value.trim().isEmpty) return '';
-  try {
-    final d = DateTime.parse(value).toLocal();
-    return d.day.toString().padLeft(2, '0') + '/' +
-        d.month.toString().padLeft(2, '0') + ' ' +
-        d.hour.toString().padLeft(2, '0') + ':' +
-        d.minute.toString().padLeft(2, '0');
-  } catch (_) {
-    return '';
-  }
-}
+
 
 
 
@@ -10320,18 +10336,7 @@ class SxOrderReviewScreen extends StatefulWidget {
 
 
 
-String _formatDateTime(String value) {
-  if (value.trim().isEmpty) return '';
-  try {
-    final d = DateTime.parse(value).toLocal();
-    return d.day.toString().padLeft(2, '0') + '/' +
-        d.month.toString().padLeft(2, '0') + ' ' +
-        d.hour.toString().padLeft(2, '0') + ':' +
-        d.minute.toString().padLeft(2, '0');
-  } catch (_) {
-    return '';
-  }
-}
+
 
 
 
