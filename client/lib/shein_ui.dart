@@ -9503,55 +9503,7 @@ class _OrderPaymentSheet extends StatefulWidget {
   const _OrderPaymentSheet({required this.order});
   @override State<_OrderPaymentSheet> createState()=>_OrderPaymentSheetState();
 }
-class _OrderPaymentSheetState extends State<_OrderPaymentSheet>{
-  List<Map<String,dynamic>> methods=[]; int? selected; bool loading=true,busy=false;
-  @override void initState(){super.initState();load();}
-  Future<void> load()async{
-    try{methods=await api.paymentMethods(); final current=sxInt(_asMap(widget.order['payment_method'])['id']); selected=current>0?current:(methods.isNotEmpty?sxInt(methods.first['id']):null);}
-    catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));}
-    if(mounted)setState(()=>loading=false);
-  }
-  Map<String,dynamic>? chosen(){for(final x in methods){if(sxInt(x['id'])==selected)return x;}return null;}
-  Future<void> pay()async{
-    final method=chosen();
-    if(method==null){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('اختر طريقة الدفع.')));return;}
-    setState(()=>busy=true);
-    try{
-      final result=await api.recordOrderPayment(widget.order['id'] is int?widget.order['id'] as int:sxInt(widget.order['id']),methodId:sxInt(method['id']),currencyId:sxInt(widget.order['currency_id']));
-      final settings=_asMap(method['settings']);
-      if(sxText(settings['type'])=='cod'){
-        if(mounted)Navigator.pop(context,true);
-        return;
-      }
-      if(method['supports_proof']==true){
-        final picked=await FilePicker.platform.pickFiles(type:FileType.image,allowMultiple:false,withData:true);
-        if(picked!=null&&picked.files.isNotEmpty){
-          await api.uploadPaymentProof(sxInt(widget.order['id']),picked.files);
-        }
-      }
-      if(mounted)Navigator.pop(context,true);
-    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));}
-    finally{if(mounted)setState(()=>busy=false);}
-  }
-  @override Widget build(BuildContext context){
-    final method=chosen();
-    return SafeArea(child:Padding(padding:const EdgeInsets.fromLTRB(13,9,13,18),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      const _Handle(),const SizedBox(height:9),
-      const Text('الدفع',textAlign:TextAlign.center,style:TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
-      const SizedBox(height:7),
-      if(loading)const Padding(padding:EdgeInsets.all(20),child:Center(child:CircularProgressIndicator(strokeWidth:2)))
-      else ...[
-        for(final row in methods)_PaymentChoice(row:row,selected:sxInt(row['id'])==selected,onTap:()=>setState(()=>selected=sxInt(row['id']))),
-        if(method!=null&&_paymentDetailsText(_asMap(method['settings'])).isNotEmpty)
-          Container(padding:const EdgeInsets.all(9),decoration:BoxDecoration(color:ClientTheme.soft,borderRadius:BorderRadius.circular(7)),child:Text(_paymentDetailsText(_asMap(method['settings'])),style:const TextStyle(fontSize:9,height:1.5))),
-        const SizedBox(height:9),
-        if(method!=null&&method['supports_proof']==true)const Text('بعد الدفع يمكنك رفع صورة الإثبات في هذه الخطوة.',style:TextStyle(fontSize:8.5,color:ClientTheme.muted)),
-        const SizedBox(height:7),
-        SizedBox(height:47,child:FilledButton.icon(onPressed:busy?null:pay,icon:busy?const SizedBox(width:16,height:16,child:CircularProgressIndicator(strokeWidth:2,color:Colors.white)):const Icon(Icons.check,size:17),style:FilledButton.styleFrom(backgroundColor:Colors.black),label:Text(_asMap(method?['settings'])['type']=='cod'?'تأكيد الدفع عند الاستلام':'متابعة الدفع',style:const TextStyle(fontWeight:FontWeight.w900,fontSize:10.5)))),
-      ],
-    ])));
-  }
-}
+
 
 class SxPendingOrderEditor extends StatefulWidget {
   final Map<String,dynamic> order;
