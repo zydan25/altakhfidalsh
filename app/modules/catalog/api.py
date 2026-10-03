@@ -1249,11 +1249,11 @@ def product_policies(product_id):
 
 @api_bp.get("/products/filters")
 def product_scope_filters():
-    """Return the server-defined filter taxonomy for the current storefront scope.
+    """Build filter options from the actual current storefront product scope.
 
-    Values come from CategoryFilterDefinition/CategoryFilterValue, not from
-    ProductFilterValue assignments, so the client can show every configured
-    option even when no current product uses that option.
+    Normal catalog categories keep their configured category-filter groups.
+    Side-category and circle results use only products assigned to that
+    side/circle, so the parent root category is never used as the filter scope.
     """
     def _parse_id_list(name):
         values = []
@@ -1277,38 +1277,99 @@ def product_scope_filters():
     circle_id = request.args.get("circle_id", type=int)
     side_category_id = request.args.get("side_category_id", type=int)
 
+    product_query = Product.query.filter(
+        Product.is_active.is_(True),
+        Product.status == "published",
+    )
+
     category_scope_ids = []
     for requested_category_id in category_ids:
         category_scope_ids.extend(
             CatalogService.category_descendant_ids(requested_category_id)
         )
-
-    # A side-category/circle entry still belongs to its configured root
-    # category taxonomy. Use that taxonomy for filters, without inspecting
-    # which values happen to be assigned to the current products.
-    if not category_scope_ids and circle_id:
-        circle = db.session.get(SideCategoryCircle, circle_id)
-        if circle is not None and circle.is_active:
-            side_category = db.session.get(SideCategory, circle.side_category_id)
-            if side_category is not None and side_category.is_active:
-                category_scope_ids.extend(
-                    CatalogService.category_descendant_ids(
-                        side_category.root_category_id
-                    )
-                )
-
-    if not category_scope_ids and side_category_id:
-        side_category = db.session.get(SideCategory, side_category_id)
-        if side_category is not None and side_category.is_active:
-            category_scope_ids.extend(
-                CatalogService.category_descendant_ids(
-                    side_category.root_category_id
-                )
-            )
-
     category_scope_ids = sorted(set(category_scope_ids))
 
-    query = (
+    if category_scope_ids:
+        product_query = product_query.join(
+            ProductCategory,
+            ProductCategory.product_id == Product.id,
+        ).filter(ProductCategory.category_id.in_(category_scope_ids))
+
+    if side_category_id:
+        side_category = db.session.get(SideCategory, side_category_id)
+        if side_category is None or not side_category.is_active:
+            return {"items": []}
+
+        side_circle_ids = [
+            int(row.id)
+            for row in SideCategoryCircle.query.filter(
+                SideCategoryCircle.side_category_id == side_category.id,
+                SideCategoryCircle.is_active.is_(True),
+            ).all()
+        ]
+        if circle_id:
+            if circle_id not in side_circle_ids:
+                return {"items": []}
+            side_circle_ids = [circle_id]
+
+        if not side_circle_ids:
+            return {"items": []}
+
+        product_query = product_query.join(
+            ProductSideCategoryCircle,
+            ProductSideCategoryCircle.product_id == Product.id,
+        ).filter(ProductSideCategoryCircle.circle_id.in_(side_circle_ids))
+
+    elif circle_id:
+        circle = db.session.get(SideCategoryCircle, circle_id)
+        if circle is None or not circle.is_active:
+            return {"items": []}
+        product_query = product_query.join(
+            ProductSideCategoryCircle,
+            ProductSideCategoryCircle.product_id == Product.id,
+        ).filter(ProductSideCategoryCircle.circle_id == circle_id)
+
+    hashtag_id = request.args.get("hashtag_id", type=int)
+    hashtag_ids = _parse_id_list("hashtag_ids")
+    if hashtag_id and hashtag_id not in hashtag_ids:
+        hashtag_ids.insert(0, hashtag_id)
+    if hashtag_ids:
+        product_query = product_query.join(
+            ProductHashtag,
+            ProductHashtag.product_id == Product.id,
+        ).filter(ProductHashtag.hashtag_id.in_(hashtag_ids))
+
+    product_scope = (
+        product_query.with_entities(Product.id)
+        .distinct()
+        .subquery()
+    )
+
+    merged = {}
+
+    def add_group(definition_id, name, filter_type, sort_order, values):
+        if not values:
+            return
+        key = ((name or "").strip().casefold(), (filter_type or "").strip().casefold())
+        item = merged.get(key)
+        if item is None:
+            item = {
+                "id": definition_id,
+                "name": name,
+                "filter_type": filter_type,
+                "sort_order": sort_order,
+                "values": [],
+            }
+            merged[key] = item
+        seen = {int(value["id"]) for value in item["values"]}
+        for value in values:
+            if int(value["id"]) not in seen:
+                item["values"].append(value)
+                seen.add(int(value["id"]))
+
+    # Custom filter definitions are built from values actually assigned to
+    # products in the current scope.
+    rows = (
         db.session.query(
             CategoryFilterDefinition.id,
             CategoryFilterDefinition.name,
@@ -1323,25 +1384,24 @@ def product_scope_filters():
             CategoryFilterValue,
             CategoryFilterValue.filter_id == CategoryFilterDefinition.id,
         )
+        .join(
+            ProductFilterValue,
+            ProductFilterValue.filter_value_id == CategoryFilterValue.id,
+        )
         .filter(
+            ProductFilterValue.product_id.in_(db.session.query(product_scope.c.id)),
             CategoryFilterDefinition.is_active.is_(True),
             CategoryFilterValue.is_active.is_(True),
         )
+        .order_by(
+            CategoryFilterDefinition.sort_order,
+            CategoryFilterDefinition.id,
+            CategoryFilterValue.sort_order,
+            CategoryFilterValue.id,
+        )
+        .all()
     )
 
-    if category_scope_ids:
-        query = query.filter(
-            CategoryFilterDefinition.category_id.in_(category_scope_ids)
-        )
-
-    rows = query.order_by(
-        CategoryFilterDefinition.sort_order,
-        CategoryFilterDefinition.id,
-        CategoryFilterValue.sort_order,
-        CategoryFilterValue.id,
-    ).all()
-
-    merged = {}
     for (
         definition_id,
         name,
@@ -1352,161 +1412,204 @@ def product_scope_filters():
         slug,
         value_sort,
     ) in rows:
-        key = (
-            (name or "").strip().casefold(),
-            (filter_type or "").strip().casefold(),
-        )
-        item = merged.get(key)
-        if item is None:
-            item = {
-                "id": definition_id,
-                "name": name,
-                "filter_type": filter_type,
-                "sort_order": definition_sort,
-                "values": [],
-            }
-            merged[key] = item
-
-        existing = {int(value["id"]) for value in item["values"]}
-        if int(value_id) in existing:
-            continue
-        item["values"].append({
-            "id": value_id,
-            "label": label,
-            "slug": slug,
-            "sort_order": value_sort,
-        })
-
-    # Standard dimensions are server-owned taxonomy. They do not depend
-    # on whether the currently selected circle has products assigned to them.
-    def add_standard_group(key_name, filter_type, sort_order, values):
-        if not values:
-            return
-        key = (key_name.casefold(), filter_type.casefold())
-        existing_group = merged.get(key)
-        if existing_group is None:
-            merged[key] = {
-                "id": None,
-                "name": key_name,
-                "filter_type": filter_type,
-                "sort_order": sort_order,
-                "values": list(values),
-            }
-            return
-
-        # Standard dimensions are complementary to any custom taxonomy
-        # group with the same display/type. Merge them instead of dropping
-        # server-owned color/size/brand values.
-        seen = {int(value["id"]) for value in existing_group["values"]}
-        for value in values:
-            if int(value["id"]) not in seen:
-                existing_group["values"].append(value)
-                seen.add(int(value["id"]))
-        existing_group["sort_order"] = min(
-            int(existing_group.get("sort_order") or sort_order),
-            int(sort_order),
+        add_group(
+            definition_id,
+            name,
+            filter_type,
+            definition_sort,
+            [{
+                "id": value_id,
+                "label": label,
+                "slug": slug,
+                "sort_order": value_sort,
+            }],
         )
 
-    colors = (
-        Color.query
-        .filter(Color.is_active.is_(True))
-        .order_by(Color.sort_order, Color.name, Color.id)
-        .all()
-    )
-    add_standard_group(
-        "اللون",
-        "color",
-        10,
-        [
-            {
-                "id": -(_COLOR_FILTER_OFFSET + int(color.id)),
-                "label": color.name,
-                "slug": color.name,
-                "sort_order": color.sort_order,
-            }
-            for color in colors
-        ],
-    )
+    # Server-owned standard dimensions are also narrowed to the current
+    # product scope. This is what prevents a side/circle result from showing
+    # unrelated colors, sizes, or brands.
+    scoped_product_ids = db.session.query(product_scope.c.id)
 
-    from ...models import Size
-    sizes = (
-        Size.query
-        .filter(Size.is_active.is_(True))
-        .order_by(Size.group, Size.sort_order, Size.label, Size.id)
-        .all()
-    )
-    add_standard_group(
-        "المقاس",
-        "size",
-        20,
-        [
-            {
-                "id": -(_SIZE_FILTER_OFFSET + int(size.id)),
-                "label": size.label,
-                "slug": f"{size.group}-{size.code}",
-                "sort_order": size.sort_order,
-            }
-            for size in sizes
-        ],
-    )
-
-    brands = (
-        Brand.query
-        .filter(Brand.is_active.is_(True))
-        .order_by(Brand.name, Brand.id)
-        .all()
-    )
-    add_standard_group(
-        "العلامة التجارية",
-        "brand",
-        30,
-        [
-            {
-                "id": -(_BRAND_FILTER_OFFSET + int(brand.id)),
-                "label": brand.name,
-                "slug": brand.slug,
-                "sort_order": index,
-            }
-            for index, brand in enumerate(brands)
-        ],
-    )
-
-    if category_scope_ids:
-        category_rows = (
-            Category.query
+    color_ids = [
+        int(value_id)
+        for (value_id,) in (
+            db.session.query(ProductVariant.color_id)
             .filter(
-                Category.is_active.is_(True),
-                Category.id.in_(category_scope_ids),
+                ProductVariant.product_id.in_(scoped_product_ids),
+                ProductVariant.color_id.isnot(None),
+                ProductVariant.is_active.is_(True),
             )
-            .order_by(Category.parent_id, Category.sort_order, Category.name, Category.id)
+            .distinct()
             .all()
         )
-        # The root itself is navigation context; expose its descendants as
-        # filter values when they exist.
-        descendant_ids = set()
-        for scope_id in category_scope_ids:
-            for descendant_id in CatalogService.category_descendant_ids(scope_id):
-                if descendant_id != scope_id:
-                    descendant_ids.add(int(descendant_id))
-        descendant_rows = (
-            Category.query
+    ]
+    color_ids += [
+        int(value_id)
+        for (value_id,) in (
+            db.session.query(ProductColorReference.color_id)
             .filter(
-                Category.is_active.is_(True),
-                Category.id.in_(sorted(descendant_ids)) if descendant_ids else Category.id == -1,
+                ProductColorReference.product_id.in_(scoped_product_ids),
             )
-            .order_by(Category.parent_id, Category.sort_order, Category.name, Category.id)
+            .distinct()
             .all()
         )
-        category_values = [
-            {
-                "id": -(_CATEGORY_FILTER_OFFSET + int(row.id)),
-                "label": row.name,
-                "slug": row.slug,
-                "sort_order": row.sort_order,
-            }
-            for row in descendant_rows
-        ]
-        add_standard_group("الفئة", "category", 5, category_values)
+    ]
+    color_ids = sorted(set(color_ids))
+    if color_ids:
+        colors = (
+            Color.query
+            .filter(
+                Color.id.in_(color_ids),
+                Color.is_active.is_(True),
+            )
+            .order_by(Color.sort_order, Color.name, Color.id)
+            .all()
+        )
+        add_group(
+            None,
+            "اللون",
+            "color",
+            10,
+            [
+                {
+                    "id": -(_COLOR_FILTER_OFFSET + int(color.id)),
+                    "label": color.name,
+                    "slug": color.name,
+                    "sort_order": color.sort_order,
+                }
+                for color in colors
+            ],
+        )
+
+    size_ids = [
+        int(value_id)
+        for (value_id,) in (
+            db.session.query(ProductVariant.size_id)
+            .filter(
+                ProductVariant.product_id.in_(scoped_product_ids),
+                ProductVariant.size_id.isnot(None),
+                ProductVariant.is_active.is_(True),
+            )
+            .distinct()
+            .all()
+        )
+    ]
+    size_ids += [
+        int(value_id)
+        for (value_id,) in (
+            db.session.query(ProductSizeReference.size_id)
+            .filter(
+                ProductSizeReference.product_id.in_(scoped_product_ids),
+            )
+            .distinct()
+            .all()
+        )
+    ]
+    size_ids = sorted(set(size_ids))
+    if size_ids:
+        sizes = (
+            Size.query
+            .filter(
+                Size.id.in_(size_ids),
+                Size.is_active.is_(True),
+            )
+            .order_by(Size.group, Size.sort_order, Size.label, Size.id)
+            .all()
+        )
+        add_group(
+            None,
+            "المقاس",
+            "size",
+            20,
+            [
+                {
+                    "id": -(_SIZE_FILTER_OFFSET + int(size.id)),
+                    "label": size.label,
+                    "slug": f"{size.group}-{size.code}",
+                    "sort_order": size.sort_order,
+                }
+                for size in sizes
+            ],
+        )
+
+    brand_ids = [
+        int(value_id)
+        for (value_id,) in (
+            db.session.query(Product.brand_id)
+            .filter(
+                Product.id.in_(scoped_product_ids),
+                Product.brand_id.isnot(None),
+            )
+            .distinct()
+            .all()
+        )
+    ]
+    if brand_ids:
+        brands = (
+            Brand.query
+            .filter(
+                Brand.id.in_(brand_ids),
+                Brand.is_active.is_(True),
+            )
+            .order_by(Brand.name, Brand.id)
+            .all()
+        )
+        add_group(
+            None,
+            "العلامة التجارية",
+            "brand",
+            30,
+            [
+                {
+                    "id": -(_BRAND_FILTER_OFFSET + int(brand.id)),
+                    "label": brand.name,
+                    "slug": brand.slug,
+                    "sort_order": index,
+                }
+                for index, brand in enumerate(brands)
+            ],
+        )
+
+    # Category descendants remain a useful filter for normal category result
+    # pages. Side/circle pages deliberately do not inherit their root.
+    side_scoped = bool(side_category_id or circle_id)
+    if category_scope_ids and not side_scoped:
+        descendant_ids = {
+            int(descendant_id)
+            for scope_id in category_scope_ids
+            for descendant_id in CatalogService.category_descendant_ids(scope_id)
+            if int(descendant_id) != int(scope_id)
+        }
+        if descendant_ids:
+            descendant_rows = (
+                Category.query
+                .filter(
+                    Category.is_active.is_(True),
+                    Category.id.in_(sorted(descendant_ids)),
+                )
+                .order_by(
+                    Category.parent_id,
+                    Category.sort_order,
+                    Category.name,
+                    Category.id,
+                )
+                .all()
+            )
+            add_group(
+                None,
+                "الفئة",
+                "category",
+                5,
+                [
+                    {
+                        "id": -(_CATEGORY_FILTER_OFFSET + int(row.id)),
+                        "label": row.name,
+                        "slug": row.slug,
+                        "sort_order": row.sort_order,
+                    }
+                    for row in descendant_rows
+                ],
+            )
 
     items = list(merged.values())
     items.sort(key=lambda item: (
