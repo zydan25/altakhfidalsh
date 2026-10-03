@@ -150,6 +150,7 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
   bool busy = false;
   int? otpRequestId;
   String? normalizedPhone;
+  String? existingCustomerName;
 
   List<Map<String, dynamic>> cities = [];
   List<Map<String, dynamic>> areas = [];
@@ -216,6 +217,8 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
       normalizedPhone = (result['phone'] ?? value).toString();
       final exists = result['exists'] == true;
       final hasPassword = result['has_password'] == true;
+      existingCustomerName = (result['name'] ?? '').toString().trim();
+      if (existingCustomerName!.isEmpty) existingCustomerName = null;
 
       if (!exists) {
         // Only a genuinely new phone number can enter the registration form.
@@ -223,18 +226,10 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
         return;
       }
 
-      if (hasPassword) {
-        if (mounted) setState(() => mode = 'existing_password');
-        return;
-      }
-
-      // Existing account without a password: request the login OTP immediately.
-      final otp = await api.requestOtp(normalizedPhone ?? value, purpose: 'login');
-      otpRequestId = int.tryParse((otp['otp_request_id'] ?? '').toString());
-      if (otpRequestId == null) {
-        throw Exception('تعذر إنشاء رمز الدخول للحساب الموجود.');
-      }
-      if (mounted) setState(() => mode = 'otp_login');
+      // Existing customers always start with the password screen.
+      // Legacy accounts without a password can use "نسيت كلمة المرور"
+      // to establish a password through phone verification.
+      if (mounted) setState(() => mode = 'existing_password');
     } catch (e) {
       fail(e);
     } finally {
@@ -247,16 +242,6 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
     try {
       await api.passwordLogin(normalizedPhone ?? phone.text.trim(), password.text);
       await finalizeLogin();
-    } catch (e) { fail(e); }
-    finally { if (mounted) setState(() => busy = false); }
-  }
-
-  Future<void> loginWithOtp() async {
-    setState(() { busy = true; error = null; });
-    try {
-      final r = await api.requestOtp(normalizedPhone ?? phone.text.trim(), purpose: 'login');
-      otpRequestId = int.tryParse((r['otp_request_id'] ?? '').toString());
-      setState(() => mode = 'otp_login');
     } catch (e) { fail(e); }
     finally { if (mounted) setState(() => busy = false); }
   }
@@ -513,7 +498,12 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
     keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
     padding: const EdgeInsets.fromLTRB(14, 42, 14, 120),
     children: [
-      header('مرحبًا بعودتك', 'وجدنا حسابًا بهذا الرقم. أدخل كلمة المرور أو اختر طريقة أخرى للدخول.'),
+      header(
+        existingCustomerName == null || existingCustomerName!.isEmpty
+            ? 'مرحبًا بعودتك'
+            : 'مرحبًا بعودتك، $existingCustomerName',
+        'هذا حسابك الحالي. أدخل كلمة المرور للمتابعة، أو استخدم «نسيت كلمة المرور» لاستعادتها عبر رقم الهاتف.',
+      ),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
         decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(10)),
@@ -530,9 +520,12 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
       const SizedBox(height: 7),
       Row(
         children: [
-          Expanded(child: OutlinedButton(onPressed: busy ? null : requestReset, child: const Text('نسيت كلمة المرور', style: TextStyle(fontSize: 10)))),
-          const SizedBox(width: 7),
-          Expanded(child: OutlinedButton(onPressed: busy ? null : loginWithOtp, child: const Text('الدخول بكود التحقق', style: TextStyle(fontSize: 10)))),
+          Expanded(
+            child: OutlinedButton(
+              onPressed: busy ? null : requestReset,
+              child: const Text('نسيت كلمة المرور', style: TextStyle(fontSize: 10)),
+            ),
+          ),
         ],
       ),
       TextButton(onPressed: busy ? null : () => setState(() => mode = 'phone'), child: const Text('تغيير الرقم')),
