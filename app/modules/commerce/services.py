@@ -1095,6 +1095,27 @@ class CommerceService:
         previous = order.status
         if to_status == "awaiting_payment":
             order.payment_status = "unpaid"
+            if order.shipping_override is None and not order.shipping_rate_id:
+                item_rows = OrderItem.query.filter_by(order_id=order.id).all()
+                subtotal_sar = sum(
+                    (Decimal(item.base_price_sar or 0) * int(item.qty or 0))
+                    for item in item_rows
+                )
+                address = (order.address_snapshot or {})
+                quote = CommerceService._resolve_shipping(
+                    order.customer_id,
+                    order.city_id or address.get("city_id"),
+                    address.get("city_area_id"),
+                    subtotal_sar,
+                    Decimal(order.fx_rate or 1),
+                    None,
+                )
+                if quote.rate_id is not None:
+                    order.shipping = quote.price_display
+                    order.shipping_base_sar = quote.price_sar
+                    order.shipping_rate_id = quote.rate_id
+                    order.shipping_rule_ids_json = list(quote.applied_rule_ids or [])
+                    order.total = Decimal(order.subtotal) - Decimal(order.discount or 0) + quote.price_display
         with db.session.begin_nested():
             items = OrderItem.query.filter_by(order_id=order.id).all()
             if to_status == "cancelled":
@@ -1148,7 +1169,11 @@ class CommerceService:
         db.session.commit()
 
         message_by_status = {
-            "awaiting_payment": "تم تأكيد طلبك من المتجر. أصبح الطلب بانتظار الدفع ويمكنك اختيار طريقة الدفع من صفحة الطلب.",
+            "awaiting_payment": (
+                "تم تأكيد طلبك من المتجر. أصبح الطلب بانتظار الدفع ويمكنك اختيار طريقة الدفع من صفحة الطلب."
+                if order.shipping_rate_id or order.shipping_override is not None
+                else "تم تأكيد طلبك من المتجر، لكن رسوم التوصيل لم تُحدد بعد. سيحدث الدفع بعد تحديدها."
+            ),
             "processing": "بدأ المتجر تجهيز طلبك.",
             "shipped": "تم شحن طلبك وبدأت رحلة التوصيل.",
             "delivered": "تم تسليم طلبك بنجاح. شكرًا لاختيار التخفيض الصح.",
