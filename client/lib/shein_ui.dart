@@ -10422,10 +10422,12 @@ class _SxSupportScreenState extends State<SxSupportScreen> {
 class SxConversationScreen extends StatefulWidget {
   final int conversationId;
   final String title;
+  final bool paymentProofMode;
   const SxConversationScreen({
     super.key,
     required this.conversationId,
     required this.title,
+    this.paymentProofMode = false,
   });
   @override State<SxConversationScreen> createState() => _SxConversationScreenState();
 }
@@ -10453,9 +10455,17 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
   }
   Future<void> sendFile() async{
     if(uploading)return; setState(()=>uploading=true);
-    try{await api.pickAndSendMessageWithFile(widget.conversationId);await load();}
-    catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));}
-    finally{if(mounted)setState(()=>uploading=false);}
+    try{
+      await api.pickAndSendMessageWithFile(
+        widget.conversationId,
+        paymentProof: widget.paymentProofMode,
+      );
+      await load();
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));
+    }finally{
+      if(mounted)setState(()=>uploading=false);
+    }
   }
   @override void dispose(){input.dispose();scroll.dispose();super.dispose();}
   Widget attachment(Map<String,dynamic> a){
@@ -10472,7 +10482,14 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
       title:Row(children:[
         Container(width:36,height:36,decoration:const BoxDecoration(color:Colors.black,shape:BoxShape.circle),child:const Icon(Icons.support_agent,color:Colors.white,size:19)),
         const SizedBox(width:8),
-        Expanded(child:Text(widget.title,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w900))),
+        Expanded(
+          child:Text(
+            widget.paymentProofMode ? 'إثبات الدفع · '+widget.title : widget.title,
+            maxLines:1,
+            overflow:TextOverflow.ellipsis,
+            style:const TextStyle(fontSize:15,fontWeight:FontWeight.w900),
+          ),
+        ),
       ]),
       actions:[IconButton(onPressed:load,icon:const Icon(Icons.refresh_outlined,size:20))],
     ),
