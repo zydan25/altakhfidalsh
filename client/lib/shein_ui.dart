@@ -9152,6 +9152,7 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
           _AccountTile(Icons.privacy_tip_outlined,'السياسات',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxPoliciesScreen()))),
           _AccountTile(Icons.currency_exchange,'العملة',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxCurrencyScreen()))),
           _AccountTile(Icons.location_city_outlined,'المدينة',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxCityScreen()))),
+          _AccountTile(Icons.payments_outlined,'معلومات الدفع',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxPaymentInfoScreen()))),
           _AccountTile(Icons.support_agent_outlined,'تواصل معنا',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxStoreContactScreen()))),
           _AccountTile(Icons.storefront_outlined,'موقعنا',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxStoreLocationScreen()))),
         ]),
@@ -9402,6 +9403,293 @@ class _SxStoreLocationScreenState extends State<SxStoreLocationScreen> {
             const SxDeveloperSignature(),
           ],
         ),
+  );
+}
+
+class SxPaymentInfoCard extends StatelessWidget {
+  final Map<String, dynamic> method;
+  final bool selected;
+  final VoidCallback? onSelect;
+
+  const SxPaymentInfoCard({
+    super.key,
+    required this.method,
+    this.selected = false,
+    this.onSelect,
+  });
+
+  Map<String, dynamic> get settings =>
+      method['settings'] is Map
+          ? Map<String, dynamic>.from(method['settings'] as Map)
+          : <String, dynamic>{};
+
+  String get type => sxText(settings['type'], sxText(method['code'])).trim().toLowerCase();
+
+  IconData _icon() {
+    final custom = sxText(settings['icon']).trim().toLowerCase();
+    switch (custom) {
+      case 'bank':
+      case 'bank_transfer':
+        return Icons.account_balance_outlined;
+      case 'wallet':
+        return Icons.account_balance_wallet_outlined;
+      case 'cash':
+      case 'cod':
+        return Icons.local_shipping_outlined;
+      case 'money':
+      case 'payments':
+        return Icons.payments_outlined;
+      case 'building':
+        return Icons.business_outlined;
+      case 'qr':
+        return Icons.qr_code_2_outlined;
+      default:
+        if (type == 'cod') return Icons.local_shipping_outlined;
+        if (type == 'wallet') return Icons.account_balance_wallet_outlined;
+        return Icons.account_balance_outlined;
+    }
+  }
+
+  String _text(String key) => sxText(settings[key]).trim();
+
+  @override
+  Widget build(BuildContext context) {
+    final number = _text('account_number').isNotEmpty
+        ? _text('account_number')
+        : _text('point_number');
+    final numberLabel = _text('account_number').isNotEmpty
+        ? 'رقم الحساب'
+        : 'رقم النقطة / المحفظة';
+    final description = _text('description').isNotEmpty
+        ? _text('description')
+        : _text('instructions').isNotEmpty
+            ? _text('instructions')
+            : _text('notes');
+    final name = _text('account_name').isNotEmpty
+        ? _text('account_name')
+        : _text('point_name');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 9),
+      decoration: BoxDecoration(
+        color: selected ? const Color(0xFFF6F6F6) : Colors.white,
+        border: Border.all(
+          color: selected ? Colors.black : ClientTheme.border,
+          width: selected ? 1.2 : 0.8,
+        ),
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: Colors.black,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(_icon(), color: Colors.white, size: 19),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      sxText(method['name'], 'طريقة الدفع'),
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (name.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          fontSize: 8.5,
+                          color: ClientTheme.muted,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (selected)
+                const Icon(Icons.check_circle, size: 19),
+            ],
+          ),
+          if (number.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8F8F8),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          numberLabel,
+                          style: const TextStyle(
+                            fontSize: 7.8,
+                            color: ClientTheme.muted,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          number,
+                          textDirection: TextDirection.ltr,
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: .3,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  IconButton(
+                    tooltip: 'نسخ',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: number));
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('تم نسخ رقم الحساب.'),
+                            duration: Duration(milliseconds: 1100),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.copy_outlined, size: 18),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (description.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            Text(
+              description,
+              style: const TextStyle(
+                fontSize: 8.8,
+                color: ClientTheme.muted,
+                height: 1.55,
+              ),
+            ),
+          ],
+          if (onSelect != null && type != 'cod') ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 38,
+              child: OutlinedButton(
+                onPressed: onSelect,
+                child: Text(
+                  selected ? 'تم اختيار طريقة الدفع' : 'اختيار طريقة الدفع',
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class SxPaymentInfoScreen extends StatefulWidget {
+  const SxPaymentInfoScreen({super.key});
+  @override
+  State<SxPaymentInfoScreen> createState() => _SxPaymentInfoScreenState();
+}
+
+class _SxPaymentInfoScreenState extends State<SxPaymentInfoScreen> {
+  List<Map<String, dynamic>> methods = <Map<String, dynamic>>[];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final rows = await api.paymentMethods();
+      if (mounted) {
+        setState(() => methods = rows);
+      }
+    } catch (_) {}
+    if (mounted) setState(() => loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) => SxShellPage(
+    title: 'معلومات الدفع',
+    back: true,
+    child: loading
+        ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+        : RefreshIndicator(
+            onRefresh: load,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(10, 12, 10, 80),
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.verified_user_outlined, color: Colors.white, size: 28),
+                      SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          'طرق الدفع الرسمية المعتمدة من المتجر',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (methods.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Text(
+                      'لا توجد معلومات دفع مفعلة حاليًا.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 10, color: ClientTheme.muted),
+                    ),
+                  )
+                else
+                  for (final method in methods)
+                    SxPaymentInfoCard(method: method),
+                const SxDeveloperSignature(),
+              ],
+            ),
+          ),
   );
 }
 
