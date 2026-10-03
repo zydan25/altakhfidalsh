@@ -296,14 +296,21 @@ class CustomerAuthService:
         return {"ok": True, "customer_id": customer.id}
 
     @staticmethod
-    def set_password(customer_id, new_password):
+    def set_password(customer_id, new_password, current_password=None):
         password = str(new_password or "")
         if len(password) < 6:
             raise ValueError("كلمة المرور يجب أن تكون 6 أحرف على الأقل.")
         customer = db.session.get(Customer, int(customer_id))
         if customer is None:
             raise LookupError("الحساب غير موجود.")
+        if customer.password_hash:
+            current = str(current_password or "")
+            if not current or not check_password_hash(customer.password_hash, current):
+                raise ValueError("كلمة المرور الحالية غير صحيحة.")
         customer.password_hash = generate_password_hash(password)
+        customer.onboarding_completed = bool(
+            customer.name and customer.city_id and customer.privacy_accepted_at
+        )
         db.session.commit()
         return {"ok": True}
 
