@@ -109,6 +109,51 @@ jobs:
                   print(line)
           PY
 
+      - name: Configure notification service permissions
+        working-directory: client
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("android/app/src/main/AndroidManifest.xml")
+          text = path.read_text(encoding="utf-8")
+
+          manifest_permissions = [
+              '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />',
+              '<uses-permission android:name="android.permission.VIBRATE" />',
+              '<uses-permission android:name="android.permission.WAKE_LOCK" />',
+              '<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />',
+              '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />',
+              '<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />',
+          ]
+
+          marker = '<application'
+          if marker not in text:
+              raise SystemExit("AndroidManifest.xml: <application> not found")
+
+          for permission in manifest_permissions:
+              if permission not in text:
+                  text = text.replace(marker, permission + "\n    " + marker, 1)
+
+          service = '''    <service
+              android:name="id.flutter.flutter_background_service.BackgroundService"
+              android:exported="false"
+              android:foregroundServiceType="remoteMessaging" />'''
+          if "id.flutter.flutter_background_service.BackgroundService" not in text:
+              text = text.replace(
+                  "    </application>",
+                  service + "\n    </application>",
+                  1,
+              )
+
+          path.write_text(text, encoding="utf-8")
+          print("Configured custom WebSocket notification foreground service.")
+          PY
+
+          mkdir -p android/app/src/main/res/drawable
+          cp android/app/src/main/res/drawable/app_icon.png android/app/src/main/res/drawable/ic_bg_service_small.png
+
       - name: Set Android application name
         working-directory: client
         run: |
