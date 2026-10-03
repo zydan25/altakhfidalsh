@@ -10931,7 +10931,6 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                 ),
               ),
             ],
-                ],
               ),
             ),
             if (status == 'created')
