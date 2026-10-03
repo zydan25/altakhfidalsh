@@ -76,9 +76,7 @@
       ("media","الصور"),
       ("options","الألوان والمقاسات"),
       ("marketing","الشارات والهاشتاج"),
-      ("appearance","مظهر بطاقة المنتج"),
-      ("delivery","التوصيل"),
-      ("recommendations","التوصيات"),
+      ("presentation","الشارات والمظهر"),
       ("variants","المتغيرات"),
       ("inventory","المخزون"),
       ("policies","السياسات"),
@@ -303,34 +301,21 @@
     <button id="saveMarketing" class="primary-button" type="button">حفظ الشارات والهاشتاجات وشرائط العروض والحملات</button>
   </div>
 
-  <div class="wizard-panel" data-panel="appearance" hidden>
+  <div class="wizard-panel" data-panel="presentation" hidden>
     <div class="panel-heading">
-      <div><span class="eyebrow">العرض</span><h3>مظهر بطاقة المنتج الخاصة بهذا المنتج</h3><small class="muted">كل قيمة تبدأ من الإعداد العام. فعّل «تخصيص» فقط عندما تريد قيمة مختلفة لهذا المنتج.</small></div>
+      <div>
+        <span class="eyebrow">العرض المستقل</span>
+        <h3>الشارات والمظهر والتوصيات</h3>
+        <small class="muted">تم فصل هذه الإعدادات عن بيانات المنتج الأساسية لتكون شاشة مستقلة وواضحة لكل منتج.</small>
+      </div>
     </div>
     <div class="card-inherit-note">
-      <strong>الوراثة من الإعداد العام</strong>
-      <span>عند عدم التخصيص، أي تغيير لاحق في إعدادات بطاقة المنتج العامة يصل تلقائيًا إلى هذا المنتج.</span>
-      <button type="button" class="ghost-button" id="resetProductCardOverrides">إلغاء كل التخصيصات والعودة للعامة</button>
+      <strong>شاشة مستقلة لكل منتج</strong>
+      <span>من هنا تنتقل إلى فورم مخصص للتحكم في مظهر بطاقة المنتج، الشارات الفردية، شارات التوصيل والتوصيات دون ازدحام فورم المنتج.</span>
     </div>
-    <div id="productCardEditor" class="product-card-editor"></div>
-    <button id="saveProductCard" class="primary-button" type="button">حفظ مظهر بطاقة هذا المنتج</button>
-  </div>
-
-  <div class="wizard-panel" data-panel="delivery" hidden>
-    <div class="panel-heading">
-      <div><span class="eyebrow">الشحن</span><h3>شارات التوصيل الخاصة بالمنتج</h3><small class="muted">هذه الشارات تخص هذا المنتج فقط ويمكن ترتيبها وإخفاؤها وتلوينها.</small></div>
-      <button class="primary-button quick-add-button" type="button" id="addDeliveryBadge">＋ إضافة شارة توصيل</button>
-    </div>
-    <div id="deliveryBadgeEditor" class="delivery-badge-editor"></div>
-    <button id="saveDeliveryBadges" class="primary-button" type="button">حفظ شارات التوصيل</button>
-  </div>
-
-  <div class="wizard-panel" data-panel="recommendations" hidden>
-    <div class="panel-heading">
-      <div><span class="eyebrow">الاكتشاف</span><h3>المنتجات في «قد يعجبك أيضًا»</h3><small class="muted">يتم الاختيار عشوائيًا من المصدر الذي تحدده حتى لا يظهر نفس الترتيب لكل عميل.</small></div>
-    </div>
-    <div id="recommendationEditor" class="recommendation-editor"></div>
-    <button id="saveRecommendations" class="primary-button" type="button">حفظ إعدادات التوصيات</button>
+    <a class="primary-button" href="/admin/products/{{ product_id }}/presentation">
+      فتح الشارات والمظهر والتوصيات
+    </a>
   </div>
 
   <div class="wizard-panel" data-panel="variants" hidden>
