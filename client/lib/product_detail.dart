@@ -213,12 +213,12 @@ class _SxProductScreenState extends State<SxProductScreen> {
     final colors = _colors();
     final sizes = _sizes();
     if (colorId != null) {
-      final matching = colors.where((x) => sxInt(x['id']) == colorId);\n      final row = matching.isEmpty ? null : matching.first;
-      if (row != null) result['اللون'] = sxText(row['name']);
+      final matching = colors.where((x) => sxInt(x['id']) == colorId);
+      if (matching.isNotEmpty) result['اللون'] = sxText(matching.first['name']);
     }
     if (sizeId != null) {
-      final matching = sizes.where((x) => sxInt(x['id']) == sizeId);\n      final row = matching.isEmpty ? null : matching.first;
-      if (row != null) result['المقاس'] = sxText(row['label'], sxText(row['code']));
+      final matching = sizes.where((x) => sxInt(x['id']) == sizeId);
+      if (matching.isNotEmpty) result['المقاس'] = sxText(matching.first['label'], sxText(matching.first['code']));
     }
     return result;
   }
@@ -227,6 +227,16 @@ class _SxProductScreenState extends State<SxProductScreen> {
     if (!mounted) return null;
     final colors = _colors();
     final sizes = _sizes();
+    String selectedColor = '';
+    String selectedSize = '';
+    if (colorId != null) {
+      final matching = colors.where((x) => sxInt(x['id']) == colorId);
+      if (matching.isNotEmpty) selectedColor = sxText(matching.first['name']);
+    }
+    if (sizeId != null) {
+      final matching = sizes.where((x) => sxInt(x['id']) == sizeId);
+      if (matching.isNotEmpty) selectedSize = sxText(matching.first['label'], sxText(matching.first['code']));
+    }
     return showModalBottomSheet<int>(
       context: context,
       isScrollControlled: true,
@@ -236,19 +246,12 @@ class _SxProductScreenState extends State<SxProductScreen> {
       ),
       builder: (_) => _AddToCartConfirmation(
         productName: sxText((data['product'] as Map?)?['name'], 'منتج'),
-        color: colorId == null
-            ? ''
-            : sxText(
-                colors.where((x) => sxInt(x['id']) == colorId).,
-              ),
-        size: sizeId == null
-            ? ''
-            : sxText(
-                sizes.where((x) => sxInt(x['id']) == sizeId).,
-              ),
+        color: selectedColor,
+        size: selectedSize,
       ),
     );
   }
+
 
   Future<bool> _addToCart() async {
     final variant = _variantId();
