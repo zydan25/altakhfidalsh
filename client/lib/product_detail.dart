@@ -908,6 +908,13 @@ class _DeliveryBadgePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final visible = badges.where((x) => x['visible'] != false).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
+
+    final groups = <String, List<Map<String,dynamic>>>{};
+    for (final badge in visible) {
+      final section = sxText(badge['section'], 'shipping');
+      groups.putIfAbsent(section, () => <Map<String,dynamic>>[]).add(badge);
+    }
+
     return Container(
       margin: const EdgeInsets.only(top: 6),
       color: Colors.white,
@@ -917,35 +924,64 @@ class _DeliveryBadgePanel extends StatelessWidget {
         children: [
           const Text('التوصيل والمزايا', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: visible.map((badge) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              decoration: BoxDecoration(
-                color: sxColor(sxText(badge['background_color']), const Color(0xFFF5F5F5)),
-                borderRadius: BorderRadius.circular(7),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (sxText(badge['icon']).isNotEmpty) const Icon(Icons.local_shipping_outlined, size: 13),
-                  const SizedBox(width: 4),
-                  Text(
-                    sxText(badge['text']),
-                    style: TextStyle(
-                      color: sxColor(sxText(badge['text_color']), const Color(0xFF111111)),
-                      fontSize: sxDouble(badge['font_size'], 9),
-                      fontWeight: FontWeight.w800,
+          ...groups.entries.map((entry) => Padding(
+            padding: const EdgeInsets.only(bottom: 7),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  _deliverySectionLabel(entry.key),
+                  style: const TextStyle(fontSize: 8.5, color: ClientTheme.muted, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 5),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: entry.value.map((badge) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: sxColor(sxText(badge['background_color']), const Color(0xFFF5F5F5)),
+                      borderRadius: BorderRadius.circular(7),
                     ),
-                  ),
-                ],
-              ),
-            )).toList(),
-          ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (sxText(badge['icon']).isNotEmpty)
+                          const Icon(Icons.local_shipping_outlined, size: 13),
+                        const SizedBox(width: 4),
+                        Text(
+                          sxText(badge['text']),
+                          style: TextStyle(
+                            color: sxColor(sxText(badge['text_color']), const Color(0xFF111111)),
+                            fontSize: sxDouble(badge['font_size'], 9),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )).toList(),
+                ),
+              ],
+            ),
+          )),
         ],
       ),
     );
+  }
+
+  String _deliverySectionLabel(String key) {
+    switch (key) {
+      case 'shipping':
+        return 'الشحن';
+      case 'returns':
+        return 'الإرجاع';
+      case 'payment':
+        return 'الدفع';
+      case 'warranty':
+        return 'الضمان';
+      default:
+        return key;
+    }
   }
 }
 
@@ -1429,10 +1465,6 @@ class _ReviewComposerState extends State<_ReviewComposer> {
   }
 
   Future<void> submit() async {
-    if (bodyController.text.trim().isEmpty && titleController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اكتب تعليقًا قبل الحفظ.')));
-      return;
-    }
     setState(() => saving = true);
     try {
       await widget.onSubmit(
