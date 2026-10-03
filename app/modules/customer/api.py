@@ -6,7 +6,7 @@ from .security import customer_required, current_customer
 from .services import CustomerService
 from .wishlist import CustomerEngagementService
 from ...extensions import db
-from ...models import Customer, CustomerAddress
+from ...models import Customer, CustomerAddress, City, CityArea, Country, Region
 
 
 def _authorized_customer_id():
@@ -84,21 +84,30 @@ def my_addresses():
         customer_id=current_customer().id,
         is_active=True,
     ).order_by(CustomerAddress.is_default.desc(), CustomerAddress.id).all()
-    return {"items": [
-        {
+    items = []
+    for x in rows:
+        city = db.session.get(City, x.city_id) if x.city_id else None
+        area = db.session.get(CityArea, x.city_area_id) if x.city_area_id else None
+        region = db.session.get(Region, city.region_id) if city else None
+        country = db.session.get(Country, x.country_id) if x.country_id else None
+        items.append({
             "id": x.id,
             "recipient_name": x.recipient_name,
             "phone": x.phone,
             "country_id": x.country_id,
+            "country_name": country.name_ar if country else None,
+            "region_id": region.id if region else None,
+            "region_name": region.name if region else None,
             "city_id": x.city_id,
+            "city_name": city.name if city else None,
             "city_area_id": x.city_area_id,
+            "city_area_name": area.name if area else None,
             "district": x.district,
             "street": x.street,
             "landmark": x.landmark,
-            "is_default": x.is_default,
-        }
-        for x in rows
-    ]}
+            "is_default": bool(x.is_default),
+        })
+    return {"items": items}
 
 
 @api_bp.post("/me/addresses")
