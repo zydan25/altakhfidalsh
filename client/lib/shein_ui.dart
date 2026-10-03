@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'app_state.dart';
+import 'auth_flow.dart';
 import 'models.dart';
 import 'theme.dart';
 import 'product_card.dart';
@@ -10290,7 +10291,7 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                     ),
                   ),
                 ),
-              )
+              ),
             const SxSectionTitle(title: 'المنتجات'),
             Container(
               decoration: BoxDecoration(
