@@ -6,7 +6,7 @@ from .security import customer_required, current_customer
 from .services import CustomerService
 from .wishlist import CustomerEngagementService
 from ...extensions import db
-from ...models import Customer, CustomerAddress, City, CityArea, Country, Region
+from ...models import Customer, CustomerAddress, City, CityArea, Country, Region, Product, Review
 
 
 def _authorized_customer_id():
@@ -156,6 +156,64 @@ def add_my_wishlist(product_id):
         return {"item": CustomerEngagementService.add_wishlist(current_customer().id, product_id)}, 201
     except LookupError as exc:
         return {"error": "wishlist_failed", "detail": str(exc)}, 404
+
+
+@api_bp.post("/me/products/<int:product_id>/reviews")
+@customer_required
+def create_my_review(product_id):
+    product = db.session.get(Product, product_id)
+    if product is None or not product.is_active or product.status != "published":
+        return {"error": "product_not_found"}, 404
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        rating = int(payload.get("rating"))
+    except (TypeError, ValueError):
+        return {"error": "invalid_rating", "detail": "اختر تقييمًا من 1 إلى 5."}, 400
+
+    if rating < 1 or rating > 5:
+        return {"error": "invalid_rating", "detail": "اختر تقييمًا من 1 إلى 5."}, 400
+
+    title = str(payload.get("title") or "").strip()[:200]
+    body = str(payload.get("body") or "").strip()[:4000]
+    if not title and not body:
+        return {"error": "review_text_required", "detail": "اكتب تعليقًا أو عنوانًا للتقييم."}, 400
+
+    existing = Review.query.filter_by(
+        product_id=product_id,
+        customer_id=current_customer().id,
+    ).order_by(Review.id.desc()).first()
+
+    if existing is None:
+        review = Review(
+            product_id=product_id,
+            customer_id=current_customer().id,
+            rating=rating,
+            title=title or None,
+            body=body or None,
+            status="pending",
+            is_active=True,
+        )
+        db.session.add(review)
+    else:
+        existing.rating = rating
+        existing.title = title or None
+        existing.body = body or None
+        existing.status = "pending"
+        existing.is_active = True
+        review = existing
+
+    db.session.commit()
+    return {
+        "item": {
+            "id": review.id,
+            "product_id": review.product_id,
+            "rating": review.rating,
+            "title": review.title,
+            "body": review.body,
+            "status": review.status,
+        }
+    }, 201
 
 
 @api_bp.post("/me/views/<int:product_id>")
