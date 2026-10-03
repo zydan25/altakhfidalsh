@@ -1,4 +1,5 @@
 name: CI
+# Temporary PR validation marker; no behavior change.
 
 on:
   push:
