@@ -424,6 +424,9 @@ class ApiService {
     if(token.isNotEmpty)await p.setString('access_token',token);
     return d;
   }
+  Future<Map<String,dynamic>> setMyPassword(String password) async =>
+      Map<String,dynamic>.from(await post('/customer/me/password', {'new_password': password}));
+
   Future<Map<String,dynamic>> passwordResetRequest(String phone) async {
     final d=Map<String,dynamic>.from(await post('/customer/auth/password/request-reset',{'phone':phone}));
     final item=d['item'];
