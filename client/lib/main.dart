@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api.dart';
+import 'auth_flow.dart';
 import 'app_state.dart';
 import 'shein_ui.dart';
 import 'theme.dart';
@@ -22,7 +24,7 @@ class AltakhfidApp extends StatelessWidget {
       title: 'التخفيض الصح',
       theme: ClientTheme.theme(),
       locale: const Locale('ar'),
-      home: state.loggedIn ? const SxAppShell() : const SxAuthScreen(),
+      home: state.loggedIn ? const SxAppShell() : const SxAuthFlowScreen(),
     );
   }
 }
