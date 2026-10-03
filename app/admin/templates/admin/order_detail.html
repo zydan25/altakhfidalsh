@@ -43,7 +43,7 @@
     {% if order.status in ["created","awaiting_payment"] %}
     <form method="post" class="form-stack">
       <input type="hidden" name="action" value="edit">
-      {% for item in order.items %}
+      {% for item in order_items %}
       <label>الكمية — {{ item.name }} / {{ item.sku }}
         <input name="qty_{{ item.id }}" type="number" min="0" value="{{ item.qty }}">
       </label>
@@ -77,9 +77,9 @@
 </section>
 
 <section class="panel" style="margin-top:12px">
-  <div class="panel-heading"><div><span class="eyebrow">الأصناف</span><h3>ما طلبه العميل فعليًا</h3></div><span class="status-pill">{{ order.items|length }}</span></div>
+  <div class="panel-heading"><div><span class="eyebrow">الأصناف</span><h3>ما طلبه العميل فعليًا</h3></div><span class="status-pill">{{ order_items|length }}</span></div>
   <div class="stack-list">
-    {% for item in order.items %}
+    {% for item in order_items %}
     <article class="stack-row" style="align-items:flex-start;flex-direction:column">
       <strong>{{ item.name }} · {{ item.sku }}</strong>
       <span>Variant #{{ item.variant_id }} · كمية {{ item.qty }} · سعر العرض {{ item.sale_price_display }} · الإجمالي {{ item.total }}</span>
