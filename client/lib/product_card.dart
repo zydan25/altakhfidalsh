@@ -812,6 +812,34 @@ class _SxProductCardState extends State<SxProductCard> {
             ),
           ),
 
+        if (!product.inStock)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(.38),
+                borderRadius: BorderRadius.circular(widget.masonry ? 8 : 10),
+              ),
+              alignment: Alignment.center,
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 18),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(.94),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: const Text(
+                  'غير متوفر حاليًا',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFFC62828),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
         if (_galleryLoading)
           const Positioned.fill(
             child: Center(
