@@ -477,6 +477,17 @@ class _SxProductScreenState extends State<SxProductScreen> {
                     ),
                   ),
                   SliverToBoxAdapter(
+                    child: _DetailBadgeStrip(
+                      title: 'الشارات قبل الوصف',
+                      badges: _maps(data['badges']),
+                      positions: const {
+                        'before_description',
+                        'before_description_new_row',
+                        'before_details',
+                      },
+                    ),
+                  ),
+                  SliverToBoxAdapter(
                     child: _DetailSection(
                       title: 'تفاصيل المنتج',
                       icon: Icons.description_outlined,
@@ -491,6 +502,20 @@ class _SxProductScreenState extends State<SxProductScreen> {
                         if (sxText(product['sku']).isNotEmpty)
                           'رمز المنتج: ' + sxText(product['sku']),
                       ].where((text) => text.trim().isNotEmpty).join('\n\n'),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _DetailBadgeStrip(
+                      title: 'الشارات بعد الوصف والتفاصيل',
+                      badges: _maps(data['badges']),
+                      positions: const {
+                        'after_description',
+                        'after_description_same_row',
+                        'after_description_new_row',
+                        'below_description',
+                        'after_details',
+                        'after_details_same_row',
+                      },
                     ),
                   ),
                   SliverToBoxAdapter(child: _PolicySections(policies: policies)),
@@ -970,6 +995,8 @@ class _ProductHeroInfo extends StatelessWidget {
     final afterNameSame = <Map<String, dynamic>>[];
     final afterNameRow = <Map<String, dynamic>>[];
     final belowPrice = <Map<String, dynamic>>[];
+    final beforePriceSame = <Map<String, dynamic>>[];
+    final afterPriceSame = <Map<String, dynamic>>[];
     final rightImage = <Map<String, dynamic>>[];
 
     for (final badge in badges) {
@@ -999,6 +1026,12 @@ class _ProductHeroInfo extends StatelessWidget {
         case 'after_name':
         case 'after_name_same_row':
           afterNameSame.add(badge);
+          break;
+        case 'before_price_same_row':
+          beforePriceSame.add(badge);
+          break;
+        case 'after_price_same_row':
+          afterPriceSame.add(badge);
           break;
         case 'below_price':
         case 'after_price':
@@ -1224,7 +1257,37 @@ class _ProductHeroInfo extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 7),
               child: Wrap(textDirection: TextDirection.rtl, spacing: 5, runSpacing: 5, children: trends),
             ),
-          priceBox(),
+          strip(beforePriceSame, compact: true),
+          if (beforePriceSame.isNotEmpty || afterPriceSame.isNotEmpty)
+            Row(
+              textDirection: TextDirection.rtl,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                if (beforePriceSame.isNotEmpty)
+                  Flexible(
+                    child: Wrap(
+                      textDirection: TextDirection.rtl,
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: beforePriceSame.map(chip).toList(),
+                    ),
+                  ),
+                if (beforePriceSame.isNotEmpty) const SizedBox(width: 6),
+                Expanded(child: priceBox()),
+                if (afterPriceSame.isNotEmpty) const SizedBox(width: 6),
+                if (afterPriceSame.isNotEmpty)
+                  Flexible(
+                    child: Wrap(
+                      textDirection: TextDirection.rtl,
+                      spacing: 4,
+                      runSpacing: 4,
+                      children: afterPriceSame.map(chip).toList(),
+                    ),
+                  ),
+              ],
+            )
+          else
+            priceBox(),
           strip(belowPrice, compact: true),
           const SizedBox(height: 8),
           strip(beforeNameRow, compact: true),
