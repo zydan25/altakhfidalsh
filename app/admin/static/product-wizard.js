@@ -81,7 +81,17 @@
     if (config.status === "fulfilled") {
       configRefs = { ...(configRefs || {}), ...(config.value.item || config.value) };
     }
-    hydrate();
+    try {
+      hydrate();
+    } catch (error) {
+      notify(error?.message || "تعذر رسم بعض أجزاء معالج المنتج.", "error");
+    }
+    // These sections are independent of the rest of hydrate(); always render
+    // them after the snapshot is available so one optional UI error cannot
+    // leave the appearance/shipping/recommendation panels empty.
+    renderProductCardEditor();
+    renderDeliveryBadges();
+    renderRecommendationEditor();
     await refreshSideCategoryReferences();
 
     const optionalFailures = requests.slice(1).filter(item => item.status === "rejected");
@@ -375,8 +385,21 @@
   };
   const selectOptionsFor = (key) => {
     if (key.endsWith("text_decoration")) return [["line_through","خط فوق النص"],["none","بدون"]];
-    if (key === "brand_position" || key === "colors_position" || key === "meta_position" || key === "product_badge_position") {
+    if (key === "brand_position" || key === "colors_position" || key === "meta_position") {
       return [["top_right","أعلى اليمين"],["top_left","أعلى اليسار"],["bottom_right","أسفل اليمين"],["bottom_left","أسفل اليسار"]];
+    }
+    if (key === "product_badge_position") {
+      return [
+        ["above_image","أعلى الصورة"],
+        ["before_name","قبل اسم المنتج"],
+        ["after_name","بعد اسم المنتج"],
+        ["right_of_image","يمين الصورة"],
+        ["below_price","أسفل السعر"],
+        ["top_right","أعلى يمين الصورة"],
+        ["top_left","أعلى يسار الصورة"],
+        ["bottom_right","أسفل يمين الصورة"],
+        ["bottom_left","أسفل يسار الصورة"],
+      ];
     }
     if (key === "colors_direction") return [["horizontal","أفقي"],["vertical","رأسي"]];
     return null;
@@ -407,7 +430,7 @@
   const renderProductCardEditor = () => {
     const root = document.getElementById("productCardEditor");
     if (!root) return;
-    const global = snapshot?.product_card_global_settings || {};
+    const global = snapshot?.product_card_global_settings || snapshot?.product_card_settings || {};
     const overrides = snapshot?.product_card_overrides || {};
     const keys = Object.keys(global);
     root.innerHTML = cardGroups.map(([title]) => {
@@ -1441,6 +1464,22 @@
     snapshot.delivery_badges = payload;
     renderDeliveryBadges();
   };
+  document.getElementById("deliveryBadgeEditor")?.addEventListener("input", event => {
+    const text = event.target.closest('[data-delivery-field="background_color"],[data-delivery-field="text_color"]');
+    if (text && /^#[0-9a-fA-F]{6}$/.test(text.value.trim())) {
+      const field = text.dataset.deliveryField;
+      const picker = text.closest(".color-input-row")?.querySelector('[data-delivery-color="' + field + '"]');
+      if (picker) picker.value = text.value.trim();
+    }
+  });
+  document.getElementById("deliveryBadgeEditor")?.addEventListener("change", event => {
+    const picker = event.target.closest("[data-delivery-color]");
+    if (picker) {
+      const field = picker.dataset.deliveryColor;
+      const text = picker.closest(".color-input-row")?.querySelector('[data-delivery-field="' + field + '"]');
+      if (text) text.value = picker.value;
+    }
+  });
   document.getElementById("deliveryBadgeEditor")?.addEventListener("click", event => {
     const up = event.target.closest("[data-delivery-up]");
     const down = event.target.closest("[data-delivery-down]");
