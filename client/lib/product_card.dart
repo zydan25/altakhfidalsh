@@ -12,6 +12,33 @@ import 'theme.dart';
 String sxText(dynamic v, [String fallback = '']) => (v ?? fallback).toString();
 int sxInt(dynamic v, [int fallback = 0]) => int.tryParse(sxText(v)) ?? fallback;
 double sxDouble(dynamic v, [double fallback = 0]) => double.tryParse(sxText(v)) ?? fallback;
+
+/// Formats customer-facing money without changing the calculated numeric value.
+/// YER is displayed with no decimal places; other currencies use at most 2,
+/// trimming unnecessary trailing zeroes.
+String sxFormatMoney(
+  dynamic value, {
+  String? currencyCode,
+  int? decimals,
+}) {
+  final number = double.tryParse(sxText(value));
+  if (number == null) return sxText(value);
+
+  final code = (currencyCode ?? '').trim().toUpperCase();
+  final places = code == 'YER'
+      ? 0
+      : (decimals == 0 ? 0 : 2);
+
+  var result = number.toStringAsFixed(places);
+  if (places > 0) {
+    while (result.contains('.') && result.endsWith('0')) {
+      result = result.substring(0, result.length - 1);
+    }
+    if (result.endsWith('.')) result = result.substring(0, result.length - 1);
+  }
+  return result;
+}
+
 Color sxColor(dynamic value, Color fallback) {
   final raw = sxText(value);
   if (!RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(raw)) return fallback;
@@ -1108,7 +1135,10 @@ class _SxProductCardState extends State<SxProductCard> {
               color: priceBackground,
               padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
               child: Text(
-                product.price,
+                sxFormatMoney(
+                  product.price,
+                  currencyCode: state.currencyCode,
+                ),
                 style: TextStyle(
                   color: _cardColor('price_color', const Color(0xFF111111)),
                   fontSize: _cardNumber('price_font_size', 14),
@@ -1139,7 +1169,10 @@ class _SxProductCardState extends State<SxProductCard> {
                 color: compareBackground,
                 padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
                 child: Text(
-                  product.oldPrice!,
+                  sxFormatMoney(
+                    product.oldPrice!,
+                    currencyCode: state.currencyCode,
+                  ),
                   style: TextStyle(
                     color: _cardColor(
                       'compare_price_color',
