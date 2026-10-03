@@ -59,8 +59,18 @@ class CustomerService:
         if not payload.get("recipient_name") or not phone or not payload.get("city_id"):
             raise ValueError("recipient_name, phone and city_id are required")
 
-        if payload.get("is_default"):
-            CustomerAddress.query.filter_by(customer_id=customer_id, is_default=True).update({"is_default": False})
+        has_active = (
+            CustomerAddress.query
+            .filter_by(customer_id=customer_id, is_active=True)
+            .first()
+            is not None
+        )
+        make_default = bool(payload.get("is_default", False)) or not has_active
+        if make_default:
+            CustomerAddress.query.filter_by(
+                customer_id=customer_id,
+                is_default=True,
+            ).update({"is_default": False})
 
         city_id = int(payload["city_id"])
         city_area_id = int(payload["city_area_id"]) if payload.get("city_area_id") else None
@@ -82,7 +92,7 @@ class CustomerService:
             landmark=(payload.get("landmark") or "").strip() or None,
             lat=payload.get("lat"),
             lng=payload.get("lng"),
-            is_default=bool(payload.get("is_default", False)),
+            is_default=make_default,
         )
         db.session.add(address)
         db.session.commit()
@@ -132,7 +142,21 @@ class CustomerService:
         address.lat = payload.get("lat", address.lat)
         address.lng = payload.get("lng", address.lng)
         if "is_default" in payload:
-            address.is_default = bool(payload["is_default"])
+            requested_default = bool(payload["is_default"])
+            if requested_default:
+                address.is_default = True
+            else:
+                other_default = (
+                    CustomerAddress.query
+                    .filter(
+                        CustomerAddress.customer_id == customer_id,
+                        CustomerAddress.is_active.is_(True),
+                        CustomerAddress.is_default.is_(True),
+                        CustomerAddress.id != address.id,
+                    )
+                    .first()
+                )
+                address.is_default = False if other_default else True
         db.session.commit()
         return CustomerService.serialize_address(address)
 
