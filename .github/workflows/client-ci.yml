@@ -68,16 +68,22 @@ jobs:
 
           path = Path("android/app/src/main/AndroidManifest.xml")
           text = path.read_text(encoding="utf-8")
-          updated = re.sub(
-              r'android:icon="@mipmap/ic_launcher"',
+          text2 = re.sub(
+              r'android:icon="@[^"]+"',
               'android:icon="@drawable/app_icon"',
               text,
               count=1,
           )
-          if updated == text:
-              raise SystemExit("AndroidManifest.xml: default launcher icon reference not found")
-          path.write_text(updated, encoding="utf-8")
-          print("Android launcher icon set to the branded image.")
+          text3 = re.sub(
+              r'android:roundIcon="@[^"]+"',
+              'android:roundIcon="@drawable/app_icon"',
+              text2,
+              count=1,
+          )
+          if text3 == text:
+              raise SystemExit("AndroidManifest.xml: launcher icon references not found")
+          path.write_text(text3, encoding="utf-8")
+          print("Android icon and roundIcon both use the full-bleed branded icon.")
           PY
 
       - name: Enable Android Internet access
