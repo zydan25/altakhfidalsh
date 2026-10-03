@@ -1868,6 +1868,9 @@ def public_trends():
         "items": CatalogService.list_public_trends(limit=limit),
         "hashtags": CatalogService.list_public_trend_hashtags(limit=500),
         "settings": CatalogService.trend_display_settings(),
+        # Keep trend-product cards on the same global storefront configuration
+        # used by the home/product grids.
+        "product_card_settings": CatalogService.product_card_display_settings(),
     }
 
 
