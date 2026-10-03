@@ -2265,6 +2265,45 @@ class CatalogService:
                 "required": option.required,
                 "values": [{"id": value.id, "label": value.label, "color_id": value.color_id, "size_id": value.size_id} for value in values],
             })
+        variant_rows = ProductVariant.query.filter_by(
+            product_id=product_id,
+        ).order_by(ProductVariant.id).all()
+        stock_available_by_variant = {}
+        stock_on_hand_by_variant = {}
+        stock_reserved_by_variant = {}
+        if variant_rows:
+            stock_rows = (
+                db.session.query(
+                    StockInventory.variant_id,
+                    StockInventory.on_hand,
+                    StockInventory.reserved,
+                    StockInventory.available,
+                )
+                .join(
+                    InventoryLocation,
+                    InventoryLocation.id == StockInventory.location_id,
+                )
+                .filter(
+                    StockInventory.variant_id.in_([row.id for row in variant_rows]),
+                    InventoryLocation.is_active.is_(True),
+                )
+                .all()
+            )
+            for stock_row in stock_rows:
+                variant_key = int(stock_row.variant_id)
+                stock_available_by_variant[variant_key] = (
+                    stock_available_by_variant.get(variant_key, 0)
+                    + max(0, int(stock_row.available or 0))
+                )
+                stock_on_hand_by_variant[variant_key] = (
+                    stock_on_hand_by_variant.get(variant_key, 0)
+                    + max(0, int(stock_row.on_hand or 0))
+                )
+                stock_reserved_by_variant[variant_key] = (
+                    stock_reserved_by_variant.get(variant_key, 0)
+                    + max(0, int(stock_row.reserved or 0))
+                )
+
         variants = [
             {
                 "id": variant.id,
@@ -2274,8 +2313,12 @@ class CatalogService:
                 "barcode": variant.barcode,
                 "weight": str(variant.weight) if variant.weight is not None else None,
                 "status": variant.status,
+                "available_qty": int(stock_available_by_variant.get(variant.id, 0)),
+                "on_hand_qty": int(stock_on_hand_by_variant.get(variant.id, 0)),
+                "reserved_qty": int(stock_reserved_by_variant.get(variant.id, 0)),
+                "in_stock": bool(stock_available_by_variant.get(variant.id, 0) > 0),
             }
-            for variant in ProductVariant.query.filter_by(product_id=product_id).order_by(ProductVariant.id).all()
+            for variant in variant_rows
         ]
         badge_rows = (
             db.session.query(ProductBadge, Badge)
