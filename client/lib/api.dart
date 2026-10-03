@@ -561,10 +561,10 @@ class ApiService {
       allowMultiple: false,
       withData: true,
     );
-    if (picked.isEmpty) {
+    if (picked == null || picked.isEmpty) {
       throw Exception('لم يتم اختيار ملف.');
     }
-    return sendMessageWithFiles(id, body, picked.take(1).toList());
+    return sendMessageWithFiles(id, body, picked!.take(1).toList());
   }
 
   Future<List<Map<String,dynamic>>> pickAndUploadPaymentProof(int orderId) async {
@@ -574,10 +574,10 @@ class ApiService {
       allowMultiple: false,
       withData: true,
     );
-    if (picked.isEmpty) {
+    if (picked == null || picked.isEmpty) {
       throw Exception('لم يتم اختيار ملف.');
     }
-    return uploadPaymentProof(orderId, picked.take(1).toList());
+    return uploadPaymentProof(orderId, picked!.take(1).toList());
   }
 
   Future<List<Map<String,dynamic>>> sendMessageWithFiles(int id,String body,List<PlatformFile> files)async{
