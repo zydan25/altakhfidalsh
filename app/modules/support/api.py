@@ -99,6 +99,7 @@ def send_attachments(conversation_id):
             current_customer().id,
             request.form.get("body"),
             request.files.getlist("files"),
+            payment_proof=request.form.get("payment_proof") == "1",
         )}, 201
     except (ValueError, LookupError) as exc:
         return {"error": "attachment_send_failed", "detail": str(exc)}, 400
