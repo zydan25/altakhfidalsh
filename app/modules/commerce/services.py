@@ -653,7 +653,36 @@ class CommerceService:
             transaction.method_id = method.id
             transaction.amount = amount
             transaction.currency_id = currency_id
-        order.payment_status = "cod_pending" if method_type == "cod" else "pending"
+        if method_type == "cod":
+            order.payment_status = "cod"
+            previous = order.status
+            order.status = "processing"
+            db.session.add(OrderStatusHistory(
+                order_id=order.id,
+                from_status=previous,
+                to_status="processing",
+                actor_type="customer",
+                actor_id=customer_id,
+                note="اختار العميل الدفع عند الاستلام",
+            ))
+            transaction.status = "cod_pending"
+            db.session.commit()
+            return {
+                "order_id": order.id,
+                "transaction_id": transaction.id,
+                "status": "cod",
+                "payment_status": "cod",
+                "order_status": "processing",
+                "method": {
+                    "id": method.id,
+                    "name": method.name,
+                    "code": method.code,
+                    "settings": settings,
+                    "supports_proof": False,
+                },
+            }
+
+        order.payment_status = "pending"
         order.status = "awaiting_payment"
         db.session.commit()
         return {
