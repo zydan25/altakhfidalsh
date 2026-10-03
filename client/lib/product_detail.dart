@@ -722,10 +722,7 @@ class _ProductHeroInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final globalBadgePosition = sxText(
-      cardSettings['product_badge_position'],
-      'before_name',
-    );
+    // Product badge appearance belongs to the individual ProductBadge settings.
     final beforeName = <Map<String, dynamic>>[];
     final afterName = <Map<String, dynamic>>[];
     final belowPrice = <Map<String, dynamic>>[];
@@ -785,12 +782,9 @@ class _ProductHeroInfo extends StatelessWidget {
       );
       final size = sxDouble(
         settings['font_size'],
-        sxDouble(cardSettings['product_badge_font_size'], 9),
+        9,
       );
-      final radius = sxDouble(
-        settings['border_radius'],
-        sxDouble(cardSettings['product_badge_radius'], 5),
-      );
+      final radius = sxDouble(settings['border_radius'], 5);
       final decoration = sxText(settings['text_decoration']);
       final label = sxText(
         badge['custom_text'],
