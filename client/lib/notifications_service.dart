@@ -187,8 +187,8 @@ void notificationBackgroundEntrypoint(ServiceInstance service) async {
     await prefs.reload();
     final token = prefs.getString('access_token') ?? '';
     if (token.trim().isEmpty) {
-      await Future<void>.delayed(const Duration(seconds: 10));
-      continue;
+      service.stopSelf();
+      return;
     }
 
     try {
@@ -304,5 +304,5 @@ String _apiBaseUrl() {
 void notificationTapBackground(NotificationResponse response) {
   final raw = response.payload;
   if (raw == null || raw.trim().isEmpty) return;
-  _storePendingPayload(raw);
+  unawaited(_storePendingPayload(raw));
 }
