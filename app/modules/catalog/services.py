@@ -2301,7 +2301,7 @@ class CatalogService:
             "trend_ribbon_gap": 3,
             "colors_show": True,
             "colors_position": "bottom_right",
-            "colors_direction": "horizontal",
+            "colors_direction": "vertical",
             "colors_size": 13,
             "colors_gap": 2,
             "colors_max": 6,
