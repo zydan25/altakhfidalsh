@@ -7678,7 +7678,7 @@ class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
       const Text('سيعيد الخادم احتساب الأسعار والعملة والـMarkup وقاعدة الشحن قبل إنشاء الطلب.',style:TextStyle(fontSize:8.5,color:ClientTheme.muted)),
       const SizedBox(height:11),
       SizedBox(height:48,child:FilledButton(onPressed:()=>Navigator.pop(context,true),style:FilledButton.styleFrom(backgroundColor:Colors.black),child:const Text('تأكيد وإنشاء الطلب',style:TextStyle(fontWeight:FontWeight.w900)))),
-    ])));
+    ]))))
     if(ok==true)await createOrder();
   }
 
@@ -7860,32 +7860,6 @@ class _SxPoliciesScreenState extends State<SxPoliciesScreen> {
 }
 
 
-
-
-class _SxPaymentScreenState extends State<SxPaymentScreen>{
-  bool uploading=false,uploaded=false;
-  Map<String,dynamic> get settings=>widget.paymentMethod['settings'] is Map?Map<String,dynamic>.from(widget.paymentMethod['settings'] as Map):<String,dynamic>{};
-  bool get cod=>sxText(settings['type'],sxText(widget.paymentMethod['code'])).trim().toLowerCase()=='cod';
-  Future<void> uploadProof()async{if(uploading)return;setState(()=>uploading=true);try{await api.pickAndUploadPaymentProof(widget.orderId);if(mounted)setState(()=>uploaded=true);if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تم رفع إثبات الدفع، والطلب بانتظار المراجعة.')));}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));}finally{if(mounted)setState(()=>uploading=false);}}
-  @override Widget build(BuildContext context)=>SxShellPage(title:'الدفع',back:true,child:ListView(padding:const EdgeInsets.fromLTRB(10,8,10,25),children:[
-    Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.black,borderRadius:BorderRadius.circular(11)),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Text('طلب '+widget.orderNo,style:const TextStyle(color:Colors.white70,fontSize:9)),const SizedBox(height:4),Text(widget.total+' '+widget.currency,style:const TextStyle(color:Colors.white,fontSize:22,fontWeight:FontWeight.w900)),const SizedBox(height:4),Text(sxText(widget.paymentMethod['name'],'طريقة الدفع'),style:const TextStyle(color:Colors.white,fontSize:11,fontWeight:FontWeight.w800))])),
-    const SizedBox(height:9),
-    Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:ClientTheme.border),borderRadius:BorderRadius.circular(9)),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      const Text('بيانات الدفع',style:TextStyle(fontSize:13,fontWeight:FontWeight.w900)),const SizedBox(height:8),
-      if(sxText(settings['account_number']).isNotEmpty)_PaymentLine('رقم الحساب',sxText(settings['account_number'])),
-      if(sxText(settings['account_name']).isNotEmpty)_PaymentLine('صاحب الحساب',sxText(settings['account_name'])),
-      if(sxText(settings['point_number']).isNotEmpty)_PaymentLine('رقم النقطة / المحفظة',sxText(settings['point_number'])),
-      if(sxText(settings['point_name']).isNotEmpty)_PaymentLine('اسم النقطة',sxText(settings['point_name'])),
-      if(sxText(settings['notes']).isNotEmpty)_PaymentLine('ملاحظات',sxText(settings['notes'])),
-      if(sxText(settings['instructions']).isNotEmpty)Padding(padding:const EdgeInsets.only(top:4),child:Text(sxText(settings['instructions']),style:const TextStyle(fontSize:9.5,height:1.5,color:ClientTheme.muted))),
-    ])),
-    const SizedBox(height:10),
-    if(cod)Container(padding:const EdgeInsets.all(12),decoration:BoxDecoration(color:const Color(0xFFEAF8F0),borderRadius:BorderRadius.circular(8)),child:const Text('هذا الطلب يقبل الدفع عند الاستلام. لا تحتاج إلى رفع إثبات دفع.',style:TextStyle(fontSize:10,fontWeight:FontWeight.w800)))
-    else SizedBox(height:52,child:FilledButton.icon(onPressed:uploading?null:uploadProof,icon:uploading?const SizedBox(width:18,height:18,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.upload_file_outlined,size:19),label:Text(uploaded?'تم رفع الإثبات — بانتظار المراجعة':'رفع صورة إثبات الدفع',style:const TextStyle(fontSize:10,fontWeight:FontWeight.w900)),style:FilledButton.styleFrom(backgroundColor:Colors.black))),
-    const SizedBox(height:9),
-    SizedBox(height:46,child:OutlinedButton.icon(onPressed:()=>Navigator.pushReplacement(context,MaterialPageRoute(builder:(_)=>const SxOrdersScreen())),icon:const Icon(Icons.receipt_long_outlined,size:18),label:const Text('الانتقال إلى طلباتي'))),
-  ]));
-}
 
 
 class _Choices extends StatelessWidget {
@@ -9891,7 +9865,7 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
                   ]),
                 )),
               ],
-            ));
+            )));
           },
         ),
       ),
