@@ -8309,70 +8309,97 @@ class SxAccountScreen extends StatefulWidget {
 }
 
 class _SxAccountScreenState extends State<SxAccountScreen> {
-  Map<String, dynamic> me = {}; List<Map<String, dynamic>> orders = []; bool loading = true;
-  @override void initState() { super.initState(); load(); }
-  Future<void> load() async {
-    try {
-      me = Map<String, dynamic>.from((await api.me())['item'] ?? {});
-      orders = await api.orders();
-      state.wishlist = (await api.wishlistIds()).toSet();
+  Map<String,dynamic> me={}; List<Map<String,dynamic>> orders=[]; bool loading=true;
+  @override void initState(){super.initState();load();}
+  Future<void> load() async{
+    try{
+      me=Map<String,dynamic>.from((await api.me())['item']??{});
+      orders=await api.orders();
+      state.wishlist=(await api.wishlistIds()).toSet();
       await state.restorePreferences();
-    } catch (_) {}
-    if (mounted) setState(() => loading = false);
+    }catch(_){}
+    if(mounted)setState(()=>loading=false);
   }
-  @override Widget build(BuildContext context) => Scaffold(
-    body: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : RefreshIndicator(
-      onRefresh: load,
-      child: ListView(padding: const EdgeInsets.fromLTRB(11, 13, 11, 18), children: [
-        SafeArea(bottom: false, child: Row(children: [
-          const Text('أنا', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)), const Spacer(),
-          IconButton(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SxSettingsScreen(me: me))), icon: const Icon(Icons.settings_outlined)),
+  void openOrders(String filter)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>SxOrdersScreen(initialFilter:filter)));
+  int count(String filter){
+    bool match(Map<String,dynamic> x){
+      final s=sxText(x['status']); final p=sxText(x['payment_status']);
+      if(filter=='payment')return s=='awaiting_payment'||p=='unpaid';
+      if(filter=='processing')return s=='created'||s=='paid'||s=='processing';
+      if(filter=='shipped')return s=='shipped';
+      if(filter=='completed')return s=='delivered'||s=='returned';
+      return true;
+    }
+    return orders.where(match).length;
+  }
+  @override Widget build(BuildContext context)=>Scaffold(
+    body:loading?const Center(child:CircularProgressIndicator(strokeWidth:2)):RefreshIndicator(
+      onRefresh:load,
+      child:ListView(padding:const EdgeInsets.fromLTRB(11,13,11,18),children:[
+        SafeArea(bottom:false,child:Row(children:[
+          const Text('أنا',style:TextStyle(fontSize:24,fontWeight:FontWeight.w900)),const Spacer(),
+          IconButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>SxSettingsScreen(me:me))),icon:const Icon(Icons.settings_outlined)),
         ])),
-        const SizedBox(height: 7),
-        Container(
-          padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(15)),
-          child: Row(children: [
-            Container(width: 58, height: 58, decoration: const BoxDecoration(color: Color(0xFF4A4A4A), shape: BoxShape.circle), child: const Icon(Icons.person, color: Colors.white)),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Text(sxText(me['name'], 'مرحبًا بك'), style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 4), Text(sxText(me['phone_normalized']), style: const TextStyle(color: Colors.white70, fontSize: 9)),
-              const SizedBox(height: 7), const Text('تعديل الحساب', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
-            ])),
-          ]),
-        ),
-        const SxSectionTitle(title: 'طلباتي'),
-        const Row(children: [
-          Expanded(child: _AccountMini(Icons.payment_outlined, 'بانتظار الدفع')),
-          Expanded(child: _AccountMini(Icons.inventory_2_outlined, 'قيد التجهيز')),
-          Expanded(child: _AccountMini(Icons.local_shipping_outlined, 'تم الشحن')),
-          Expanded(child: _AccountMini(Icons.rate_review_outlined, 'للمراجعة')),
+        const SizedBox(height:7),
+        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.black,borderRadius:BorderRadius.circular(15)),child:Row(children:[
+          Container(width:58,height:58,decoration:const BoxDecoration(color:Color(0xFF4A4A4A),shape:BoxShape.circle),child:const Icon(Icons.person,color:Colors.white)),
+          const SizedBox(width:10),
+          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+            Text(sxText(me['name'],'مرحبًا بك'),style:const TextStyle(color:Colors.white,fontSize:17,fontWeight:FontWeight.w900)),
+            const SizedBox(height:4),Text(sxText(me['phone_normalized']),style:const TextStyle(color:Colors.white70,fontSize:9)),
+            const SizedBox(height:7),const Text('إدارة الحساب والعناوين والطلبات من هنا',style:TextStyle(color:Colors.white70,fontSize:8.5)),
+          ])),
+        ])),
+        const SxSectionTitle(title:'حالة طلباتك'),
+        Row(children:[
+          Expanded(child:_AccountMiniLink(Icons.payment_outlined,'بانتظار الدفع',count('payment'),()=>openOrders('payment'))),
+          Expanded(child:_AccountMiniLink(Icons.inventory_2_outlined,'قيد التجهيز',count('processing'),()=>openOrders('processing'))),
+          Expanded(child:_AccountMiniLink(Icons.local_shipping_outlined,'تم الشحن',count('shipped'),()=>openOrders('shipped'))),
+          Expanded(child:_AccountMiniLink(Icons.rate_review_outlined,'للمراجعة',count('completed'),()=>openOrders('completed'))),
         ]),
-        const SxSectionTitle(title: 'خدماتي'),
-        GridView.count(primary: false, shrinkWrap: true, crossAxisCount: 4, mainAxisSpacing: 6, crossAxisSpacing: 6, childAspectRatio: .94, children: [
-          _AccountTile(Icons.receipt_long_outlined, 'طلباتي', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxOrdersScreen()))),
-          _AccountTile(Icons.favorite_border, 'المفضلة', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxWishlistScreen()))),
-          _AccountTile(Icons.location_on_outlined, 'العناوين', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxAddressesScreen()))),
-          _AccountTile(Icons.notifications_none, 'الإشعارات', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen()))),
-          _AccountTile(Icons.chat_bubble_outline, 'الدعم', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxSupportScreen()))),
-          _AccountTile(Icons.local_offer_outlined, 'الكوبونات', () {}),
-          _AccountTile(Icons.stars_outlined, 'النقاط', () {}),
-          _AccountTile(Icons.auto_awesome_outlined, 'الإطلالات', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxLooksScreen()))),
+        const SxSectionTitle(title:'خدماتي'),
+        GridView.count(primary:false,shrinkWrap:true,crossAxisCount:4,mainAxisSpacing:6,crossAxisSpacing:6,childAspectRatio:.94,children:[
+          _AccountTile(Icons.receipt_long_outlined,'طلباتي',()=>openOrders('all')),
+          _AccountTile(Icons.favorite_border,'المفضلة',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxWishlistScreen()))),
+          _AccountTile(Icons.location_on_outlined,'العناوين',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxAddressesScreen()))),
+          _AccountTile(Icons.notifications_none,'الإشعارات',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxNotificationsScreen()))),
+          _AccountTile(Icons.chat_bubble_outline,'الدعم',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxSupportScreen()))),
+          _AccountTile(Icons.privacy_tip_outlined,'السياسات',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxPoliciesScreen()))),
+          _AccountTile(Icons.currency_exchange,'العملة',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxCurrencyScreen()))),
+          _AccountTile(Icons.location_city_outlined,'المدينة',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxCityScreen()))),
         ]),
-        const SxSectionTitle(title: 'تفضيلات التسوق'),
-        ListTile(leading: const Icon(Icons.currency_exchange), title: const Text('العملة', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)), subtitle: Text(state.currencyCode, style: const TextStyle(fontSize: 9, color: ClientTheme.muted)), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCurrencyScreen()))),
-        ListTile(leading: const Icon(Icons.location_city_outlined), title: const Text('المدينة', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)), subtitle: Text(state.cityName ?? 'اختيار المدينة', style: const TextStyle(fontSize: 9, color: ClientTheme.muted)), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCityScreen()))),
-        ListTile(leading: const Icon(Icons.location_on_outlined), title: const Text('العناوين', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxAddressesScreen()))),
-        const SizedBox(height: 8),
-        OutlinedButton(onPressed: () async { await state.clearSession(); if (context.mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const SxAuthScreen()), (_) => false); }, style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(47), side: const BorderSide(color: Colors.black), shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero)), child: const Text('تسجيل الخروج', style: TextStyle(fontWeight: FontWeight.w900))),
+        const SxSectionTitle(title:'تفضيلات التسوق'),
+        ListTile(leading:const Icon(Icons.location_on_outlined),title:const Text('العناوين',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800)),trailing:const Icon(Icons.chevron_left),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxAddressesScreen()))),
+        const SizedBox(height:8),
+        OutlinedButton(onPressed:()async{await state.clearSession();if(context.mounted)Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const SxAuthScreen()),(_)=>false);},style:OutlinedButton.styleFrom(minimumSize:const Size.fromHeight(47),side:const BorderSide(color:Colors.black),shape:const RoundedRectangleBorder(borderRadius:BorderRadius.zero)),child:const Text('تسجيل الخروج',style:TextStyle(fontWeight:FontWeight.w900))),
       ]),
     ),
   );
 }
-class _AccountMini extends StatelessWidget {
-  final IconData icon; final String label;
-  const _AccountMini(this.icon, this.label);
-  @override Widget build(BuildContext context) => Column(children: [Icon(icon, size: 19, color: const Color(0xFF586574)), const SizedBox(height: 4), Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700))]);
+class _AccountMiniLink extends StatelessWidget {
+  final IconData icon; final String label; final int countValue; final VoidCallback tap;
+  const _AccountMiniLink(this.icon,this.label,this.countValue,this.tap);
+  @override Widget build(BuildContext context)=>InkWell(
+    onTap:tap,
+    child:Padding(
+      padding:const EdgeInsets.symmetric(vertical:7,horizontal:2),
+      child:Column(children:[
+        Stack(clipBehavior:Clip.none,children:[
+          Icon(icon,size:19,color:const Color(0xFF586574)),
+          if(countValue>0)Positioned(right:-10,top:-8,child:Container(
+            constraints:const BoxConstraints(minWidth:16),
+            height:16,
+            alignment:Alignment.center,
+            padding:const EdgeInsets.symmetric(horizontal:3),
+            decoration:const BoxDecoration(color:Colors.black,shape:BoxShape.circle),
+            child:Text(countValue.toString(),style:const TextStyle(color:Colors.white,fontSize:7,fontWeight:FontWeight.w900)),
+          )),
+        ]),
+        const SizedBox(height:4),
+        Text(label,textAlign:TextAlign.center,style:const TextStyle(fontSize:8.3,fontWeight:FontWeight.w700)),
+      ]),
+    ),
+  );
 }
 class _AccountTile extends StatelessWidget {
   final IconData icon; final String label; final VoidCallback tap;
@@ -8730,8 +8757,9 @@ class _SxAddressesScreenState extends State<SxAddressesScreen> {
 
 
 class SxOrdersScreen extends StatefulWidget {
-  const SxOrdersScreen({super.key});
-  @override State<SxOrdersScreen> createState() => _SxOrdersScreenState();
+  final String initialFilter;
+  const SxOrdersScreen({super.key,this.initialFilter='all'});
+  @override State<SxOrdersScreen> createState()=>_SxOrdersScreenState();
 }
 
 class _SxOrdersScreenState extends State<SxOrdersScreen> {
@@ -8751,6 +8779,7 @@ class _SxOrdersScreenState extends State<SxOrdersScreen> {
   @override
   void initState() {
     super.initState();
+    filter = filters.containsKey(widget.initialFilter) ? widget.initialFilter : 'all';
     load();
   }
 
@@ -9775,220 +9804,88 @@ class SxConversationScreen extends StatefulWidget {
 }
 
 class _SxConversationScreenState extends State<SxConversationScreen> {
-  final input = TextEditingController();
-  final scroll = ScrollController();
-  List<Map<String, dynamic>> messages = [];
-  bool loading = true;
-  bool sending = false;
-
-  @override
-  void initState() {
-    super.initState();
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final next = await api.messages(widget.conversationId);
-      if (mounted) setState(() {
-        messages = next;
-        loading = false;
-      });
+  final input=TextEditingController();
+  final scroll=ScrollController();
+  List<Map<String,dynamic>> messages=[];
+  bool loading=true,sending=false,uploading=false;
+  @override void initState(){super.initState();load();}
+  Future<void> load() async{
+    try{
+      final next=await api.messages(widget.conversationId);
+      if(mounted)setState((){messages=next;loading=false;});
       _scrollToBottom();
-    } catch (_) {
-      if (mounted) setState(() => loading = false);
+    }catch(e){if(mounted)setState(()=>loading=false);}
+  }
+  void _scrollToBottom(){WidgetsBinding.instance.addPostFrameCallback((_){if(scroll.hasClients)scroll.jumpTo(scroll.position.maxScrollExtent);});}
+  Future<void> send() async{
+    final body=input.text.trim(); if(body.isEmpty||sending)return;
+    setState(()=>sending=true); input.clear();
+    try{await api.sendMessage(widget.conversationId,body);await load();}
+    catch(e){input.text=body;if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));}
+    finally{if(mounted)setState(()=>sending=false);}
+  }
+  Future<void> sendFile() async{
+    if(uploading)return; setState(()=>uploading=true);
+    try{await api.pickAndSendMessageWithFile(widget.conversationId);await load();}
+    catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));}
+    finally{if(mounted)setState(()=>uploading=false);}
+  }
+  @override void dispose(){input.dispose();scroll.dispose();super.dispose();}
+  Widget attachment(Map<String,dynamic> a){
+    final url=sxImage(a['url']); final mime=sxText(a['mime_type']);
+    if(mime.startsWith('image/')&&url.isNotEmpty){
+      return Padding(padding:const EdgeInsets.only(top:6),child:ClipRRect(borderRadius:BorderRadius.circular(8),child:SxImage(url:url,fit:BoxFit.cover)));
     }
+    return Container(margin:const EdgeInsets.only(top:6),padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:const Color(0xFFF3F3F3),borderRadius:BorderRadius.circular(7)),child:Row(children:[const Icon(Icons.attach_file,size:15),const SizedBox(width:5),Expanded(child:Text('مرفق '+mime,style:const TextStyle(fontSize:8.5,fontWeight:FontWeight.w700)))]));
   }
-
-  void _scrollToBottom() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!scroll.hasClients) return;
-      scroll.jumpTo(scroll.position.maxScrollExtent);
-    });
-  }
-
-  Future<void> send() async {
-    final body = input.text.trim();
-    if (body.isEmpty || sending) return;
-    setState(() => sending = true);
-    input.clear();
-    try {
-      await api.sendMessage(widget.conversationId, body);
-      await load();
-    } catch (e) {
-      input.text = body;
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(sxText(e))),
-      );
-    } finally {
-      if (mounted) setState(() => sending = false);
-    }
-  }
-
-  @override
-  void dispose() {
-    input.dispose();
-    scroll.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF6F6F6),
-    appBar: AppBar(
-      titleSpacing: 0,
-      title: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
-            child: const Icon(Icons.support_agent, color: Colors.white, size: 19),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              widget.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          onPressed: load,
-          icon: const Icon(Icons.refresh_outlined, size: 20),
-        ),
-      ],
+  @override Widget build(BuildContext context)=>Scaffold(
+    backgroundColor:const Color(0xFFF6F6F6),
+    appBar:AppBar(
+      titleSpacing:0,
+      title:Row(children:[
+        Container(width:36,height:36,decoration:const BoxDecoration(color:Colors.black,shape:BoxShape.circle),child:const Icon(Icons.support_agent,color:Colors.white,size:19)),
+        const SizedBox(width:8),
+        Expanded(child:Text(widget.title,maxLines:1,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:15,fontWeight:FontWeight.w900))),
+      ]),
+      actions:[IconButton(onPressed:load,icon:const Icon(Icons.refresh_outlined,size:20))],
     ),
-    body: loading
-        ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-        : Column(
-            children: [
-              Expanded(
-                child: messages.isEmpty
-                    ? const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(24),
-                          child: Text(
-                            'ابدأ المحادثة برسالة قصيرة، وسنرد عليك هنا.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 10, color: ClientTheme.muted),
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: scroll,
-                        padding: const EdgeInsets.fromLTRB(10, 15, 10, 18),
-                        itemCount: messages.length,
-                        itemBuilder: (_, i) {
-                          final message = messages[i];
-                          final mine = sxText(message['sender_type']) == 'customer';
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Align(
-                              alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  if (!mine)
-                                    Container(
-                                      width: 29,
-                                      height: 29,
-                                      decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
-                                      child: const Icon(Icons.support_agent, color: Colors.white, size: 15),
-                                    ),
-                                  if (!mine) const SizedBox(width: 6),
-                                  ConstrainedBox(
-                                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .76),
-                                    child: Container(
-                                      padding: const EdgeInsets.fromLTRB(11, 9, 11, 7),
-                                      decoration: BoxDecoration(
-                                        color: mine ? Colors.black : Colors.white,
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: const Radius.circular(14),
-                                          topRight: const Radius.circular(14),
-                                          bottomLeft: Radius.circular(mine ? 14 : 4),
-                                          bottomRight: Radius.circular(mine ? 4 : 14),
-                                        ),
-                                        boxShadow: const [
-                                          BoxShadow(
-                                            color: Color(0x11000000),
-                                            blurRadius: 6,
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                                        children: [
-                                          Text(
-                                            sxText(message['body'], message['message_type'] == 'attachment' ? 'مرفق' : ''),
-                                            style: TextStyle(
-                                              color: mine ? Colors.white : Colors.black,
-                                              fontSize: 10.5,
-                                              height: 1.45,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Text(
-                                            _formatDateTime(sxText(message['created_at'])),
-                                            textAlign: TextAlign.end,
-                                            style: TextStyle(
-                                              color: mine ? Colors.white70 : ClientTheme.muted,
-                                              fontSize: 7.2,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-              SafeArea(
-                top: false,
-                child: Container(
-                  padding: const EdgeInsets.fromLTRB(9, 8, 9, 8),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    border: Border(top: BorderSide(color: ClientTheme.border)),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: input,
-                          minLines: 1,
-                          maxLines: 4,
-                          textInputAction: TextInputAction.newline,
-                          decoration: InputDecoration(
-                            hintText: 'اكتب رسالتك...',
-                            suffixIcon: sending
-                                ? const Padding(
-                                    padding: EdgeInsets.all(12),
-                                    child: CircularProgressIndicator(strokeWidth: 2),
-                                  )
-                                : IconButton(
-                                    onPressed: send,
-                                    icon: const Icon(Icons.arrow_upward_rounded, size: 20),
-                                  ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
+    body:loading?const Center(child:CircularProgressIndicator(strokeWidth:2)):Column(children:[
+      Expanded(child:messages.isEmpty
+        ? const Center(child:Padding(padding:EdgeInsets.all(24),child:Text('ابدأ المحادثة برسالة قصيرة، ويمكنك أيضًا إرفاق صورة.',textAlign:TextAlign.center,style:TextStyle(fontSize:10,color:ClientTheme.muted))))
+        : ListView.builder(
+          controller:scroll,padding:const EdgeInsets.fromLTRB(10,15,10,18),itemCount:messages.length,
+          itemBuilder:(_,i){
+            final m=messages[i]; final mine=sxText(m['sender_type'])=='customer'; final attachments=sxMaps(m['attachments']);
+            return Padding(padding:const EdgeInsets.only(bottom:8),child:Align(
+              alignment:mine?Alignment.centerRight:Alignment.centerLeft,
+              child:Row(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.end,children:[
+                if(!mine)Container(width:29,height:29,decoration:const BoxDecoration(color:Colors.black,shape:BoxShape.circle),child:const Icon(Icons.support_agent,color:Colors.white,size:15)),
+                if(!mine)const SizedBox(width:6),
+                ConstrainedBox(constraints:BoxConstraints(maxWidth:MediaQuery.of(context).size.width*.78),child:Container(
+                  padding:const EdgeInsets.fromLTRB(11,9,11,7),
+                  decoration:BoxDecoration(color:mine?Colors.black:Colors.white,borderRadius:BorderRadius.only(topLeft:const Radius.circular(14),topRight:const Radius.circular(14),bottomLeft:Radius.circular(mine?14:4),bottomRight:Radius.circular(mine?4:14)),boxShadow:const[BoxShadow(color:Color(0x11000000),blurRadius:6,offset:Offset(0,2))]),
+                  child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+                    if(sxText(m['body']).isNotEmpty)Text(sxText(m['body']),style:TextStyle(color:mine?Colors.white:Colors.black,fontSize:10.5,height:1.45)),
+                    for(final a in attachments)attachment(a),
+                    const SizedBox(height:3),
+                    Text(_formatDateTime(sxText(m['created_at'])),textAlign:TextAlign.end,style:TextStyle(color:mine?Colors.white70:ClientTheme.muted,fontSize:7.2)),
+                  ]),
+                )),
+              ],
+            ));
+          },
+        ),
+      ),
+      SafeArea(top:false,child:Container(
+        padding:const EdgeInsets.fromLTRB(8,7,8,7),
+        decoration:const BoxDecoration(color:Colors.white,border:Border(top:BorderSide(color:ClientTheme.border))),
+        child:Row(children:[
+          IconButton(onPressed:uploading?null:sendFile,icon:uploading?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.attach_file_outlined,size:20)),
+          Expanded(child:TextField(controller:input,minLines:1,maxLines:4,textInputAction:TextInputAction.newline,decoration:const InputDecoration(hintText:'اكتب رسالتك...',border:InputBorder.none))),
+          IconButton(onPressed:sending?null:send,icon:sending?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.arrow_upward_rounded,size:21)),
+        ]),
+      )),
+    ]),
   );
 }
 
