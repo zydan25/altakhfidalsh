@@ -8360,7 +8360,7 @@ class _SxPaymentScreenState extends State<SxPaymentScreen> {
     final balance=double.tryParse(sxText(wallet?['balance'],'0'))??0;
     final totalValue=double.tryParse(totalText)??0;
     final unpaid=currentStatus()!='paid';
-    final waiting=orderStatus()=='awaiting_payment' || orderStatus()=='created';
+    final waiting=orderStatus()=='awaiting_payment';
     return Scaffold(
       appBar:SxAppBar(title:'دفع الطلب '+widget.orderNo),
       body:ListView(
@@ -8389,7 +8389,7 @@ class _SxPaymentScreenState extends State<SxPaymentScreen> {
               style:TextStyle(fontSize:9.5,color:ClientTheme.muted,height:1.5),
             ),
             const SizedBox(height:8),
-            for(final method in methods)paymentCard(method),
+            for(final method in methods.where((m)=>paymentType(m)!='wallet'))paymentCard(method),
             if(methods.isEmpty)
               const Text('لا توجد طرق دفع مفعلة حاليًا.',style:TextStyle(fontSize:9,color:ClientTheme.muted)),
             const SizedBox(height:8),
@@ -9386,9 +9386,10 @@ class _SxOrdersScreenState extends State<SxOrdersScreen> {
 
   static const filters = <String, String>{
     'all': 'الكل',
-    'payment': 'قيد الدفع',
+    'confirmation': 'بانتظار التأكيد',
+    'payment': 'بانتظار الدفع',
     'processing': 'قيد التجهيز',
-    'shipped': 'تم الشحن',
+    'shipped': 'الشحن والتسليم',
     'completed': 'مكتملة',
     'cancelled': 'ملغاة',
   };
@@ -9418,12 +9419,14 @@ class _SxOrdersScreenState extends State<SxOrdersScreen> {
     final status = sxText(row['status']);
     final payment = sxText(row['payment_status']);
     switch (key) {
+      case 'confirmation':
+        return status == 'created';
       case 'payment':
-        return status == 'awaiting_payment' || payment == 'unpaid';
+        return status == 'awaiting_payment' || payment == 'pending' || payment == 'pending_proof';
       case 'processing':
-        return status == 'created' || status == 'paid' || status == 'processing';
+        return status == 'paid' || status == 'processing';
       case 'shipped':
-        return status == 'shipped';
+        return status == 'shipped' || status == 'delivered';
       case 'completed':
         return status == 'delivered' || status == 'returned';
       case 'cancelled':
@@ -9435,11 +9438,11 @@ class _SxOrdersScreenState extends State<SxOrdersScreen> {
 
   String statusLabel(String status) {
     const labels = <String, String>{
-      'created': 'تم إنشاء الطلب',
+      'created': 'بانتظار تأكيد المتجر',
       'awaiting_payment': 'بانتظار الدفع',
       'paid': 'تم الدفع',
-      'processing': 'قيد التجهيز',
-      'shipped': 'تم الشحن',
+      'processing': 'جاري التجهيز',
+      'shipped': 'جاري الشحن',
       'delivered': 'تم التسليم',
       'returned': 'تمت الإعادة',
       'cancelled': 'ملغى',
