@@ -32,7 +32,32 @@ jobs:
         run: |
           mkdir -p client/assets client/android/app/src/main/res/drawable
           cp 20260911_164630.jpg client/assets/app_background.jpg
-          cp 20260911_164630.jpg client/android/app/src/main/res/drawable/app_icon.jpg
+
+          # Build a high-resolution, full-bleed circular launcher icon from
+          # the supplied branding image. The crop fills the icon instead of
+          # leaving a white/empty frame around a small image.
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+
+          convert 20260911_164630.jpg \
+            -auto-orient \
+            -trim +repage \
+            -resize '512x512^' \
+            -gravity center \
+            -extent 512x512 \
+            -unsharp 0x0.8+0.8+0 \
+            -strip \
+            client/android/app/src/main/res/drawable/app_icon_base.png
+
+          convert client/android/app/src/main/res/drawable/app_icon_base.png \
+            -alpha on \
+            \( -size 512x512 xc:none \
+               -fill white -draw 'circle 256,256 256,0' \) \
+            -compose CopyOpacity -composite \
+            -strip \
+            client/android/app/src/main/res/drawable/app_icon.png
+
+          rm -f client/android/app/src/main/res/drawable/app_icon_base.png
 
       - name: Set Android launcher icon
         working-directory: client
