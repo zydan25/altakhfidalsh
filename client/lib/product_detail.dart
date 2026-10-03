@@ -515,6 +515,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
                         'below_description',
                         'after_details',
                         'after_details_same_row',
+                        'after_details_new_row',
                       },
                     ),
                   ),
@@ -994,9 +995,11 @@ class _ProductHeroInfo extends StatelessWidget {
     final beforeNameSame = <Map<String, dynamic>>[];
     final afterNameSame = <Map<String, dynamic>>[];
     final afterNameRow = <Map<String, dynamic>>[];
+    final beforePriceRow = <Map<String, dynamic>>[];
     final belowPrice = <Map<String, dynamic>>[];
     final beforePriceSame = <Map<String, dynamic>>[];
     final afterPriceSame = <Map<String, dynamic>>[];
+    final afterPriceRow = <Map<String, dynamic>>[];
     final rightImage = <Map<String, dynamic>>[];
 
     for (final badge in badges) {
@@ -1027,14 +1030,21 @@ class _ProductHeroInfo extends StatelessWidget {
         case 'after_name_same_row':
           afterNameSame.add(badge);
           break;
+        case 'before_price_new_row':
+        case 'before_price':
+          beforePriceRow.add(badge);
+          break;
         case 'before_price_same_row':
           beforePriceSame.add(badge);
           break;
         case 'after_price_same_row':
           afterPriceSame.add(badge);
           break;
-        case 'below_price':
+        case 'after_price_new_row':
         case 'after_price':
+          afterPriceRow.add(badge);
+          break;
+        case 'below_price':
           belowPrice.add(badge);
           break;
         case 'right_of_image':
@@ -1257,7 +1267,7 @@ class _ProductHeroInfo extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 7),
               child: Wrap(textDirection: TextDirection.rtl, spacing: 5, runSpacing: 5, children: trends),
             ),
-          strip(beforePriceSame, compact: true),
+          strip(beforePriceRow, compact: true),
           if (beforePriceSame.isNotEmpty || afterPriceSame.isNotEmpty)
             Row(
               textDirection: TextDirection.rtl,
@@ -1288,6 +1298,7 @@ class _ProductHeroInfo extends StatelessWidget {
             )
           else
             priceBox(),
+          strip(afterPriceRow, compact: true),
           strip(belowPrice, compact: true),
           const SizedBox(height: 8),
           strip(beforeNameRow, compact: true),

@@ -1140,6 +1140,7 @@ class _SxProductCardState extends State<SxProductCard> {
     final afterPriceSame = at('after_price_same_row');
     final beforeDescriptionSame = at('before_description_same_row');
     final afterDescriptionSame = at('after_description_same_row');
+    final afterDetailsNewRow = at('after_details_new_row');
     final tailBadges = <Map<String, dynamic>>[
       ...at('after_details_same_row'),
       ...at('after_details'),
@@ -1304,8 +1305,10 @@ class _SxProductCardState extends State<SxProductCard> {
             descriptionSection(),
 
             badgeRow('before_price'),
+            badgeRow('before_price_new_row'),
             priceSection(),
             badgeRow('after_price'),
+            badgeRow('after_price_new_row'),
             badgeRow('below_price'),
 
             if (hasRating)
@@ -1352,6 +1355,17 @@ class _SxProductCardState extends State<SxProductCard> {
                     fontWeight:
                         _fontWeight(_cardNumber('size_font_weight', 600).round()),
                   ),
+                ),
+              ),
+
+            if (afterDetailsNewRow.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(5, 3, 5, 3),
+                child: Wrap(
+                  textDirection: TextDirection.rtl,
+                  spacing: 4,
+                  runSpacing: 3,
+                  children: afterDetailsNewRow.map(_badgeChip).toList(),
                 ),
               ),
 

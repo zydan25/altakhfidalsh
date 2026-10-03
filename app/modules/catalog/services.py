@@ -1309,13 +1309,13 @@ class CatalogService:
                                                 "above_image",
                                                 "before_name", "before_name_same_row", "before_name_new_row",
                                                 "after_name", "after_name_same_row", "after_name_new_row",
-                                                "before_description", "before_description_new_row",
+                                                "before_description", "before_description_same_row", "before_description_new_row",
                                                 "after_description", "after_description_same_row", "after_description_new_row",
                                                 "below_description",
-                                                "before_price", "before_price_same_row", "after_price_same_row",
-                                                "after_price", "below_price",
+                                                "before_price", "before_price_same_row", "before_price_new_row",
+                                                "after_price_same_row", "after_price_new_row", "after_price", "below_price",
                                                 "right_of_image",
-                                                "before_details", "after_details", "after_details_same_row", "last"):
+                                                "before_details", "after_details", "after_details_same_row", "after_details_new_row", "last"):
                 raise ValueError("موقع الشارة غير صالح.")
             for color_key in ("background_color", "text_color", "border_color"):
                 if color_key in settings:
