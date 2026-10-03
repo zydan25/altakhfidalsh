@@ -11002,6 +11002,7 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
       )),
       ]),
     );
+    ); 
   }
 }
 
