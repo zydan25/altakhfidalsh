@@ -4514,12 +4514,15 @@ class _SxResultsState extends State<SxResults> {
   }
 
   Future<List<ProductModel>> _fetch() {
-    // A direct circle is filtered by its own ID. The server resolves the
-    // circle-to-side relationship itself, so navigation does not carry a
-    // sibling/parent side-category ID.
-    final sideScope =
-        widget.circleId != null || widget.sideCategoryId != null;
-    final effectiveSideCategoryId = widget.sideCategoryId;
+    // Circle results must remain inside their resolved side-category scope.
+    // This is important both for a direct circle entry and when switching
+    // between sibling circles on a side-category result screen.
+    final effectiveSideCategoryId =
+        resolvedSideCategoryId ?? widget.sideCategoryId;
+    final sideScope = widget.circleId != null ||
+        widget.sideCategoryId != null ||
+        effectiveSideCategoryId != null ||
+        activeCircleId != null;
 
     return api.feed(
       category: sideScope
@@ -4603,8 +4606,15 @@ class _SxResultsState extends State<SxResults> {
 
     // Keep the result-page chrome mounted. Only the circle rail selection
     // and product pane react to this state change.
-    activeCircleId = id;
-    selectedCategoryId = null;
+    if (mounted) {
+      setState(() {
+        activeCircleId = id;
+        selectedCategoryId = null;
+      });
+    } else {
+      activeCircleId = id;
+      selectedCategoryId = null;
+    }
     _activeCircleNotifier.value = id;
     _selectedCategoryNotifier.value = null;
     _changingCategoryNotifier.value = true;
@@ -4764,7 +4774,9 @@ class _SxResultsState extends State<SxResults> {
           SliverPersistentHeader(
             pinned: true,
             delegate: _ResultHeaderDelegate(
-              height: 58,
+              // Keep the visible toolbar at 58px and add Android's status-bar
+              // inset instead of forcing SafeArea to shrink the toolbar.
+              height: 58 + MediaQuery.of(context).padding.top,
               child: _ResultsTopBar(
                 title: _scopeLabel,
                 viewMode: viewMode,
