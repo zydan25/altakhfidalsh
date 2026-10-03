@@ -188,7 +188,7 @@ def create_my_review(product_id):
             rating=rating,
             title=title or None,
             body=body or None,
-            status="pending",
+            status="approved",
             is_active=True,
         )
         db.session.add(review)
@@ -196,7 +196,7 @@ def create_my_review(product_id):
         existing.rating = rating
         existing.title = title or None
         existing.body = body or None
-        existing.status = "pending"
+        existing.status = "approved"
         existing.is_active = True
         review = existing
 
