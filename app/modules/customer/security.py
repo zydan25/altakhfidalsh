@@ -26,7 +26,10 @@ def current_customer():
     if session is None or session.revoked_at is not None:
         return None
     from datetime import datetime, timezone
-    if session.expires_at <= datetime.now(timezone.utc):
+    expires_at = session.expires_at
+    if expires_at is not None and expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at is not None and expires_at <= datetime.now(timezone.utc):
         session.revoked_at = db.func.now()
         db.session.commit()
         return None
