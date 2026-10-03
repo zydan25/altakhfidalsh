@@ -125,6 +125,7 @@ class CommerceService:
                 base_price_sar=Decimal("0"),
                 customer_id=customer_id,
                 city_id=address.city_id,
+                area_id=address.city_area_id,
                 currency_id=int(requested_currency_id) if requested_currency_id else None,
             )
             order_items = []
@@ -148,6 +149,7 @@ class CommerceService:
                     base_price_sar=Decimal(product.base_price),
                     customer_id=customer_id,
                     city_id=address.city_id,
+                    area_id=address.city_area_id,
                     currency_id=context.currency_id,
                 )
                 line_total = price.final * qty
