@@ -1320,7 +1320,7 @@ class Order(TimestampMixin, db.Model):
     shipping_status = db.Column(String(40), nullable=False, default="pending")
     payment_method_id = db.Column(ForeignKey("payment_methods.id", ondelete="SET NULL"))
     customer_note = db.Column(Text)
-    shipping_rule_ids_json = db.Column(db.JSON, nullable=False, default=list, server_default="[]"
+    shipping_rule_ids_json = db.Column(db.JSON, nullable=False, default=list, server_default="[]")
 
 
 class OrderItem(TimestampMixin, db.Model):
