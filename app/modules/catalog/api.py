@@ -450,9 +450,15 @@ def public_product_feed():
             .filter(ProductColorReference.color_id.in_(sorted(selected_color_ids)))
             .distinct()
         )
+        media_color_products = (
+            db.session.query(ProductMedia.product_id)
+            .filter(ProductMedia.color_id.in_(sorted(selected_color_ids)))
+            .distinct()
+        )
         query = query.filter(or_(
             Product.id.in_(variant_color_products),
             Product.id.in_(reference_color_products),
+            Product.id.in_(media_color_products),
         ))
 
     if selected_size_ids:
@@ -469,9 +475,16 @@ def public_product_feed():
             .filter(ProductSizeReference.size_id.in_(sorted(selected_size_ids)))
             .distinct()
         )
+        option_size_products = (
+            db.session.query(ProductOption.product_id)
+            .join(ProductOptionValue, ProductOptionValue.option_id == ProductOption.id)
+            .filter(ProductOptionValue.size_id.in_(sorted(selected_size_ids)))
+            .distinct()
+        )
         query = query.filter(or_(
             Product.id.in_(variant_size_products),
             Product.id.in_(reference_size_products),
+            Product.id.in_(option_size_products),
         ))
 
     if selected_brand_ids:
@@ -1479,6 +1492,18 @@ def product_scope_filters():
             .all()
         )
     ]
+    color_ids += [
+        int(value_id)
+        for (value_id,) in (
+            db.session.query(ProductMedia.color_id)
+            .filter(
+                ProductMedia.product_id.in_(scoped_product_ids),
+                ProductMedia.color_id.isnot(None),
+            )
+            .distinct()
+            .all()
+        )
+    ]
     color_ids = sorted(set(color_ids))
     if color_ids:
         colors = (
@@ -1525,6 +1550,19 @@ def product_scope_filters():
             db.session.query(ProductSizeReference.size_id)
             .filter(
                 ProductSizeReference.product_id.in_(scoped_product_ids),
+            )
+            .distinct()
+            .all()
+        )
+    ]
+    size_ids += [
+        int(value_id)
+        for (value_id,) in (
+            db.session.query(ProductOptionValue.size_id)
+            .join(ProductOption, ProductOption.id == ProductOptionValue.option_id)
+            .filter(
+                ProductOption.product_id.in_(scoped_product_ids),
+                ProductOptionValue.size_id.isnot(None),
             )
             .distinct()
             .all()
