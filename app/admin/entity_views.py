@@ -1748,6 +1748,18 @@ def register_entity_views(admin_bp):
             },
         ]
 
+        product_detail_groups = [
+            {
+                "title": "اسم المنتج في صفحة التفاصيل",
+                "hint": "إعداد مستقل عن حجم اسم المنتج في بطاقة المتجر.",
+                "fields": [
+                    ("name_font_size", "حجم اسم المنتج", "number", 14, 32, .5, False),
+                    ("name_font_weight", "وزن اسم المنتج", "number", 400, 900, 100, True),
+                    ("name_max_lines", "أقصى أسطر للاسم", "number", 2, 6, 1, True),
+                ],
+            },
+        ]
+
         product_card_color_fields = [
             ("card_background_color", "خلفية البطاقة"),
             ("name_color", "لون اسم المنتج"),
@@ -1788,6 +1800,10 @@ def register_entity_views(admin_bp):
         product_select_names = {
             field[0]: field[3] for group in product_card_groups for field in group["fields"]
             if field[2] == "select"
+        }
+        product_detail_number_names = {
+            field[0]: field for group in product_detail_groups for field in group["fields"]
+            if field[2] == "number"
         }
 
         error = None
@@ -1913,6 +1929,37 @@ def register_entity_views(admin_bp):
                     db.session.commit()
                     success = "تم حفظ إعدادات بطاقة المنتج."
 
+                elif action == "save_product_detail":
+                    settings = dict(CatalogService.product_detail_settings())
+                    for group in product_detail_groups:
+                        for field in group["fields"]:
+                            key, _label, kind = field[:3]
+                            if kind != "number":
+                                continue
+                            raw = request.form.get(key)
+                            value = float(raw) if raw not in (None, "") else float(settings[key])
+                            value = max(float(field[3]), min(float(field[4]), value))
+                            settings[key] = int(round(value)) if field[6] else value
+
+                    row = AppSetting.query.filter_by(
+                        group_code="storefront",
+                        key="product_detail_settings",
+                    ).first()
+                    payload = json.dumps(settings, ensure_ascii=False, separators=(",", ":"))
+                    if row is None:
+                        row = AppSetting(
+                            group_code="storefront",
+                            key="product_detail_settings",
+                            value=payload,
+                            value_type="json",
+                        )
+                        db.session.add(row)
+                    else:
+                        row.value = payload
+                        row.value_type = "json"
+                    db.session.commit()
+                    success = "تم حفظ إعدادات تفاصيل المنتج."
+
                 else:
                     raise ValueError("إجراء الإعدادات غير معروف.")
             except (ValueError, TypeError) as exc:
@@ -1928,6 +1975,8 @@ def register_entity_views(admin_bp):
             trend_color_fields=trend_color_fields,
             product_card_settings=CatalogService.product_card_display_settings(),
             product_card_groups=product_card_groups,
+            product_detail_settings=CatalogService.product_detail_settings(),
+            product_detail_groups=product_detail_groups,
             product_card_color_fields=product_card_color_fields,
             error=error,
             success=success,
