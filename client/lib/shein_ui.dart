@@ -3345,9 +3345,9 @@ class _SxProductCardState extends State<SxProductCard> {
       }
       final swatchSize = _cardNumber('colors_size', 13);
       final containerSize =
-          _cardNumber('colors_container_size', 16).clamp(swatchSize, 28);
+          _cardNumber('colors_container_size', 16).clamp(swatchSize, 28).toDouble();
       final gap = _cardNumber('colors_gap', 2);
-      final max = _cardNumber('colors_max', 6).round().clamp(1, 8);
+      final max = _cardNumber('colors_max', 6).round().clamp(1, 8).toInt();
       final items = product.colors.take(max).map((color) {
         final hex = sxText(color['hex_code']);
         final swatchUrl = sxText(color['swatch_url']);
@@ -3355,7 +3355,7 @@ class _SxProductCardState extends State<SxProductCard> {
           width: containerSize,
           height: containerSize,
           padding: EdgeInsets.all(
-            ((containerSize - swatchSize) / 2).clamp(0, 8),
+            ((containerSize - swatchSize) / 2).clamp(0, 8).toDouble(),
           ),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(.94),
