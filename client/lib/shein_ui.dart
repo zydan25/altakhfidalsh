@@ -11484,7 +11484,7 @@ class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
     try {
       if (id > 0 && sxText(row['read_at']).isEmpty) {
         await api.markNotificationRead(
-          sxInt((await api.me())['item']?['id']),
+          sxInt((await api.notificationSummary())['customer_id']),
           id,
         );
         row['read_at'] = DateTime.now().toIso8601String();
@@ -11540,9 +11540,25 @@ class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
       back: true,
       child: loading
           ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-          : RefreshIndicator(
-              onRefresh: load,
-              child: ListView.separated(
+          : rows.isEmpty
+              ? RefreshIndicator(
+                  onRefresh: load,
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: const [
+                      SizedBox(height: 180),
+                      Center(
+                        child: Text(
+                          'لا توجد إشعارات',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: load,
+                  child: ListView.separated(
                 padding: const EdgeInsets.fromLTRB(7, 8, 7, 20),
                 itemCount: rows.length + (rows.isNotEmpty ? 1 : 0),
                 separatorBuilder: (_, __) => const Divider(height: 1),
