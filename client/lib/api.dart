@@ -196,8 +196,11 @@ class ApiService {
     if (sideCategoryId != null && sideCategoryId > 0) {
       q['side_category_id'] = sideCategoryId.toString();
     }
+    // Avoid stale intermediary/proxy responses when the result scope changes
+    // (especially between sibling circles).
+    q['_filters_ts'] = DateTime.now().millisecondsSinceEpoch.toString();
 
-    final d = await get('/catalog/products/filters', q: q.isEmpty ? null : q);
+    final d = await get('/catalog/products/filters', q: q);
     return ((d['items'] as List?)??const[])
         .whereType<Map>()
         .map((e)=>Map<String,dynamic>.from(e))
