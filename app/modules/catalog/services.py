@@ -1093,30 +1093,33 @@ class CatalogService:
             "id": brand.id,
             "name": brand.name,
         } if brand else None
-        # Resolve the exact customer-facing price for the detail screen when available.
-        if customer_id:
-            from ...models import Customer
-            customer = db.session.get(Customer, int(customer_id))
-            if customer:
-                try:
-                    ctx, price = price_for_customer(
-                        base_price_sar=Decimal(product.base_price),
-                        customer_id=customer.id,
-                        city_id=customer.city_id,
-                        currency_id=int(currency_id) if currency_id else None,
-                    )
-                    currency = db.session.get(Currency, ctx.currency_id)
-                    snapshot["product"]["display_price"] = str(price.final)
-                    snapshot["product"]["display_compare_price"] = (
-                        str(Decimal(product.compare_at_price) * price.fx_rate)
-                        if product.compare_at_price is not None else None
-                    )
-                    snapshot["product"]["display_currency"] = {
-                        "id": ctx.currency_id, "code": ctx.currency_code,
-                        "symbol": currency.symbol if currency else ctx.currency_code,
-                    }
-                except Exception:
-                    pass
+        # Use exactly the same centralized customer/city/area/currency pricing
+        # path as the storefront feed. This keeps the product detail price identical
+        # to the price already shown on the home product card.
+        from ...models import Customer
+        customer = db.session.get(Customer, int(customer_id)) if customer_id else None
+        try:
+            ctx, price = price_for_customer(
+                base_price_sar=Decimal(product.base_price),
+                customer_id=customer.id if customer else None,
+                city_id=customer.city_id if customer else None,
+                area_id=customer.city_area_id if customer else None,
+                currency_id=int(currency_id) if currency_id else None,
+            )
+            currency = db.session.get(Currency, ctx.currency_id)
+            snapshot["product"]["display_price"] = str(price.final)
+            snapshot["product"]["display_compare_price"] = (
+                str(Decimal(product.compare_at_price) * price.fx_rate)
+                if product.compare_at_price is not None else None
+            )
+            snapshot["product"]["display_currency"] = {
+                "id": ctx.currency_id, "code": ctx.currency_code,
+                "symbol": currency.symbol if currency else ctx.currency_code,
+            }
+        except (LookupError, ValueError, InvalidOperation):
+            # Preserve the legacy payload only when pricing configuration itself
+            # is incomplete; never reimplement pricing here.
+            pass
         snapshot["product"]["short_description"] = product.description or ""
         return snapshot
 
