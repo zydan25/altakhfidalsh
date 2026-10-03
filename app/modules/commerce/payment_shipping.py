@@ -132,6 +132,14 @@ class PaymentShippingService:
                     note="تم اعتماد الدفع",
                 ))
         db.session.commit()
+        if transaction.status == "paid":
+            from ...services.notifications import NotificationService
+            NotificationService.payment_updated(
+                order,
+                "تم تأكيد الدفع",
+                "تم تأكيد دفعتك وبدأت معالجة طلبك.",
+                "paid",
+            )
         return {
             "id": transaction.id,
             "order_id": transaction.order_id,
@@ -207,6 +215,20 @@ class PaymentShippingService:
                 occurred_at=datetime.now(timezone.utc),
             ))
         db.session.commit()
+        if shipment.status == "shipped":
+            from ...services.notifications import NotificationService
+            NotificationService.shipping_updated(
+                order,
+                "تم شحن طلبك وبدأت رحلة التوصيل.",
+                shipment.status,
+            )
+        elif shipment.status:
+            from ...services.notifications import NotificationService
+            NotificationService.shipping_updated(
+                order,
+                "تم تحديث حالة التوصيل إلى " + str(shipment.status) + ".",
+                shipment.status,
+            )
         return {
             "id": shipment.id,
             "order_id": shipment.order_id,
@@ -236,4 +258,12 @@ class PaymentShippingService:
                 shipment.delivered_at = datetime.now(timezone.utc)
         db.session.add(event)
         db.session.commit()
+        if order:
+            from ...services.notifications import NotificationService
+            body = (
+                event.description
+                or ("تم تسليم طلبك بنجاح." if event.status == "delivered"
+                    else "تم تحديث حالة التوصيل إلى " + str(event.status) + ".")
+            )
+            NotificationService.shipping_updated(order, body, event.status)
         return {"id": event.id, "shipment_id": event.shipment_id, "status": event.status}
