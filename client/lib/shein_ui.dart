@@ -8166,18 +8166,20 @@ class _SxPaymentScreenState extends State<SxPaymentScreen> {
 
   Future<void> load() async {
     try{
-      final results=await Future.wait<dynamic>([
-        api.order(widget.orderId),
-        api.paymentMethods(),
-        api.wallet(currencyId:state.currencyId),
-      ]);
-      final raw=results[0];
+      final raw=await api.order(widget.orderId);
       final d=raw is Map && raw['item'] is Map
           ? Map<String,dynamic>.from(raw['item'])
           : Map<String,dynamic>.from(raw is Map?raw:<String,dynamic>{});
+      final orderCurrencyId=sxInt(d['currency_id'],state.currencyId??0);
+      final results=await Future.wait<dynamic>([
+        api.paymentMethods(),
+        api.wallet(currencyId:orderCurrencyId>0?orderCurrencyId:null),
+      ]);
       order=d;
-      methods=(results[1] as List).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
-      wallet=results[2] is Map?Map<String,dynamic>.from(results[2]):null;
+      methods=(results[0] as List).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
+      wallet=results[1] is Map?Map<String,dynamic>.from(results[1]):null;
+      final existingMethod=sxInt(d['payment_method_id']);
+      selectedMethodId=existingMethod>0?existingMethod:null;
     }catch(e){
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));
     }
