@@ -4310,7 +4310,6 @@ class _SxResultsState extends State<SxResults> {
   String sort = 'recommended';
   String? minPrice, maxPrice, minRating;
   int? selectedCategoryId;
-  int? categoryContextId;
   int? activeCircleId;
   int? resolvedSideCategoryId;
   bool loading = true;
@@ -4340,19 +4339,6 @@ class _SxResultsState extends State<SxResults> {
     _visibleProductsNotifier.dispose();
     _changingCategoryNotifier.dispose();
     super.dispose();
-  }
-
-  int? _circleRootId(Map<String, dynamic> payload) {
-    final id = widget.circleId;
-    if (id == null) return null;
-    for (final side in sxMaps(payload['side_categories'])) {
-      for (final circle in sxMaps(side['circles'])) {
-        if (sxInt(circle['id']) == id) {
-          return sxInt(side['root_category_id']);
-        }
-      }
-    }
-    return null;
   }
 
   void _resolveSideContext() {
@@ -4389,7 +4375,8 @@ class _SxResultsState extends State<SxResults> {
     }
 
     resolvedSideCategoryId = sxInt(matchedSide['id']);
-    categoryContextId = sxInt(matchedSide['root_category_id']);
+    // The root category is context for taxonomy only; it is not part of the
+    // result scope and is deliberately not carried into product filtering.
     final circles = sxMaps(matchedSide['circles']);
 
     // Result-page circle rail belongs to the resolved side category only.
@@ -4409,15 +4396,25 @@ class _SxResultsState extends State<SxResults> {
   }
 
   List<int> _entryCategoryIds() {
+    // Side-category/circle results do not inherit their root category.
+    // The side category (and circle when selected) is their own storefront
+    // scope. Normal category entry points keep their explicit category IDs.
+    if (widget.circleId != null ||
+        widget.sideCategoryId != null ||
+        resolvedSideCategoryId != null) {
+      return <int>[
+        ...?widget.categoryIds?.where((id) => id > 0),
+        if (widget.categoryId != null && widget.categoryId! > 0)
+          widget.categoryId!,
+      ].toSet().toList()..sort();
+    }
+
     final ids = <int>{};
     for (final id in widget.categoryIds ?? const <int>[]) {
       if (id > 0) ids.add(id);
     }
     if (widget.categoryId != null && widget.categoryId! > 0) {
       ids.add(widget.categoryId!);
-    }
-    if (ids.isEmpty && categoryContextId != null && categoryContextId! > 0) {
-      ids.add(categoryContextId!);
     }
     return ids.toList()..sort();
   }
@@ -4439,13 +4436,13 @@ class _SxResultsState extends State<SxResults> {
       );
     roots = allCategories.where((x) => x.parentId == null).toList();
 
-    // A direct circle result behaves like a normal category result:
-    // resolve its root context and show that root's child categories.
-    // A side-category result (used only by legacy/other entry points) remains
-    // a standalone side scope without the normal category rail.
-    final sideCategoryOnly =
-        widget.sideCategoryId != null && widget.circleId == null;
-    if (sideCategoryOnly) {
+    // Side-category/circle results are scoped by the side taxonomy only.
+    // Do not derive or display a normal catalog-category rail from the parent
+    // root on this screen.
+    final sideScoped = widget.circleId != null ||
+        widget.sideCategoryId != null ||
+        resolvedSideCategoryId != null;
+    if (sideScoped) {
       categories = [];
       return;
     }
@@ -4475,10 +4472,16 @@ class _SxResultsState extends State<SxResults> {
     filters = [];
 
     final categoryIds = _currentCategoryScopeIds();
+    final sideScoped = widget.circleId != null ||
+        widget.sideCategoryId != null ||
+        resolvedSideCategoryId != null;
+    final effectiveSideCategoryId =
+        resolvedSideCategoryId ?? widget.sideCategoryId;
 
     try {
       filters = await api.scopedFilters(
-        categoryIds: categoryIds,
+        categoryIds: sideScoped ? null : categoryIds,
+        sideCategoryId: sideScoped ? effectiveSideCategoryId : null,
         hashtagIds: [
           if (widget.hashtagId != null && widget.hashtagId! > 0)
             widget.hashtagId!,
@@ -4552,7 +4555,6 @@ class _SxResultsState extends State<SxResults> {
     if (mounted) setState(() => loading = true);
     try {
       home = await api.home();
-      categoryContextId = _circleRootId(home);
       _resolveSideContext();
       selectedCategoryId = null;
       _selectedCategoryNotifier.value = null;
