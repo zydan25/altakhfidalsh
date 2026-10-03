@@ -344,6 +344,31 @@ def public_product_feed():
             .distinct()
         )
 
+    elif discovery_tab == "trends":
+        # The Trends screen's "لك" tab must contain only products that are
+        # explicitly assigned to an active, non-expired trend. Do not fall
+        # back to the general popular-products feed.
+        active_trend_ids = [
+            trend.id
+            for trend in Trend.query.filter(
+                Trend.is_active.is_(True),
+                Trend.status == "active",
+            ).all()
+            if not CatalogService.is_trend_timer_expired(trend)
+        ]
+        if not active_trend_ids:
+            query = query.filter(Product.id == -1)
+        else:
+            trend_products = (
+                db.session.query(TrendProduct.product_id)
+                .filter(TrendProduct.trend_id.in_(active_trend_ids))
+                .distinct()
+                .subquery()
+            )
+            query = query.filter(
+                Product.id.in_(db.session.query(trend_products.c.product_id))
+            )
+
     # OR within one filter group, AND between different filter groups.
     selected_filter_ids = []
     raw_filter_ids = (request.args.get("filter_value_ids") or "").split(",")
