@@ -72,9 +72,30 @@ def public_policies():
     }
 
 
+def _public_setting(key, default=""):
+    row = AppSetting.query.filter_by(group_code="storefront", key=key).first()
+    return row.value.strip() if row and row.value else default
+
+
+@api_bp.get("/store-info")
+def public_store_info():
+    return {
+        "item": {
+            "name": _public_setting("store_name", "التخفيض الصح"),
+            "support_phone": _public_setting("support_phone"),
+            "whatsapp_phone": _public_setting("whatsapp_phone"),
+            "address": _public_setting("store_address"),
+            "latitude": _public_setting("store_latitude"),
+            "longitude": _public_setting("store_longitude"),
+            "map_url": _public_setting("store_map_url"),
+            "image_url": _public_setting("store_image_url"),
+            "hours": _public_setting("store_hours"),
+        }
+    }
+
+
 @api_bp.get("/health")
-def health():
-    return {"ok": True, "module": "system"}
+def health():    return {"ok": True, "module": "system"}
 
 
 @api_bp.get("/permissions")
