@@ -1040,7 +1040,7 @@
     try {
       await requestJson("/api/v1/catalog/products/" + productId + "/badges", {
         method: "POST",
-        body: JSON.stringify({ badge_ids: badgeIds }),
+        body: JSON.stringify({ badges: badgeItems }),
       });
       await requestJson("/api/v1/catalog/products/" + productId + "/hashtags", {
         method: "POST",
