@@ -7838,6 +7838,8 @@ class _TrendHashtagStrip extends StatelessWidget {
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
           children: [
+            _menu(chipHeight),
+            const SizedBox(width: 6),
             _chip(
               label: 'لك',
               selected: selectedId == null,
@@ -7845,8 +7847,6 @@ class _TrendHashtagStrip extends StatelessWidget {
               onTap: () => onSelect(null),
               height: chipHeight,
             ),
-            const SizedBox(width: 6),
-            _menu(chipHeight),
             const SizedBox(width: 6),
             for (final tag in tags) ...[
               _chip(
