@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
@@ -400,7 +401,12 @@ class ApiService {
     }
     return d;
   }
-  Future<void> addCart(int variant)async{await post('/commerce/me/cart/items',{'variant_id':variant,'qty':1});}
+  Future<void> addCart(int variant,[int qty=1,Map<String,dynamic>? selectedOptions])async{
+    await post('/commerce/me/cart/items',{
+      'variant_id':variant,'qty':qty,
+      if(selectedOptions!=null)'selected_options':selectedOptions,
+    });
+  }
   Future<void> cartQty(int id,int qty)async{await patch('/commerce/me/cart/items/'+id.toString(),{'qty':qty});}
   Future<void> removeCart(int id)async{await delete('/commerce/me/cart/items/'+id.toString());}
   Future<List<Map<String,dynamic>>> orders()async{
@@ -408,12 +414,15 @@ class ApiService {
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
   }
   Future<Map<String,dynamic>> order(int id)async=>Map<String,dynamic>.from(await get('/commerce/me/orders/'+id.toString()+'/detail'));
-  Future<Map<String,dynamic>> createOrder(int addressId,List<Map<String,dynamic>> items,{int? shippingMethodId,int? paymentMethodId})async=>Map<String,dynamic>.from(await post('/commerce/orders',{
-    'address_id':addressId,
-    'items':items,
-    if(shippingMethodId!=null)'shipping_method_id':shippingMethodId,
-    if(paymentMethodId!=null)'payment_method_id':paymentMethodId,
-  }));
+  Future<Map<String,dynamic>> updateOrder(int id,Map<String,dynamic> body)async=>Map<String,dynamic>.from(await patch('/commerce/me/orders/'+id.toString(),body));
+  Future<Map<String,dynamic>> createOrder(int addressId,List<Map<String,dynamic>> items,{int? shippingMethodId,int? paymentMethodId,int? currencyId,String? customerNote}) async =>
+      Map<String,dynamic>.from(await post('/commerce/orders',{
+        'address_id':addressId,'items':items,
+        if(shippingMethodId!=null)'shipping_method_id':shippingMethodId,
+        if(paymentMethodId!=null)'payment_method_id':paymentMethodId,
+        if(currencyId!=null)'currency_id':currencyId,
+        if(customerNote!=null&&customerNote.trim().isNotEmpty)'customer_note':customerNote.trim(),
+      }));
   Future<List<Map<String,dynamic>>> shippingMethods()async{
     final d=await get('/commerce/shipping-methods');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
@@ -477,5 +486,22 @@ class ApiService {
     }),
   );
   Future<void> sendMessage(int id,String body)async{await post('/support/conversations/'+id.toString()+'/messages',{'body':body});}
+  Future<List<Map<String,dynamic>>> sendMessageWithFiles(int id,String body,List<PlatformFile> files)async{
+    final req=http.MultipartRequest('POST',Uri.parse(baseUrl+'/support/conversations/'+id.toString()+'/attachments'));
+    req.headers.addAll(headers()); if(body.trim().isNotEmpty)req.fields['body']=body.trim();
+    for(final f in files){if(f.bytes!=null)req.files.add(http.MultipartFile.fromBytes('files',f.bytes!,filename:f.name));}
+    final response=await http.Response.fromStream(await req.send());
+    final data=decode(response);
+    final item=data['item']; return [item is Map?Map<String,dynamic>.from(item):<String,dynamic>{}];
+  }
+  Future<List<Map<String,dynamic>>> uploadPaymentProof(int orderId,List<PlatformFile> files)async{
+    final req=http.MultipartRequest('POST',Uri.parse(baseUrl+'/commerce/me/payment-proofs/upload'));
+    req.headers.addAll(headers());req.fields['order_id']=orderId.toString();
+    for(final f in files){if(f.bytes!=null)req.files.add(http.MultipartFile.fromBytes('files',f.bytes!,filename:f.name));}
+    final response=await http.Response.fromStream(await req.send());
+    final data=decode(response);
+    return ((data['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
+  }
+  Future<Map<String,dynamic>> policies()async=>Map<String,dynamic>.from(await get('/system/policies'));
   Future<void> logout()async{token='';final p=await SharedPreferences.getInstance();await p.remove('access_token');}
 }
