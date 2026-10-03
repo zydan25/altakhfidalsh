@@ -29,6 +29,8 @@ class ProductModel {
   final double? imageAspectRatio;
   final String? cardAspectRatio;
   final int? variantId;
+  final int availableQty;
+  final bool inStock;
   final double? rating;
   final int reviewCount;
   final int soldQty;
@@ -54,6 +56,8 @@ class ProductModel {
     this.imageAspectRatio,
     this.cardAspectRatio,
     this.variantId,
+    this.availableQty = 0,
+    this.inStock = true,
     this.rating,
     this.reviewCount = 0,
     this.soldQty = 0,
@@ -125,6 +129,8 @@ class ProductModel {
       imageAspectRatio: rawAspect != null && rawAspect > 0 ? rawAspect : null,
       cardAspectRatio: j['card_aspect_ratio']?.toString(),
       variantId:j['variant_id']==null ? null : int.tryParse(j['variant_id'].toString()),
+      availableQty: int.tryParse((j['available_qty'] ?? 0).toString()) ?? 0,
+      inStock: j['in_stock'] is bool ? j['in_stock'] as bool : ((int.tryParse((j['available_qty'] ?? 0).toString()) ?? 0) > 0),
       rating: rawRating != null && rawRating > 0 ? rawRating : null,
       reviewCount: reviewCount,
       soldQty: soldQty,
