@@ -1,0 +1,259 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<style>
+  .display-settings-page{display:grid;gap:16px}
+  .display-settings-hero{padding:18px}
+  .display-settings-hero h2{margin:.2rem 0 .35rem}
+  .display-settings-hero p{margin:0;max-width:900px;line-height:1.7}
+  .settings-section{padding:0;overflow:hidden}
+  .settings-section-head{padding:16px 18px;border-bottom:1px solid var(--border,#e6e6e6);background:#fff}
+  .settings-section-head h3{margin:2px 0 4px}
+  .settings-section-head p{margin:0}
+  .settings-details{padding:0 14px 14px}
+  .settings-details details{background:#fff;border:1px solid #ececec;border-radius:10px;margin-top:12px;overflow:hidden}
+  .settings-details summary{cursor:pointer;display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 15px;font-weight:900;list-style:none}
+  .settings-details summary::-webkit-details-marker{display:none}
+  .settings-details summary small{font-weight:600;color:#7a7a7a}
+  .settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 14px 14px}
+  .settings-grid label{display:flex;flex-direction:column;gap:6px;font-weight:800;font-size:12px}
+  .settings-grid input,.settings-grid select{width:100%;box-sizing:border-box}
+  .settings-grid .check-row{display:flex;flex-direction:row;align-items:center;gap:9px;font-weight:800;padding:10px 11px;background:#f8f8f8;border:1px solid #ededed;border-radius:8px}
+  .settings-grid .check-row input{width:auto}
+  .color-sync{display:grid;grid-template-columns:46px 1fr;gap:8px;align-items:center}
+  .color-sync input[type=color]{height:40px;padding:3px}
+  .color-sync input[type=text]{direction:ltr;text-align:left;font-family:monospace}
+  .settings-note{margin:14px;padding:12px 14px;border:1px dashed #d5d5d5;background:#fafafa;border-radius:9px;line-height:1.7}
+  .save-bar{position:sticky;bottom:10px;z-index:5;padding:10px;background:rgba(255,255,255,.96);border:1px solid #e7e7e7;border-radius:12px;box-shadow:0 8px 25px rgba(0,0,0,.08);display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .save-bar strong{display:block}.save-bar small{color:#777}
+  .settings-divider{height:1px;background:#eee;margin:4px 0}
+  @media(max-width:720px){
+    .settings-grid{grid-template-columns:1fr}
+    .save-bar{align-items:stretch;flex-direction:column}
+    .save-bar .primary-button{width:100%}
+  }
+</style>
+
+<div class="display-settings-page">
+  <section class="module-header panel display-settings-hero">
+    <div class="module-toolbar">
+      <div class="module-heading-copy">
+        <span class="eyebrow">المحتوى والمتجر</span>
+        <h2>إعدادات الترندات وبطاقات المنتجات</h2>
+        <p class="muted">
+          واجهة مبسطة للتحكم في نفس إعدادات الخادم المستخدمة حاليًا.
+          لم يتم تغيير مفاتيح التخزين الحالية؛ الصفحة فقط تجعل التحكم بها أوضح وأسهل.
+          الألوان تقبل رقم HEX مثل <b dir="ltr">#7c3aed</b>.
+        </p>
+      </div>
+      <div class="module-toolbar-actions">
+        <a class="ghost-button" href="/admin/trends">العودة إلى الترندات</a>
+      </div>
+    </div>
+  </section>
+
+  {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+  <section class="panel settings-section">
+    <div class="settings-section-head">
+      <span class="eyebrow">المفتاح الحالي</span>
+      <h3>تنسيق الترندات</h3>
+      <p class="muted">يُحفظ في <code>AppSetting: trends / display_settings</code> مثل الصفحة القديمة تمامًا.</p>
+    </div>
+
+    <div class="settings-note">
+      <strong>ملاحظة:</strong>
+      تستطيع تعديل الترندات من هنا دون الحاجة للبحث بين عشرات الحقول في شاشة إدارة الترندات.
+      الحقول مقسمة حسب الوظيفة، والألوان لها خانة رقم HEX بالإضافة إلى منتقي اللون.
+    </div>
+
+    <form method="post">
+      <input type="hidden" name="action" value="save_trends">
+      <div class="settings-details">
+        {% for group in trend_groups %}
+        <details {% if loop.index <= 4 %}open{% endif %}>
+          <summary>
+            <span>{{ group.title }}</span>
+            <small>{{ group.hint }}</small>
+          </summary>
+          <div class="settings-grid">
+            {% for field in group.fields %}
+              {% set key = field[0] %}
+              {% set label = field[1] %}
+              {% set kind = field[2] %}
+              {% if kind == "checkbox" %}
+              <label class="check-row">
+                <input name="{{ key }}" type="checkbox" {% if trend_display_settings[key] %}checked{% endif %}>
+                <span>{{ label }}</span>
+              </label>
+              {% elif kind == "select" %}
+              <label>
+                {{ label }}
+                <select name="{{ key }}">
+                  {% for option in field[3] %}
+                  <option value="{{ option }}" {% if trend_display_settings[key] == option %}selected{% endif %}>{{ option }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              {% elif kind == "number" %}
+              <label>
+                {{ label }}
+                <input name="{{ key }}" type="number"
+                       min="{{ field[3] }}" max="{{ field[4] }}" step="{{ field[5] }}"
+                       value="{{ trend_display_settings[key] }}">
+              </label>
+              {% elif kind == "text" %}
+              <label>
+                {{ label }}
+                <input name="{{ key }}" type="text" maxlength="{{ field[3] }}" value="{{ trend_display_settings[key] }}">
+              </label>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </details>
+        {% endfor %}
+
+        <details open>
+          <summary>
+            <span>الألوان العامة</span>
+            <small>اكتب اللون مباشرة بصيغة HEX أو استخدم منتقي اللون</small>
+          </summary>
+          <div class="settings-grid">
+            {% for key, label in trend_color_fields %}
+            <label>
+              {{ label }}
+              <span class="color-sync">
+                <input type="color" value="{{ trend_display_settings[key] }}" data-color-picker="{{ key }}">
+                <input type="text" name="{{ key }}" value="{{ trend_display_settings[key] }}"
+                       data-color-text="{{ key }}" maxlength="7" dir="ltr" inputmode="text">
+              </span>
+            </label>
+            {% endfor %}
+          </div>
+        </details>
+      </div>
+
+      <div class="save-bar">
+        <div>
+          <strong>إعدادات الترندات</strong>
+          <small>سيتم حفظها في نفس المفتاح الموجود حاليًا.</small>
+        </div>
+        <button class="primary-button" type="submit">حفظ إعدادات الترندات</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel settings-section">
+    <div class="settings-section-head">
+      <span class="eyebrow">بطاقة المنتج</span>
+      <h3>الترند والهاشتاج والألوان والشارات</h3>
+      <p class="muted">هذه الإعدادات تتحكم مباشرة في بطاقة المنتج في واجهة العميل، ومن ضمنها ترتيب ألوان المنتج.</p>
+    </div>
+
+    <div class="settings-note">
+      <strong>ألوان المنتج:</strong>
+      الوضع الافتراضي أصبح <b>رأسيًا</b> أسفل يمين الصورة، ويمكنك تغييره إلى أفقي،
+      وتحديد حجم الدائرة والمسافة بين الدوائر ويمكن جعل المسافة <b>0</b>.
+    </div>
+
+    <form method="post">
+      <input type="hidden" name="action" value="save_product_card">
+      <div class="settings-details">
+        {% for group in product_card_groups %}
+        <details {% if loop.first %}open{% endif %}>
+          <summary>
+            <span>{{ group.title }}</span>
+            <small>{{ group.hint }}</small>
+          </summary>
+          <div class="settings-grid">
+            {% for field in group.fields %}
+              {% set key = field[0] %}
+              {% set label = field[1] %}
+              {% set kind = field[2] %}
+              {% if kind == "checkbox" %}
+              <label class="check-row">
+                <input name="{{ key }}" type="checkbox" {% if product_card_settings[key] %}checked{% endif %}>
+                <span>{{ label }}</span>
+              </label>
+              {% elif kind == "select" %}
+              <label>
+                {{ label }}
+                <select name="{{ key }}">
+                  {% for option in field[3] %}
+                  <option value="{{ option }}" {% if product_card_settings[key] == option %}selected{% endif %}>{{ option }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              {% elif kind == "number" %}
+              <label>
+                {{ label }}
+                <input name="{{ key }}" type="number"
+                       min="{{ field[3] }}" max="{{ field[4] }}" step="{{ field[5] }}"
+                       value="{{ product_card_settings[key] }}">
+              </label>
+              {% elif kind == "text" %}
+              <label>
+                {{ label }}
+                <input name="{{ key }}" type="text" maxlength="{{ field[3] }}" value="{{ product_card_settings[key] }}">
+              </label>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </details>
+        {% endfor %}
+
+        <details open>
+          <summary>
+            <span>ألوان عناصر بطاقة المنتج</span>
+            <small>كل لون يُحفظ كسلسلة HEX في إعدادات الخادم</small>
+          </summary>
+          <div class="settings-grid">
+            {% for key, label in product_card_color_fields %}
+            <label>
+              {{ label }}
+              <span class="color-sync">
+                <input type="color" value="{{ product_card_settings[key] }}" data-color-picker="{{ key }}">
+                <input type="text" name="{{ key }}" value="{{ product_card_settings[key] }}"
+                       data-color-text="{{ key }}" maxlength="7" dir="ltr" inputmode="text">
+              </span>
+            </label>
+            {% endfor %}
+          </div>
+        </details>
+      </div>
+
+      <div class="save-bar">
+        <div>
+          <strong>إعدادات بطاقة المنتج</strong>
+          <small>تُقرأ مباشرة من <code>storefront / product_card_settings</code>.</small>
+        </div>
+        <button class="primary-button" type="submit">حفظ إعدادات بطاقة المنتج</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script>
+(() => {
+  const valid = /^#[0-9A-Fa-f]{6}$/;
+  document.querySelectorAll('[data-color-picker]').forEach((picker) => {
+    const key = picker.dataset.colorPicker;
+    const text = document.querySelector('[data-color-text="' + key + '"]');
+    if (!text) return;
+    picker.addEventListener('input', () => {
+      text.value = picker.value.toLowerCase();
+    });
+    text.addEventListener('input', () => {
+      if (valid.test(text.value.trim())) {
+        picker.value = text.value.trim();
+      }
+    });
+    text.addEventListener('blur', () => {
+      const value = text.value.trim();
+      if (!valid.test(value)) text.value = picker.value.toLowerCase();
+      else text.value = value.toLowerCase();
+    });
+  });
+})();
+</script>
+{% endblock %}
