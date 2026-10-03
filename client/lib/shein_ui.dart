@@ -43,6 +43,7 @@ class SxAppShell extends StatefulWidget {
 class _SxAppShellState extends State<SxAppShell> {
   int index = 0;
   final GlobalKey<_SxHomeScreenState> _homeKey = GlobalKey<_SxHomeScreenState>();
+  final GlobalKey<_SxCartScreenState> _cartKey = GlobalKey<_SxCartScreenState>();
   late final List<Widget> pages;
 
   @override void initState() {
@@ -51,7 +52,7 @@ class _SxAppShellState extends State<SxAppShell> {
       SxHomeScreen(key: _homeKey),
       const SxCategoriesScreen(),
       const SxTrendsScreen(),
-      const SxCartScreen(),
+      SxCartScreen(key: _cartKey),
       const SxAccountScreen(),
     ];
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
@@ -60,24 +61,66 @@ class _SxAppShellState extends State<SxAppShell> {
       statusBarBrightness: Brightness.light,
     ));
   }
-  @override Widget build(BuildContext context) => Directionality(
+  Future<void> _handleBack() async {
+    if (index != 0) {
+      if (mounted) setState(() => index = 0);
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('الخروج من التطبيق', textAlign: TextAlign.center),
+        content: const Text(
+          'هل تريد الخروج من التخفيض الصح؟',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 11),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.black),
+            child: const Text('خروج'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await SystemNavigator.pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Directionality(
     textDirection: TextDirection.rtl,
-    child: Scaffold(
-      backgroundColor: Colors.white,
-      body: IndexedStack(index: index, children: pages),
-      bottomNavigationBar: SxBottomBar(
-        index: index,
-        onChanged: (v) {
-          setState(() => index = v);
-          if (v == 0) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _homeKey.currentState?.refreshAndScrollTop();
-            });
-          }
-        },
+    child: PopScope<void>(
+      canPop: false,
+      onPopInvokedWithResult: (_, __) => _handleBack(),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: IndexedStack(index: index, children: pages),
+        bottomNavigationBar: SxBottomBar(
+          index: index,
+          onChanged: (v) {
+            setState(() => index = v);
+            if (v == 0) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _homeKey.currentState?.refreshAndScrollTop();
+              });
+            } else if (v == 3) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _cartKey.currentState?.refreshFromNavigation();
+              });
+            }
+          },
+        ),
       ),
     ),
   );
+
 }
 
 class SxBottomBar extends StatelessWidget {
@@ -7492,6 +7535,10 @@ class _SxCartScreenState extends State<SxCartScreen> {
   bool quoteLoading = false;
 
   @override void initState() { super.initState(); load(); }
+
+  Future<void> refreshFromNavigation() async {
+    await load();
+  }
 
   Future<void> load() async {
     if (!state.loggedIn) { if (mounted) setState(() => loading = false); return; }
