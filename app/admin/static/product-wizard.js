@@ -771,6 +771,12 @@
   document.getElementById("quickBadgeForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const visualDefaults = {
+      font_size: Number(form.get("font_size") || 9),
+      font_weight: Number(form.get("font_weight") || 800),
+      background_opacity: Number(form.get("background_opacity") || 1),
+      text_decoration: form.get("text_decoration") || "none",
+    };
     try {
       const created = await requestJson("/api/v1/catalog/badges", {
         method: "POST",
@@ -786,11 +792,25 @@
       closeModal("quickBadgeModal");
       event.currentTarget.reset();
       await load();
-      const checkbox = document.querySelector('[data-badge-checkbox][value="' + created.item?.id + '"]');
-      if (checkbox) {
-        checkbox.checked = true;
+      const id = created.item?.id;
+      const checkbox = document.querySelector('[data-badge-checkbox][value="' + id + '"]');
+      if (checkbox) checkbox.checked = true;
+      if (id) {
+        const set = (selector, value) => {
+          const el = document.querySelector(selector + id + '"]');
+          if (el) el.value = value;
+        };
+        set('[data-badge-font="', visualDefaults.font_size);
+        set('[data-badge-weight="', visualDefaults.font_weight);
+        set('[data-badge-opacity="', visualDefaults.background_opacity);
+        set('[data-badge-decoration="', visualDefaults.text_decoration);
+        const bg = form.get("bg_color");
+        const fg = form.get("text_color");
+        set('[data-badge-bg-text="', bg);
+        set('[data-badge-fg-text="', fg);
+        await document.getElementById("saveMarketing")?.click();
       }
-      notify("تم إنشاء الشارة وتحديث القائمة.");
+      notify("تم إنشاء الشارة وربط تنسيقها بالمنتج.");
     } catch (error) { notify(error.message, "error"); }
   });
 
