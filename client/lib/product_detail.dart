@@ -162,16 +162,23 @@ class _SxProductScreenState extends State<SxProductScreen> {
     return found.values.toList();
   }
 
-  int? _variantId() {
+  Map<String, dynamic>? _selectedVariant() {
     final variants = _maps(data['variants']);
     for (final variant in variants) {
       final colorOk = colorId == null || sxInt(variant['color_id']) == colorId;
       final sizeOk = sizeId == null || sxInt(variant['size_id']) == sizeId;
       if (colorOk && sizeOk && sxInt(variant['id']) > 0) {
-        return sxInt(variant['id']);
+        return variant;
       }
     }
-    return variants.isEmpty ? null : sxInt(variants.first['id']);
+    return null;
+  }
+
+  int? _variantId() => sxIntNullable(_selectedVariant()?['id']);
+
+  int _availableQty() {
+    final variant = _selectedVariant();
+    return variant == null ? 0 : sxInt(variant['available_qty']);
   }
 
   int _discount(String current, String previous) {
@@ -248,6 +255,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
         productName: sxText((data['product'] as Map?)?['name'], 'منتج'),
         color: selectedColor,
         size: selectedSize,
+        maxQuantity: _availableQty(),
       ),
     );
   }
@@ -264,8 +272,26 @@ class _SxProductScreenState extends State<SxProductScreen> {
       return false;
     }
 
+    final available = _availableQty();
+    if (available <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('هذا الاختيار غير متوفر حاليًا')),
+        );
+      }
+      return false;
+    }
+
     final quantity = await _confirmAddQuantity();
     if (quantity == null || quantity < 1) return false;
+    if (quantity > available) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('المتاح لهذا الاختيار $available فقط')),
+        );
+      }
+      return false;
+    }
 
     try {
       await api.addCart(variant, quantity, _selectedOptions());
@@ -521,6 +547,12 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       ),
                     ),
                   SliverToBoxAdapter(
+                    child: _StockStatusPanel(
+                      availableQty: _availableQty(),
+                      hasVariant: _selectedVariant() != null,
+                    ),
+                  ),
+                  SliverToBoxAdapter(
                     child: _DeliveryBadgePanel(
                       badges: _maps(data['delivery_badges']),
                     ),
@@ -599,6 +631,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
                 price: price,
                 currency: detailCurrency,
                 onAdd: _addToCart,
+                availableQty: _availableQty(),
               ),
             ),
           ],
@@ -842,10 +875,13 @@ class _AddToCartConfirmation extends StatefulWidget {
   final String productName;
   final String color;
   final String size;
+  final int maxQuantity;
+
   const _AddToCartConfirmation({
     required this.productName,
     required this.color,
     required this.size,
+    required this.maxQuantity,
   });
 
   @override
@@ -891,6 +927,16 @@ class _AddToCartConfirmationState extends State<_AddToCartConfirmation> {
               ),
             ],
             const SizedBox(height: 12),
+            if (widget.maxQuantity > 0) ...[
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'المتاح: ${widget.maxQuantity}',
+                  style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, color: ClientTheme.muted),
+                ),
+              ),
+              const SizedBox(height: 6),
+            ],
             Row(
               children: [
                 const Expanded(
@@ -905,7 +951,9 @@ class _AddToCartConfirmationState extends State<_AddToCartConfirmation> {
                   child: Row(
                     children: [
                       IconButton(
-                        onPressed: quantity >= 99 ? null : () => setState(() => quantity++),
+                        onPressed: quantity >= widget.maxQuantity
+                            ? null
+                            : () => setState(() => quantity++),
                         icon: const Icon(Icons.add, size: 18),
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints.tightFor(width: 39, height: 39),
@@ -2122,15 +2170,66 @@ class _DetailBadgeStrip extends StatelessWidget {
   }
 }
 
+class _StockStatusPanel extends StatelessWidget {
+  final int availableQty;
+  final bool hasVariant;
+
+  const _StockStatusPanel({
+    required this.availableQty,
+    required this.hasVariant,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final inStock = hasVariant && availableQty > 0;
+    final text = !hasVariant
+        ? 'اختر اللون والمقاس لمعرفة التوفر'
+        : inStock
+            ? (availableQty <= 5
+                ? 'متوفر — تبقى $availableQty فقط'
+                : 'متوفر في المخزون')
+            : 'غير متوفر حاليًا';
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+      child: Row(
+        children: [
+          Icon(
+            inStock ? Icons.check_circle_outline : Icons.inventory_2_outlined,
+            size: 19,
+            color: inStock ? const Color(0xFF15803D) : ClientTheme.muted,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: inStock ? const Color(0xFF15803D) : ClientTheme.muted,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ProductBottomBar extends StatelessWidget {
   final String price;
   final String currency;
   final VoidCallback onAdd;
+  final int availableQty;
 
   const _ProductBottomBar({
     required this.price,
     required this.currency,
     required this.onAdd,
+    required this.availableQty,
   });
 
   @override
@@ -2146,15 +2245,23 @@ class _ProductBottomBar extends StatelessWidget {
       children: [
         Expanded(
           child: FilledButton.icon(
-            onPressed: onAdd,
-            icon: const Icon(Icons.shopping_bag_outlined, size: 18),
+            onPressed: availableQty > 0 ? onAdd : null,
+            icon: Icon(
+              availableQty > 0
+                  ? Icons.shopping_bag_outlined
+                  : Icons.remove_shopping_cart_outlined,
+              size: 18,
+            ),
             style: FilledButton.styleFrom(
-              backgroundColor: Colors.black,
+              backgroundColor: availableQty > 0 ? Colors.black : const Color(0xFFBDBDBD),
+              disabledBackgroundColor: const Color(0xFFBDBDBD),
               minimumSize: const Size.fromHeight(48),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
             ),
             label: Text(
-              'أضف إلى عربة التسوق  ·  $price $currency',
+              availableQty > 0
+                  ? 'أضف إلى عربة التسوق  ·  $price $currency'
+                  : 'غير متوفر حاليًا',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
@@ -2284,6 +2391,12 @@ FontWeight _weight(int value) {
   if (value >= 600) return FontWeight.w600;
   if (value >= 500) return FontWeight.w500;
   return FontWeight.w400;
+}
+
+int? sxIntNullable(dynamic value) {
+  if (value == null) return null;
+  final parsed = sxInt(value);
+  return parsed > 0 ? parsed : null;
 }
 
 int sxIntListLength(dynamic value) => value is List ? value.length : 0;
