@@ -702,3 +702,114 @@ def test_public_results_scope_categories_side_circles_and_dynamic_filters(app, c
             item["id"] for item in color_filtered_response.get_json()["items"]
         }
         assert color_filtered_ids == {first.id}
+
+def test_product_detail_uses_customer_pricing_group_and_selected_currency(app):
+    from datetime import datetime, timezone
+    from app.models import (
+        Country,
+        Region,
+        City,
+        CityArea,
+        Customer,
+        CustomerPricingAssignment,
+        ExchangeRate,
+        PricingGroup,
+    )
+
+    with app.app_context():
+        country = Country(code="YE", name_ar="اليمن")
+        db.session.add(country)
+        db.session.flush()
+        region = Region(country_id=country.id, code="NORTH", name="الشمال")
+        city = City(region_id=region.id, code="IBB", name="إب")
+        db.session.add_all([region, city])
+        db.session.flush()
+        area = CityArea(city_id=city.id, code="CENTER", name="الوسط", direction="north")
+        db.session.add(area)
+
+        sar = Currency(
+            code="SAR",
+            symbol="ر.س",
+            name_ar="الريال السعودي",
+            decimals=2,
+            is_base=True,
+        )
+        yer = Currency(
+            code="YER",
+            symbol="﷼",
+            name_ar="الريال اليمني",
+            decimals=0,
+            is_base=False,
+        )
+        db.session.add_all([sar, yer])
+        db.session.flush()
+
+        group = PricingGroup(
+            name="عميل YER",
+            default_currency_id=yer.id,
+            priority=100,
+            percent_markup=Decimal("10"),
+            fixed_markup_sar=Decimal("5"),
+            decimals=0,
+            is_default=True,
+        )
+        db.session.add(group)
+        db.session.flush()
+
+        customer = Customer(
+            phone_normalized="967771234599",
+            city_id=city.id,
+            city_area_id=area.id,
+        )
+        db.session.add(customer)
+        db.session.flush()
+        db.session.add(
+            CustomerPricingAssignment(
+                customer_id=customer.id,
+                pricing_group_id=group.id,
+                priority=100,
+            )
+        )
+        db.session.add(
+            ExchangeRate(
+                base_currency_id=sar.id,
+                quote_currency_id=yer.id,
+                rate=Decimal("700"),
+                valid_from=datetime.now(timezone.utc),
+            )
+        )
+
+        category = Category(name="تفاصيل التسعير", slug="pricing-detail-regression")
+        db.session.add(category)
+        db.session.flush()
+        product = Product(
+            sku="DETAIL-PRICING-001",
+            name="منتج تفاصيل التسعير",
+            slug="detail-pricing-001",
+            base_currency_id=sar.id,
+            base_price=Decimal("100"),
+            status="published",
+            is_active=True,
+        )
+        db.session.add(product)
+        db.session.flush()
+        db.session.add(
+            ProductCategory(
+                product_id=product.id,
+                category_id=category.id,
+                is_primary=True,
+            )
+        )
+        db.session.commit()
+
+        snapshot = CatalogService.get_product(
+            product.id,
+            customer_id=customer.id,
+            currency_id=yer.id,
+        )
+        priced = snapshot["product"]
+
+        # 100 SAR * 700 = 70,000 YER; +10% = 7,000; +5 SAR = 3,500.
+        assert priced["display_price"] == "80500"
+        assert priced["display_currency"]["code"] == "YER"
+
