@@ -898,7 +898,7 @@ class _ProductHeroInfo extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             name,
-            maxLines: sxInt(detailSettings['name_max_lines'], 4).clamp(2, 6),
+            maxLines: sxInt(detailSettings['name_max_lines'], 4).clamp(2, 6).toInt(),
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
             style: TextStyle(
