@@ -2402,6 +2402,39 @@ class CatalogService:
         product_card_overrides = dict((display.card_overrides_json or {}) if display else {})
         delivery_badges = list((display.delivery_badges_json or []) if display else [])
         recommendation_settings = dict((display.recommendation_settings_json or {}) if display else {})
+        active_trend_badges = []
+        trend_rows = (
+            db.session.query(TrendProduct, Trend, Hashtag)
+            .join(Trend, Trend.id == TrendProduct.trend_id)
+            .join(Hashtag, Hashtag.id == Trend.hashtag_id)
+            .filter(
+                TrendProduct.product_id == product_id,
+                Trend.is_active.is_(True),
+                Trend.status == "active",
+                Hashtag.is_active.is_(True),
+            )
+            .order_by(TrendProduct.sort_order, Trend.id.desc(), TrendProduct.slot)
+            .all()
+        )
+        for trend_product, trend, hashtag in trend_rows:
+            if CatalogService.is_trend_timer_expired(trend):
+                continue
+            active_trend_badges.append({
+                "id": trend.id,
+                "hashtag": {
+                    "id": hashtag.id,
+                    "name": hashtag.name,
+                    "slug": hashtag.slug,
+                    "display_name": hashtag.display_name or f"#{hashtag.name}",
+                },
+                "text": trend.overlay_text or CatalogService.product_card_display_settings().get("trend_badge_text", "Trends"),
+                "promo_text": trend.promo_text,
+                "settings": {
+                    **CatalogService.product_card_display_settings(),
+                    **(trend_product.settings_json if isinstance(trend_product.settings_json, dict) else {}),
+                    **(trend.settings_json if isinstance(trend.settings_json, dict) else {}),
+                },
+            })
         shipping_policy = (
             db.session.get(ShippingPolicy, policies.shipping_policy_id)
             if policies and policies.shipping_policy_id else None
@@ -2443,8 +2476,10 @@ class CatalogService:
             "product_card_global_settings": product_card_global,
             "product_card_settings": product_card_effective,
             "product_card_overrides": product_card_overrides,
+            "product_detail_settings": CatalogService.product_detail_settings(),
             "delivery_badges": delivery_badges,
             "recommendation_settings": recommendation_settings,
+            "trend_badges": active_trend_badges,
             "inventory": inventory,
             "locations": CatalogService.list_inventory_locations(),
             "display": {
@@ -2592,6 +2627,42 @@ class CatalogService:
         return items
 
     @staticmethod
+    def product_detail_settings():
+        """Global customer-facing product-detail typography settings."""
+        import json
+        defaults = {
+            "name_font_size": 20.0,
+            "name_font_weight": 800,
+            "name_max_lines": 4,
+        }
+        row = AppSetting.query.filter_by(
+            group_code="storefront",
+            key="product_detail_settings",
+        ).first()
+        custom = {}
+        if row and row.value:
+            try:
+                decoded = json.loads(row.value)
+                if isinstance(decoded, dict):
+                    custom = decoded
+            except (TypeError, ValueError):
+                custom = {}
+        merged = {**defaults, **custom}
+        try:
+            merged["name_font_size"] = max(14.0, min(32.0, float(merged.get("name_font_size", defaults["name_font_size"]))))
+        except (TypeError, ValueError):
+            merged["name_font_size"] = defaults["name_font_size"]
+        try:
+            merged["name_font_weight"] = max(400, min(900, int(merged.get("name_font_weight", defaults["name_font_weight"]))))
+        except (TypeError, ValueError):
+            merged["name_font_weight"] = defaults["name_font_weight"]
+        try:
+            merged["name_max_lines"] = max(2, min(6, int(merged.get("name_max_lines", defaults["name_max_lines"]))))
+        except (TypeError, ValueError):
+            merged["name_max_lines"] = defaults["name_max_lines"]
+        return merged
+
+    @staticmethod
     def merge_product_card_settings(global_settings, display_row=None):
         merged = dict(global_settings or {})
         overrides = getattr(display_row, "card_overrides_json", None) if display_row else {}
@@ -2673,6 +2744,11 @@ class CatalogService:
             "trend_arrow_text": "‹",
             "trend_arrow_color": "#7c3aed",
             "trend_ribbon_gap": 3,
+            "discount_badge_background_color": "#DC2626",
+            "discount_badge_text_color": "#FFFFFF",
+            "discount_badge_font_size": 9,
+            "discount_badge_font_weight": 900,
+            "discount_badge_radius": 4,
             "colors_show": True,
             "colors_position": "bottom_right",
             "colors_direction": "vertical",
@@ -2764,6 +2840,9 @@ class CatalogService:
             ("trend_hashtag_font_size", 6, 18, False),
             ("trend_hashtag_font_weight", 400, 900, True),
             ("trend_ribbon_gap", 0, 12, True),
+            ("discount_badge_font_size", 6, 18, False),
+            ("discount_badge_font_weight", 300, 900, True),
+            ("discount_badge_radius", 0, 16, True),
             ("colors_size", 8, 24, True),
             ("colors_gap", 0, 10, True),
             ("colors_max", 1, 8, True),
@@ -2812,6 +2891,8 @@ class CatalogService:
             "brand_text_color",
             "trend_badge_background_color",
             "trend_badge_text_color",
+            "discount_badge_background_color",
+            "discount_badge_text_color",
             "trend_hashtag_text_color",
             "trend_hashtag_background_color",
             "trend_arrow_color",
@@ -2831,7 +2912,11 @@ class CatalogService:
 
         if merged["brand_position"] not in {"top_left", "top_right", "bottom_left", "bottom_right"}:
             merged["brand_position"] = defaults["brand_position"]
-        if merged["product_badge_position"] not in {"top_left", "top_right", "bottom_left", "bottom_right"}:
+        allowed_badge_positions = {
+            "top_left", "top_right", "bottom_left", "bottom_right",
+            "above_image", "before_name", "after_name", "right_of_image", "below_price",
+        }
+        if merged["product_badge_position"] not in allowed_badge_positions:
             merged["product_badge_position"] = defaults["product_badge_position"]
         if merged["colors_position"] not in {"top_left", "top_right", "bottom_left", "bottom_right"}:
             merged["colors_position"] = defaults["colors_position"]
