@@ -10911,98 +10911,265 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
     }
     return Container(margin:const EdgeInsets.only(top:6),padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:const Color(0xFFF3F3F3),borderRadius:BorderRadius.circular(7)),child:Row(children:[const Icon(Icons.attach_file,size:15),const SizedBox(width:5),Expanded(child:Text('مرفق '+mime,style:const TextStyle(fontSize:8.5,fontWeight:FontWeight.w700)))]));
   }
-  @override Widget build(BuildContext context){
+  @override
+  Widget build(BuildContext context) {
     final keyboard = MediaQuery.viewInsetsOf(context).bottom;
-    return Scaffold(
-    resizeToAvoidBottomInset:false,
-    backgroundColor:const Color(0xFFF6F6F6),
-    appBar:AppBar(
-      titleSpacing:0,
-      title:Row(children:[
-        Container(width:36,height:36,decoration:const BoxDecoration(color:Colors.black,shape:BoxShape.circle),child:const Icon(Icons.support_agent,color:Colors.white,size:19)),
-        const SizedBox(width:8),
-        Expanded(
-          child:Text(
-            widget.paymentProofMode ? 'إثبات الدفع · '+widget.title : widget.title,
-            maxLines:1,
-            overflow:TextOverflow.ellipsis,
-            style:const TextStyle(fontSize:15,fontWeight:FontWeight.w900),
+
+    Widget composer() {
+      return SafeArea(
+        top: false,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(top: BorderSide(color: ClientTheme.border)),
+          ),
+          child: Row(
+            children: [
+              IconButton(
+                onPressed: uploading ? null : sendFile,
+                icon: uploading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.attach_file_outlined, size: 20),
+              ),
+              Expanded(
+                child: Container(
+                  constraints: const BoxConstraints(
+                    minHeight: 42,
+                    maxHeight: 118,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7F7F7),
+                    border: Border.all(color: const Color(0xFFE0E0E0)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  alignment: Alignment.center,
+                  child: TextField(
+                    controller: input,
+                    minLines: 1,
+                    maxLines: 4,
+                    textInputAction: TextInputAction.newline,
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.right,
+                    textAlignVertical: TextAlignVertical.center,
+                    scrollPadding: const EdgeInsets.only(bottom: 180),
+                    style: const TextStyle(
+                      fontSize: 11.5,
+                      height: 1.35,
+                      color: Colors.black,
+                    ),
+                    decoration: const InputDecoration(
+                      hintText: 'اكتب رسالتك...',
+                      hintStyle: TextStyle(
+                        fontSize: 10.5,
+                        color: ClientTheme.muted,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 9,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                onPressed: sending ? null : send,
+                icon: sending
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(
+                        Icons.arrow_upward_rounded,
+                        size: 21,
+                      ),
+              ),
+            ],
           ),
         ),
-      ]),
-      actions:[IconButton(onPressed:load,icon:const Icon(Icons.refresh_outlined,size:20))],
-    ),
-    body:loading?const Center(child:CircularProgressIndicator(strokeWidth:2)):AnimatedPadding(
-      duration:const Duration(milliseconds:180),
-      curve:Curves.easeOut,
-      padding:EdgeInsets.only(bottom:keyboard),
-      child:Column(children:[
-      Expanded(child:messages.isEmpty
-        ? const Center(child:Padding(padding:EdgeInsets.all(24),child:Text('ابدأ المحادثة برسالة قصيرة، ويمكنك أيضًا إرفاق صورة.',textAlign:TextAlign.center,style:TextStyle(fontSize:10,color:ClientTheme.muted))))
-        : ListView.builder(
-          controller:scroll,padding:const EdgeInsets.fromLTRB(10,15,10,18),itemCount:messages.length,
-          itemBuilder:(_,i){
-            final m=messages[i]; final mine=sxText(m['sender_type'])=='customer'; final attachments=sxMaps(m['attachments']);
-            return Padding(padding:const EdgeInsets.only(bottom:8),child:Align(
-              alignment:mine?Alignment.centerRight:Alignment.centerLeft,
-              child:Row(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.end,children:[
-                if(!mine)Container(width:29,height:29,decoration:const BoxDecoration(color:Colors.black,shape:BoxShape.circle),child:const Icon(Icons.support_agent,color:Colors.white,size:15)),
-                if(!mine)const SizedBox(width:6),
-                ConstrainedBox(constraints:BoxConstraints(maxWidth:MediaQuery.of(context).size.width*.78),child:Container(
-                  padding:const EdgeInsets.fromLTRB(11,9,11,7),
-                  decoration:BoxDecoration(color:mine?Colors.black:Colors.white,borderRadius:BorderRadius.only(topLeft:const Radius.circular(14),topRight:const Radius.circular(14),bottomLeft:Radius.circular(mine?14:4),bottomRight:Radius.circular(mine?4:14)),boxShadow:const[BoxShadow(color:Color(0x11000000),blurRadius:6,offset:Offset(0,2))]),
-                  child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-                    if(sxText(m['body']).isNotEmpty)Text(sxText(m['body']),style:TextStyle(color:mine?Colors.white:Colors.black,fontSize:10.5,height:1.45)),
-                    for(final a in attachments)attachment(a),
-                    const SizedBox(height:3),
-                    Text(_formatDateTime(sxText(m['created_at'])),textAlign:TextAlign.end,style:TextStyle(color:mine?Colors.white70:ClientTheme.muted,fontSize:7.2)),
-                  ]),
-                )),
-              ],
-            )));
-          },
+      );
+    }
+
+    Widget messageList() {
+      if (loading) {
+        return const Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        );
+      }
+
+      if (messages.isEmpty) {
+        return const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'ابدأ المحادثة برسالة قصيرة، ويمكنك أيضًا إرفاق صورة.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 10,
+                color: ClientTheme.muted,
+              ),
+            ),
+          ),
+        );
+      }
+
+      return ListView.builder(
+        controller: scroll,
+        padding: const EdgeInsets.fromLTRB(10, 15, 10, 18),
+        itemCount: messages.length,
+        itemBuilder: (_, i) {
+          final m = messages[i];
+          final mine = sxText(m['sender_type']) == 'customer';
+          final attachments = sxMaps(m['attachments']);
+
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Align(
+              alignment:
+                  mine ? Alignment.centerRight : Alignment.centerLeft,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (!mine)
+                    Container(
+                      width: 29,
+                      height: 29,
+                      decoration: const BoxDecoration(
+                        color: Colors.black,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.support_agent,
+                        color: Colors.white,
+                        size: 15,
+                      ),
+                    ),
+                  if (!mine) const SizedBox(width: 6),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: MediaQuery.of(context).size.width * .78,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(11, 9, 11, 7),
+                      decoration: BoxDecoration(
+                        color: mine ? Colors.black : Colors.white,
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(14),
+                          topRight: const Radius.circular(14),
+                          bottomLeft: Radius.circular(mine ? 14 : 4),
+                          bottomRight: Radius.circular(mine ? 4 : 14),
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x11000000),
+                            blurRadius: 6,
+                            offset: Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (sxText(m['body']).isNotEmpty)
+                            Text(
+                              sxText(m['body']),
+                              style: TextStyle(
+                                color:
+                                    mine ? Colors.white : Colors.black,
+                                fontSize: 10.5,
+                                height: 1.45,
+                              ),
+                            ),
+                          for (final a in attachments) attachment(a),
+                          const SizedBox(height: 3),
+                          Text(
+                            _formatDateTime(sxText(m['created_at'])),
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                              color: mine
+                                  ? Colors.white70
+                                  : ClientTheme.muted,
+                              fontSize: 7.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      backgroundColor: const Color(0xFFF6F6F6),
+      appBar: AppBar(
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Colors.black,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.support_agent,
+                color: Colors.white,
+                size: 19,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                widget.paymentProofMode
+                    ? 'إثبات الدفع · ' + widget.title
+                    : widget.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
         ),
+        actions: [
+          IconButton(
+            onPressed: load,
+            icon: const Icon(
+              Icons.refresh_outlined,
+              size: 20,
+            ),
+          ),
+        ],
       ),
-      SafeArea(top:false,child:Container(
-        padding:const EdgeInsets.fromLTRB(8,7,8,7),
-        decoration:const BoxDecoration(color:Colors.white,border:Border(top:BorderSide(color:ClientTheme.border))),
-        child:Row(children:[
-          IconButton(onPressed:uploading?null:sendFile,icon:uploading?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.attach_file_outlined,size:20)),
-          Expanded(
-  child: Container(
-    constraints: const BoxConstraints(minHeight: 42, maxHeight: 118),
-    decoration: BoxDecoration(
-      color: const Color(0xFFF7F7F7),
-      border: Border.all(color: const Color(0xFFE0E0E0)),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 4),
-    alignment: Alignment.center,
-    child: TextField(
-      controller: input,
-      minLines: 1,
-      maxLines: 4,
-      textInputAction: TextInputAction.newline,
-      textDirection: TextDirection.rtl,
-      textAlign: TextAlign.right,
-      textAlignVertical: TextAlignVertical.center,
-      scrollPadding: const EdgeInsets.only(bottom: 180),
-      style: const TextStyle(fontSize: 11.5, height: 1.35, color: Colors.black),
-      decoration: const InputDecoration(
-        hintText: 'اكتب رسالتك...',
-        hintStyle: TextStyle(fontSize: 10.5, color: ClientTheme.muted),
-        border: InputBorder.none,
-        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      body: Column(
+        children: [
+          Expanded(child: messageList()),
+          AnimatedPadding(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.only(bottom: keyboard),
+            child: composer(),
+          ),
+        ],
       ),
-    ),
-  ),
-),
-          IconButton(onPressed:sending?null:send,icon:sending?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.arrow_upward_rounded,size:21)),
-        ]),
-      )),
-      ]),
     );
-    ); 
   }
 }
 
