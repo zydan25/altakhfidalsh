@@ -11,7 +11,7 @@ class NotificationService:
     """Create durable in-app and real-time customer notifications."""
 
     @staticmethod
-    def _emit(customer_id, notification_id):
+    def _emit(customer_id, notification_id, notification=None):
         payload_data = {
             "customer_id": int(customer_id),
             "notification_id": int(notification_id),
