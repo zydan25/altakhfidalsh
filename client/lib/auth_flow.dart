@@ -321,10 +321,63 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
     Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const SxAppShell()), (_) => false);
   }
 
-  InputDecoration deco(String label) => InputDecoration(labelText: label);
+  InputDecoration deco(
+    String label, {
+    IconData? icon,
+    bool ltr = false,
+  }) =>
+      InputDecoration(
+        labelText: label,
+        floatingLabelBehavior: FloatingLabelBehavior.never,
+        alignLabelWithHint: true,
+        filled: true,
+        fillColor: const Color(0xFFF8F8F8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        prefixIcon: icon == null ? null : Icon(icon, size: 20, color: ClientTheme.muted),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E2E2)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E2E2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.black, width: 1.3),
+        ),
+        labelStyle: const TextStyle(
+          fontSize: 11,
+          color: Color(0xFF777777),
+          fontWeight: FontWeight.w600,
+        ),
+      );
 
-  Widget tf(TextEditingController c, String label, {bool obscure = false, TextInputType? type}) =>
-      TextField(controller: c, obscureText: obscure, keyboardType: type, decoration: deco(label));
+  Widget tf(
+    TextEditingController c,
+    String label, {
+    bool obscure = false,
+    TextInputType? type,
+    IconData? icon,
+    bool ltr = false,
+  }) =>
+      TextField(
+        controller: c,
+        obscureText: obscure,
+        keyboardType: type,
+        textDirection: ltr ? TextDirection.ltr : TextDirection.rtl,
+        textAlign: ltr ? TextAlign.left : TextAlign.right,
+        textAlignVertical: TextAlignVertical.center,
+        scrollPadding: const EdgeInsets.only(bottom: 180),
+        autocorrect: type == null || type == TextInputType.text,
+        enableSuggestions: !obscure,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Colors.black,
+        ),
+        decoration: deco(label, icon: icon, ltr: ltr),
+      );
 
   Widget dropdown(String label, int? value, List<Map<String, dynamic>> rows, ValueChanged<int?> onChanged, {String Function(Map<String,dynamic>)? labelBuilder}) {
     return DropdownButtonFormField<int>(
@@ -403,7 +456,8 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
   );
 
   Widget registerForm() => ListView(
-    padding: const EdgeInsets.fromLTRB(14, 30, 14, 24),
+    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    padding: const EdgeInsets.fromLTRB(14, 30, 14, 120),
     children: [
       header('مرحبًا بك لأول مرة', 'نحتاج بيانات بسيطة لتجهيز حسابك والطلبات والتوصيل.'),
       tf(fullName, 'الاسم الكامل'),
@@ -428,19 +482,20 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
       const SizedBox(height: 10),
       tf(newPassword, 'كلمة المرور', obscure: true),
       const SizedBox(height: 10),
-      tf(confirmPassword, 'تأكيد كلمة المرور', obscure: true),
+      tf(confirmPassword, 'تأكيد كلمة المرور', obscure: true, icon: Icons.lock_outline),
       const SizedBox(height: 14),
       action('متابعة والتحقق من الرقم', startRegistration),
     ],
   );
 
   Widget passwordLogin() => ListView(
-    padding: const EdgeInsets.fromLTRB(14, 42, 14, 24),
+    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    padding: const EdgeInsets.fromLTRB(14, 42, 14, 120),
     children: [
       header('مرحبًا بعودتك', 'وجدنا حسابًا بهذا الرقم. أدخل كلمة المرور أو اختر طريقة أخرى للدخول.'),
       Text(normalizedPhone ?? phone.text.trim(), textDirection: TextDirection.ltr, style: const TextStyle(fontWeight: FontWeight.w800)),
       const SizedBox(height: 12),
-      tf(password, 'كلمة المرور', obscure: true),
+      tf(password, 'كلمة المرور', obscure: true, icon: Icons.lock_outline),
       const SizedBox(height: 11),
       action('دخول', loginPassword),
       const SizedBox(height: 7),
@@ -456,22 +511,71 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
   );
 
   Widget phoneForm() => ListView(
-    padding: const EdgeInsets.fromLTRB(14, 56, 14, 24),
+    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    padding: const EdgeInsets.fromLTRB(16, 44, 16, 120),
     children: [
       header('ابدأ برقم جوالك', 'سنتحقق هل لديك حساب سابق أم تحتاج إلى تسجيل جديد.'),
-      tf(phone, 'رقم الهاتف', type: TextInputType.phone),
-      const SizedBox(height: 12),
-      action('متابعة', submitPhone),
-      const SizedBox(height: 10),
-      const Text('سيتم إرسال أكواد التحقق عبر WhatsApp عند الحاجة.', textAlign: TextAlign.center, style: TextStyle(fontSize: 8.5, color: ClientTheme.muted)),
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFE7E7E7)),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0C000000),
+              blurRadius: 18,
+              offset: Offset(0, 7),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Row(
+              children: [
+                CircleAvatar(
+                  radius: 19,
+                  backgroundColor: Colors.black,
+                  child: Icon(Icons.phone_iphone_outlined, color: Colors.white, size: 19),
+                ),
+                SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    'رقم الهاتف',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            tf(
+              phone,
+              'مثال: 7XXXXXXXX',
+              type: TextInputType.phone,
+              icon: Icons.phone_outlined,
+              ltr: true,
+            ),
+            const SizedBox(height: 12),
+            action('متابعة', submitPhone),
+            const SizedBox(height: 8),
+            const Text(
+              'سيرسل رمز التحقق عبر WhatsApp عند الحاجة.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 8.5, color: ClientTheme.muted, height: 1.45),
+            ),
+          ],
+        ),
+      ),
     ],
   );
 
   Widget otpForm(bool registration) => ListView(
-    padding: const EdgeInsets.fromLTRB(14, 50, 14, 24),
+    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    padding: const EdgeInsets.fromLTRB(14, 50, 14, 120),
     children: [
       header(registration ? 'تحقق من رقمك' : 'الدخول بكود التحقق', 'أدخل الكود الذي وصل إلى الرقم ' + (normalizedPhone ?? phone.text.trim()) + '.'),
-      tf(code, 'كود التحقق', type: TextInputType.number),
+      tf(code, 'كود التحقق', type: TextInputType.number, ltr: true),
       const SizedBox(height: 12),
       action(registration ? 'تأكيد وإنشاء الحساب' : 'تأكيد الدخول', registration ? verifyRegistration : verifyLoginOtp),
       TextButton(onPressed: busy ? null : () => setState(() => mode = registration ? 'register' : 'existing_password'), child: const Text('العودة')),
@@ -479,12 +583,13 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
   );
 
   Widget resetForm() => ListView(
-    padding: const EdgeInsets.fromLTRB(14, 50, 14, 24),
+    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    padding: const EdgeInsets.fromLTRB(14, 50, 14, 120),
     children: [
       header('استعادة كلمة المرور', 'أرسلنا لك رمز تحقق جديدًا لتعيين كلمة مرور جديدة.'),
       tf(code, 'كود التحقق', type: TextInputType.number),
       const SizedBox(height: 10),
-      tf(newPassword, 'كلمة المرور الجديدة', obscure: true),
+      tf(newPassword, 'كلمة المرور الجديدة', obscure: true, icon: Icons.lock_reset_outlined),
       const SizedBox(height: 10),
       tf(confirmPassword, 'تأكيد كلمة المرور', obscure: true),
       const SizedBox(height: 12),
