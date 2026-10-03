@@ -7678,7 +7678,7 @@ class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
       const Text('سيعيد الخادم احتساب الأسعار والعملة والـMarkup وقاعدة الشحن قبل إنشاء الطلب.',style:TextStyle(fontSize:8.5,color:ClientTheme.muted)),
       const SizedBox(height:11),
       SizedBox(height:48,child:FilledButton(onPressed:()=>Navigator.pop(context,true),style:FilledButton.styleFrom(backgroundColor:Colors.black),child:const Text('تأكيد وإنشاء الطلب',style:TextStyle(fontWeight:FontWeight.w900)))),
-    ]))))
+    ]))));
     if(ok==true)await createOrder();
   }
 
