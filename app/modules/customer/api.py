@@ -40,7 +40,13 @@ def password_login():
 def set_my_password():
     payload = request.get_json(silent=True) or {}
     try:
-        return {"item": CustomerAuthService.set_password(current_customer().id, payload.get("new_password"))}
+        return {
+            "item": CustomerAuthService.set_password(
+                current_customer().id,
+                payload.get("new_password"),
+                payload.get("current_password"),
+            )
+        }
     except (ValueError, LookupError) as exc:
         return {"error": "password_update_failed", "detail": str(exc)}, 400
 
