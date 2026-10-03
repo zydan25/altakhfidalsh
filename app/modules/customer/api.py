@@ -35,6 +35,16 @@ def password_login():
         return {"error": "password_login_failed", "detail": str(exc)}, 401
 
 
+@api_bp.post("/me/password")
+@customer_required
+def set_my_password():
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CustomerAuthService.set_password(current_customer().id, payload.get("new_password"))}
+    except (ValueError, LookupError) as exc:
+        return {"error": "password_update_failed", "detail": str(exc)}, 400
+
+
 @api_bp.post("/auth/password/request-reset")
 def request_password_reset():
     payload = request.get_json(silent=True) or {}
