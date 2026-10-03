@@ -265,11 +265,15 @@
     <div class="two-panel">
       <article class="panel marketing-card">
         <div class="panel-heading">
-          <div><span class="eyebrow">الشارات</span><strong>علامات العرض على المنتج</strong></div>
-          <button class="primary-button quick-add-button" type="button" data-open-modal="quickBadgeModal">＋ إضافة شارة جديدة</button>
+          <div><span class="eyebrow">الشارات</span><strong>إدارة شارات المنتج</strong></div>
+          <button class="ghost-button quick-add-button" type="button" data-open-modal="quickBadgeModal">＋ إنشاء شارة عامة</button>
         </div>
-        <small class="muted reference-note">اختر من الشارات الموجودة في جدول «الشارات والسياسات»، أو أنشئ شارة جديدة من هنا.</small>
-        <div id="badgeSelection" class="selection-list"></div>
+        <div class="card-inherit-note">
+          <strong>تم نقل إعداد الشارة بالكامل إلى شاشة مستقلة</strong>
+          <span>الاختيار، الترتيب، المكان، الحجم، الألوان، الحدود، النص والمدة لكل شارة أصبح داخل محرر الشارات والمظهر الخاص بهذا المنتج.</span>
+          <a class="primary-button" href="/admin/products/{{ product_id }}/presentation">فتح محرر الشارات المستقل</a>
+        </div>
+        <div id="badgeSelection" class="selection-list" hidden></div>
       </article>
       <article class="panel marketing-card">
         <div class="panel-heading">
@@ -298,7 +302,7 @@
         <div id="campaignSelection" class="selection-list"></div>
       </article>
     </div>
-    <button id="saveMarketing" class="primary-button" type="button">حفظ الشارات والهاشتاجات وشرائط العروض والحملات</button>
+    <button id="saveMarketing" class="primary-button" type="button">حفظ الهاشتاجات وشرائط العروض والحملات</button>
   </div>
 
   <div class="wizard-panel" data-panel="presentation" hidden>
