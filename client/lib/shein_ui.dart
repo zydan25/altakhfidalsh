@@ -16,6 +16,7 @@ import 'product_card.dart';
 import 'order_edit.dart';
 import 'product_detail.dart';
 import 'widgets.dart';
+import 'notifications_service.dart';
 
 String sxText(dynamic v, [String fallback = '']) => (v ?? fallback).toString();
 int sxInt(dynamic v, [int fallback = 0]) => int.tryParse(sxText(v)) ?? fallback;
@@ -43,7 +44,9 @@ class SxAppShell extends StatefulWidget {
 class _SxAppShellState extends State<SxAppShell> {
   int index = 0;
   Timer? _notificationTimer;
+  Timer? _notificationPendingTimer;
   int _lastNotificationCount = -1;
+  bool _handlingNotificationPayload = false;
   final GlobalKey<_SxHomeScreenState> _homeKey = GlobalKey<_SxHomeScreenState>();
   final GlobalKey<_SxCartScreenState> _cartKey = GlobalKey<_SxCartScreenState>();
   late final List<Widget> pages;
@@ -58,6 +61,10 @@ class _SxAppShellState extends State<SxAppShell> {
       const SxAccountScreen(),
     ];
     _pollNotifications();
+    _notificationPendingTimer = Timer.periodic(
+      const Duration(milliseconds: 800),
+      (_) => _consumeNotificationPayload(),
+    );
     _notificationTimer = Timer.periodic(
       const Duration(seconds: 4),
       (_) => _pollNotifications(),
@@ -71,6 +78,7 @@ class _SxAppShellState extends State<SxAppShell> {
   @override
   void dispose() {
     _notificationTimer?.cancel();
+    _notificationPendingTimer?.cancel();
     super.dispose();
   }
 
@@ -117,6 +125,74 @@ class _SxAppShellState extends State<SxAppShell> {
       _lastNotificationCount = count;
       notificationBadge.value = count;
     } catch (_) {}
+  }
+
+  Future<void> _consumeNotificationPayload() async {
+    if (_handlingNotificationPayload || !mounted) return;
+    _handlingNotificationPayload = true;
+    try {
+      final payload =
+          await AltakhfidNotificationService.takePendingPayload();
+      if (payload == null || !mounted) return;
+
+      final data = payload['data'] is Map
+          ? Map<String, dynamic>.from(payload['data'])
+          : payload;
+      final screenType = sxText(data['screen_type']);
+      final target = sxText(data['target']);
+      final productId = sxInt(data['product_id']);
+      final orderId = sxInt(data['order_id']);
+      final conversationId = sxInt(data['conversation_id']);
+      final categoryId = sxInt(data['category_id']);
+
+      if (screenType == 'product_details' || target == 'product') {
+        if (productId > 0) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SxProductScreen(
+                id: productId,
+                cartBuilder: (_) => const SxCartScreen(),
+              ),
+            ),
+          );
+        }
+      } else if (screenType == 'order_details' || target == 'order') {
+        if (orderId > 0) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SxOrderDetailScreen(id: orderId),
+            ),
+          );
+        }
+      } else if (screenType == 'conversation' || target == 'conversation') {
+        if (conversationId > 0) {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SxConversationScreen(
+                conversationId: conversationId,
+                title: 'محادثة',
+              ),
+            ),
+          );
+        }
+      } else if (screenType == 'category' && categoryId > 0) {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SxResults(
+              title: 'الفئة',
+              categoryId: categoryId,
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+    } finally {
+      _handlingNotificationPayload = false;
+    }
   }
 
   Future<void> _handleBack() async {
