@@ -13,10 +13,20 @@ depends_on = None
 
 def upgrade():
     op.add_column("orders", sa.Column("customer_note", sa.Text(), nullable=True))
+    op.add_column(
+        "orders",
+        sa.Column(
+            "payment_method_id",
+            sa.Integer(),
+            sa.ForeignKey("payment_methods.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+    )
     op.add_column("orders", sa.Column("shipping_rule_ids_json", sa.JSON(), nullable=False, server_default="[]"))
     op.add_column("payment_methods", sa.Column("settings_json", sa.JSON(), nullable=False, server_default="{}"))
 
 def downgrade():
     op.drop_column("payment_methods", "settings_json")
     op.drop_column("orders", "shipping_rule_ids_json")
+    op.drop_column("orders", "payment_method_id")
     op.drop_column("orders", "customer_note")
