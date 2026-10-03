@@ -5,12 +5,41 @@ from ...models import Conversation, Message, MessageAttachment
 class SupportService:
     @staticmethod
     def create_conversation(customer_id, conversation_type, order_id=None, subject=None):
+        conversation_type = (conversation_type or "customer_service").strip()[:40]
+
+        # Keep one ongoing support thread per customer. Order-specific
+        # conversations remain separate so each order can have its own context.
+        if conversation_type == "customer_service" and order_id is None:
+            conversation = (
+                Conversation.query
+                .filter(
+                    Conversation.customer_id == customer_id,
+                    Conversation.type == "customer_service",
+                    Conversation.order_id.is_(None),
+                    Conversation.status.in_(("open", "pending")),
+                )
+                .order_by(Conversation.last_message_at.desc(), Conversation.id.desc())
+                .first()
+            )
+            if conversation is not None:
+                return {
+                    "id": conversation.id,
+                    "customer_id": conversation.customer_id,
+                    "order_id": conversation.order_id,
+                    "type": conversation.type,
+                    "subject": conversation.subject or "محادثة الدعم",
+                    "status": conversation.status,
+                }
+
         conversation = Conversation(
             customer_id=customer_id,
-            order_id=order_id,
+            order_id=int(order_id) if order_id not in (None, "") else None,
             type=conversation_type,
-            subject=subject,
+            subject=(subject or "").strip()[:200] or (
+                "محادثة الدعم" if conversation_type == "customer_service" else "استفسار عن الطلب"
+            ),
             status="open",
+            last_message_at=db.func.now(),
         )
         db.session.add(conversation)
         db.session.commit()
