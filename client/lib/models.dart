@@ -34,6 +34,9 @@ class ProductModel {
   final String? brandName;
   final List<Map<String, dynamic>> colors;
   final bool isTrend;
+  final Map<String, dynamic>? trendCard;
+  final List<Map<String, dynamic>> hashtags;
+  final Map<String, dynamic>? cardMeta;
 
   const ProductModel({
     required this.id,
@@ -54,6 +57,9 @@ class ProductModel {
     this.brandName,
     this.colors = const [],
     this.isTrend = false,
+    this.trendCard,
+    this.hashtags = const [],
+    this.cardMeta,
   });
 
   factory ProductModel.fromJson(Map<String,dynamic> j) {
@@ -69,6 +75,16 @@ class ProductModel {
         ? rawColors.whereType<Map>().map((x) => Map<String, dynamic>.from(x)).toList()
         : <Map<String, dynamic>>[];
     final isTrend = j['is_trend'] == true;
+    final trendCard = j['trend_card'] is Map
+        ? Map<String, dynamic>.from(j['trend_card'] as Map)
+        : null;
+    final rawHashtags = j['hashtags'];
+    final hashtags = rawHashtags is List
+        ? rawHashtags.whereType<Map>().map((x) => Map<String, dynamic>.from(x)).toList()
+        : <Map<String, dynamic>>[];
+    final cardMeta = j['card_meta'] is Map
+        ? Map<String, dynamic>.from(j['card_meta'] as Map)
+        : null;
 
     final rawBadges=j['badges'];
     final badges=rawBadges is List
@@ -105,6 +121,9 @@ class ProductModel {
       brandName: brandName,
       colors: colors,
       isTrend: isTrend,
+      trendCard: trendCard,
+      hashtags: hashtags,
+      cardMeta: cardMeta,
     );
   }
 }
