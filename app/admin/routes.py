@@ -19,6 +19,7 @@ from ..models import (
     MediaAsset,
     ProductVariant,
     ProductBadge,
+    Badge,
 )
 
 
@@ -427,6 +428,38 @@ def register_admin_routes(admin_bp):
             success=success,
             error=error,
             **context,
+        )
+
+    @admin_bp.get("/products/<int:product_id>/presentation")
+    def product_presentation(product_id):
+        try:
+            snapshot = CatalogService.wizard_snapshot(product_id)
+            available_badges = [
+                {
+                    "id": badge.id,
+                    "name": badge.name,
+                    "code": badge.code,
+                    "bg_color": badge.bg_color or "#111827",
+                    "text_color": badge.text_color or "#ffffff",
+                    "style": badge.style,
+                    "storefront_tab": badge.storefront_tab,
+                    "priority": badge.priority,
+                }
+                for badge in Badge.query
+                .filter(Badge.is_active.is_(True))
+                .order_by(Badge.priority.desc(), Badge.name, Badge.id)
+                .all()
+            ]
+        except LookupError:
+            return __import__("flask").redirect("/admin/products")
+        return render_template(
+            "admin/product_presentation.html",
+            title="الشارات والمظهر والتوصيات",
+            section="الكتالوج",
+            product_id=product_id,
+            snapshot=snapshot,
+            available_badges=available_badges,
+            **_navigation_context(),
         )
 
     @admin_bp.route("/products/new", methods=["GET", "POST"])
