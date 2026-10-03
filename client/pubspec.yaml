@@ -12,6 +12,9 @@ dependencies:
   cached_network_image: ^3.4.1
   url_launcher: ^6.3.2
   file_picker: ^13.1.0
+  web_socket_channel: ^3.0.3
+  flutter_local_notifications: ^22.3.1
+  flutter_background_service: ^5.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
