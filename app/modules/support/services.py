@@ -79,6 +79,18 @@ class SupportService:
             ))
         db.session.add_all(attachment_rows)
         db.session.commit()
+
+        # Every administrative/system reply is also a durable customer
+        # notification. The message itself remains the source of truth for
+        # the conversation; notification creation is intentionally separate.
+        if sender_type in {"admin", "system"}:
+            from ...services.notifications import NotificationService
+            NotificationService.message_received(
+                conversation,
+                message.body,
+                message.message_type,
+            )
+
         return {
             "id": message.id,
             "conversation_id": message.conversation_id,
