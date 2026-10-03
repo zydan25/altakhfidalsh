@@ -9104,7 +9104,12 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
   Map<String, dynamic> me = {}; List<Map<String, dynamic>> orders = []; bool loading = true;
   @override void initState() { super.initState(); load(); }
   Future<void> load() async {
-    try { me = Map<String, dynamic>.from((await api.me())['item'] ?? {}); orders = await api.orders(); state.wishlist = (await api.wishlistIds()).toSet(); } catch (_) {}
+    try {
+      me = Map<String, dynamic>.from((await api.me())['item'] ?? {});
+      orders = await api.orders();
+      state.wishlist = (await api.wishlistIds()).toSet();
+      await state.restorePreferences();
+    } catch (_) {}
     if (mounted) setState(() => loading = false);
   }
   @override Widget build(BuildContext context) => Scaffold(
@@ -9212,7 +9217,25 @@ class _SxCurrencyScreenState extends State<SxCurrencyScreen> {
         title: Text(sxText(x['name_ar'], sxText(x['code'])), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
         subtitle: Text(sxText(x['code']), style: const TextStyle(fontSize: 9)),
         trailing: selected ? const Icon(Icons.check) : null,
-        onTap: () async { await state.setCurrency(id: id, code: sxText(x['code'], 'SAR'), symbol: sxText(x['symbol'], sxText(x['code'], 'SAR'))); if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تغيير العملة'))); Navigator.pop(context); } },
+        onTap: () async {
+          try {
+            await state.setCurrency(
+              id: id,
+              code: sxText(x['code'], 'SAR'),
+              symbol: sxText(x['symbol'], sxText(x['code'], 'SAR')),
+            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('تم حفظ العملة')),
+              );
+              Navigator.pop(context);
+            }
+          } catch (e) {
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(sxText(e))),
+            );
+          }
+        },
       );
     },
   ));
@@ -9232,7 +9255,7 @@ class _SxCityScreenState extends State<SxCityScreen> {
       title: Text(sxText(filtered[i]['name']), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
       trailing: state.cityId == sxInt(filtered[i]['id']) ? const Icon(Icons.check) : null,
       onTap: () async {
-        try { final id = sxInt(filtered[i]['id']); await api.updateMe({'city_id': id, 'city_area_id': null}); await state.setCity(id: id, name: sxText(filtered[i]['name'])); if (mounted) Navigator.pop(context); } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e)))); }
+        try { final id = sxInt(filtered[i]['id']); await state.setCity(id: id, name: sxText(filtered[i]['name'])); if (mounted) Navigator.pop(context); } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e)))); }
       },
     ))),
   ]));
@@ -10817,7 +10840,7 @@ class _SxOtpScreenState extends State<SxOtpScreen> {
   final code = TextEditingController(); bool busy = false;
   Future<void> verify() async {
     setState(() => busy = true);
-    try { await api.verifyOtp(widget.requestId, code.text.trim(), phone: widget.phone); if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const SxAppShell()), (_) => false); } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e)))); }
+    try { await api.verifyOtp(widget.requestId, code.text.trim(), phone: widget.phone); await state.restorePreferences(); if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const SxAppShell()), (_) => false); } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e)))); }
     if (mounted) setState(() => busy = false);
   }
   @override void dispose() { code.dispose(); super.dispose(); }
