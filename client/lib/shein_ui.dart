@@ -7858,17 +7858,9 @@ class _SxPoliciesScreenState extends State<SxPoliciesScreen> {
   }
 }
 
-class _CartNotice extends StatelessWidget {
-  final IconData icon; final String text; final bool success;
-  const _CartNotice({required this.icon,required this.text,this.success=false});
-  @override Widget build(BuildContext context)=>Container(padding:const EdgeInsets.symmetric(horizontal:11,vertical:10),decoration:BoxDecoration(color:success?const Color(0xFFEAF8F0):const Color(0xFFFFF2E8),borderRadius:BorderRadius.circular(9),border:Border.all(color:success?const Color(0xFFC7E7D5):const Color(0xFFF0D5C2))),child:Row(children:[Icon(icon,size:18,color:success?const Color(0xFF18794E):const Color(0xFF9A5A00)),const SizedBox(width:7),Expanded(child:Text(text,style:const TextStyle(fontSize:9.5,fontWeight:FontWeight.w800,height:1.3)))]));
-}
 
-class SxPaymentScreen extends StatefulWidget {
-  final int orderId; final String orderNo; final String total; final String currency; final Map<String,dynamic> paymentMethod;
-  const SxPaymentScreen({super.key,required this.orderId,required this.orderNo,required this.total,required this.currency,required this.paymentMethod});
-  @override State<SxPaymentScreen> createState()=>_SxPaymentScreenState();
-}
+
+
 class _SxPaymentScreenState extends State<SxPaymentScreen>{
   bool uploading=false,uploaded=false;
   Map<String,dynamic> get settings=>widget.paymentMethod['settings'] is Map?Map<String,dynamic>.from(widget.paymentMethod['settings'] as Map):<String,dynamic>{};
@@ -7893,11 +7885,7 @@ class _SxPaymentScreenState extends State<SxPaymentScreen>{
     SizedBox(height:46,child:OutlinedButton.icon(onPressed:()=>Navigator.pushReplacement(context,MaterialPageRoute(builder:(_)=>const SxOrdersScreen())),icon:const Icon(Icons.receipt_long_outlined,size:18),label:const Text('الانتقال إلى طلباتي'))),
   ]));
 }
-class _PaymentLine extends StatelessWidget{
-  final String label,value;
-  const _PaymentLine(this.label,this.value);
-  @override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.only(bottom:7),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[SizedBox(width:128,child:Text(label,style:const TextStyle(fontSize:9,color:ClientTheme.muted))),Expanded(child:Text(value,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w900)))]));
-}
+
 
 class _Choices extends StatelessWidget {
   final List<Map<String, dynamic>> rows; final int? selected; final String Function(Map<String, dynamic>) sub; final ValueChanged<int> tap;
