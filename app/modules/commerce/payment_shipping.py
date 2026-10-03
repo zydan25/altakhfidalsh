@@ -1,3 +1,20 @@
+from datetime import datetime, timezone
+from decimal import Decimal
+from uuid import uuid4
+
+from ...extensions import db
+from ...models import (
+    Order,
+    PaymentMethod,
+    PaymentProof,
+    PaymentTransaction,
+    Shipment,
+    ShipmentEvent,
+    ShippingMethod,
+)
+from .services import CommerceService
+
+
 class PaymentShippingService:
     @staticmethod
     def ensure_default_payment_methods():
@@ -63,24 +80,7 @@ class PaymentShippingService:
             db.session.commit()
         return created
 
- timezone
-from decimal import Decimal
-from uuid import uuid4
 
-from ...extensions import db
-from ...models import (
-    Order,
-    PaymentMethod,
-    PaymentProof,
-    PaymentTransaction,
-    Shipment,
-    ShipmentEvent,
-    ShippingMethod,
-)
-from .services import CommerceService
-
-
-class PaymentShippingService:
     @staticmethod
     def create_payment_method(payload):
         name = str(payload["name"]).strip()
