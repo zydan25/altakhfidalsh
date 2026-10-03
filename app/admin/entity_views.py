@@ -391,7 +391,14 @@ def register_entity_views(admin_bp):
                                 conversation=Conversation(customer_id=order.customer_id,order_id=order.id,type="order_support",subject="الطلب %s" % order.order_no,status="open")
                                 db.session.add(conversation)
                                 db.session.flush()
-                            SupportService.send_message(conversation.id,"admin",session.get("admin_id") or 0,"تم تأكيد الدفع وبدأ تجهيز الطلب.","text")
+                            SupportService.send_message(conversation.id,"system",0,"تم تأكيد الدفع وبدأ تجهيز الطلب.","text")
+                            from ..services.notifications import NotificationService
+                            NotificationService.payment_updated(
+                                order,
+                                "تم اعتماد الدفع",
+                                "تم اعتماد إثبات الدفع وبدأ المتجر تجهيز طلبك.",
+                                "paid",
+                            )
                     success="تم اعتماد إثبات الدفع."
                 elif action=="proof_reject":
                     proof=db.session.get(PaymentProof,request.form.get("proof_id",type=int))
