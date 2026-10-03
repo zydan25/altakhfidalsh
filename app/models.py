@@ -1330,6 +1330,7 @@ class OrderItem(TimestampMixin, db.Model):
     order_id = db.Column(ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
     product_id = db.Column(ForeignKey("products.id", ondelete="SET NULL"))
     variant_id = db.Column(ForeignKey("product_variants.id", ondelete="SET NULL"))
+    stock_location_id = db.Column(ForeignKey("inventory_locations.id", ondelete="SET NULL"))
     sku_snapshot = db.Column(String(120), nullable=False)
     name_snapshot = db.Column(String(260), nullable=False)
     base_price_sar = db.Column(Numeric(24, 4), nullable=False)

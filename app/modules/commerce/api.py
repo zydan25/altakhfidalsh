@@ -322,6 +322,20 @@ def my_order_detail(order_id):
     return {"item": CommerceService.serialize_order_detail(order)}
 
 
+@api_bp.patch("/me/orders/<int:order_id>")
+@customer_required
+def update_my_order(order_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CommerceService.update_customer_order(
+            current_customer().id,
+            order_id,
+            payload,
+        )}
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "order_update_failed", "detail": str(exc)}, 400
+
+
 @api_bp.post("/me/cart/items")
 @customer_required
 def my_cart_item():
