@@ -7567,20 +7567,20 @@ class _SxCartScreenState extends State<SxCartScreen> {
       if (type == 'free_shipping') {
         return _CartNotice(
           icon: Icons.local_shipping_outlined,
-          text: 'باقي $remaining $\{_currencySymbol()} لتحصل على شحن مجاني.',
+          text: 'باقي $remaining ${_currencySymbol()} لتحصل على شحن مجاني.',
         );
       }
       if (type == 'percent_discount') {
         return _CartNotice(
           icon: Icons.local_offer_outlined,
-          text: 'باقي $remaining $\{_currencySymbol()} لتحصل على خصم $\{sxMoney(value)}% على التوصيل.',
+          text: 'باقي $remaining ${_currencySymbol()} لتحصل على خصم ${sxMoney(value)}% على التوصيل.',
         );
       }
       if (type == 'fixed_discount') {
         final discount = sxMoney(value * fx);
         return _CartNotice(
           icon: Icons.local_offer_outlined,
-          text: 'باقي $remaining $\{_currencySymbol()} لتحصل على خصم $discount $\{_currencySymbol()} من التوصيل.',
+          text: 'باقي $remaining ${_currencySymbol()} لتحصل على خصم $discount ${_currencySymbol()} من التوصيل.',
         );
       }
     }
