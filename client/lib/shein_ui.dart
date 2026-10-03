@@ -10810,6 +10810,19 @@ class SxLookDetail extends StatelessWidget {
   }
 }
 
+String _formatDateTime(String value) {
+  if (value.trim().isEmpty) return '';
+  try {
+    final d = DateTime.parse(value).toLocal();
+    return d.day.toString().padLeft(2, '0') + '/' +
+        d.month.toString().padLeft(2, '0') + ' ' +
+        d.hour.toString().padLeft(2, '0') + ':' +
+        d.minute.toString().padLeft(2, '0');
+  } catch (_) {
+    return '';
+  }
+}
+
 class SxAuthScreen extends StatefulWidget {
   const SxAuthScreen({super.key});
   @override State<SxAuthScreen> createState() => _SxAuthScreenState();
