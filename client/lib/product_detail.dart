@@ -357,6 +357,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
       product['display_price'],
       sxText(product['price'], sxText(product['base_price_sar'], '0')),
     );
+
     final oldPrice = sxText(
       product['display_compare_price'],
       sxText(product['compare_at_price']),
@@ -367,6 +368,18 @@ class _SxProductScreenState extends State<SxProductScreen> {
     final detailCurrency = sxText(
       displayCurrency['symbol'],
       state.currencySymbol,
+    );
+    final currencyCode = sxText(
+      displayCurrency['code'],
+      state.currencyCode,
+    ).toUpperCase();
+    final formattedPrice = sxFormatMoney(
+      price,
+      currencyCode: currencyCode,
+    );
+    final formattedOldPrice = sxFormatMoney(
+      oldPrice,
+      currencyCode: currencyCode,
     );
     final discount = _discount(price, oldPrice);
     final summary = Map<String, dynamic>.from(
@@ -459,8 +472,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       name: sxText(product['name'], 'منتج'),
                       brand: sxText(brand['name']),
                       sku: sxText(product['sku']),
-                      price: price,
-                      oldPrice: oldPrice,
+                      price: formattedPrice,
+                      oldPrice: formattedOldPrice,
                       currency: detailCurrency,
                       discount: discount,
                       average: average,
@@ -479,8 +492,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       name: sxText(product['name'], 'منتج'),
                       brand: sxText(brand['name']),
                       sku: sxText(product['sku']),
-                      price: price,
-                      oldPrice: oldPrice,
+                      price: formattedPrice,
+                      oldPrice: formattedOldPrice,
                       currency: detailCurrency,
                       discount: discount,
                       average: average,
@@ -640,7 +653,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
             SafeArea(
               top: false,
               child: _ProductBottomBar(
-                price: price,
+                price: formattedPrice,
                 currency: detailCurrency,
                 onAdd: _addToCart,
                 availableQty: _availableQty(),
