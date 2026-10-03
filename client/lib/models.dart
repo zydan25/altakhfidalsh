@@ -38,6 +38,7 @@ class ProductModel {
   final Map<String, dynamic>? trendCard;
   final List<Map<String, dynamic>> hashtags;
   final Map<String, dynamic>? cardMeta;
+  final Map<String, dynamic>? cardSettings;
 
   const ProductModel({
     required this.id,
@@ -62,6 +63,7 @@ class ProductModel {
     this.trendCard,
     this.hashtags = const [],
     this.cardMeta,
+    this.cardSettings,
   });
 
   factory ProductModel.fromJson(Map<String,dynamic> j) {
@@ -87,6 +89,11 @@ class ProductModel {
     final cardMeta = j['card_meta'] is Map
         ? Map<String, dynamic>.from(j['card_meta'] as Map)
         : null;
+    final cardSettings = j['card_settings'] is Map
+        ? Map<String, dynamic>.from(j['card_settings'] as Map)
+        : (j['product_card_settings'] is Map
+            ? Map<String, dynamic>.from(j['product_card_settings'] as Map)
+            : null);
 
     final rawBadges=j['badges'];
     final badges=rawBadges is List
@@ -127,6 +134,7 @@ class ProductModel {
       trendCard: trendCard,
       hashtags: hashtags,
       cardMeta: cardMeta,
+      cardSettings: cardSettings,
     );
   }
 }

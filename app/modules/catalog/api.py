@@ -1,4 +1,5 @@
 from decimal import Decimal, InvalidOperation
+import random
 
 from flask import request
 
@@ -746,6 +747,7 @@ def public_product_feed():
         .filter(ProductDisplaySettings.product_id.in_(product_ids))
         .all()
     } if product_ids else {}
+    global_card_settings = CatalogService.product_card_display_settings()
 
     category_ids_by_product = {}
     root_category_ids_by_product = {}
@@ -868,6 +870,10 @@ def public_product_feed():
             item["image_aspect_ratio"] = float(first_media["width"]) / float(first_media["height"])
         display = display_by_product.get(row.id)
         item["card_aspect_ratio"] = display.card_aspect_ratio if display else "3:4"
+        item["card_settings"] = CatalogService.merge_product_card_settings(
+            global_card_settings,
+            display,
+        )
         item["category_ids"] = category_ids_by_product.get(row.id, [])
         item["root_category_ids"] = sorted(
             root_category_ids_by_product.get(row.id, set())
@@ -951,6 +957,9 @@ def public_product_feed():
         items.sort(key=lambda x: (int(x.get("sold_qty", 0)), int(x.get("id", 0))), reverse=True)
     elif sort in {"rating", "rating_desc", "highest_rated"}:
         items.sort(key=lambda x: (float(x.get("rating") or 0), int(x.get("review_count", 0)), int(x.get("id", 0))), reverse=True)
+    elif sort in {"random", "shuffle"}:
+        # Recommendation displays intentionally randomize on every request.
+        random.shuffle(items)
     else:
         # Recommended uses the storefront's default newness order.
         items.sort(key=lambda x: int(x.get("id", 0)), reverse=True)

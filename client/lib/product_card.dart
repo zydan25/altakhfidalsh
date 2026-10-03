@@ -313,7 +313,8 @@ class _SxProductCardState extends State<SxProductCard> {
     }
   }
 
-  Map<String, dynamic> get _cardSettings => widget.displaySettings ?? const {};
+  Map<String, dynamic> get _cardSettings =>
+      widget.product.cardSettings ?? widget.displaySettings ?? const {};
 
   dynamic _cardValue(String key, dynamic fallback) {
     final value = _cardSettings[key];
