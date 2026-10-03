@@ -751,7 +751,7 @@ class SxGalleryThumbs extends StatelessWidget {
         height: 76,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          reverse: false,
+          reverse: true,
           child: Directionality(
             textDirection: TextDirection.rtl,
             child: Row(
