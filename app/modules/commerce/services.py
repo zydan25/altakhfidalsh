@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import uuid4
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, case, or_
 
 from ...extensions import db
 from ...models import (
@@ -164,7 +164,7 @@ class CommerceService:
                         InventoryLocation.is_active.is_(True),
                     )
                     .with_for_update()
-                    .order_by(InventoryLocation.city_id.isnot(address.city_id), StockInventory.available.desc())
+                    .order_by(case((InventoryLocation.city_id == address.city_id, 0), else_=1), StockInventory.available.desc())
                     .all()
                 )
                 if not stock_rows:
@@ -847,7 +847,7 @@ class CommerceService:
         for item,new_qty,_ in requested:
             delta=new_qty-int(item.qty)
             if delta>0:
-                rows=(StockInventory.query.join(InventoryLocation,InventoryLocation.id==StockInventory.location_id).filter(StockInventory.variant_id==item.variant_id,StockInventory.available>=delta,InventoryLocation.is_active.is_(True)).with_for_update().order_by(InventoryLocation.city_id.isnot(address.city_id),StockInventory.available.desc()).all())
+                rows=(StockInventory.query.join(InventoryLocation,InventoryLocation.id==StockInventory.location_id).filter(StockInventory.variant_id==item.variant_id,StockInventory.available>=delta,InventoryLocation.is_active.is_(True)).with_for_update().order_by(case((InventoryLocation.city_id == address.city_id, 0), else_=1),StockInventory.available.desc()).all())
                 if not rows: raise ValueError("الكمية المطلوبة غير متوفرة.")
                 rows[0].reserved+=delta; rows[0].available=rows[0].on_hand-rows[0].reserved
             elif delta<0:
@@ -968,7 +968,7 @@ class CommerceService:
                     )
                     .with_for_update()
                     .order_by(
-                        InventoryLocation.city_id.isnot(address.city_id),
+                        case((InventoryLocation.city_id == address.city_id, 0), else_=1),
                         StockInventory.available.desc(),
                     )
                     .all()
