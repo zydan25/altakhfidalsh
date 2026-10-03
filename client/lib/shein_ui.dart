@@ -9324,7 +9324,7 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                 if(sxText(_asMap(payment['settings'])['type'])=='cod')const SxPill(text:'الدفع عند الاستلام',background:Color(0xFFEAF7F0),foreground:Color(0xFF18794E)),
               ]),
               if(_paymentDetailsText(_asMap(payment['settings'])).isNotEmpty)Padding(padding:const EdgeInsets.only(top:6),child:Text(_paymentDetailsText(_asMap(payment['settings'])),style:const TextStyle(fontSize:9,color:ClientTheme.muted,height:1.5))),
-              if(status=='created'||status=='awaiting_payment'||sxText(order['payment_status']) in ['pending','unpaid','cod']) ...[
+              if(status=='created'||status=='awaiting_payment'||['pending','unpaid','cod'].contains(sxText(order['payment_status']))) ...[
                 const SizedBox(height:9),
                 SizedBox(height:45,child:FilledButton.icon(onPressed:openPayment,icon:const Icon(Icons.payment_outlined,size:17),style:FilledButton.styleFrom(backgroundColor:Colors.black),label:Text(sxText(order['payment_status'])=='cod'?'الدفع عند الاستلام مفعل':'إتمام الدفع',style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w900)))),
               ],
