@@ -130,7 +130,7 @@ class PaymentShippingService:
                     actor_type="admin",
                     actor_id=None,
                     note="تم اعتماد الدفع",
-                )
+                ))
         db.session.commit()
         return {
             "id": transaction.id,
