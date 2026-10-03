@@ -554,6 +554,30 @@ class ApiService {
     }),
   );
   Future<void> sendMessage(int id,String body)async{await post('/support/conversations/'+id.toString()+'/messages',{'body':body});}
+  Future<List<Map<String,dynamic>>> pickAndSendMessageWithFile(int id,{String body=''}) async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg','jpeg','png','webp','pdf'],
+      withData: true,
+    );
+    if (picked == null || picked.files.isEmpty) {
+      throw Exception('لم يتم اختيار ملف.');
+    }
+    return sendMessageWithFiles(id, body, [picked.files.single]);
+  }
+
+  Future<List<Map<String,dynamic>>> pickAndUploadPaymentProof(int orderId) async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const ['jpg','jpeg','png','webp','pdf'],
+      withData: true,
+    );
+    if (picked == null || picked.files.isEmpty) {
+      throw Exception('لم يتم اختيار ملف.');
+    }
+    return uploadPaymentProof(orderId, [picked.files.single]);
+  }
+
   Future<List<Map<String,dynamic>>> sendMessageWithFiles(int id,String body,List<PlatformFile> files)async{
     final req=http.MultipartRequest('POST',Uri.parse(baseUrl+'/support/conversations/'+id.toString()+'/attachments'));
     req.headers.addAll(headers()); if(body.trim().isNotEmpty)req.fields['body']=body.trim();
