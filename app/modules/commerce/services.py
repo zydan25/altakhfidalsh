@@ -1303,26 +1303,24 @@ class CommerceService:
         }
         message = message_by_status.get(to_status)
         if message:
+            from ..support.services import SupportService
             conversation = Conversation.query.filter_by(order_id=order.id).order_by(Conversation.id.desc()).first()
             if conversation is None:
-                conversation = Conversation(
-                    customer_id=order.customer_id,
-                    order_id=order.id,
-                    type="order_support",
-                    subject="الطلب " + order.order_no,
-                    status="open",
+                conversation = SupportService.create_conversation(
+                    order.customer_id,
+                    "order_support",
+                    order.id,
+                    "الطلب " + order.order_no,
                 )
-                db.session.add(conversation)
-                db.session.flush()
-            db.session.add(Message(
-                conversation_id=conversation.id,
-                sender_type="admin",
-                sender_id=int(actor_id or 0),
-                message_type="text",
-                body=message,
-            ))
-            conversation.last_message_at = db.func.now()
-            db.session.commit()
+            SupportService.send_message(
+                conversation["id"] if isinstance(conversation, dict) else conversation.id,
+                "system",
+                0,
+                message,
+                "text",
+            )
+            from ...services.notifications import NotificationService
+            NotificationService.order_status_changed(order, message, to_status)
 
         return CommerceService.serialize_order(order)
 
