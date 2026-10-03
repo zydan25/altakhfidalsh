@@ -126,12 +126,19 @@ def test_delete_customer_permanently_removes_orders_and_releases_reserved_stock(
         delete_customer_permanently(customer.id)
         db.session.commit()
 
-        assert db.session.get(Customer, customer.id) is None
-        assert db.session.get(CustomerAddress, address.id) is None
-        assert db.session.get(Order, order.id) is None
-        assert db.session.get(OrderItem, item.id) is None
-        assert db.session.get(ReturnRequest, return_request.id) is None
-        assert db.session.get(ReturnItem, return_item.id) is None
+        customer_id = customer.id
+        address_id = address.id
+        order_id = order.id
+        item_id = item.id
+        return_request_id = return_request.id
+        return_item_id = return_item.id
+
+        assert db.session.get(Customer, customer_id) is None
+        assert db.session.get(CustomerAddress, address_id) is None
+        assert db.session.get(Order, order_id) is None
+        assert db.session.get(OrderItem, item_id) is None
+        assert db.session.get(ReturnRequest, return_request_id) is None
+        assert db.session.get(ReturnItem, return_item_id) is None
         refreshed_stock = db.session.get(StockInventory, stock.id)
         assert refreshed_stock.reserved == 0
         assert refreshed_stock.available == 10
