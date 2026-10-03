@@ -120,8 +120,17 @@ class PaymentShippingService:
         db.session.flush()
         if transaction.status == "paid":
             order.payment_status = "paid"
-            if order.status in {"created", "awaiting_payment"}:
-                order.status = "paid"
+            if order.status in {"created", "awaiting_payment", "paid"}:
+                previous = order.status
+                order.status = "processing"
+                db.session.add(__import__("app.models", fromlist=["OrderStatusHistory"]).OrderStatusHistory(
+                    order_id=order.id,
+                    from_status=previous,
+                    to_status="processing",
+                    actor_type="admin",
+                    actor_id=None,
+                    note="تم اعتماد الدفع",
+                )
         db.session.commit()
         return {
             "id": transaction.id,
