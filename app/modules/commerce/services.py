@@ -876,8 +876,8 @@ class CommerceService:
         order = db.session.get(Order, int(order_id))
         if order is None or order.customer_id != int(customer_id):
             raise LookupError("order not found")
-        if order.status not in {"created", "awaiting_payment"}:
-            raise ValueError("لا يمكن تعديل الطلب بعد اعتماده أو بدء تنفيذه.")
+        if order.status != "created":
+            raise ValueError("يمكن تعديل الطلب من قبل العميل قبل تأكيد المتجر فقط.")
         items = payload.get("items") or []
         if not items:
             raise ValueError("يجب أن يحتوي الطلب على منتج واحد على الأقل.")
@@ -1048,6 +1048,8 @@ class CommerceService:
             order.shipping_rate_id = shipping_quote.rate_id
             order.shipping_rule_ids_json = list(shipping_quote.applied_rule_ids or [])
             order.total = subtotal + shipping_quote.price_display
+            order.shipping_override = None
+            order.shipping_override_note = None
             if "customer_note" in payload:
                 order.customer_note = str(payload.get("customer_note") or "").strip()[:4000] or None
 
@@ -1142,6 +1144,38 @@ class CommerceService:
                 note=note,
             ))
         db.session.commit()
+
+        message_by_status = {
+            "awaiting_payment": "تم تأكيد طلبك من المتجر. أصبح الطلب بانتظار الدفع ويمكنك اختيار طريقة الدفع من صفحة الطلب.",
+            "processing": "بدأ المتجر تجهيز طلبك.",
+            "shipped": "تم شحن طلبك وبدأت رحلة التوصيل.",
+            "delivered": "تم تسليم طلبك بنجاح. شكرًا لاختيار التخفيض الصح.",
+            "cancelled": "تم إلغاء الطلب. يمكنك التواصل مع خدمة العملاء عند الحاجة.",
+            "returned": "تم تسجيل إرجاع الطلب.",
+        }
+        message = message_by_status.get(to_status)
+        if message:
+            conversation = Conversation.query.filter_by(order_id=order.id).order_by(Conversation.id.desc()).first()
+            if conversation is None:
+                conversation = Conversation(
+                    customer_id=order.customer_id,
+                    order_id=order.id,
+                    type="order_support",
+                    subject="الطلب " + order.order_no,
+                    status="open",
+                )
+                db.session.add(conversation)
+                db.session.flush()
+            db.session.add(Message(
+                conversation_id=conversation.id,
+                sender_type="admin",
+                sender_id=int(actor_id or 0),
+                message_type="text",
+                body=message,
+            ))
+            conversation.last_message_at = db.func.now()
+            db.session.commit()
+
         return CommerceService.serialize_order(order)
 
     @staticmethod
