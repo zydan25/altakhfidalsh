@@ -15,6 +15,10 @@ from ..models import (
     Order,
     Product,
     ProductCategory,
+    ProductMedia,
+    MediaAsset,
+    ProductVariant,
+    ProductBadge,
 )
 
 
@@ -362,6 +366,50 @@ def register_admin_routes(admin_bp):
         items = base_query.limit(200).all()
         active_count = Product.query.filter(Product.is_active.is_(True)).count()
         archived_count = Product.query.filter(Product.is_active.is_(False)).count()
+
+        # Build lightweight view metadata in one pass so the admin product list
+        # stays image-first without putting ORM queries inside the template.
+        product_ids = [item.id for item in items]
+        media_map = {}
+        if product_ids:
+            media_rows = (
+                db.session.query(ProductMedia, MediaAsset)
+                .join(MediaAsset, MediaAsset.id == ProductMedia.asset_id)
+                .filter(ProductMedia.product_id.in_(product_ids))
+                .order_by(
+                    ProductMedia.product_id,
+                    ProductMedia.role.asc(),
+                    ProductMedia.sort_order.asc(),
+                    ProductMedia.id.asc(),
+                )
+                .all()
+            )
+            for media, asset in media_rows:
+                media_map.setdefault(media.product_id, asset.url)
+
+        variant_counts = {}
+        badge_counts = {}
+        if product_ids:
+            variant_counts = dict(
+                db.session.query(ProductVariant.product_id, func.count(ProductVariant.id))
+                .filter(
+                    ProductVariant.product_id.in_(product_ids),
+                    ProductVariant.is_active.is_(True),
+                )
+                .group_by(ProductVariant.product_id)
+                .all()
+            )
+            badge_counts = dict(
+                db.session.query(ProductBadge.product_id, func.count(ProductBadge.id))
+                .filter(ProductBadge.product_id.in_(product_ids))
+                .group_by(ProductBadge.product_id)
+                .all()
+            )
+
+        for item in items:
+            item._admin_image_url = media_map.get(item.id)
+            item._admin_variant_count = int(variant_counts.get(item.id, 0))
+            item._admin_badge_count = int(badge_counts.get(item.id, 0))
 
         return render_template(
             "admin/products.html",

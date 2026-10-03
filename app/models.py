@@ -810,9 +810,14 @@ class ProductBadge(TimestampMixin, db.Model):
     starts_at = db.Column(db.DateTime(timezone=True))
     ends_at = db.Column(db.DateTime(timezone=True))
     position = db.Column(String(30))
+    sort_order = db.Column(Integer, nullable=False, default=0, server_default="0")
     custom_text = db.Column(String(120))
+    # Optional per-product overrides. Empty object means use the global Badge
+    # style and the global storefront product-card defaults.
+    settings_json = db.Column(JSON, nullable=False, default=dict, server_default="{}")
     __table_args__ = (
         UniqueConstraint("product_id", "badge_id", name="uq_product_badge"),
+        Index("ix_product_badge_product_sort", "product_id", "sort_order", "id"),
     )
 
 

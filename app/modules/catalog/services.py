@@ -1180,41 +1180,111 @@ class CatalogService:
         if db.session.get(Product, product_id) is None:
             raise LookupError("product not found")
 
-        # Backward compatibility: accept the old simple list of badge IDs.
+        # Backward compatible input:
+        # [1, 2] or [{"badge_id": 1, ...visual overrides...}, ...]
         items = []
         for raw in badges or []:
             if isinstance(raw, dict):
+                raw_settings = raw.get("settings")
+                if not isinstance(raw_settings, dict):
+                    raw_settings = {}
+                allowed_settings = {
+                    "visible", "position", "font_size", "font_weight",
+                    "background_color", "background_opacity", "text_color",
+                    "border_radius", "padding_horizontal", "padding_vertical",
+                    "text_decoration", "border_width", "border_color",
+                }
+                settings = {
+                    str(key): raw_settings[key]
+                    for key in allowed_settings
+                    if key in raw_settings
+                }
+                # Accept the ergonomic flat form used by the admin editor too.
+                aliases = {
+                    "position": "position",
+                    "font_size": "font_size",
+                    "font_weight": "font_weight",
+                    "background_color": "background_color",
+                    "background_opacity": "background_opacity",
+                    "text_color": "text_color",
+                    "border_radius": "border_radius",
+                    "padding_horizontal": "padding_horizontal",
+                    "padding_vertical": "padding_vertical",
+                    "text_decoration": "text_decoration",
+                    "border_width": "border_width",
+                    "border_color": "border_color",
+                    "visible": "visible",
+                }
+                for source, target in aliases.items():
+                    if source in raw:
+                        settings[target] = raw[source]
                 items.append({
                     "badge_id": int(raw.get("badge_id") or raw.get("id")),
                     "duration_days": int(raw.get("duration_days") or 0),
                     "custom_text": str(raw.get("custom_text") or "").strip() or None,
+                    "sort_order": raw.get("sort_order"),
+                    "settings": settings,
                 })
             else:
                 items.append({
                     "badge_id": int(raw),
                     "duration_days": 0,
                     "custom_text": None,
+                    "sort_order": None,
+                    "settings": {},
                 })
 
         normalized = []
-        for item in items:
+        seen = set()
+        for index, item in enumerate(items):
             badge_id = int(item["badge_id"])
             badge = db.session.get(Badge, badge_id)
             if badge is None:
                 raise ValueError(f"badge {badge_id} not found")
-            if badge_id in {x["badge_id"] for x in normalized}:
+            if badge_id in seen:
                 continue
+            seen.add(badge_id)
             duration_days = max(0, min(int(item.get("duration_days") or 0), 3650))
             starts_at = datetime.now(timezone.utc)
             ends_at = starts_at + timedelta(days=duration_days) if duration_days else None
+            settings = dict(item.get("settings") or {})
+            if "visible" in settings:
+                settings["visible"] = bool(settings["visible"])
+            if "font_size" in settings:
+                settings["font_size"] = max(6.0, min(float(settings["font_size"]), 32.0))
+            if "font_weight" in settings:
+                settings["font_weight"] = max(300, min(int(settings["font_weight"]), 900))
+            if "background_opacity" in settings:
+                settings["background_opacity"] = max(0.0, min(float(settings["background_opacity"]), 1.0))
+            if "border_radius" in settings:
+                settings["border_radius"] = max(0.0, min(float(settings["border_radius"]), 30.0))
+            for dim in ("padding_horizontal", "padding_vertical", "border_width"):
+                if dim in settings:
+                    settings[dim] = max(0.0, min(float(settings[dim]), 30.0))
+            if settings.get("text_decoration") not in (None, "", "none", "line_through"):
+                raise ValueError("نوع خط الشارة غير صالح.")
+            for color_key in ("background_color", "text_color", "border_color"):
+                if color_key in settings:
+                    import re
+                    if not re.fullmatch(r"#[0-9a-fA-F]{6}", str(settings[color_key]).strip()):
+                        raise ValueError(f"لون الشارة {color_key} غير صالح.")
+                    settings[color_key] = str(settings[color_key]).strip().lower()
+            raw_order = item.get("sort_order")
+            try:
+                sort_order = int(raw_order)
+            except (TypeError, ValueError):
+                sort_order = index
             normalized.append({
                 "badge_id": badge_id,
                 "duration_days": duration_days,
                 "custom_text": item.get("custom_text"),
                 "starts_at": starts_at,
                 "ends_at": ends_at,
+                "sort_order": sort_order,
+                "settings": settings,
             })
 
+        normalized.sort(key=lambda x: x["sort_order"])
         ProductBadge.query.filter_by(product_id=product_id).delete()
         for position, item in enumerate(normalized):
             db.session.add(ProductBadge(
@@ -1224,6 +1294,8 @@ class CatalogService:
                 ends_at=item["ends_at"],
                 custom_text=item["custom_text"],
                 position=str(position),
+                sort_order=position,
+                settings_json=item["settings"],
             ))
         db.session.commit()
         return [
@@ -1231,10 +1303,12 @@ class CatalogService:
                 "badge_id": item["badge_id"],
                 "duration_days": item["duration_days"],
                 "custom_text": item["custom_text"],
+                "sort_order": index,
+                "settings": item["settings"],
                 "starts_at": item["starts_at"].isoformat(),
                 "ends_at": item["ends_at"].isoformat() if item["ends_at"] else None,
             }
-            for item in normalized
+            for index, item in enumerate(normalized)
         ]
 
     @staticmethod
@@ -2272,6 +2346,48 @@ class CatalogService:
         """Global storefront product-card decoration/layout controlled by AppSetting."""
         import json
         defaults = {
+            "card_background_color": "#ffffff",
+            "card_background_opacity": 1.0,
+            "card_radius": 4,
+            "show_name": True,
+            "name_font_size": 11,
+            "name_font_weight": 600,
+            "name_color": "#111111",
+            "name_background_color": "#ffffff",
+            "name_background_opacity": 1.0,
+            "name_max_lines": 2,
+            "show_short_description": False,
+            "short_description_font_size": 9,
+            "short_description_font_weight": 500,
+            "short_description_color": "#6b7280",
+            "short_description_background_color": "#ffffff",
+            "short_description_background_opacity": 0.0,
+            "short_description_max_lines": 1,
+            "show_price": True,
+            "price_font_size": 14,
+            "price_font_weight": 900,
+            "price_color": "#111111",
+            "price_background_color": "#ffffff",
+            "price_background_opacity": 1.0,
+            "show_compare_price": True,
+            "compare_price_font_size": 10,
+            "compare_price_font_weight": 500,
+            "compare_price_color": "#8b9198",
+            "compare_price_background_color": "#ffffff",
+            "compare_price_background_opacity": 1.0,
+            "compare_price_text_decoration": "line_through",
+            "show_currency": True,
+            "currency_font_size": 10,
+            "currency_font_weight": 800,
+            "currency_color": "#111111",
+            "currency_background_color": "#ffffff",
+            "currency_background_opacity": 1.0,
+            "show_size": False,
+            "size_font_size": 9,
+            "size_font_weight": 600,
+            "size_color": "#6b7280",
+            "size_background_color": "#f5f5f5",
+            "size_background_opacity": 1.0,
             "show_brand": True,
             "brand_position": "top_left",
             "brand_background_color": "#111827",
@@ -2282,7 +2398,7 @@ class CatalogService:
             "product_badge_position": "top_right",
             "product_badge_font_size": 8,
             "product_badge_radius": 3,
-            "product_badge_max": 2,
+            "product_badge_max": 4,
             "show_trend_badge": True,
             "trend_badge_text": "Trends",
             "trend_badge_background_color": "#8b5cf6",
@@ -2350,6 +2466,27 @@ class CatalogService:
             return value if re.fullmatch(r"#[0-9a-fA-F]{6}", value) else defaults[key]
 
         for key, low, high, integer in (
+            ("card_background_opacity", 0, 1, False),
+            ("card_radius", 0, 30, False),
+            ("name_font_size", 7, 24, False),
+            ("name_font_weight", 300, 900, True),
+            ("name_max_lines", 1, 3, True),
+            ("short_description_font_size", 7, 18, False),
+            ("short_description_font_weight", 300, 900, True),
+            ("short_description_max_lines", 1, 3, True),
+            ("short_description_background_opacity", 0, 1, False),
+            ("price_font_size", 9, 28, False),
+            ("price_font_weight", 300, 900, True),
+            ("price_background_opacity", 0, 1, False),
+            ("compare_price_font_size", 7, 20, False),
+            ("compare_price_font_weight", 300, 900, True),
+            ("compare_price_background_opacity", 0, 1, False),
+            ("currency_font_size", 7, 20, False),
+            ("currency_font_weight", 300, 900, True),
+            ("currency_background_opacity", 0, 1, False),
+            ("size_font_size", 7, 18, False),
+            ("size_font_weight", 300, 900, True),
+            ("size_background_opacity", 0, 1, False),
             ("brand_font_size", 6, 18, False),
             ("brand_radius", 0, 16, True),
             ("product_badge_font_size", 6, 18, False),
@@ -2373,6 +2510,12 @@ class CatalogService:
             merged[key] = _number(key, low, high, integer)
 
         for key in (
+            "show_name",
+            "show_short_description",
+            "show_price",
+            "show_compare_price",
+            "show_currency",
+            "show_size",
             "show_brand",
             "show_product_badges",
             "show_trend_badge",
@@ -2385,6 +2528,19 @@ class CatalogService:
             merged[key] = _bool(key)
 
         for key in (
+            "card_background_color",
+            "name_color",
+            "name_background_color",
+            "short_description_color",
+            "short_description_background_color",
+            "price_color",
+            "price_background_color",
+            "compare_price_color",
+            "compare_price_background_color",
+            "currency_color",
+            "currency_background_color",
+            "size_color",
+            "size_background_color",
             "brand_background_color",
             "brand_text_color",
             "trend_badge_background_color",

@@ -1,12 +1,12 @@
 {% extends "admin/base.html" %}
 
 {% block content %}
-<section class="module-header">
+<section class="module-header product-admin-header">
   <div class="module-toolbar">
     <div class="module-heading-copy">
       <span class="eyebrow">الكتالوج</span>
       <h2>المنتجات</h2>
-      <p class="muted">إدارة المنتجات الفعالة والمؤرشفة. المنتج المؤرشف لا يُحذف ويمكن إعادة تفعيله كمسودة.</p>
+      <p class="muted">إدارة سريعة ببطاقات صغيرة: صورة، سعر، حالة، وأهم الإحصائيات دون فتح المنتج.</p>
     </div>
     <div class="module-toolbar-actions">
       <span class="status-pill">فعال {{ active_count }}</span>
@@ -25,44 +25,53 @@
   <a class="{% if view == 'all' %}is-current{% endif %}" href="/admin/products?view=all">الكل <span>{{ active_count + archived_count }}</span></a>
 </nav>
 
-<section class="product-list">
+<section class="admin-product-cards">
   {% for product in products %}
-  <article class="product-card panel {% if not product.is_active %}is-archived{% endif %}">
-    <div class="product-main">
-      <div class="product-avatar">{{ product.name[:1] }}</div>
-      <div>
-        <div class="product-title-line">
-          <strong>{{ product.name }}</strong>
+  <article class="admin-product-card {% if not product.is_active %}is-archived{% endif %}">
+    <div class="admin-product-card-media">
+      {% if product._admin_image_url %}
+        <img src="{{ product._admin_image_url }}" alt="{{ product.name }}" loading="lazy">
+      {% else %}
+        <div class="admin-product-card-placeholder" aria-hidden="true"><span>▧</span></div>
+      {% endif %}
+      <div class="admin-product-card-status">
+        {% if product.is_active %}<span class="status-pill">فعال</span>{% else %}<span class="status-pill archived-pill">مؤرشف</span>{% endif %}
+      </div>
+      <div class="admin-product-card-menu">
+        <button type="button" class="icon-button admin-product-menu-trigger" aria-label="إجراءات {{ product.name }}" data-product-menu="{{ product.id }}">⋮</button>
+        <div class="admin-product-menu" data-menu-for="{{ product.id }}" hidden>
+          <a href="/admin/products/{{ product.id }}/edit">تعديل المنتج</a>
+          <a href="/admin/products/{{ product.id }}/edit#marketing">الشارات والمظهر</a>
           {% if product.is_active %}
-            <span class="status-pill">فعال</span>
+          <form method="post"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ product.id }}"><button type="submit">أرشفة</button></form>
           {% else %}
-            <span class="status-pill archived-pill">مؤرشف</span>
-          {% endif %}
-        </div>
-        <span>SKU: {{ product.sku }}</span>
-        <small>الحالة: {{ product.status }} · Slug: {{ product.slug }}</small>
-        <div class="product-actions">
-          <a class="inline-link" href="/admin/products/{{ product.id }}/edit">فتح المعالج</a>
-          {% if product.is_active %}
-          <form method="post">
-            <input type="hidden" name="action" value="archive">
-            <input type="hidden" name="id" value="{{ product.id }}">
-            <button class="ghost-button" type="submit">أرشفة المنتج</button>
-          </form>
-          {% else %}
-          <form method="post">
-            <input type="hidden" name="action" value="restore">
-            <input type="hidden" name="id" value="{{ product.id }}">
-            <button class="primary-button" type="submit">إعادة التفعيل</button>
-          </form>
+          <form method="post"><input type="hidden" name="action" value="restore"><input type="hidden" name="id" value="{{ product.id }}"><button type="submit">إعادة التفعيل</button></form>
           {% endif %}
         </div>
       </div>
     </div>
-    <div class="product-price">
-      <span>سعر الأساس</span>
-      <strong>{{ product.base_price }}</strong>
-      <small>SAR / {{ product.base_currency_id }}</small>
+
+    <div class="admin-product-card-body">
+      <div class="admin-product-card-title-row">
+        <a href="/admin/products/{{ product.id }}/edit" class="admin-product-card-title">{{ product.name }}</a>
+        <span class="admin-product-card-sku">{{ product.sku }}</span>
+      </div>
+      <div class="admin-product-card-price-row">
+        <strong>{{ product.base_price }}</strong>
+        <span>{{ product.base_currency_id }}</span>
+        {% if product.compare_at_price %}
+          <del>{{ product.compare_at_price }}</del>
+        {% endif %}
+      </div>
+      <div class="admin-product-card-stats">
+        <span><b>{{ product._admin_variant_count }}</b> متغير</span>
+        <span><b>{{ product._admin_badge_count }}</b> شارة</span>
+        <span><b>{{ product.status }}</b></span>
+      </div>
+      <div class="admin-product-card-actions">
+        <a class="primary-button compact" href="/admin/products/{{ product.id }}/edit">التفاصيل</a>
+        <a class="ghost-button compact" href="/admin/products/{{ product.id }}/edit#basics">تعديل</a>
+      </div>
     </div>
   </article>
   {% else %}
@@ -70,13 +79,28 @@
     <div class="empty-icon">▣</div>
     {% if view == "archived" %}
       <h3>الأرشيف فارغ</h3>
-      <p class="muted">لن تختفي المنتجات المؤرشفة؛ ستظهر هنا ويمكن إعادة تفعيلها.</p>
+      <p class="muted">المنتجات المؤرشفة محفوظة ويمكن إعادة تفعيلها كمسودة.</p>
     {% else %}
       <h3>لا توجد منتجات</h3>
-      <p class="muted">ابدأ بإنشاء أول مسودة، ثم أكمل صور المنتج وألوانه ومقاساته والـVariants والمخزون.</p>
+      <p class="muted">ابدأ بإنشاء أول منتج من الزر في الأعلى.</p>
       <a class="primary-button" href="/admin/products/new">إنشاء أول منتج</a>
     {% endif %}
   </section>
   {% endfor %}
 </section>
+
+<script>
+(() => {
+  const buttons = document.querySelectorAll('[data-product-menu]');
+  const closeAll = () => document.querySelectorAll('[data-menu-for]').forEach((menu) => { menu.hidden = true; });
+  buttons.forEach((button) => button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const menu = document.querySelector('[data-menu-for="' + button.dataset.productMenu + '"]');
+    const wasHidden = menu ? menu.hidden : true;
+    closeAll();
+    if (menu && wasHidden) menu.hidden = false;
+  }));
+  document.addEventListener('click', closeAll);
+})();
+</script>
 {% endblock %}
