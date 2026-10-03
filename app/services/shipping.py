@@ -35,6 +35,7 @@ class ShippingService:
         area_id: Optional[int] = None,
         region_id: Optional[int] = None,
         subtotal_sar: Decimal = Decimal("0"),
+        method_id: Optional[int] = None,
     ):
         city = db.session.get(City, city_id) if city_id else None
         if area_id:
@@ -53,6 +54,7 @@ class ShippingService:
             ShippingRate.query
             .join(ShippingMethod, ShippingMethod.id == ShippingRate.method_id)
             .filter(
+                *( [ShippingRate.method_id == int(method_id)] if method_id else [] ),
                 ShippingRate.is_active.is_(True),
                 ShippingMethod.is_active.is_(True),
                 or_(ShippingRate.customer_id.is_(None), ShippingRate.customer_id == customer_id),
@@ -138,6 +140,7 @@ class ShippingService:
         subtotal_sar: Decimal = Decimal("0"),
         currency_id: Optional[int] = None,
         fx_rate: Optional[Decimal] = None,
+        method_id: Optional[int] = None,
     ) -> ShippingQuote:
         resolved = ShippingService.resolve_rate(
             customer_id=customer_id,
@@ -145,6 +148,7 @@ class ShippingService:
             area_id=area_id,
             region_id=region_id,
             subtotal_sar=Decimal(subtotal_sar),
+            method_id=method_id,
         )
         if resolved is None:
             return ShippingQuote(None, None, None, Decimal("0"), Decimal("0"), True, "default", None, None, None)
