@@ -97,6 +97,7 @@ class ClientState {
     wishlist = <int>{};
     cityId = null;
     cityName = null;
+    cartBadge.value = 0;
     await api.logout();
     final p = await SharedPreferences.getInstance();
     await p.remove('city_id');
