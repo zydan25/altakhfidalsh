@@ -28,10 +28,32 @@ jobs:
         working-directory: client
         run: flutter create --platforms=android .
 
-      - name: Prepare branding asset
+      - name: Prepare branding assets
         run: |
-          mkdir -p client/assets
+          mkdir -p client/assets client/android/app/src/main/res/drawable
           cp 20260911_164630.jpg client/assets/app_background.jpg
+          cp 20260911_164630.jpg client/android/app/src/main/res/drawable/app_icon.jpg
+
+      - name: Set Android launcher icon
+        working-directory: client
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("android/app/src/main/AndroidManifest.xml")
+          text = path.read_text(encoding="utf-8")
+          updated = re.sub(
+              r'android:icon="@mipmap/ic_launcher"',
+              'android:icon="@drawable/app_icon"',
+              text,
+              count=1,
+          )
+          if updated == text:
+              raise SystemExit("AndroidManifest.xml: default launcher icon reference not found")
+          path.write_text(updated, encoding="utf-8")
+          print("Android launcher icon set to the branded image.")
+          PY
 
       - name: Enable Android Internet access
         working-directory: client
