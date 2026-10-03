@@ -1698,13 +1698,6 @@ def register_entity_views(admin_bp):
                 "title": "الشارات والخصم",
                 "hint": "ألوان وأحجام الشارات الظاهرة حول اسم المنتج، بما فيها شارة الخصم.",
                 "fields": [
-                    ("product_badge_position", "الموقع الافتراضي للشارات", "select", [
-                        "above_image", "before_name", "after_name", "right_of_image", "below_price",
-                        "top_right", "top_left", "bottom_right", "bottom_left"
-                    ]),
-                    ("product_badge_font_size", "حجم خط الشارات", "number", 6, 18, .5, False),
-                    ("product_badge_radius", "تدوير الشارات", "number", 0, 16, 1, True),
-                    ("product_badge_max", "عدد الشارات المعروضة", "number", 1, 8, 1, True),
                     ("discount_badge_font_size", "حجم شارة الخصم", "number", 6, 18, .5, False),
                     ("discount_badge_font_weight", "وزن شارة الخصم", "number", 300, 900, 100, True),
                     ("discount_badge_radius", "تدوير شارة الخصم", "number", 0, 16, 1, True),
@@ -1749,7 +1742,6 @@ def register_entity_views(admin_bp):
                     ("brand_position", "مكان العلامة التجارية", "select", ["top_left", "top_right", "bottom_left", "bottom_right"]),
                     ("brand_font_size", "حجم العلامة التجارية", "number", 6, 18, .5, False),
                     ("brand_radius", "تدوير العلامة التجارية", "number", 0, 16, 1, True),
-                    ("show_product_badges", "إظهار شارات المنتج", "checkbox"),
                     ("meta_show", "إظهار المقاس/العمر", "checkbox"),
                     ("meta_position", "مكان المقاس/العمر", "select", ["top_right", "top_left", "bottom_right", "bottom_left"]),
                     ("meta_font_size", "حجم المقاس/العمر", "number", 6, 18, .5, False),
