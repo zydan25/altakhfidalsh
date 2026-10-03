@@ -974,26 +974,27 @@ class _SxProductCardState extends State<SxProductCard> {
     final gallery = _gallery;
     final rating = product.rating;
     final hasRating = rating != null && rating > 0;
+
     final badges = product.badges.where((badge) {
       final settings = _badgeSettings(badge);
       return settings['visible'] != false;
     }).toList();
 
-    List<Map<String, dynamic>> at(String position) => badges
-        .where((badge) => _badgePosition(badge) == position)
-        .take(_cardNumber('product_badge_max', 4).round().clamp(1, 8).toInt())
-        .toList();
+    List<Map<String, dynamic>> at(String position) =>
+        badges.where((badge) => _badgePosition(badge) == position).take(8).toList();
 
-    Widget inlineBadges(String position) {
+    Widget badgeRow(
+      String position, {
+      Alignment alignment = Alignment.centerRight,
+    }) {
       final items = at(position);
       if (items.isEmpty) return const SizedBox.shrink();
       return Padding(
         padding: const EdgeInsets.only(top: 2, bottom: 3),
         child: Align(
-          alignment: position == 'after_name'
-              ? Alignment.centerRight
-              : Alignment.centerLeft,
+          alignment: alignment,
           child: Wrap(
+            textDirection: TextDirection.rtl,
             spacing: 4,
             runSpacing: 3,
             children: items.map(_badgeChip).toList(),
@@ -1008,14 +1009,270 @@ class _SxProductCardState extends State<SxProductCard> {
         .withOpacity(_cardOpacity('name_background_opacity', 1));
     final priceBackground = _cardColor('price_background_color', Colors.white)
         .withOpacity(_cardOpacity('price_background_opacity', 1));
-    final compareBackground = _cardColor('compare_price_background_color', Colors.white)
-        .withOpacity(_cardOpacity('compare_price_background_opacity', 1));
-    final currencyBackground = _cardColor('currency_background_color', Colors.white)
-        .withOpacity(_cardOpacity('currency_background_opacity', 1));
+    final compareBackground =
+        _cardColor('compare_price_background_color', Colors.white)
+            .withOpacity(_cardOpacity('compare_price_background_opacity', 1));
+    final currencyBackground =
+        _cardColor('currency_background_color', Colors.white)
+            .withOpacity(_cardOpacity('currency_background_opacity', 1));
     final descBackground = _cardColor(
       'short_description_background_color',
       Colors.transparent,
     ).withOpacity(_cardOpacity('short_description_background_opacity', 0));
+
+    Widget nameText() => Container(
+          color: nameBackground,
+          padding: const EdgeInsets.fromLTRB(8, 1, 8, 0),
+          child: Text(
+            product.name,
+            maxLines: _cardNumber('name_max_lines', 2).round().clamp(1, 3),
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: _cardColor('name_color', const Color(0xFF111111)),
+              fontSize: _cardNumber('name_font_size', 11),
+              fontWeight:
+                  _fontWeight(_cardNumber('name_font_weight', 600).round()),
+              height: 1.25,
+            ),
+          ),
+        );
+
+    Widget descriptionText() => Container(
+          color: descBackground,
+          padding: const EdgeInsets.fromLTRB(8, 3, 8, 1),
+          child: Text(
+            product.shortDescription,
+            maxLines:
+                _cardNumber('short_description_max_lines', 1).round().clamp(1, 3),
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: _cardColor(
+                'short_description_color',
+                const Color(0xFF6B7280),
+              ),
+              fontSize: _cardNumber('short_description_font_size', 9),
+              fontWeight: _fontWeight(
+                _cardNumber('short_description_font_weight', 500).round(),
+              ),
+              height: 1.25,
+            ),
+          ),
+        );
+
+    Widget priceContent() => Wrap(
+          textDirection: TextDirection.rtl,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 5,
+          runSpacing: 2,
+          children: [
+            if (discount > 0)
+              Text(
+                '-' + discount.toString() + '%',
+                style: const TextStyle(
+                  color: ClientTheme.promo,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            Container(
+              color: priceBackground,
+              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+              child: Text(
+                product.price,
+                style: TextStyle(
+                  color: _cardColor('price_color', const Color(0xFF111111)),
+                  fontSize: _cardNumber('price_font_size', 14),
+                  fontWeight:
+                      _fontWeight(_cardNumber('price_font_weight', 900).round()),
+                ),
+              ),
+            ),
+            if (_cardBool('show_currency', true))
+              Container(
+                color: currencyBackground,
+                padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+                child: Text(
+                  state.currencySymbol,
+                  style: TextStyle(
+                    color:
+                        _cardColor('currency_color', const Color(0xFF111111)),
+                    fontSize: _cardNumber('currency_font_size', 10),
+                    fontWeight:
+                        _fontWeight(_cardNumber('currency_font_weight', 800).round()),
+                  ),
+                ),
+              ),
+            if (_cardBool('show_compare_price', true) &&
+                product.oldPrice != null &&
+                product.oldPrice!.isNotEmpty)
+              Container(
+                color: compareBackground,
+                padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
+                child: Text(
+                  product.oldPrice!,
+                  style: TextStyle(
+                    color: _cardColor(
+                      'compare_price_color',
+                      const Color(0xFF8B9198),
+                    ),
+                    fontSize: _cardNumber('compare_price_font_size', 10),
+                    fontWeight:
+                        _fontWeight(_cardNumber('compare_price_font_weight', 500).round()),
+                    decoration:
+                        _cardText('compare_price_text_decoration', 'line_through') ==
+                                'line_through'
+                            ? TextDecoration.lineThrough
+                            : TextDecoration.none,
+                  ),
+                ),
+              ),
+          ],
+        );
+
+    final showDescription =
+        _cardBool('show_short_description', false) &&
+            product.shortDescription.trim().isNotEmpty;
+    final beforeNameSame = at('before_name_same_row');
+    final afterNameSame = at('after_name_same_row');
+    final beforePriceSame = at('before_price_same_row');
+    final afterPriceSame = at('after_price_same_row');
+    final beforeDescriptionSame = at('before_description_same_row');
+    final afterDescriptionSame = at('after_description_same_row');
+    final tailBadges = <Map<String, dynamic>>[
+      ...at('after_details_same_row'),
+      ...at('after_details'),
+      ...at('last'),
+    ];
+
+    Widget nameSection() {
+      if (!_cardBool('show_name', true)) return const SizedBox.shrink();
+      if (beforeNameSame.isEmpty && afterNameSame.isEmpty) return nameText();
+
+      return Row(
+        textDirection: TextDirection.rtl,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (beforeNameSame.isNotEmpty)
+            Flexible(
+              child: Wrap(
+                textDirection: TextDirection.rtl,
+                spacing: 4,
+                runSpacing: 3,
+                children: beforeNameSame.map(_badgeChip).toList(),
+              ),
+            ),
+          if (beforeNameSame.isNotEmpty) const SizedBox(width: 4),
+          Expanded(child: nameText()),
+          if (afterNameSame.isNotEmpty) const SizedBox(width: 4),
+          if (afterNameSame.isNotEmpty)
+            Flexible(
+              child: Wrap(
+                textDirection: TextDirection.rtl,
+                spacing: 4,
+                runSpacing: 3,
+                children: afterNameSame.map(_badgeChip).toList(),
+              ),
+            ),
+        ],
+      );
+    }
+
+    Widget priceSection() {
+      if (!_cardBool('show_price', true)) return const SizedBox.shrink();
+      final content = priceContent();
+      if (beforePriceSame.isEmpty && afterPriceSame.isEmpty) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+          child: content,
+        );
+      }
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (beforePriceSame.isNotEmpty)
+              Flexible(
+                child: Wrap(
+                  textDirection: TextDirection.rtl,
+                  spacing: 4,
+                  runSpacing: 3,
+                  children: beforePriceSame.map(_badgeChip).toList(),
+                ),
+              ),
+            if (beforePriceSame.isNotEmpty) const SizedBox(width: 4),
+            Expanded(child: content),
+            if (afterPriceSame.isNotEmpty) const SizedBox(width: 4),
+            if (afterPriceSame.isNotEmpty)
+              Flexible(
+                child: Wrap(
+                  textDirection: TextDirection.rtl,
+                  spacing: 4,
+                  runSpacing: 3,
+                  children: afterPriceSame.map(_badgeChip).toList(),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
+
+    Widget descriptionSection() {
+      if (!showDescription) return const SizedBox.shrink();
+      if (beforeDescriptionSame.isEmpty && afterDescriptionSame.isEmpty) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            badgeRow('before_description'),
+            badgeRow('before_description_new_row'),
+            descriptionText(),
+            badgeRow('after_description'),
+            badgeRow('after_description_new_row'),
+            badgeRow('below_description'),
+          ],
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          badgeRow('before_description'),
+          badgeRow('before_description_new_row'),
+          Row(
+            textDirection: TextDirection.rtl,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (beforeDescriptionSame.isNotEmpty)
+                Flexible(
+                  child: Wrap(
+                    textDirection: TextDirection.rtl,
+                    spacing: 4,
+                    runSpacing: 3,
+                    children: beforeDescriptionSame.map(_badgeChip).toList(),
+                  ),
+                ),
+              if (beforeDescriptionSame.isNotEmpty) const SizedBox(width: 4),
+              Expanded(child: descriptionText()),
+              if (afterDescriptionSame.isNotEmpty) const SizedBox(width: 4),
+              if (afterDescriptionSame.isNotEmpty)
+                Flexible(
+                  child: Wrap(
+                    textDirection: TextDirection.rtl,
+                    spacing: 4,
+                    runSpacing: 3,
+                    children: afterDescriptionSame.map(_badgeChip).toList(),
+                  ),
+                ),
+            ],
+          ),
+          badgeRow('after_description'),
+          badgeRow('after_description_new_row'),
+          badgeRow('below_description'),
+        ],
+      );
+    }
 
     return Container(
       color: surface,
@@ -1026,140 +1283,61 @@ class _SxProductCardState extends State<SxProductCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (at('above_image').isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(5, 4, 5, 1),
-                child: Wrap(
-                  spacing: 4,
-                  runSpacing: 3,
-                  children: at('above_image').map(_badgeChip).toList(),
-                ),
-              ),
+            badgeRow('first'),
+            badgeRow('above_image'),
             _imageStack(
               ratio: ratio,
               masonry: widget.masonry,
               discount: discount,
               gallery: gallery,
             ),
-            if (_cardBool('show_trend_badge', true) || _cardBool('show_trend_hashtag', true))
+            if (_cardBool('show_trend_badge', true) ||
+                _cardBool('show_trend_hashtag', true))
               _trendRibbon(),
-            inlineBadges('before_name'),
-            if (_cardBool('show_name', true))
-              Container(
-                color: nameBackground,
-                padding: const EdgeInsets.fromLTRB(8, 1, 8, 0),
-                child: Text(
-                  product.name,
-                  maxLines: _cardNumber('name_max_lines', 2).round().clamp(1, 3),
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _cardColor('name_color', const Color(0xFF111111)),
-                    fontSize: _cardNumber('name_font_size', 11),
-                    fontWeight: _fontWeight(_cardNumber('name_font_weight', 600).round()),
-                    height: 1.25,
-                  ),
-                ),
-              ),
-            inlineBadges('after_name'),
-            if (_cardBool('show_short_description', false) &&
-                product.shortDescription.trim().isNotEmpty)
-              Container(
-                color: descBackground,
-                padding: const EdgeInsets.fromLTRB(8, 3, 8, 1),
-                child: Text(
-                  product.shortDescription,
-                  maxLines: _cardNumber('short_description_max_lines', 1).round().clamp(1, 3),
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _cardColor('short_description_color', const Color(0xFF6B7280)),
-                    fontSize: _cardNumber('short_description_font_size', 9),
-                    fontWeight: _fontWeight(_cardNumber('short_description_font_weight', 500).round()),
-                    height: 1.25,
-                  ),
-                ),
-              ),
-            if (_cardBool('show_price', true))
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-                child: Wrap(
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 5,
-                  runSpacing: 2,
-                  children: [
-                    if (discount > 0)
-                      Text(
-                        '-' + discount.toString() + '%',
-                        style: TextStyle(
-                          color: ClientTheme.promo,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    Container(
-                      color: priceBackground,
-                      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
-                      child: Text(
-                        product.price,
-                        style: TextStyle(
-                          color: _cardColor('price_color', const Color(0xFF111111)),
-                          fontSize: _cardNumber('price_font_size', 14),
-                          fontWeight: _fontWeight(_cardNumber('price_font_weight', 900).round()),
-                        ),
-                      ),
-                    ),
-                    if (_cardBool('show_currency', true))
-                      Container(
-                        color: currencyBackground,
-                        padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-                        child: Text(
-                          state.currencySymbol,
-                          style: TextStyle(
-                            color: _cardColor('currency_color', const Color(0xFF111111)),
-                            fontSize: _cardNumber('currency_font_size', 10),
-                            fontWeight: _fontWeight(_cardNumber('currency_font_weight', 800).round()),
-                          ),
-                        ),
-                      ),
-                    if (_cardBool('show_compare_price', true) &&
-                        product.oldPrice != null &&
-                        product.oldPrice!.isNotEmpty)
-                      Container(
-                        color: compareBackground,
-                        padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-                        child: Text(
-                          product.oldPrice!,
-                          style: TextStyle(
-                            color: _cardColor('compare_price_color', const Color(0xFF8B9198)),
-                            fontSize: _cardNumber('compare_price_font_size', 10),
-                            fontWeight: _fontWeight(_cardNumber('compare_price_font_weight', 500).round()),
-                            decoration: _cardText('compare_price_text_decoration', 'line_through') == 'line_through'
-                                ? TextDecoration.lineThrough
-                                : TextDecoration.none,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            inlineBadges('below_price'),
+
+            badgeRow('before_name'),
+            badgeRow('before_name_new_row'),
+            nameSection(),
+            badgeRow('after_name'),
+            badgeRow('after_name_new_row'),
+
+            descriptionSection(),
+
+            badgeRow('before_price'),
+            priceSection(),
+            badgeRow('after_price'),
+            badgeRow('below_price'),
+
             if (hasRating)
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 4, 8, 2),
                 child: Row(
+                  textDirection: TextDirection.rtl,
                   children: [
-                    const Icon(Icons.star, size: 12.5, color: Color(0xFFFFB400)),
+                    const Icon(
+                      Icons.star,
+                      size: 12.5,
+                      color: Color(0xFFFFB400),
+                    ),
                     Text(
                       ' ' + rating!.toStringAsFixed(1),
-                      style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     if (product.reviewCount > 0)
                       Text(
                         ' (' + product.reviewCount.toString() + ')',
-                        style: const TextStyle(fontSize: 8, color: ClientTheme.muted),
+                        style: const TextStyle(
+                          fontSize: 8,
+                          color: ClientTheme.muted,
+                        ),
                       ),
                   ],
                 ),
               ),
+
             if (_cardBool('show_size', false) &&
                 product.cardMeta != null &&
                 sxText(product.cardMeta!['label']).isNotEmpty)
@@ -1167,14 +1345,30 @@ class _SxProductCardState extends State<SxProductCard> {
                 padding: const EdgeInsets.fromLTRB(8, 1, 8, 5),
                 child: Text(
                   sxText(product.cardMeta!['label']),
+                  textAlign: TextAlign.right,
                   style: TextStyle(
                     color: _cardColor('size_color', const Color(0xFF6B7280)),
                     fontSize: _cardNumber('size_font_size', 9),
-                    fontWeight: _fontWeight(_cardNumber('size_font_weight', 600).round()),
+                    fontWeight:
+                        _fontWeight(_cardNumber('size_font_weight', 600).round()),
                   ),
                 ),
               ),
-            if (!hasRating && !_cardBool('show_size', false))
+
+            if (tailBadges.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(5, 3, 5, 3),
+                child: Wrap(
+                  textDirection: TextDirection.rtl,
+                  spacing: 4,
+                  runSpacing: 3,
+                  children: tailBadges.map(_badgeChip).toList(),
+                ),
+              ),
+
+            if (!hasRating &&
+                !_cardBool('show_size', false) &&
+                tailBadges.isEmpty)
               const SizedBox(height: 5),
           ],
         ),
