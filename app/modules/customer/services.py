@@ -1,5 +1,5 @@
 from ...extensions import db
-from ...models import Customer, CustomerAddress, Country, City, CityArea
+from ...models import Customer, CustomerAddress, Country, City, CityArea, Currency, CustomerPreference, Region
 from ...services.phone import normalize_phone
 
 
@@ -13,17 +13,40 @@ class CustomerService:
             customer.name = (payload["name"] or "").strip() or None
         if "email" in payload:
             customer.email = (payload["email"] or "").strip() or None
+        city_id = customer.city_id
         if "city_id" in payload:
-            customer.city_id = payload["city_id"]
+            city_id = payload["city_id"] or None
+            city = db.session.get(City, int(city_id)) if city_id else None
+            if city_id and (city is None or not city.is_active):
+                raise ValueError("المدينة غير صحيحة.")
+            customer.city_id = int(city_id) if city_id else None
+
         if "city_area_id" in payload:
-            from ...models import CityArea
             area_id = payload["city_area_id"] or None
-            area = db.session.get(CityArea, area_id) if area_id else None
-            if area_id and (area is None or not area.is_active):
-                raise ValueError("المنطقة داخل المدينة غير موجودة.")
-            if area and customer.city_id and area.city_id != customer.city_id:
+            area = db.session.get(CityArea, int(area_id)) if area_id else None
+            if area_id and (
+                area is None
+                or not area.is_active
+                or (city_id is not None and area.city_id != int(city_id))
+            ):
                 raise ValueError("المنطقة داخل المدينة لا تتبع مدينة العميل.")
-            customer.city_area_id = area_id
+            customer.city_area_id = int(area_id) if area_id else None
+
+        if "preferred_currency_id" in payload:
+            currency_id = payload["preferred_currency_id"] or None
+            currency = (
+                db.session.get(Currency, int(currency_id))
+                if currency_id
+                else None
+            )
+            if currency_id and (currency is None or not currency.is_active):
+                raise ValueError("العملة غير صحيحة.")
+            preference = db.session.get(CustomerPreference, customer.id)
+            if preference is None:
+                preference = CustomerPreference(customer_id=customer.id, locale="ar")
+                db.session.add(preference)
+            preference.preferred_currency_id = int(currency_id) if currency_id else None
+
         db.session.commit()
         return CustomerService.serialize(customer)
 
@@ -156,6 +179,10 @@ class CustomerService:
 
     @staticmethod
     def serialize(customer):
+        city = db.session.get(City, customer.city_id) if customer.city_id else None
+        area = db.session.get(CityArea, customer.city_area_id) if customer.city_area_id else None
+        region = db.session.get(Region, city.region_id) if city is not None else None
+        preference = db.session.get(CustomerPreference, customer.id)
         return {
             "id": customer.id,
             "phone_normalized": customer.phone_normalized,
@@ -163,5 +190,10 @@ class CustomerService:
             "email": customer.email,
             "city_id": customer.city_id,
             "city_area_id": customer.city_area_id,
+            "city_name": city.name if city else None,
+            "city_area_name": area.name if area else None,
+            "region_id": region.id if region else None,
+            "region_name": region.name if region else None,
+            "preferred_currency_id": preference.preferred_currency_id if preference else None,
             "status": customer.status,
         }
