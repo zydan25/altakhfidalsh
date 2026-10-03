@@ -895,6 +895,8 @@ def public_product_feed():
                 "custom_text": product_badge.custom_text,
                 "starts_at": product_badge.starts_at.isoformat() if product_badge.starts_at else None,
                 "ends_at": product_badge.ends_at.isoformat() if product_badge.ends_at else None,
+                "sort_order": int(product_badge.sort_order or 0),
+                "settings": dict(product_badge.settings_json or {}),
                 "bg_color": badge.bg_color,
                 "text_color": badge.text_color,
                 "style": badge.style,
@@ -1168,6 +1170,7 @@ def marketing_references():
                 "bg_color": x.bg_color,
                 "text_color": x.text_color,
                 "style": x.style,
+                "storefront_tab": x.storefront_tab,
             }
             for x in Badge.query.filter_by(is_active=True).order_by(Badge.priority.desc(), Badge.name).all()
         ],

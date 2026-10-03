@@ -747,24 +747,21 @@ class _SxProductCardState extends State<SxProductCard> {
             _cardMetaChip(meta),
           ),
 
-        if (_cardBool('show_product_badges', true) && product.badges.isNotEmpty)
-          _cornerPositioned(
-            badgePosition,
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: product.badges
-                  .where((badge) {
-                    final p = _badgePosition(badge);
-                    return p == 'top_left' || p == 'top_right' ||
-                        p == 'bottom_left' || p == 'bottom_right';
-                  })
-                  .take(_cardNumber('product_badge_max', 4).round().clamp(1, 4).toInt())
-                  .map(_badgeChip)
-                  .toList(),
+        for (final position in const ['top_left', 'top_right', 'bottom_left', 'bottom_right'])
+          if (product.badges.any((badge) => _badgePosition(badge) == position))
+            _cornerPositioned(
+              position,
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: product.badges
+                    .where((badge) => _badgePosition(badge) == position)
+                    .take(_cardNumber('product_badge_max', 4).round().clamp(1, 4).toInt())
+                    .map(_badgeChip)
+                    .toList(),
+              ),
+              offset: 6,
             ),
-            offset: 6,
-          ),
 
         if (_cardBool('colors_show', true) && product.colors.isNotEmpty)
           _cornerPositioned(

@@ -1076,7 +1076,17 @@ class CatalogService:
         product = db.session.get(Product, product_id)
         if not product:
             raise LookupError("product not found")
-        return CatalogService.wizard_snapshot(product_id)
+        snapshot = CatalogService.wizard_snapshot(product_id)
+        snapshot["product_card_settings"] = CatalogService.product_card_display_settings()
+        brand = db.session.get(Brand, product.brand_id) if product.brand_id else None
+        snapshot["product"]["brand"] = {
+            "id": brand.id,
+            "name": brand.name,
+        } if brand else None
+        # The detail endpoint intentionally returns the base SAR values; the
+        # storefront feed remains responsible for customer/city/currency pricing.
+        snapshot["product"]["short_description"] = product.description or ""
+        return snapshot
 
     @staticmethod
     def update_product(product_id, payload):
@@ -2608,11 +2618,22 @@ class CatalogService:
         ]
         brand = db.session.get(Brand, product.brand_id) if product.brand_id else None
         primary_image = images[0]["url"] if images else None
+        badges = (
+            db.session.query(ProductBadge, Badge)
+            .join(Badge, Badge.id == ProductBadge.badge_id)
+            .filter(
+                ProductBadge.product_id == product.id,
+                Badge.is_active.is_(True),
+            )
+            .order_by(ProductBadge.sort_order, ProductBadge.id)
+            .all()
+        )
         return {
             "id": product.id,
             "sku": product.sku,
             "name": product.name,
             "slug": product.slug,
+            "description": product.description,
             "price": str(product.base_price),
             "compare_at_price": str(product.compare_at_price) if product.compare_at_price is not None else None,
             "brand": {
@@ -2621,6 +2642,21 @@ class CatalogService:
             } if brand else None,
             "image_url": primary_image,
             "images": images,
+            "badges": [
+                {
+                    "id": badge.id,
+                    "code": badge.code,
+                    "name": badge.name,
+                    "custom_text": product_badge.custom_text,
+                    "sort_order": int(product_badge.sort_order or 0),
+                    "settings": dict(product_badge.settings_json or {}),
+                    "bg_color": badge.bg_color,
+                    "text_color": badge.text_color,
+                    "style": badge.style,
+                    "storefront_tab": badge.storefront_tab,
+                }
+                for product_badge, badge in badges
+            ],
         }
 
     @staticmethod
