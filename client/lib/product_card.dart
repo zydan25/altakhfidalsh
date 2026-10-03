@@ -783,7 +783,7 @@ class _SxProductCardState extends State<SxProductCard> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: product.badges
                   .where((badge) => _badgePosition(badge) == 'right_of_image')
-                  .take(_cardNumber('product_badge_max', 4).round().clamp(1, 4).toInt())
+                  .take(_cardNumber('product_badge_max', 4).round().clamp(1, 8).toInt())
                   .map(_badgeChip)
                   .toList(),
             ),
@@ -981,7 +981,7 @@ class _SxProductCardState extends State<SxProductCard> {
 
     List<Map<String, dynamic>> at(String position) => badges
         .where((badge) => _badgePosition(badge) == position)
-        .take(_cardNumber('product_badge_max', 4).round().clamp(1, 4).toInt())
+        .take(_cardNumber('product_badge_max', 4).round().clamp(1, 8).toInt())
         .toList();
 
     Widget inlineBadges(String position) {
@@ -1078,7 +1078,6 @@ class _SxProductCardState extends State<SxProductCard> {
                   ),
                 ),
               ),
-            inlineBadges('right_of_image'),
             if (_cardBool('show_price', true))
               Padding(
                 padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
