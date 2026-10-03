@@ -1,0 +1,528 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<style>
+.presentation-page{display:grid;gap:12px}
+.presentation-hero{padding:14px}
+.presentation-hero h2{margin:2px 0 4px}
+.presentation-toolbar{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.presentation-section{overflow:hidden;padding:0}
+.presentation-head{padding:14px;border-bottom:1px solid #ececec;background:#fff}
+.presentation-head h3{margin:2px 0 3px}
+.presentation-body{padding:10px}
+.setting-group,.badge-card,.delivery-card,.recommendation-card{background:#fff;border:1px solid #e8e8e8;border-radius:13px;overflow:hidden}
+.setting-group+ .setting-group,.badge-card+.badge-card,.delivery-card+.delivery-card,.recommendation-card+.recommendation-card{margin-top:8px}
+.setting-group>summary,.badge-head,.delivery-head,.recommendation-head{padding:11px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;list-style:none}
+.setting-group>summary::-webkit-details-marker{display:none}
+.setting-group[open]>summary{border-bottom:1px solid #efefef;background:#fafafa}
+.setting-grid,.delivery-grid,.badge-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px}
+.setting-grid label,.delivery-grid label,.badge-grid label{font-size:10px;font-weight:800;color:#333}
+.setting-grid label.full,.delivery-grid label.full,.badge-grid label.full{grid-column:1/-1}
+.setting-grid input,.setting-grid select,.delivery-grid input,.delivery-grid select,.badge-grid input,.badge-grid select{width:100%;margin-top:4px;box-sizing:border-box;min-height:36px}
+.setting-control{display:grid;gap:5px}
+.setting-meta{font-size:8px;color:#888}
+.inherit-row{display:flex;align-items:center;gap:7px;font-size:9px;font-weight:900;color:#555}
+.inherit-row input{width:auto;min-height:0;margin:0}
+.card-customize{border:1px dashed #d9d9d9;border-radius:11px;padding:9px;background:#fcfcfc}
+.card-customize.is-custom{border-color:#111;background:#fff}
+.color-row{display:grid;grid-template-columns:42px 1fr;gap:6px;align-items:center}
+.color-row input[type=color]{height:36px;padding:2px}
+.color-row input[type=text]{direction:ltr;text-align:left;font-family:monospace}
+.save-row{position:sticky;bottom:8px;z-index:10;margin:10px;padding:8px;background:rgba(255,255,255,.97);border:1px solid #e5e5e5;border-radius:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;box-shadow:0 12px 28px rgba(0,0,0,.08)}
+.save-row small{display:block;color:#777;font-size:8px}
+.badge-head{cursor:default}
+.badge-title{display:flex;align-items:center;gap:8px;min-width:0}
+.badge-title input{width:18px;height:18px}
+.badge-preview{padding:4px 8px;border-radius:6px;font-size:9px;font-weight:900;white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}
+.badge-status{font-size:8px;color:#777}
+.badge-actions{display:flex;gap:4px;flex-wrap:wrap}
+.badge-actions button{min-width:30px}
+.badge-details{padding:0 10px 10px}
+.badge-details[hidden]{display:none}
+.badge-preview-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;padding:8px;border:1px solid #ececec;border-radius:10px;background:#fafafa}
+.badge-position-help{font-size:8px;color:#777;line-height:1.55}
+.delivery-card{padding:10px}
+.delivery-head{padding:0 0 8px}
+.delivery-body{display:grid;gap:8px}
+.delivery-actions{display:flex;gap:4px}
+.empty-inline{padding:16px;text-align:center;border:1px dashed #ddd;border-radius:11px;color:#888;font-size:9px}
+.recommendation-choice{display:flex;align-items:flex-start;gap:9px;padding:12px;border:1px solid #e8e8e8;border-radius:11px;cursor:pointer;background:#fff}
+.recommendation-choice+.recommendation-choice{margin-top:7px}
+.recommendation-choice.is-selected{border-color:#111;box-shadow:0 0 0 1px #111 inset}
+.recommendation-choice input{margin-top:2px}
+.recommendation-choice strong{display:block;font-size:10px}
+.recommendation-choice small{display:block;color:#888;font-size:8px;margin-top:2px}
+.recommendation-limit{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.note{padding:10px;border:1px dashed #d8d8d8;background:#fafafa;border-radius:11px;font-size:9px;line-height:1.7;color:#666}
+.note strong{color:#222}
+@media(max-width:650px){
+  .setting-grid,.delivery-grid,.badge-grid,.recommendation-limit{grid-template-columns:1fr}
+  .setting-grid label.full,.delivery-grid label.full,.badge-grid label.full{grid-column:auto}
+  .save-row{flex-direction:column;align-items:stretch}
+  .save-row .primary-button,.save-row .ghost-button{width:100%}
+  .presentation-toolbar a{flex:1}
+}
+</style>
+
+<div class="presentation-page" data-product-id="{{ product_id }}">
+  <section class="module-header panel presentation-hero">
+    <span class="eyebrow">المنتج #{{ product_id }}</span>
+    <h2>الشارات والمظهر والتوصيات</h2>
+    <p class="muted">{{ snapshot.product.name }} — شاشة مستقلة تمامًا عن فورم بيانات المنتج.</p>
+    <div class="presentation-toolbar">
+      <a class="ghost-button compact" href="/admin/products/{{ product_id }}">← تفاصيل المنتج</a>
+      <a class="ghost-button compact" href="/admin/products/{{ product_id }}/edit">بيانات المنتج</a>
+      <a class="ghost-button compact" href="/admin/products">قائمة المنتجات</a>
+    </div>
+  </section>
+
+  <div id="presentationMessage" class="alert" hidden></div>
+
+  <section class="panel presentation-section">
+    <div class="presentation-head">
+      <span class="eyebrow">١ · بطاقة المنتج</span>
+      <h3>مظهر بطاقة هذا المنتج</h3>
+      <p class="muted">كل إعداد يبدأ من الإعداد العام. فعّل التخصيص فقط للقيمة التي تريد أن تكون مختلفة لهذا المنتج.</p>
+    </div>
+    <div class="presentation-body">
+      <div class="note"><strong>الطبقات:</strong> الإعداد العام ← تخصيص المنتج ← النتيجة الظاهرة للعميل. إلغاء التخصيص يعيد القيمة فورًا إلى العامة.</div>
+      <div id="cardEditor" style="margin-top:8px"></div>
+      <div class="save-row">
+        <div><strong>حفظ مظهر البطاقة</strong><small>الإعدادات غير المخصصة ستبقى موروثة.</small></div>
+        <div style="display:flex;gap:5px">
+          <button type="button" class="ghost-button" id="resetCard">إلغاء كل التخصيصات</button>
+          <button type="button" class="primary-button" id="saveCard">حفظ المظهر</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel presentation-section">
+    <div class="presentation-head">
+      <span class="eyebrow">٢ · الشارات</span>
+      <h3>إعداد كل شارة بشكل مستقل</h3>
+      <p class="muted">لون الشارة، الخلفية، الحجم، المكان، النص المخصص، الحدود والمدة محفوظة داخل هذه الشارة لهذا المنتج فقط.</p>
+    </div>
+    <div class="presentation-body">
+      <div class="note"><strong>مهم:</strong> لا يوجد هنا موقع أو حجم عام للشارات. كل شارة تحدد مكانها وشكلها بنفسها. ترتيب البطاقات في هذه القائمة هو ترتيب ظهورها.</div>
+      <div id="badgesEditor" style="margin-top:8px"></div>
+      <div class="save-row">
+        <div><strong>حفظ شارات المنتج</strong><small>غيّر الاختيار والترتيب أو افتح إعدادات أي شارة.</small></div>
+        <button type="button" class="primary-button" id="saveBadges">حفظ الشارات</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel presentation-section">
+    <div class="presentation-head">
+      <span class="eyebrow">٣ · التوصيل</span>
+      <h3>شارات التوصيل الخاصة بهذا المنتج</h3>
+      <p class="muted">كل شارة توصيل لها قسم وأيقونة وحجم خط وخلفية ولون مستقلان.</p>
+      <button type="button" class="primary-button compact" id="addDelivery" style="margin-top:8px">＋ إضافة شارة توصيل</button>
+    </div>
+    <div class="presentation-body"><div id="deliveryEditor"></div></div>
+    <div class="save-row">
+      <div><strong>حفظ التوصيل</strong><small>الترتيب محفوظ كما يظهر في الشاشة.</small></div>
+      <button type="button" class="primary-button" id="saveDelivery">حفظ شارات التوصيل</button>
+    </div>
+  </section>
+
+  <section class="panel presentation-section">
+    <div class="presentation-head">
+      <span class="eyebrow">٤ · التوصيات</span>
+      <h3>مصدر «قد يعجبك أيضًا»</h3>
+      <p class="muted">حدد من أين تؤخذ المنتجات، وسيتم ترتيبها عشوائيًا عند الطلب.</p>
+    </div>
+    <div class="presentation-body"><div id="recommendationEditor"></div></div>
+    <div class="save-row">
+      <div><strong>حفظ التوصيات</strong><small>يُحفظ المصدر وعدد المنتجات.</small></div>
+      <button type="button" class="primary-button" id="saveRecommendations">حفظ التوصيات</button>
+    </div>
+  </section>
+</div>
+
+<script id="presentationSnapshot" type="application/json">{{ snapshot|tojson }}</script>
+<script id="presentationBadges" type="application/json">{{ available_badges|tojson }}</script>
+<script>
+(() => {
+  const root = document.querySelector('.presentation-page');
+  if (!root) return;
+  const productId = root.dataset.productId;
+  const snapshot = JSON.parse(document.getElementById('presentationSnapshot').textContent || '{}');
+  const availableBadges = JSON.parse(document.getElementById('presentationBadges').textContent || '[]');
+  const message = document.getElementById('presentationMessage');
+
+  const notify = (text, type='success') => {
+    message.textContent = text;
+    message.className = 'alert ' + type;
+    message.hidden = false;
+    window.scrollTo({top:0, behavior:'smooth'});
+  };
+  const requestJson = async (url, options={}) => {
+    const response = await fetch(url, {
+      cache:'no-store',
+      ...options,
+      headers:{'Content-Type':'application/json', ...(options.headers||{})}
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || data.error || 'تعذر تنفيذ العملية');
+    return data;
+  };
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  const color = (v, fallback) => /^#[0-9a-fA-F]{6}$/.test(String(v||'')) ? String(v) : fallback;
+
+  const labels = {
+    card_background_color:'خلفية البطاقة', card_background_opacity:'شفافية خلفية البطاقة', card_radius:'نصف قطر البطاقة',
+    show_name:'إظهار اسم المنتج', name_font_size:'حجم اسم المنتج', name_font_weight:'وزن اسم المنتج', name_color:'لون الاسم',
+    name_background_color:'خلفية الاسم', name_background_opacity:'شفافية خلفية الاسم', name_max_lines:'أقصى أسطر للاسم',
+    show_short_description:'إظهار الوصف القصير', short_description_font_size:'حجم الوصف القصير', short_description_font_weight:'وزن الوصف القصير',
+    short_description_color:'لون الوصف القصير', short_description_background_color:'خلفية الوصف القصير', short_description_background_opacity:'شفافية خلفية الوصف', short_description_max_lines:'أسطر الوصف',
+    show_price:'إظهار السعر', price_font_size:'حجم السعر', price_font_weight:'وزن السعر', price_color:'لون السعر',
+    price_background_color:'خلفية السعر', price_background_opacity:'شفافية خلفية السعر',
+    show_compare_price:'إظهار السعر قبل الخصم', compare_price_font_size:'حجم السعر قبل الخصم', compare_price_font_weight:'وزن السعر قبل الخصم',
+    compare_price_color:'لون السعر قبل الخصم', compare_price_background_color:'خلفية السعر قبل الخصم', compare_price_background_opacity:'شفافية السعر السابق',
+    compare_price_text_decoration:'خط السعر السابق', show_currency:'إظهار العملة', currency_font_size:'حجم العملة',
+    currency_font_weight:'وزن العملة', currency_color:'لون العملة', currency_background_color:'خلفية العملة', currency_background_opacity:'شفافية العملة',
+    show_size:'إظهار المقاس', size_font_size:'حجم المقاس', size_font_weight:'وزن المقاس', size_color:'لون المقاس',
+    size_background_color:'خلفية المقاس', size_background_opacity:'شفافية خلفية المقاس', show_brand:'إظهار العلامة التجارية',
+    brand_position:'موقع العلامة', brand_background_color:'خلفية العلامة', brand_text_color:'لون العلامة', brand_font_size:'حجم العلامة', brand_radius:'تدوير العلامة',
+    show_trend_badge:'إظهار شارة الترند', trend_badge_text:'نص شارة الترند', trend_badge_background_color:'خلفية شارة الترند', trend_badge_text_color:'لون شارة الترند',
+    trend_badge_font_size:'حجم شارة الترند', trend_badge_radius:'تدوير شارة الترند', show_trend_hashtag:'إظهار هاشتاج الترند',
+    trend_hashtag_text_color:'لون نص الهاشتاج', trend_hashtag_background_color:'خلفية الهاشتاج', trend_hashtag_use_background:'خلفية الهاشتاج',
+    trend_hashtag_font_size:'حجم الهاشتاج', trend_hashtag_font_weight:'وزن الهاشتاج', trend_show_arrow:'إظهار سهم الترند',
+    trend_arrow_text:'رمز السهم', trend_arrow_color:'لون السهم', trend_ribbon_gap:'مسافة عناصر الترند',
+    colors_show:'إظهار الألوان', colors_position:'موقع الألوان', colors_direction:'اتجاه الألوان', colors_size:'حجم دائرة اللون',
+    colors_gap:'المسافة بين الألوان', colors_max:'عدد الألوان', colors_container_size:'حجم حاوية اللون', colors_border_width:'سُمك حدود اللون',
+    meta_show:'إظهار المعلومة العلوية', meta_position:'موقع المعلومة', meta_font_size:'حجم المعلومة',
+    meta_background_color:'خلفية المعلومة', meta_text_color:'لون المعلومة', meta_radius:'تدوير المعلومة',
+    meta_padding_horizontal:'الحشو الأفقي للمعلومة', meta_padding_vertical:'الحشو الرأسي للمعلومة',
+    discount_badge_background_color:'خلفية شارة الخصم', discount_badge_text_color:'لون نص شارة الخصم',
+    discount_badge_font_size:'حجم شارة الخصم', discount_badge_font_weight:'وزن شارة الخصم', discount_badge_radius:'تدوير شارة الخصم'
+  };
+  const groups = [
+    ['الخلفية والاسم',['card_','show_name','name_','show_short_description','short_description_']],
+    ['السعر والعملة',['show_price','price_','show_compare_price','compare_price_','show_currency','currency_']],
+    ['المقاس والعلامة',['show_size','size_','show_brand','brand_']],
+    ['الخصم والترند',['discount_badge_','show_trend_badge','trend_badge_','show_trend_hashtag','trend_hashtag_','trend_']],
+    ['ألوان المنتج والمعلومة',['colors_','meta_']]
+  ];
+  const excluded = new Set(['show_product_badges','product_badge_position','product_badge_font_size','product_badge_radius','product_badge_max']);
+
+  function options(key) {
+    if (key.endsWith('text_decoration')) return [['line_through','خط في النص'],['none','بدون']];
+    if (key==='brand_position' || key==='colors_position' || key==='meta_position') return [
+      ['top_right','أعلى اليمين'],['top_left','أعلى اليسار'],['bottom_right','أسفل اليمين'],['bottom_left','أسفل اليسار']
+    ];
+    if (key==='colors_direction') return [['horizontal','أفقي'],['vertical','رأسي']];
+    return null;
+  }
+  function valueControl(key, globalValue, value) {
+    const v = value ?? globalValue;
+    if (typeof globalValue === 'boolean')
+      return '<input type="checkbox" class="setting-value" data-key="'+key+'" '+(v ? 'checked':'')+'>';
+    const opts = options(key);
+    if (opts) return '<select class="setting-value" data-key="'+key+'">'+opts.map(o=>'<option value="'+o[0]+'" '+(String(v)===o[0]?'selected':'')+'>'+o[1]+'</option>').join('')+'</select>';
+    if (/_color$/.test(key) && typeof v==='string') {
+      const safe=color(v,'#ffffff');
+      return '<span class="color-row"><input type="color" data-color-key="'+key+'" value="'+safe+'"><input type="text" class="setting-value" data-key="'+key+'" value="'+safe+'" dir="ltr"></span>';
+    }
+    const type = typeof globalValue==='number' ? 'number':'text';
+    return '<input class="setting-value" data-key="'+key+'" type="'+type+'" value="'+esc(v)+'">';
+  }
+
+  function renderCard() {
+    const root = document.getElementById('cardEditor');
+    const global = snapshot.product_card_global_settings || {};
+    const overrides = snapshot.product_card_overrides || {};
+    const keys = Object.keys(global).filter(k => !excluded.has(k));
+    root.innerHTML = groups.map(([title,prefixes]) => {
+      const groupKeys = keys.filter(k => prefixes.some(p => p===k || k.startsWith(p)));
+      if (!groupKeys.length) return '';
+      return '<details class="setting-group"><summary><span>'+title+'</span><small>'+groupKeys.length+' إعداد</small></summary><div class="setting-grid">'+
+        groupKeys.map(key => {
+          const custom = Object.prototype.hasOwnProperty.call(overrides,key);
+          const value = custom ? overrides[key] : global[key];
+          return '<div class="card-customize '+(custom?'is-custom':'')+'" data-row="'+key+'">'+
+            '<div class="setting-control"><label>'+esc(labels[key] || key)+'</label>'+valueControl(key,global[key],value)+
+            '<label class="inherit-row"><input type="checkbox" data-custom="'+key+'" '+(custom?'checked':'')+'> تخصيص هذا الإعداد</label></div></div>';
+        }).join('')+'</div></details>';
+    }).join('');
+  }
+
+  const positionLabels = {
+    above_image:'أعلى الصورة', before_name:'قبل الاسم', after_name:'بعد الاسم', right_of_image:'يمين الصورة', below_price:'أسفل السعر',
+    top_right:'أعلى يمين الصورة', top_left:'أعلى يسار الصورة', bottom_right:'أسفل يمين الصورة', bottom_left:'أسفل يسار الصورة'
+  };
+
+  function badgeDefault(badge) {
+    const existing = (snapshot.badges || []).find(x => String(x.id)===String(badge.id)) || {};
+    const s = existing.settings || {};
+    return {
+      position:s.position || 'before_name',
+      custom_text:existing.custom_text || '',
+      duration_days: existing.ends_at ? Math.max(0, Math.ceil((new Date(existing.ends_at)-Date.now())/86400000)) : 0,
+      font_size:Number(s.font_size ?? 9),
+      font_weight:Number(s.font_weight ?? 800),
+      background_opacity:Number(s.background_opacity ?? 1),
+      border_radius:Number(s.border_radius ?? 5),
+      padding_horizontal:Number(s.padding_horizontal ?? 7),
+      padding_vertical:Number(s.padding_vertical ?? 3),
+      border_width:Number(s.border_width ?? 0),
+      text_decoration:s.text_decoration || 'none',
+      background_color:color(s.background_color,badge.bg_color || '#111827'),
+      text_color:color(s.text_color,badge.text_color || '#ffffff'),
+      border_color:color(s.border_color,'#ffffff'),
+      visible:s.visible !== false
+    };
+  }
+
+  function renderBadges() {
+    const root=document.getElementById('badgesEditor');
+    root.innerHTML=availableBadges.map((badge,index)=>{
+      const selected=(snapshot.badges||[]).some(x=>String(x.id)===String(badge.id));
+      const s=badgeDefault(badge);
+      return '<article class="badge-card" data-badge-id="'+badge.id+'">'+
+        '<div class="badge-head">'+
+          '<div class="badge-title"><input type="checkbox" data-badge-selected '+(selected?'checked':'')+'><span><strong>'+esc(badge.name)+'</strong><small class="badge-status">'+esc(badge.code)+'</small></span><span class="badge-preview" data-preview style="background:'+s.background_color+';color:'+s.text_color+'">'+esc(s.custom_text || badge.name)+'</span></div>'+
+          '<div class="badge-actions"><button type="button" class="ghost-button compact" data-up>↑</button><button type="button" class="ghost-button compact" data-down>↓</button><button type="button" class="ghost-button compact" data-toggle>إعدادات</button></div>'+
+        '</div>'+
+        '<div class="badge-details" hidden>'+
+          '<div class="badge-preview-row"><span class="badge-position-help">هذه الإعدادات تخص هذه الشارة فقط لهذا المنتج.</span><span class="badge-preview" data-preview2 style="background:'+s.background_color+';color:'+s.text_color+'">'+esc(s.custom_text || badge.name)+'</span></div>'+
+          '<div class="badge-grid">'+
+            '<label>المكان<select data-field="position">'+Object.entries(positionLabels).map(o=>'<option value="'+o[0]+'" '+(s.position===o[0]?'selected':'')+'>'+o[1]+'</option>').join('')+'</select></label>'+
+            '<label>الترتيب<input type="number" min="0" max="99" data-field="sort_order" value="'+index+'"></label>'+
+            '<label class="full">النص المخصص<input data-field="custom_text" value="'+esc(s.custom_text)+'" maxlength="120"></label>'+
+            '<label>مدة الظهور بالأيام<input type="number" min="0" max="3650" data-field="duration_days" value="'+s.duration_days+'"></label>'+
+            '<label>حجم الخط<input type="number" min="6" max="32" step=".5" data-field="font_size" value="'+s.font_size+'"></label>'+
+            '<label>وزن الخط<input type="number" min="300" max="900" step="100" data-field="font_weight" value="'+s.font_weight+'"></label>'+
+            '<label>شفافية الخلفية<input type="number" min="0" max="1" step=".05" data-field="background_opacity" value="'+s.background_opacity+'"></label>'+
+            '<label>نصف قطر الزوايا<input type="number" min="0" max="30" step=".5" data-field="border_radius" value="'+s.border_radius+'"></label>'+
+            '<label>الحشو الأفقي<input type="number" min="0" max="30" data-field="padding_horizontal" value="'+s.padding_horizontal+'"></label>'+
+            '<label>الحشو الرأسي<input type="number" min="0" max="30" data-field="padding_vertical" value="'+s.padding_vertical+'"></label>'+
+            '<label>سُمك الإطار<input type="number" min="0" max="10" step=".5" data-field="border_width" value="'+s.border_width+'"></label>'+
+            '<label>خط النص<select data-field="text_decoration"><option value="none" '+(s.text_decoration==='none'?'selected':'')+'>بدون</option><option value="line_through" '+(s.text_decoration==='line_through'?'selected':'')+'>خط على النص</option></select></label>'+
+            '<label>لون الخلفية<span class="color-row"><input type="color" data-color-field="background_color" value="'+s.background_color+'"><input type="text" dir="ltr" data-field="background_color" value="'+s.background_color+'"></span></label>'+
+            '<label>لون النص<span class="color-row"><input type="color" data-color-field="text_color" value="'+s.text_color+'"><input type="text" dir="ltr" data-field="text_color" value="'+s.text_color+'"></span></label>'+
+            '<label>لون الإطار<span class="color-row"><input type="color" data-color-field="border_color" value="'+s.border_color+'"><input type="text" dir="ltr" data-field="border_color" value="'+s.border_color+'"></span></label>'+
+            '<label class="inherit-row"><input type="checkbox" data-field="visible" '+(s.visible?'checked':'')+'> إظهار هذه الشارة</label>'+
+          '</div>'+
+        '</div>'+
+      '</article>';
+    }).join('') || '<div class="empty-inline">لا توجد شارات عامة متاحة حاليًا.</div>';
+  }
+
+  function readBadge(card) {
+    const get=(field)=>card.querySelector('[data-field="'+field+'"]');
+    const selected=card.querySelector('[data-badge-selected]')?.checked;
+    if (!selected) return null;
+    return {
+      badge_id:Number(card.dataset.badgeId),
+      sort_order:Number(get('sort_order')?.value||0),
+      duration_days:Number(get('duration_days')?.value||0),
+      custom_text:(get('custom_text')?.value||'').trim() || null,
+      settings:{
+        position:get('position')?.value || 'before_name',
+        font_size:Number(get('font_size')?.value||9),
+        font_weight:Number(get('font_weight')?.value||800),
+        background_opacity:Number(get('background_opacity')?.value||1),
+        border_radius:Number(get('border_radius')?.value||5),
+        padding_horizontal:Number(get('padding_horizontal')?.value||7),
+        padding_vertical:Number(get('padding_vertical')?.value||3),
+        border_width:Number(get('border_width')?.value||0),
+        text_decoration:get('text_decoration')?.value || 'none',
+        background_color:get('background_color')?.value || '#111827',
+        text_color:get('text_color')?.value || '#ffffff',
+        border_color:get('border_color')?.value || '#ffffff',
+        visible:get('visible')?.checked !== false
+      }
+    };
+  }
+
+  function renderDelivery() {
+    const root=document.getElementById('deliveryEditor');
+    const rows=snapshot.delivery_badges || [];
+    root.innerHTML=rows.map((row,index)=>'<article class="delivery-card" data-delivery-index="'+index+'">'+
+      '<div class="delivery-head"><div><strong>شارة توصيل '+(index+1)+'</strong><small class="badge-status">السطر '+(index+1)+'</small></div>'+
+      '<div class="delivery-actions"><button type="button" class="ghost-button compact" data-delivery-up>↑</button><button type="button" class="ghost-button compact" data-delivery-down>↓</button><button type="button" class="ghost-button compact" data-delivery-delete>حذف</button></div></div>'+
+      '<div class="delivery-body"><div class="delivery-grid">'+
+      '<label class="full">النص<input data-delivery="text" value="'+esc(row.text||'')+'" maxlength="120"></label>'+
+      '<label>القسم<input data-delivery="section" value="'+esc(row.section||'shipping')+'" maxlength="40"></label>'+
+      '<label>الأيقونة<input data-delivery="icon" value="'+esc(row.icon||'local_shipping')+'" maxlength="40"></label>'+
+      '<label>حجم الخط<input type="number" min="7" max="24" step=".5" data-delivery="font_size" value="'+(row.font_size??9)+'"></label>'+
+      '<label>إظهار<input type="checkbox" data-delivery="visible" '+(row.visible!==false?'checked':'')+'></label>'+
+      '<label>الخلفية<span class="color-row"><input type="color" data-delivery-color="background_color" value="'+color(row.background_color,'#f5f5f5')+'"><input type="text" dir="ltr" data-delivery="background_color" value="'+color(row.background_color,'#f5f5f5')+'"></span></label>'+
+      '<label>لون النص<span class="color-row"><input type="color" data-delivery-color="text_color" value="'+color(row.text_color,'#111111')+'"><input type="text" dir="ltr" data-delivery="text_color" value="'+color(row.text_color,'#111111')+'"></span></label>'+
+      '</div></div></article>').join('') || '<div class="empty-inline">لا توجد شارات توصيل. أضف شارة جديدة لبدء إعدادها.</div>';
+  }
+
+  function renderRecommendations() {
+    const root=document.getElementById('recommendationEditor');
+    const current=snapshot.recommendation_settings || {};
+    const source=current.source || 'same_category';
+    const rows=[
+      ['same_category','نفس الفئة','المنتجات من الفئة الحالية.'],
+      ['parent_category','الفئة الأب','المنتجات من المستوى الأب.'],
+      ['root_category','الفئة الرئيسية العليا','المنتجات من جذر الفئة.'],
+      ['random_all','كل المنتجات','اختيار عشوائي من كامل الكتالوج.']
+    ];
+    root.innerHTML='<div>'+rows.map(r=>'<label class="recommendation-choice '+(r[0]===source?'is-selected':'')+'"><input type="radio" name="presentation-recommendation-source" value="'+r[0]+'" '+(r[0]===source?'checked':'')+'><span><strong>'+r[1]+'</strong><small>'+r[2]+'</small></span></label>').join('')+
+      '</div><div class="recommendation-limit"><label>عدد المنتجات<input id="recommendationLimit" type="number" min="2" max="20" value="'+(current.limit||10)+'"></label><div class="note"><strong>الترتيب:</strong> عشوائي تلقائيًا في كل طلب.</div></div>';
+  }
+
+  function cardOverrides() {
+    const out={};
+    document.querySelectorAll('[data-row]').forEach(row=>{
+      const custom=row.querySelector('[data-custom]')?.checked;
+      if(!custom)return;
+      const key=row.dataset.row;
+      const checkbox=row.querySelector('input[type=checkbox][data-key]');
+      const input=row.querySelector('[data-key="'+key+'"]');
+      if(checkbox) out[key]=checkbox.checked;
+      else if(input){
+        const global=snapshot.product_card_global_settings?.[key];
+        if(typeof global==='number') out[key]=Number(input.value);
+        else out[key]=input.value;
+      }
+    });
+    return out;
+  }
+
+  document.getElementById('cardEditor').addEventListener('change',e=>{
+    const custom=e.target.closest('[data-custom]');
+    if(custom)custom.closest('.card-customize')?.classList.toggle('is-custom',custom.checked);
+    const picker=e.target.closest('[data-color-key]');
+    if(picker){
+      const text=picker.closest('.color-row')?.querySelector('[data-key]');
+      if(text)text.value=picker.value;
+    }
+  });
+  document.getElementById('cardEditor').addEventListener('input',e=>{
+    const picker=e.target.closest('[data-color-key]');
+    if(picker){
+      const text=picker.closest('.color-row')?.querySelector('[data-key]');
+      if(text)text.value=picker.value;
+    }
+    const text=e.target.closest('.color-row input[type=text]');
+    if(text && /^#[0-9a-fA-F]{6}$/.test(text.value.trim())){
+      const picker=text.closest('.color-row')?.querySelector('input[type=color]');
+      if(picker)picker.value=text.value.trim();
+    }
+  });
+
+  document.getElementById('saveCard').addEventListener('click',async()=>{
+    try{
+      await requestJson('/api/v1/catalog/products/'+productId+'/display-settings',{method:'POST',body:JSON.stringify({card_overrides:cardOverrides()})});
+      notify('تم حفظ مظهر بطاقة المنتج.');
+    }catch(e){notify(e.message,'error');}
+  });
+  document.getElementById('resetCard').addEventListener('click',async()=>{
+    try{
+      await requestJson('/api/v1/catalog/products/'+productId+'/display-settings',{method:'POST',body:JSON.stringify({card_overrides:{}})});
+      notify('عاد المنتج بالكامل إلى الإعداد العام.');
+      setTimeout(()=>location.reload(),150);
+    }catch(e){notify(e.message,'error');}
+  });
+
+  document.getElementById('badgesEditor').addEventListener('click',e=>{
+    const card=e.target.closest('.badge-card');
+    if(!card)return;
+    const details=card.querySelector('.badge-details');
+    if(e.target.closest('[data-toggle]')) details.hidden=!details.hidden;
+    if(e.target.closest('[data-up]') && card.previousElementSibling){card.parentNode.insertBefore(card,card.previousElementSibling);}
+    if(e.target.closest('[data-down]') && card.nextElementSibling){card.parentNode.insertBefore(card.nextElementSibling,card);}
+    document.querySelectorAll('.badge-card [data-field="sort_order"]').forEach((x,i)=>x.value=i);
+  });
+  document.getElementById('badgesEditor').addEventListener('input',e=>{
+    const card=e.target.closest('.badge-card');
+    const preview=card?.querySelector('[data-preview]');
+    const preview2=card?.querySelector('[data-preview2]');
+    if(!card)return;
+    const bg=card.querySelector('[data-field="background_color"]')?.value;
+    const fg=card.querySelector('[data-field="text_color"]')?.value;
+    const text=card.querySelector('[data-field="custom_text"]')?.value;
+    if(preview && /^#[0-9a-fA-F]{6}$/.test(bg||'')){preview.style.background=bg;preview.style.color=fg||'#fff';}
+    if(preview2 && /^#[0-9a-fA-F]{6}$/.test(bg||'')){preview2.style.background=bg;preview2.style.color=fg||'#fff';}
+    if(preview && text)preview.textContent=text;
+    if(preview2 && text)preview2.textContent=text;
+    const textColor=e.target.closest('.color-row input[type=text]');
+    if(textColor && /^#[0-9a-fA-F]{6}$/.test(textColor.value.trim())){
+      const picker=textColor.closest('.color-row')?.querySelector('input[type=color]');
+      if(picker)picker.value=textColor.value.trim();
+    }
+  });
+  document.getElementById('badgesEditor').addEventListener('change',e=>{
+    const picker=e.target.closest('[data-color-field]');
+    if(picker){
+      const field=picker.dataset.colorField;
+      const text=picker.closest('.color-row')?.querySelector('[data-field="'+field+'"]');
+      if(text)text.value=picker.value;
+    }
+  });
+  document.getElementById('saveBadges').addEventListener('click',async()=>{
+    try{
+      const cards=[...document.querySelectorAll('.badge-card')];
+      const selected=cards.map(readBadge).filter(Boolean).map((x,i)=>({...x,sort_order:i}));
+      await requestJson('/api/v1/catalog/products/'+productId+'/badges',{method:'POST',body:JSON.stringify({badges:selected})});
+      notify('تم حفظ الشارات وإعداداتها المستقلة.');
+      setTimeout(()=>location.reload(),150);
+    }catch(e){notify(e.message,'error');}
+  });
+
+  document.getElementById('addDelivery').addEventListener('click',()=>{
+    snapshot.delivery_badges=snapshot.delivery_badges||[];
+    snapshot.delivery_badges.push({text:'شحن سريع',section:'shipping',icon:'local_shipping',font_size:9,visible:true,background_color:'#f5f5f5',text_color:'#111111'});
+    renderDelivery();
+  });
+  document.getElementById('deliveryEditor').addEventListener('click',e=>{
+    const card=e.target.closest('.delivery-card'); if(!card)return;
+    const cards=[...document.querySelectorAll('.delivery-card')]; const i=cards.indexOf(card);
+    if(e.target.closest('[data-delivery-delete]')){cards.splice(i,1);snapshot.delivery_badges=cards.map(readDelivery);renderDelivery();return;}
+    if(e.target.closest('[data-delivery-up]') && i>0){cards.splice(i-1,0,card);snapshot.delivery_badges=cards.map(readDelivery);renderDelivery();}
+    if(e.target.closest('[data-delivery-down]') && i<cards.length-1){cards.splice(i,2,card,cards[i+1]);snapshot.delivery_badges=cards.map(readDelivery);renderDelivery();}
+  });
+  function readDelivery(card){
+    const get=f=>card.querySelector('[data-delivery="'+f+'"]');
+    return {
+      id:card.dataset.deliveryIndex||undefined,text:(get('text')?.value||'').trim(),
+      section:(get('section')?.value||'shipping').trim(),icon:(get('icon')?.value||'local_shipping').trim(),
+      font_size:Number(get('font_size')?.value||9),visible:get('visible')?.checked!==false,
+      background_color:get('background_color')?.value||'#f5f5f5',text_color:get('text_color')?.value||'#111111'
+    };
+  }
+  document.getElementById('deliveryEditor').addEventListener('input',e=>{
+    const textInput=e.target.closest('[data-delivery="background_color"],[data-delivery="text_color"]');
+    if(textInput && /^#[0-9a-fA-F]{6}$/.test(textInput.value.trim())){
+      const picker=textInput.closest('.color-row')?.querySelector('input[type=color]'); if(picker)picker.value=textInput.value.trim();
+    }
+  });
+  document.getElementById('deliveryEditor').addEventListener('change',e=>{
+    const picker=e.target.closest('[data-delivery-color]');
+    if(picker){const field=picker.dataset.deliveryColor;const text=picker.closest('.color-row')?.querySelector('[data-delivery="'+field+'"]');if(text)text.value=picker.value;}
+  });
+  document.getElementById('saveDelivery').addEventListener('click',async()=>{
+    try{
+      const badges=[...document.querySelectorAll('.delivery-card')].map(readDelivery).filter(x=>x.text);
+      await requestJson('/api/v1/catalog/products/'+productId+'/display-settings',{method:'POST',body:JSON.stringify({delivery_badges:badges})});
+      notify('تم حفظ شارات التوصيل.');
+    }catch(e){notify(e.message,'error');}
+  });
+
+  document.getElementById('recommendationEditor').addEventListener('change',e=>{
+    const radio=e.target.closest('input[name="presentation-recommendation-source"]');
+    if(radio)document.querySelectorAll('.recommendation-choice').forEach(x=>x.classList.toggle('is-selected',x.contains(radio)));
+  });
+  document.getElementById('saveRecommendations').addEventListener('click',async()=>{
+    try{
+      const source=document.querySelector('input[name="presentation-recommendation-source"]:checked')?.value||'same_category';
+      const limit=Number(document.getElementById('recommendationLimit')?.value||10);
+      await requestJson('/api/v1/catalog/products/'+productId+'/display-settings',{method:'POST',body:JSON.stringify({recommendation_settings:{source,limit}})});
+      notify('تم حفظ إعدادات التوصيات.');
+    }catch(e){notify(e.message,'error');}
+  });
+
+  renderCard();
+  renderBadges();
+  renderDelivery();
+  renderRecommendations();
+})();
+</script>
+{% endblock %}
