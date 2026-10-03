@@ -1306,10 +1306,14 @@ class CatalogService:
             if settings.get("text_decoration") not in (None, "", "none", "line_through"):
                 raise ValueError("نوع خط الشارة غير صالح.")
             if settings.get("position") not in (None, "", "top_left", "top_right", "bottom_left", "bottom_right",
-                                                "above_image", "before_name", "after_name", "right_of_image", "below_price",
-                                                "first", "before_name_same_row", "before_name_new_row",
-                                                "after_name_same_row", "after_name_new_row", "after_price",
-                                                "below_description", "after_details", "last"):
+                                                "above_image",
+                                                "before_name", "before_name_same_row", "before_name_new_row",
+                                                "after_name", "after_name_same_row", "after_name_new_row",
+                                                "before_description", "after_description", "below_description",
+                                                "before_price", "before_price_same_row", "after_price_same_row",
+                                                "after_price", "below_price",
+                                                "right_of_image",
+                                                "after_details", "last"):
                 raise ValueError("موقع الشارة غير صالح.")
             for color_key in ("background_color", "text_color", "border_color"):
                 if color_key in settings:
