@@ -7826,7 +7826,7 @@ class _TrendHashtagStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chipHeight = _sxTrendNumber(ui, 'hashtag_height', 31).clamp(24, 48);
+    final chipHeight = _sxTrendNumber(ui, 'hashtag_height', 31).clamp(24, 48).toDouble();
     final rowHeight = chipHeight + 8;
 
     return SizedBox(
