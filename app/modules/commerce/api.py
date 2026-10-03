@@ -9,7 +9,7 @@ from .services import CommerceService
 from ...services.pricing import resolve_exchange_rate
 from ...services.shipping import ShippingService
 from ...extensions import db
-from ...models import Order, PaymentTransaction, PaymentProof
+from ...models import Order, PaymentTransaction, PaymentProof, Conversation
 
 
 @api_bp.get("/orders")
