@@ -1614,6 +1614,7 @@ def register_entity_views(admin_bp):
                     ("show_size", "إظهار المقاس", "checkbox"),
                     ("size_font_size", "حجم المقاس", "number", 7, 18, .5, False),
                     ("size_font_weight", "وزن المقاس", "number", 300, 900, 100, True),
+                    ("size_background_opacity", "شفافية خلفية المقاس", "number", 0, 1, .05, False),
                     ("meta_font_size", "حجم المعلومة العلوية", "number", 6, 18, .5, False),
                     ("meta_radius", "تدوير المعلومة العلوية", "number", 0, 16, 1, True),
                     ("meta_padding_horizontal", "حشو المعلومة أفقيًا", "number", 0, 12, 1, True),
