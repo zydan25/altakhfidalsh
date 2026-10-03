@@ -7602,7 +7602,7 @@ class _SxCartScreenState extends State<SxCartScreen> {
 
     return _CartNotice(
       icon: Icons.local_shipping_outlined,
-      text: 'تكلفة التوصيل الحالية $\{sxMoney(q['price_display'])} $\{_currencySymbol()}',
+      text: 'تكلفة التوصيل الحالية ' + sxMoney(q['price_display']) + ' ' + _currencySymbol() + '.',
     );
   }
 
