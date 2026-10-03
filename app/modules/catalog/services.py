@@ -2268,6 +2268,168 @@ class CatalogService:
         return items
 
     @staticmethod
+    def product_card_display_settings():
+        """Global storefront product-card decoration/layout controlled by AppSetting."""
+        import json
+        defaults = {
+            "show_brand": True,
+            "brand_position": "top_left",
+            "brand_background_color": "#111827",
+            "brand_text_color": "#ffffff",
+            "brand_font_size": 8,
+            "brand_radius": 4,
+            "show_product_badges": True,
+            "product_badge_position": "top_right",
+            "product_badge_font_size": 8,
+            "product_badge_radius": 3,
+            "product_badge_max": 2,
+            "show_trend_badge": True,
+            "trend_badge_text": "Trends",
+            "trend_badge_background_color": "#8b5cf6",
+            "trend_badge_text_color": "#ffffff",
+            "trend_badge_font_size": 8,
+            "trend_badge_radius": 3,
+            "show_trend_hashtag": True,
+            "trend_hashtag_text_color": "#7c3aed",
+            "trend_hashtag_background_color": "#f0e6ff",
+            "trend_hashtag_use_background": True,
+            "trend_hashtag_font_size": 8,
+            "trend_hashtag_font_weight": 800,
+            "trend_show_arrow": True,
+            "trend_arrow_text": "‹",
+            "trend_arrow_color": "#7c3aed",
+            "trend_ribbon_gap": 3,
+            "colors_show": True,
+            "colors_position": "bottom_right",
+            "colors_direction": "horizontal",
+            "colors_size": 13,
+            "colors_gap": 2,
+            "colors_max": 6,
+            "colors_container_size": 16,
+            "colors_border_width": 1,
+            "meta_show": True,
+            "meta_position": "top_right",
+            "meta_font_size": 7.5,
+            "meta_background_color": "#f4f4f4",
+            "meta_text_color": "#111111",
+            "meta_radius": 3,
+            "meta_padding_horizontal": 4,
+            "meta_padding_vertical": 2,
+        }
+        row = AppSetting.query.filter_by(
+            group_code="storefront",
+            key="product_card_settings",
+        ).first()
+        custom = {}
+        if row and row.value:
+            try:
+                decoded = json.loads(row.value)
+                if isinstance(decoded, dict):
+                    custom = decoded
+            except (TypeError, ValueError):
+                custom = {}
+
+        merged = {**defaults, **custom}
+
+        def _number(key, low, high, integer=False):
+            raw = merged.get(key)
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                value = float(defaults[key])
+            value = max(low, min(high, value))
+            return int(round(value)) if integer else value
+
+        def _bool(key):
+            value = merged.get(key)
+            return value if isinstance(value, bool) else bool(value)
+
+        def _color(key):
+            value = str(merged.get(key) or defaults[key]).strip()
+            import re
+            return value if re.fullmatch(r"#[0-9a-fA-F]{6}", value) else defaults[key]
+
+        for key, low, high, integer in (
+            ("brand_font_size", 6, 18, False),
+            ("brand_radius", 0, 16, True),
+            ("product_badge_font_size", 6, 18, False),
+            ("product_badge_radius", 0, 16, True),
+            ("product_badge_max", 1, 4, True),
+            ("trend_badge_font_size", 6, 18, False),
+            ("trend_badge_radius", 0, 16, True),
+            ("trend_hashtag_font_size", 6, 18, False),
+            ("trend_hashtag_font_weight", 400, 900, True),
+            ("trend_ribbon_gap", 0, 12, True),
+            ("colors_size", 8, 24, True),
+            ("colors_gap", 0, 10, True),
+            ("colors_max", 1, 8, True),
+            ("colors_container_size", 10, 28, True),
+            ("colors_border_width", 0, 3, True),
+            ("meta_font_size", 6, 18, False),
+            ("meta_radius", 0, 16, True),
+            ("meta_padding_horizontal", 0, 12, True),
+            ("meta_padding_vertical", 0, 8, True),
+        ):
+            merged[key] = _number(key, low, high, integer)
+
+        for key in (
+            "show_brand",
+            "show_product_badges",
+            "show_trend_badge",
+            "show_trend_hashtag",
+            "trend_hashtag_use_background",
+            "trend_show_arrow",
+            "colors_show",
+            "meta_show",
+        ):
+            merged[key] = _bool(key)
+
+        for key in (
+            "brand_background_color",
+            "brand_text_color",
+            "trend_badge_background_color",
+            "trend_badge_text_color",
+            "trend_hashtag_text_color",
+            "trend_hashtag_background_color",
+            "trend_arrow_color",
+            "meta_background_color",
+            "meta_text_color",
+        ):
+            merged[key] = _color(key)
+
+        for key in (
+            "brand_position",
+            "product_badge_position",
+            "colors_position",
+            "colors_direction",
+            "meta_position",
+        ):
+            merged[key] = str(merged.get(key) or defaults[key]).strip().lower()
+
+        if merged["brand_position"] not in {"top_left", "top_right", "bottom_left", "bottom_right"}:
+            merged["brand_position"] = defaults["brand_position"]
+        if merged["product_badge_position"] not in {"top_left", "top_right", "bottom_left", "bottom_right"}:
+            merged["product_badge_position"] = defaults["product_badge_position"]
+        if merged["colors_position"] not in {"top_left", "top_right", "bottom_left", "bottom_right"}:
+            merged["colors_position"] = defaults["colors_position"]
+        if merged["colors_direction"] not in {"horizontal", "vertical"}:
+            merged["colors_direction"] = defaults["colors_direction"]
+        if merged["meta_position"] not in {"top_left", "top_right", "bottom_left", "bottom_right"}:
+            merged["meta_position"] = defaults["meta_position"]
+
+        for key, limit in (
+            ("trend_badge_text", 40),
+            ("trend_show_arrow", 1),
+        ):
+            if key == "trend_badge_text":
+                merged[key] = str(merged.get(key) or defaults[key]).strip()[:limit]
+        merged["trend_arrow_text"] = str(
+            merged.get("trend_arrow_text") or defaults["trend_arrow_text"]
+        ).strip()[:3] or defaults["trend_arrow_text"]
+
+        return merged
+
+    @staticmethod
     def _serialize_trend_product(product):
         media_rows = (
             db.session.query(ProductMedia, MediaAsset)
