@@ -1372,6 +1372,427 @@ def register_entity_views(admin_bp):
             db.session.rollback()
             return redirect(url_for("admin.trends", trend_settings_error=str(exc)))
 
+    @admin_bp.route("/trends/display-settings", methods=["GET", "POST"])
+    def trends_display_settings():
+        import json
+
+        # The old /trends/settings endpoint remains untouched for backward
+        # compatibility. This page is a clearer editor for the same settings.
+        trend_groups = [
+            {
+                "title": "الهيكل والمساحة",
+                "hint": "حجم مساحة الترند والبطاقة والصورة الخلفية.",
+                "fields": [
+                    ("hero_height", "ارتفاع مساحة الترند", "number", 180, 520, 1, True),
+                    ("hero_card_top", "موضع البطاقة من الأعلى", "number", 35, 180, 1, True),
+                    ("hero_card_width", "عرض بطاقة الترند", "number", 220, 520, 1, True),
+                    ("hero_card_height", "ارتفاع بطاقة الترند", "number", 120, 360, 1, True),
+                    ("hero_card_radius", "تدوير بطاقة الترند", "number", 0, 40, 1, True),
+                    ("hero_card_border_width", "سُمك إطار البطاقة", "number", 0, 5, .1, False),
+                    ("hero_background_overlay_opacity", "تغميق الخلفية", "number", 0, 1, .01, False),
+                    ("hero_card_overlay_opacity", "تغميق بطاقة الترند", "number", 0, 1, .01, False),
+                    ("content_padding", "مسافة المحتوى الداخلي", "number", 0, 30, 1, True),
+                ],
+            },
+            {
+                "title": "العنوان والوصف",
+                "hint": "التحكم في اسم الترند والوصف والرموز.",
+                "fields": [
+                    ("show_title", "إظهار عنوان الترند", "checkbox"),
+                    ("show_description", "إظهار وصف الترند", "checkbox"),
+                    ("title_align", "محاذاة العنوان", "select", ["right", "center", "left"]),
+                    ("description_align", "محاذاة الوصف", "select", ["right", "center", "left"]),
+                    ("title_show_arrow", "إظهار السهم", "checkbox"),
+                    ("title_arrow", "السهم", "select", [">", "<"]),
+                    ("title_arrow_font_size", "حجم السهم", "number", 9, 28, .5, False),
+                    ("title_arrow_gap", "المسافة بين العنوان والسهم", "number", 0, 20, 1, True),
+                    ("show_title_hash", "إظهار # قبل العنوان", "checkbox"),
+                    ("title_hash_text", "رمز قبل العنوان", "text", 3),
+                    ("title_font_size", "حجم العنوان", "number", 10, 34, .5, False),
+                    ("title_font_weight", "وزن العنوان", "number", 400, 900, 100, True),
+                    ("title_spacing", "المسافة تحت العنوان", "number", 0, 20, 1, True),
+                    ("promo_font_size", "حجم الوصف الترويجي", "number", 7, 18, .5, False),
+                    ("promo_font_weight", "وزن الوصف الترويجي", "number", 400, 900, 100, True),
+                    ("promo_max_lines", "عدد أسطر الوصف", "number", 1, 3, 1, True),
+                ],
+            },
+            {
+                "title": "المنتجات داخل الترند",
+                "hint": "البطاقات الثلاث التي تظهر داخل مستطيل الترند.",
+                "fields": [
+                    ("product_width", "عرض المنتج", "number", 0, 180, .5, False),
+                    ("product_height", "ارتفاع المنتجات", "number", 0, 320, 1, True),
+                    ("product_top_spacing", "المسافة قبل المنتجات", "number", 8, 120, 1, True),
+                    ("product_gap", "المسافة بين المنتجات", "number", 0, 20, 1, True),
+                    ("product_radius", "تدوير المنتجات", "number", 0, 20, 1, True),
+                    ("product_info_height", "ارتفاع معلومات المنتج", "number", 16, 55, 1, True),
+                    ("show_product_name", "إظهار اسم المنتج", "checkbox"),
+                    ("show_product_price", "إظهار سعر المنتج", "checkbox"),
+                    ("product_name_font_size", "حجم اسم المنتج", "number", 6, 14, .5, False),
+                    ("product_price_font_size", "حجم السعر", "number", 7, 15, .5, False),
+                    ("product_name_font_weight", "وزن اسم المنتج", "number", 400, 900, 100, True),
+                    ("product_price_font_weight", "وزن السعر", "number", 400, 900, 100, True),
+                    ("product_name_max_lines", "أقصى أسطر الاسم", "number", 1, 3, 1, True),
+                    ("product_name_align", "محاذاة اسم المنتج", "select", ["right", "center", "left"]),
+                    ("product_price_align", "محاذاة السعر", "select", ["right", "center", "left"]),
+                    ("product_image_fit", "طريقة ملء الصورة", "select", ["cover", "contain", "fill"]),
+                ],
+            },
+            {
+                "title": "الشارة والمؤقت والعداد",
+                "hint": "المظهر العلوي لبطاقة الترند.",
+                "fields": [
+                    ("badge_text", "نص الشارة", "text", 120),
+                    ("badge_position", "مكان الشارة", "select", ["top_right", "top_left"]),
+                    ("badge_font_size", "حجم خط الشارة", "number", 7, 16, .5, False),
+                    ("badge_radius", "تدوير الشارة", "number", 0, 16, 1, True),
+                    ("show_timer", "إظهار المؤقت", "checkbox"),
+                    ("timer_position", "مكان المؤقت", "select", ["top_left", "top_right"]),
+                    ("timer_font_size", "حجم خط المؤقت", "number", 7, 16, .5, False),
+                    ("timer_radius", "تدوير المؤقت", "number", 0, 16, 1, True),
+                    ("show_counter", "إظهار العداد", "checkbox"),
+                    ("counter_font_size", "حجم العداد", "number", 7, 18, 1, True),
+                    ("counter_bottom", "موضع العداد من الأسفل", "number", 0, 30, 1, True),
+                ],
+            },
+            {
+                "title": "شريط البحث والرأس",
+                "hint": "إعدادات رأس صفحة الترندات وشريط البحث.",
+                "fields": [
+                    ("logo_text", "النص العلوي", "text", 60),
+                    ("logo_font_size", "حجم النص العلوي", "number", 14, 40, 1, True),
+                    ("logo_letter_spacing", "تباعد حروف النص العلوي", "number", -4, 2, .1, False),
+                    ("header_collapse_enabled", "تفعيل انكماش الرأس", "checkbox"),
+                    ("header_collapse_offset", "مسافة بدء الانكماش", "number", 0, 140, 1, False),
+                    ("compact_header_height", "ارتفاع الرأس المضغوط", "number", 44, 96, 1, True),
+                    ("search_width_ratio", "نسبة عرض البحث", "number", .45, .9, .01, False),
+                    ("search_height", "ارتفاع البحث", "number", 32, 58, 1, True),
+                    ("search_radius", "تدوير البحث", "number", 0, 30, 1, True),
+                    ("search_horizontal_padding", "حشو البحث الأفقي", "number", 4, 24, 1, True),
+                    ("search_icon_size", "حجم أيقونة البحث", "number", 14, 30, 1, True),
+                    ("search_font_size", "حجم خط البحث", "number", 9, 20, .5, False),
+                    ("search_hint", "نص البحث التجريبي", "text", 80),
+                ],
+            },
+            {
+                "title": "شريط الهاشتاج والسحب",
+                "hint": "أزرار الهاشتاج وتعليمات السحب والتحديث.",
+                "fields": [
+                    ("hashtag_font_size", "حجم الهاشتاج", "number", 8, 18, .5, False),
+                    ("hashtag_radius", "تدوير الهاشتاج", "number", 0, 20, 1, True),
+                    ("pull_enabled", "تفعيل السحب للتحديث", "checkbox"),
+                    ("pull_text", "نص السحب", "text", 120),
+                    ("pull_release_text", "نص التحرير", "text", 120),
+                    ("pull_font_size", "حجم خط السحب", "number", 8, 20, .5, False),
+                    ("pull_height", "ارتفاع منطقة السحب", "number", 28, 100, 1, True),
+                    ("pull_distance", "مسافة تفعيل التحديث", "number", 30, 130, 1, True),
+                    ("content_top_radius", "تدوير أعلى المحتوى", "number", 0, 40, 1, True),
+                ],
+            },
+            {
+                "title": "متجر الترندات واختياراتنا",
+                "hint": "البطاقات التي تظهر في أقسام الترندات داخل المتجر.",
+                "fields": [
+                    ("trend_store_card_height", "ارتفاع بطاقة ترند المتجر", "number", 220, 520, 1, True),
+                    ("trend_store_image_height", "ارتفاع صورة بطاقة الترند", "number", 140, 430, 1, True),
+                    ("trend_store_content_height", "ارتفاع محتوى بطاقة الترند", "number", 50, 140, 1, True),
+                    ("trend_store_radius", "تدوير بطاقة الترند", "number", 0, 30, 1, True),
+                    ("trend_store_content_padding", "حشو محتوى بطاقة الترند", "number", 4, 24, 1, True),
+                    ("trend_store_show_title", "إظهار عنوان بطاقة الترند", "checkbox"),
+                    ("trend_store_show_description", "إظهار وصف بطاقة الترند", "checkbox"),
+                    ("trend_store_title_offset", "إزاحة عنوان البطاقة", "number", -30, 30, 1, True),
+                    ("trend_store_title_align", "محاذاة عنوان البطاقة", "select", ["right", "center", "left"]),
+                    ("trend_store_title_show_arrow", "إظهار سهم عنوان البطاقة", "checkbox"),
+                    ("trend_store_title_arrow", "سهم عنوان البطاقة", "select", [">", "<"]),
+                    ("trend_store_title_arrow_font_size", "حجم سهم عنوان البطاقة", "number", 9, 28, .5, False),
+                    ("trend_store_title_arrow_gap", "مسافة السهم", "number", 0, 20, 1, True),
+                    ("trend_store_title_spacing", "المسافة تحت العنوان", "number", 0, 30, 1, True),
+                    ("trend_store_title_font_size", "حجم عنوان البطاقة", "number", 9, 28, .5, False),
+                    ("trend_store_title_font_weight", "وزن عنوان البطاقة", "number", 400, 900, 100, True),
+                    ("trend_store_promo_offset", "إزاحة وصف البطاقة", "number", -30, 30, 1, True),
+                    ("trend_store_promo_align", "محاذاة الوصف", "select", ["right", "center", "left"]),
+                    ("trend_store_promo_font_size", "حجم وصف البطاقة", "number", 8, 20, .5, False),
+                    ("trend_store_promo_font_weight", "وزن وصف البطاقة", "number", 400, 900, 100, True),
+                    ("picks_card_extent", "ارتفاع بطاقة اختياراتنا", "number", 280, 520, 1, True),
+                    ("picks_image_height", "ارتفاع صورة اختياراتنا", "number", 190, 390, 1, True),
+                    ("picks_content_height", "ارتفاع محتوى اختياراتنا", "number", 60, 150, 1, True),
+                    ("picks_title_font_size", "حجم عنوان اختياراتنا", "number", 8, 18, .5, False),
+                ],
+            },
+        ]
+
+        trend_color_fields = [
+            ("hero_card_border_color", "لون إطار بطاقة الترند"),
+            ("hero_background_overlay_color", "لون تغميق الخلفية"),
+            ("hero_card_overlay_color", "لون تغميق البطاقة"),
+            ("title_color", "لون العنوان"),
+            ("title_arrow_color", "لون السهم"),
+            ("title_hash_color", "لون #"),
+            ("promo_color", "لون الوصف"),
+            ("badge_background_color", "خلفية الشارة"),
+            ("badge_text_color", "لون نص الشارة"),
+            ("counter_color", "لون العداد"),
+            ("timer_background_color", "خلفية المؤقت"),
+            ("timer_text_color", "لون نص المؤقت"),
+            ("top_icon_color", "لون أيقونات الرأس"),
+            ("logo_color", "لون النص العلوي"),
+            ("tabs_active_color", "لون التبويب النشط"),
+            ("tabs_inactive_color", "لون التبويب غير النشط"),
+            ("tabs_indicator_color", "لون مؤشر التبويب"),
+            ("hashtag_text_color", "لون الهاشتاج"),
+            ("hashtag_active_text_color", "لون الهاشتاج النشط"),
+            ("hashtag_background_color", "خلفية الهاشتاج"),
+            ("hashtag_active_background_color", "خلفية الهاشتاج النشط"),
+            ("pull_background_color", "خلفية السحب"),
+            ("pull_indicator_color", "لون مؤشر السحب"),
+            ("pull_text_color", "لون نص السحب"),
+            ("page_background_color", "خلفية الصفحة"),
+            ("search_background_color", "خلفية البحث"),
+            ("search_text_color", "لون نص البحث"),
+            ("search_icon_color", "لون أيقونة البحث"),
+            ("search_divider_color", "لون فاصل البحث"),
+            ("trend_store_content_background", "خلفية محتوى بطاقة الترند"),
+            ("trend_store_title_color", "لون عنوان بطاقة الترند"),
+            ("trend_store_title_arrow_color", "لون سهم بطاقة الترند"),
+            ("trend_store_promo_color", "لون وصف بطاقة الترند"),
+            ("hero_product_name_color", "لون اسم المنتج داخل الترند"),
+            ("hero_product_price_color", "لون سعر المنتج داخل الترند"),
+            ("hero_product_text_color", "لون نص المنتج داخل الترند"),
+            ("hero_product_info_background_color", "خلفية معلومات المنتج داخل الترند"),
+            ("product_text_color", "لون نص المنتج"),
+            ("product_name_color", "لون اسم المنتج"),
+            ("product_price_color", "لون سعر المنتج"),
+            ("product_info_background_color", "خلفية معلومات المنتج"),
+        ]
+
+        product_card_groups = [
+            {
+                "title": "الترند والهاشتاج فوق اسم المنتج",
+                "hint": "هذه العناصر تظهر قبل اسم المنتج في البطاقة الرئيسية.",
+                "fields": [
+                    ("show_trend_badge", "إظهار شارة الترند", "checkbox"),
+                    ("trend_badge_text", "اسم شارة الترند", "text", 40),
+                    ("trend_badge_font_size", "حجم شارة الترند", "number", 6, 18, .5, False),
+                    ("trend_badge_radius", "تدوير شارة الترند", "number", 0, 16, 1, True),
+                    ("show_trend_hashtag", "إظهار هاشتاج الترند", "checkbox"),
+                    ("trend_hashtag_font_size", "حجم الهاشتاج", "number", 6, 18, .5, False),
+                    ("trend_hashtag_font_weight", "وزن الهاشتاج", "number", 400, 900, 100, True),
+                    ("trend_hashtag_use_background", "إظهار خلفية الهاشتاج", "checkbox"),
+                    ("trend_ribbon_gap", "المسافة بين الترند والهاشتاج", "number", 0, 12, 1, True),
+                    ("trend_show_arrow", "إظهار سهم الهاشتاج", "checkbox"),
+                    ("trend_arrow_text", "رمز السهم", "text", 3),
+                ],
+            },
+            {
+                "title": "الألوان داخل صورة المنتج",
+                "hint": "مكان وشكل ألوان المنتج. الافتراضي الآن رأسي ومناسب لبطاقة شي إن.",
+                "fields": [
+                    ("colors_show", "إظهار ألوان المنتج", "checkbox"),
+                    ("colors_position", "مكان الألوان", "select", ["bottom_right", "bottom_left", "top_right", "top_left"]),
+                    ("colors_direction", "اتجاه الألوان", "select", ["vertical", "horizontal"]),
+                    ("colors_size", "حجم دائرة اللون", "number", 8, 24, 1, True),
+                    ("colors_container_size", "حجم حاوية اللون", "number", 10, 28, 1, True),
+                    ("colors_gap", "المسافة بين الألوان", "number", 0, 10, 1, True),
+                    ("colors_max", "أقصى عدد ألوان", "number", 1, 8, 1, True),
+                    ("colors_border_width", "سُمك حدود دائرة اللون", "number", 0, 3, .5, False),
+                ],
+            },
+            {
+                "title": "الهوية والشارات والمعلومة العلوية",
+                "hint": "العلامة التجارية وشارات المنتج والمقاس/العمر.",
+                "fields": [
+                    ("show_brand", "إظهار العلامة التجارية", "checkbox"),
+                    ("brand_position", "مكان العلامة التجارية", "select", ["top_left", "top_right", "bottom_left", "bottom_right"]),
+                    ("brand_font_size", "حجم العلامة التجارية", "number", 6, 18, .5, False),
+                    ("brand_radius", "تدوير العلامة التجارية", "number", 0, 16, 1, True),
+                    ("show_product_badges", "إظهار شارات المنتج", "checkbox"),
+                    ("product_badge_position", "مكان شارات المنتج", "select", ["top_left", "top_right", "bottom_left", "bottom_right"]),
+                    ("product_badge_font_size", "حجم شارة المنتج", "number", 6, 18, .5, False),
+                    ("product_badge_radius", "تدوير شارة المنتج", "number", 0, 16, 1, True),
+                    ("product_badge_max", "عدد الشارات المعروضة", "number", 1, 4, 1, True),
+                    ("meta_show", "إظهار المقاس/العمر", "checkbox"),
+                    ("meta_position", "مكان المقاس/العمر", "select", ["top_right", "top_left", "bottom_right", "bottom_left"]),
+                    ("meta_font_size", "حجم المقاس/العمر", "number", 6, 18, .5, False),
+                    ("meta_radius", "تدوير المقاس/العمر", "number", 0, 16, 1, True),
+                    ("meta_padding_horizontal", "حشو المقاس أفقيًا", "number", 0, 12, 1, True),
+                    ("meta_padding_vertical", "حشو المقاس رأسيًا", "number", 0, 8, 1, True),
+                ],
+            },
+        ]
+
+        product_card_color_fields = [
+            ("brand_background_color", "خلفية العلامة التجارية"),
+            ("brand_text_color", "لون نص العلامة"),
+            ("trend_badge_background_color", "خلفية شارة الترند"),
+            ("trend_badge_text_color", "لون نص شارة الترند"),
+            ("trend_hashtag_text_color", "لون نص الهاشتاج"),
+            ("trend_hashtag_background_color", "خلفية الهاشتاج"),
+            ("trend_arrow_color", "لون السهم"),
+            ("meta_background_color", "خلفية المقاس/العمر"),
+            ("meta_text_color", "لون نص المقاس/العمر"),
+        ]
+
+        trend_number_names = {
+            field[0]: field for group in trend_groups for field in group["fields"]
+            if field[2] == "number"
+        }
+        trend_select_names = {
+            field[0]: field[3] for group in trend_groups for field in group["fields"]
+            if field[2] == "select"
+        }
+        product_number_names = {
+            field[0]: field for group in product_card_groups for field in group["fields"]
+            if field[2] == "number"
+        }
+        product_select_names = {
+            field[0]: field[3] for group in product_card_groups for field in group["fields"]
+            if field[2] == "select"
+        }
+
+        error = None
+        success = None
+        if request.method == "POST":
+            action = (request.form.get("action") or "").strip()
+            try:
+                if action == "save_trends":
+                    settings = dict(CatalogService.trend_display_settings())
+                    color_re = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+                    for group in trend_groups:
+                        for field in group["fields"]:
+                            key, _label, kind = field[:3]
+                            if kind == "checkbox":
+                                settings[key] = request.form.get(key) == "on"
+                            elif kind == "number":
+                                _value, _ = field[3], field[4]
+                                raw = request.form.get(key)
+                                value = float(raw) if raw not in (None, "") else float(settings[key])
+                                value = max(float(_value), min(float(field[4]), value))
+                                settings[key] = int(round(value)) if field[6] else value
+                            elif kind == "text":
+                                max_len = int(field[3])
+                                settings[key] = (request.form.get(key) or settings.get(key) or "").strip()[:max_len]
+                            elif kind == "select":
+                                allowed = field[3]
+                                value = (request.form.get(key) or settings.get(key) or "").strip()
+                                if value not in allowed:
+                                    raise ValueError(f"القيمة {key} غير صالحة.")
+                                settings[key] = value
+
+                    for key, _label in trend_color_fields:
+                        value = (request.form.get(key) or settings.get(key) or "").strip()
+                        if not color_re.fullmatch(value):
+                            raise ValueError(f"لون {_label} غير صالح. استخدم صيغة مثل #7c3aed.")
+                        settings[key] = value
+
+                    # Keep both the detailed and legacy hero product keys in sync.
+                    for new_name, old_name in {
+                        "hero_product_radius": "product_radius",
+                        "hero_product_info_height": "product_info_height",
+                        "hero_show_product_name": "show_product_name",
+                        "hero_show_product_price": "show_product_price",
+                        "hero_product_name_font_size": "product_name_font_size",
+                        "hero_product_price_font_size": "product_price_font_size",
+                        "hero_product_name_font_weight": "product_name_font_weight",
+                        "hero_product_price_font_weight": "product_price_font_weight",
+                        "hero_product_name_max_lines": "product_name_max_lines",
+                        "hero_product_name_align": "product_name_align",
+                        "hero_product_price_align": "product_price_align",
+                        "hero_product_name_color": "product_name_color",
+                        "hero_product_price_color": "product_price_color",
+                        "hero_product_text_color": "product_text_color",
+                        "hero_product_info_background_color": "product_info_background_color",
+                        "hero_product_image_fit": "product_image_fit",
+                    }.items():
+                        if new_name not in settings or settings[new_name] is None:
+                            settings[new_name] = settings.get(old_name)
+
+                    row = AppSetting.query.filter_by(group_code="trends", key="display_settings").first()
+                    payload = json.dumps(settings, ensure_ascii=False, separators=(",", ":"))
+                    if row is None:
+                        row = AppSetting(
+                            group_code="trends",
+                            key="display_settings",
+                            value=payload,
+                            value_type="json",
+                        )
+                        db.session.add(row)
+                    else:
+                        row.value = payload
+                        row.value_type = "json"
+                    db.session.commit()
+                    success = "تم حفظ إعدادات الترندات."
+
+                elif action == "save_product_card":
+                    settings = dict(CatalogService.product_card_display_settings())
+                    color_re = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+                    for group in product_card_groups:
+                        for field in group["fields"]:
+                            key, _label, kind = field[:3]
+                            if kind == "checkbox":
+                                settings[key] = request.form.get(key) == "on"
+                            elif kind == "number":
+                                raw = request.form.get(key)
+                                value = float(raw) if raw not in (None, "") else float(settings[key])
+                                value = max(float(field[3]), min(float(field[4]), value))
+                                settings[key] = int(round(value)) if field[6] else value
+                            elif kind == "text":
+                                max_len = int(field[3])
+                                settings[key] = (request.form.get(key) or settings.get(key) or "").strip()[:max_len]
+                            elif kind == "select":
+                                allowed = field[3]
+                                value = (request.form.get(key) or settings.get(key) or "").strip()
+                                if value not in allowed:
+                                    raise ValueError(f"القيمة {key} غير صالحة.")
+                                settings[key] = value
+
+                    for key, _label in product_card_color_fields:
+                        value = (request.form.get(key) or settings.get(key) or "").strip()
+                        if not color_re.fullmatch(value):
+                            raise ValueError(f"لون {_label} غير صالح. استخدم صيغة مثل #7c3aed.")
+                        settings[key] = value
+
+                    row = AppSetting.query.filter_by(
+                        group_code="storefront",
+                        key="product_card_settings",
+                    ).first()
+                    payload = json.dumps(settings, ensure_ascii=False, separators=(",", ":"))
+                    if row is None:
+                        row = AppSetting(
+                            group_code="storefront",
+                            key="product_card_settings",
+                            value=payload,
+                            value_type="json",
+                        )
+                        db.session.add(row)
+                    else:
+                        row.value = payload
+                        row.value_type = "json"
+                    db.session.commit()
+                    success = "تم حفظ إعدادات بطاقة المنتج."
+
+                else:
+                    raise ValueError("إجراء الإعدادات غير معروف.")
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+        return render_template(
+            "admin/trend_product_display_settings.html",
+            title="إعدادات الترندات وبطاقات المنتجات",
+            section="المحتوى والمتجر",
+            trend_display_settings=CatalogService.trend_display_settings(),
+            trend_groups=trend_groups,
+            trend_color_fields=trend_color_fields,
+            product_card_settings=CatalogService.product_card_display_settings(),
+            product_card_groups=product_card_groups,
+            product_card_color_fields=product_card_color_fields,
+            error=error,
+            success=success,
+            **_ctx(),
+        )
+
     @admin_bp.route("/trends", methods=["GET", "POST"])
     def trends():
         from ..models import (
