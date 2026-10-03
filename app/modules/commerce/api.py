@@ -184,6 +184,14 @@ def shipping_quote():
             "min_order_sar": str(quote.min_order_sar) if quote.min_order_sar is not None else None,
             "max_order_sar": str(quote.max_order_sar) if quote.max_order_sar is not None else None,
             "free_over_sar": str(quote.free_over_sar) if quote.free_over_sar is not None else None,
+            "free_shipping_threshold_sar": (
+                str(quote.free_shipping_threshold_sar)
+                if quote.free_shipping_threshold_sar is not None
+                else None
+            ),
+            "base_price_sar": str(quote.base_price_sar),
+            "adjustment_sar": str(quote.adjustment_sar),
+            "applied_rule_ids": list(quote.applied_rule_ids),
         }}
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "shipping_quote_failed", "detail": str(exc)}, 400
