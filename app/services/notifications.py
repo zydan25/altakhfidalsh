@@ -1,11 +1,37 @@
+import json
 from datetime import datetime, timezone
 
+from sqlalchemy import text
+
 from ...extensions import db
-from ...models import CustomerNotification, Notification
+from ...models import Customer, CustomerNotification, CustomerPreference, Notification
 
 
 class NotificationService:
-    """Create durable in-app customer notifications from business events."""
+    """Create durable in-app and real-time customer notifications."""
+
+    @staticmethod
+    def _emit(customer_id, notification_id):
+        payload = json.dumps(
+            {
+                "customer_id": int(customer_id),
+                "notification_id": int(notification_id),
+            },
+            separators=(",", ":"),
+        )
+        try:
+            if db.session.bind and db.session.bind.dialect.name == "postgresql":
+                db.session.execute(
+                    text("SELECT pg_notify(:channel, :payload)"),
+                    {
+                        "channel": "customer_notifications",
+                        "payload": payload,
+                    },
+                )
+        except Exception:
+            # WebSocket delivery is best-effort. The durable row remains the
+            # source of truth and will be available through the notifications API.
+            pass
 
     @staticmethod
     def create(customer_id, notification_type, title, body, data=None):
@@ -27,6 +53,7 @@ class NotificationService:
                 notification_id=row.id,
             )
         )
+        NotificationService._emit(customer_id, row.id)
         db.session.commit()
         return {
             "id": row.id,
@@ -36,6 +63,50 @@ class NotificationService:
             "data": row.data,
             "read_at": None,
         }
+
+    @staticmethod
+    def broadcast(title, body, data=None):
+        """Send one notification to all active customers with notifications enabled."""
+        customer_rows = (
+            db.session.query(Customer.id)
+            .outerjoin(
+                CustomerPreference,
+                CustomerPreference.customer_id == Customer.id,
+            )
+            .filter(
+                Customer.status == "active",
+                db.or_(
+                    CustomerPreference.customer_id.is_(None),
+                    CustomerPreference.notifications_enabled.is_(True),
+                ),
+            )
+            .order_by(Customer.id)
+            .all()
+        )
+        created = []
+        for (customer_id,) in customer_rows:
+            row = Notification(
+                customer_id=int(customer_id),
+                type=str((data or {}).get("type") or "announcement")[:60],
+                title=str(title or "إشعار")[:240],
+                body=str(body or "")[:10000],
+                data=dict(data or {}),
+                status="sent",
+                sent_at=datetime.now(timezone.utc),
+            )
+            db.session.add(row)
+            db.session.flush()
+            db.session.add(
+                CustomerNotification(
+                    customer_id=int(customer_id),
+                    notification_id=row.id,
+                )
+            )
+            created.append((int(customer_id), int(row.id)))
+        for customer_id, notification_id in created:
+            NotificationService._emit(customer_id, notification_id)
+        db.session.commit()
+        return {"count": len(created), "notification_ids": [x[1] for x in created]}
 
     @staticmethod
     def order_status_changed(order, body, status=None):
