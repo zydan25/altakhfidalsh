@@ -403,7 +403,17 @@ def register_entity_views(admin_bp):
                 elif action=="proof_reject":
                     proof=db.session.get(PaymentProof,request.form.get("proof_id",type=int))
                     if proof is None: raise ValueError("إثبات الدفع غير موجود.")
-                    proof.status="rejected"; proof.reviewed_by=session.get("admin_id"); proof.reviewed_at=db.func.now(); success="تم رفض إثبات الدفع."
+                    proof.status="rejected"; proof.reviewed_by=session.get("admin_id"); proof.reviewed_at=db.func.now()
+                    order = db.session.get(Order, proof.order_id)
+                    if order:
+                        from ..services.notifications import NotificationService
+                        NotificationService.payment_updated(
+                            order,
+                            "تم رفض إثبات الدفع",
+                            "تم رفض إثبات الدفع المرفوع. راجع الطلب وارفع إثباتًا صحيحًا.",
+                            order.payment_status,
+                        )
+                    success="تم رفض إثبات الدفع."
                 elif action=="transaction":
                     from ..modules.commerce.payment_shipping import PaymentShippingService
                     PaymentShippingService.record_payment({"order_id":request.form.get("order_id"),"method_id":request.form.get("method_id"),"currency_id":request.form.get("currency_id"),"amount":request.form.get("amount"),"provider_ref":request.form.get("provider_ref"),"status":request.form.get("status","pending")}); success="تم تسجيل عملية الدفع."
