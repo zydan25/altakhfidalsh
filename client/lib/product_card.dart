@@ -17,6 +17,21 @@ Color sxColor(dynamic value, Color fallback) {
   if (!RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(raw)) return fallback;
   return Color(int.tryParse('FF' + raw.substring(1), radix: 16) ?? fallback.value);
 }
+double sxProductImageRatio(ProductModel product) {
+  final direct = product.imageAspectRatio;
+  if (direct != null && direct > 0) return direct.clamp(.56, 1.45).toDouble();
+  final raw = product.cardAspectRatio ?? '';
+  final parts = raw.split(':');
+  if (parts.length == 2) {
+    final width = double.tryParse(parts[0]);
+    final height = double.tryParse(parts[1]);
+    if (width != null && height != null && width > 0 && height > 0) {
+      return (width / height).clamp(.56, 1.45).toDouble();
+    }
+  }
+  return .75;
+}
+
 class _ProductCardImage extends StatelessWidget {
   final String? url;
   final BoxFit fit;
@@ -102,6 +117,7 @@ class SxProductGrid extends StatelessWidget {
               key: ValueKey<int>(products[i].id),
               product: products[i],
               displaySettings: displaySettings,
+              onProductTap: onProductTap,
             ),
           ),
         ),
@@ -149,6 +165,7 @@ class _SxMasonryProductGrid extends StatelessWidget {
                 product: rows[i],
                 masonry: true,
                 displaySettings: displaySettings,
+                onProductTap: onProductTap,
               ),
               if (i != rows.length - 1) const SizedBox(height: 7),
             ],
