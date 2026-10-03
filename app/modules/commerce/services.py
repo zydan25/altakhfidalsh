@@ -181,6 +181,7 @@ class CommerceService:
                         "price": price,
                         "context": context,
                         "qty": qty,
+                        "stock_location_id": stock.location_id,
                         "selected_options": raw.get("selected_options") or raw.get("options") or {},
                     }
                 )
