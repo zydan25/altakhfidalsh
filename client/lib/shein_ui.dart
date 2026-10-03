@@ -42,6 +42,7 @@ class SxAppShell extends StatefulWidget {
 
 class _SxAppShellState extends State<SxAppShell> {
   int index = 0;
+  Timer? _notificationTimer;
   final GlobalKey<_SxHomeScreenState> _homeKey = GlobalKey<_SxHomeScreenState>();
   final GlobalKey<_SxCartScreenState> _cartKey = GlobalKey<_SxCartScreenState>();
   late final List<Widget> pages;
@@ -55,12 +56,23 @@ class _SxAppShellState extends State<SxAppShell> {
       SxCartScreen(key: _cartKey),
       const SxAccountScreen(),
     ];
+    refreshNotificationBadge();
+    _notificationTimer = Timer.periodic(
+      const Duration(seconds: 4),
+      (_) => refreshNotificationBadge(),
+    );
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.dark,
       statusBarBrightness: Brightness.light,
     ));
   }
+  @override
+  void dispose() {
+    _notificationTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _handleBack() async {
     if (index != 0) {
       if (mounted) setState(() => index = 0);
@@ -1213,13 +1225,16 @@ class _HomeFixedHeader extends StatelessWidget {
                   textDirection: TextDirection.rtl,
                   child: Row(
                     children: [
-                      SxCircleIcon(
-                        icon: Icons.notifications_none_outlined,
-                        onTap: onNotifications,
-                        dot: true,
-                        iconColor: solidBackground
-                            ? Colors.black
-                            : Colors.white,
+                      ValueListenableBuilder<int>(
+                        valueListenable: notificationBadge,
+                        builder: (_, unread, __) => SxCircleIcon(
+                          icon: Icons.notifications_none_outlined,
+                          onTap: onNotifications,
+                          dot: unread > 0,
+                          iconColor: solidBackground
+                              ? Colors.black
+                              : Colors.white,
+                        ),
                       ),
                       const SizedBox(width: 7),
                       Expanded(
@@ -11391,21 +11406,165 @@ class SxNotificationsScreen extends StatefulWidget {
   const SxNotificationsScreen({super.key});
   @override State<SxNotificationsScreen> createState() => _SxNotificationsScreenState();
 }
+
 class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
-  List<Map<String, dynamic>> rows = []; bool loading = true;
-  @override void initState() { super.initState(); load(); }
-  Future<void> load() async {
-    try { final me = Map<String, dynamic>.from((await api.me())['item'] ?? {}); final id = sxInt(me['id']); if (id > 0) rows = await api.notifications(id); } catch (_) {}
-    if (mounted) setState(() => loading = false);
+  List<Map<String, dynamic>> rows = [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
   }
-  @override Widget build(BuildContext context) => SxShellPage(title: 'الإشعارات', back: true, child: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : rows.isEmpty ? const Center(child: Text('لا توجد إشعارات جديدة')) : ListView.separated(
-    itemCount: rows.length, separatorBuilder: (_, __) => const Divider(height: 1),
-    itemBuilder: (_, i) => ListTile(
-      leading: const CircleAvatar(backgroundColor: ClientTheme.soft, child: Icon(Icons.notifications_none, color: Colors.black)),
-      title: Text(sxText(rows[i]['title'], 'إشعار'), style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800)),
-      subtitle: Text(sxText(rows[i]['body'], sxText(rows[i]['message'])), style: const TextStyle(fontSize: 9)),
-    ),
-  ));
+
+  Future<void> load() async {
+    try {
+      final data = await api.notificationSummary();
+      final next = sxMaps(data['items']);
+      if (mounted) {
+        setState(() {
+          rows = next;
+          loading = false;
+        });
+      }
+      notificationBadge.value = sxInt(data['unread_count']);
+    } catch (_) {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> openNotification(Map<String, dynamic> row) async {
+    final id = sxInt(row['id']);
+    try {
+      if (id > 0 && sxText(row['read_at']).isEmpty) {
+        await api.markNotificationRead(
+          sxInt((await api.me())['item']?['id']),
+          id,
+        );
+        row['read_at'] = DateTime.now().toIso8601String();
+        notificationBadge.value = rows.where((x) => sxText(x['read_at']).isEmpty).length;
+        if (mounted) setState(() {});
+      }
+    } catch (_) {}
+
+    final data = row['data'] is Map
+        ? Map<String, dynamic>.from(row['data'])
+        : <String, dynamic>{};
+    final target = sxText(data['target']);
+    final conversationId = sxInt(data['conversation_id']);
+    final orderId = sxInt(data['order_id']);
+
+    if (!mounted) return;
+    if (target == 'conversation' && conversationId > 0) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SxConversationScreen(
+            conversationId: conversationId,
+            title: orderId > 0 ? 'محادثة الطلب' : 'خدمة العملاء',
+          ),
+        ),
+      );
+      await load();
+    } else if (target == 'order' && orderId > 0) {
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SxOrderDetailScreen(id: orderId),
+        ),
+      );
+    }
+  }
+
+  Future<void> markAllRead() async {
+    try {
+      await api.markAllNotificationsRead();
+      for (final row in rows) {
+        row['read_at'] = DateTime.now().toIso8601String();
+      }
+      notificationBadge.value = 0;
+      if (mounted) setState(() {});
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SxShellPage(
+      title: 'الإشعارات',
+      back: true,
+      child: loading
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : RefreshIndicator(
+              onRefresh: load,
+              child: ListView.separated(
+                padding: const EdgeInsets.fromLTRB(7, 8, 7, 20),
+                itemCount: rows.length + (rows.isNotEmpty ? 1 : 0),
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (_, i) {
+                  if (rows.isNotEmpty && i == 0) {
+                    return Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: TextButton.icon(
+                        onPressed: markAllRead,
+                        icon: const Icon(Icons.done_all, size: 17),
+                        label: const Text(
+                          'تحديد الكل كمقروء',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    );
+                  }
+                  if (rows.isEmpty) {
+                    return const Padding(
+                      padding: EdgeInsets.only(top: 120),
+                      child: Center(child: Text('لا توجد إشعارات')),
+                    );
+                  }
+                  final row = rows[i - 1];
+                  final unread = sxText(row['read_at']).isEmpty;
+                  return ListTile(
+                    onTap: () => openNotification(row),
+                    tileColor: unread ? const Color(0xFFF7F7F7) : Colors.white,
+                    leading: CircleAvatar(
+                      backgroundColor: unread ? Colors.black : ClientTheme.soft,
+                      child: Icon(
+                        sxText(row['type']) == 'message'
+                            ? Icons.chat_bubble_outline
+                            : sxText(row['type']) == 'shipping'
+                                ? Icons.local_shipping_outlined
+                                : sxText(row['type']) == 'payment'
+                                    ? Icons.payments_outlined
+                                    : Icons.notifications_none,
+                        color: unread ? Colors.white : Colors.black,
+                      ),
+                    ),
+                    title: Text(
+                      sxText(row['title'], 'إشعار'),
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: unread ? FontWeight.w900 : FontWeight.w700,
+                      ),
+                    ),
+                    subtitle: Text(
+                      sxText(row['body'], sxText(row['message'])),
+                      style: const TextStyle(fontSize: 9, height: 1.4),
+                    ),
+                    trailing: unread
+                        ? Container(
+                            width: 7,
+                            height: 7,
+                            decoration: const BoxDecoration(
+                              color: Colors.black,
+                              shape: BoxShape.circle,
+                            ),
+                          )
+                        : null,
+                  );
+                },
+              ),
+            ),
+    );
+  }
 }
 
 
@@ -11642,13 +11801,38 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
   final scroll=ScrollController();
   List<Map<String,dynamic>> messages=[];
   bool loading=true,sending=false,uploading=false;
-  @override void initState(){super.initState();load();}
-  Future<void> load() async{
+  Timer? _pollTimer;
+  bool _refreshingMessages = false;
+
+  @override
+  void initState(){
+    super.initState();
+    load();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 3),
+      (_) => load(silent: true),
+    );
+  }
+
+  Future<void> load({bool silent = false}) async{
+    if (_refreshingMessages) return;
+    _refreshingMessages = true;
     try{
       final next=await api.messages(widget.conversationId);
-      if(mounted)setState((){messages=next;loading=false;});
-      _scrollToBottom();
-    }catch(e){if(mounted)setState(()=>loading=false);}
+      if(mounted){
+        final hadNewMessage = next.length != messages.length ||
+            (next.isNotEmpty && messages.isNotEmpty &&
+                sxInt(next.last['id']) != sxInt(messages.last['id']));
+        setState((){messages=next;loading=false;});
+        await api.markConversationRead(widget.conversationId);
+        await refreshNotificationBadge();
+        if (hadNewMessage || !silent) _scrollToBottom();
+      }
+    }catch(e){
+      if(mounted && !silent)setState(()=>loading=false);
+    } finally {
+      _refreshingMessages = false;
+    }
   }
   void _scrollToBottom(){WidgetsBinding.instance.addPostFrameCallback((_){if(scroll.hasClients)scroll.jumpTo(scroll.position.maxScrollExtent);});}
   Future<void> send() async{
@@ -11672,7 +11856,12 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
       if(mounted)setState(()=>uploading=false);
     }
   }
-  @override void dispose(){input.dispose();scroll.dispose();super.dispose();}
+  @override void dispose(){
+    _pollTimer?.cancel();
+    input.dispose();
+    scroll.dispose();
+    super.dispose();
+  }
   Widget attachment(Map<String,dynamic> a){
     final url=sxImage(a['url']); final mime=sxText(a['mime_type']);
     if(mime.startsWith('image/')&&url.isNotEmpty){
