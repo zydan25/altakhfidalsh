@@ -8063,155 +8063,7 @@ String _compactNumber(double value){
  if(value.abs()<.005)return'0';
  final rounded=value.roundToDouble();
  if((value-rounded).abs()<.005)return rounded.toInt().toString();
- return value.toStringAsFixed(2).replaceFirst(RegExp(r'0+ extends StatefulWidget {
-  final List<Map<String, dynamic>> cartRows;
-  final Map<String, dynamic> address;
-  final Map<String, dynamic> quote;
-  final Map<String, dynamic> payment;
-  final String note;
-
-  const SxOrderReviewScreen({
-    super.key,
-    required this.cartRows,
-    required this.address,
-    required this.quote,
-    required this.payment,
-    required this.note,
-  });
-
-  @override State<SxOrderReviewScreen> createState() => _SxOrderReviewScreenState();
-}
-
-class _SxOrderReviewScreenState extends State<SxOrderReviewScreen> {
-  final note = TextEditingController();
-  bool busy = false;
-
-  @override
-  void initState() { super.initState(); note.text = widget.note; }
-  @override
-  void dispose() { note.dispose(); super.dispose(); }
-
-  Future<void> confirm() async {
-    if (busy) return;
-    setState(() => busy = true);
-    try {
-      final items = widget.cartRows.map((x) => {
-        'variant_id': x['variant_id'],
-        'qty': x['qty'],
-        'selected_options': x['selected_options'] is Map ? Map<String,dynamic>.from(x['selected_options']) : <String,dynamic>{},
-      }).toList();
-      final created = await api.createOrder(
-        sxInt(widget.address['id']),
-        items,
-        currencyId: state.currencyId,
-        paymentMethodId: sxInt(widget.payment['id']),
-        customerNote: note.text.trim(),
-      );
-      final item = created['item'];
-      final orderId = sxInt(item is Map ? item['id'] : 0);
-      final orderNo = sxText(item is Map ? item['order_no'] : '', '#');
-      try { await api.clearCart(); } catch (_) {}
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          icon: const Icon(Icons.check_circle_outline, size: 42),
-          title: const Text('تم تأكيد الطلب', style: TextStyle(fontWeight: FontWeight.w900)),
-          content: Text('رقم الطلب: ' + orderNo + '
-يمكنك متابعة حالته والدفع من صفحة الطلبات.'),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(context),
-              style: FilledButton.styleFrom(backgroundColor: Colors.black),
-              child: const Text('متابعة الطلبات'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted) return;
-      if (orderId > 0) {
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const SxOrdersScreen(initialFilter: 'pending')),
-          (_) => false,
-        );
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e))));
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final shipping = widget.quote['free'] == true ? 'مجاني' : sxText(widget.quote['price_display'], '0') + ' ' + state.currencySymbol;
-    final subtotal = widget.cartRows.fold<double>(0, (sum, row) => sum + (double.tryParse(sxText(row['line_total'], '0')) ?? 0));
-    final total = subtotal + (widget.quote['free'] == true ? 0 : (double.tryParse(sxText(widget.quote['price_display'], '0')) ?? 0));
-    final settings = _asMap(widget.payment['settings']);
-
-    return SxShellPage(
-      title: 'تأكيد الطلب',
-      back: true,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(10, 7, 10, 28),
-        children: [
-          _ReviewCard(title: 'عنوان التسليم', child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(sxText(widget.address['recipient_name']), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
-            const SizedBox(height: 4),
-            Text([sxText(widget.address['city_name']), sxText(widget.address['city_area_name']), sxText(widget.address['district']), sxText(widget.address['street']), sxText(widget.address['landmark'])].where((x) => x.trim().isNotEmpty).join(' • '), style: const TextStyle(fontSize: 9, color: ClientTheme.muted)),
-          ])),
-          const SizedBox(height: 7),
-          _ReviewCard(title: 'طريقة الدفع', child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Row(children: [
-              const Icon(Icons.account_balance_wallet_outlined, size: 18),
-              const SizedBox(width: 6),
-              Expanded(child: Text(sxText(widget.payment['name'], 'طريقة الدفع'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900))),
-              if (sxText(settings['type']) == 'cod') const SxPill(text: 'الدفع عند الاستلام', background: Color(0xFFEAF7F0), foreground: Color(0xFF18794E)),
-            ]),
-            if (settings.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(_paymentDetailsText(settings), style: const TextStyle(fontSize: 9, color: ClientTheme.muted, height: 1.55)),
-            ],
-          ])),
-          const SizedBox(height: 7),
-          _ReviewCard(title: 'المنتجات', child: Column(children: [
-            for (final row in widget.cartRows)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 7),
-                child: Row(children: [
-                  SizedBox(width: 54, height: 65, child: SxImage(url: row['image_url'], fit: BoxFit.cover)),
-                  const SizedBox(width: 8),
-                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                    Text(sxText(row['product_name']), maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
-                    if (sxText(row['variant_display']).isNotEmpty) Text(sxText(row['variant_display']), style: const TextStyle(fontSize: 8.5, color: ClientTheme.muted)),
-                    Text(sxText(row['unit_price'], '0') + ' ' + state.currencySymbol + ' × ' + sxText(row['qty'], '1'), style: const TextStyle(fontSize: 8.8, fontWeight: FontWeight.w700)),
-                  ])),
-                ]),
-              ),
-          ])),
-          const SizedBox(height: 7),
-          _ReviewCard(title: 'المبالغ', child: Column(children: [
-            _MoneyLine('المنتجات', subtotal.toStringAsFixed(2) + ' ' + state.currencySymbol),
-            _MoneyLine('التوصيل', shipping),
-            const Divider(height: 18),
-            _MoneyLine('الإجمالي', _compactNumber(total) + ' ' + state.currencySymbol, strong: true),
-          ])),
-          const SizedBox(height: 7),
-          _ReviewCard(title: 'ملاحظات الطلب', child: TextField(controller: note, maxLines: 3, decoration: const InputDecoration(hintText: 'ملاحظات للطلب أو للتوصيل'))),
-          const SizedBox(height: 11),
-          SizedBox(height: 51, child: FilledButton.icon(
-            onPressed: busy ? null : confirm,
-            icon: busy ? const SizedBox(width: 17, height: 17, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.lock_outline, size: 17),
-            style: FilledButton.styleFrom(backgroundColor: Colors.black),
-            label: Text(busy ? 'جارٍ تأكيد الطلب...' : 'تأكيد وإرسال الطلب', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900)),
-          )),
-        ],
-      ),
-    );
-  }
+ return value.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '').replaceFirst(RegExp(r'\.$'), '');
 }
 class _Choices extends StatelessWidget {
   final List<Map<String, dynamic>> rows; final int? selected; final String Function(Map<String, dynamic>) sub; final ValueChanged<int> tap;
@@ -8663,11 +8515,11 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
           ]),
         ),
         const SxSectionTitle(title: 'طلباتي'),
-        const Row(children: [
-          Expanded(child: _AccountMini(Icons.payment_outlined, 'بانتظار الدفع')),
-          Expanded(child: _AccountMini(Icons.inventory_2_outlined, 'قيد التجهيز')),
-          Expanded(child: _AccountMini(Icons.local_shipping_outlined, 'تم الشحن')),
-          Expanded(child: _AccountMini(Icons.rate_review_outlined, 'للمراجعة')),
+        Row(children: [
+          Expanded(child: _AccountMini(Icons.assignment_outlined, 'قيد المراجعة', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxOrdersScreen(initialFilter: 'pending'))))),
+          Expanded(child: _AccountMini(Icons.payment_outlined, 'بانتظار الدفع', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxOrdersScreen(initialFilter: 'payment'))))),
+          Expanded(child: _AccountMini(Icons.inventory_2_outlined, 'قيد التجهيز', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxOrdersScreen(initialFilter: 'processing'))))),
+          Expanded(child: _AccountMini(Icons.local_shipping_outlined, 'تم الشحن', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxOrdersScreen(initialFilter: 'shipped'))))),
         ]),
         const SxSectionTitle(title: 'خدماتي'),
         GridView.count(primary: false, shrinkWrap: true, crossAxisCount: 4, mainAxisSpacing: 6, crossAxisSpacing: 6, childAspectRatio: .94, children: [
@@ -9064,7 +8916,8 @@ class _SxAddressesScreenState extends State<SxAddressesScreen> {
 
 
 class SxOrdersScreen extends StatefulWidget {
-  const SxOrdersScreen({super.key});
+  final String initialFilter;
+  const SxOrdersScreen({super.key, this.initialFilter = 'all'});
   @override State<SxOrdersScreen> createState() => _SxOrdersScreenState();
 }
 
@@ -9504,6 +9357,106 @@ class _OrderPaymentSheet extends StatefulWidget {
   @override State<_OrderPaymentSheet> createState()=>_OrderPaymentSheetState();
 }
 
+
+class _OrderPaymentSheetState extends State<_OrderPaymentSheet> {
+  List<Map<String,dynamic>> methods = [];
+  int? selected;
+  bool loading = true, busy = false;
+
+  @override
+  void initState() { super.initState(); load(); }
+
+  Future<void> load() async {
+    try {
+      methods = await api.paymentMethods();
+      final current = sxInt(_asMap(widget.order['payment_method'])['id']);
+      selected = current > 0 ? current : (methods.isNotEmpty ? sxInt(methods.first['id']) : null);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e))));
+    }
+    if (mounted) setState(() => loading = false);
+  }
+
+  Map<String,dynamic>? chosen() {
+    for (final row in methods) if (sxInt(row['id']) == selected) return row;
+    return null;
+  }
+
+  Future<void> pay() async {
+    final method = chosen();
+    if (method == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اختر طريقة الدفع.')));
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      await api.recordOrderPayment(
+        sxInt(widget.order['id']),
+        methodId: sxInt(method['id']),
+        currencyId: sxInt(widget.order['currency_id']),
+      );
+      if (sxText(_asMap(method['settings'])['type']) != 'cod' && method['supports_proof'] == true) {
+        final picked = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false, withData: true);
+        if (picked != null && picked.files.isNotEmpty) {
+          await api.uploadPaymentProof(sxInt(widget.order['id']), picked.files);
+        }
+      }
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e))));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final method = chosen();
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(13,9,13,18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const _Handle(),
+            const SizedBox(height: 9),
+            const Text('الدفع', textAlign: TextAlign.center, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 7),
+            if (loading)
+              const Padding(padding: EdgeInsets.all(20), child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
+            else ...[
+              for (final row in methods)
+                _PaymentChoice(row: row, selected: sxInt(row['id']) == selected, onTap: () => setState(() => selected = sxInt(row['id']))),
+              if (method != null && _paymentDetailsText(_asMap(method['settings'])).isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(9),
+                  decoration: BoxDecoration(color: ClientTheme.soft, borderRadius: BorderRadius.circular(7)),
+                  child: Text(_paymentDetailsText(_asMap(method['settings'])), style: const TextStyle(fontSize: 9, height: 1.5)),
+                ),
+              const SizedBox(height: 9),
+              if (method != null && method['supports_proof'] == true)
+                const Text('بعد الدفع يمكنك رفع صورة إثبات الدفع.', style: TextStyle(fontSize: 8.5, color: ClientTheme.muted)),
+              const SizedBox(height: 7),
+              SizedBox(
+                height: 47,
+                child: FilledButton.icon(
+                  onPressed: busy ? null : pay,
+                  icon: busy ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Icon(Icons.check, size: 17),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.black),
+                  label: Text(
+                    sxText(_asMap(method?['settings'])['type']) == 'cod' ? 'تأكيد الدفع عند الاستلام' : 'متابعة الدفع',
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 10.5),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class SxPendingOrderEditor extends StatefulWidget {
   final Map<String,dynamic> order;
