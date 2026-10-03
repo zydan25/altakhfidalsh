@@ -597,9 +597,16 @@ class ApiService {
   }
   Future<void> wishlistAdd(int id)async{await post('/customer/me/wishlist/'+id.toString(),{});}
   Future<void> wishlistRemove(int id)async{await delete('/customer/me/wishlist/'+id.toString());}
+  Future<Map<String,dynamic>> notificationSummary() async {
+    final d = await get('/notifications/notifications/me');
+    return Map<String,dynamic>.from(d);
+  }
   Future<List<Map<String,dynamic>>> notifications(int customerId)async{
     final d=await get('/notifications/notifications/'+customerId.toString());
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
+  }
+  Future<void> markAllNotificationsRead() async {
+    await post('/notifications/notifications/me/read-all',{});
   }
   Future<void> markNotificationRead(int customerId,int notificationId)async{
     await post('/notifications/notifications/'+customerId.toString()+'/'+notificationId.toString()+'/read',{});
@@ -624,6 +631,9 @@ class ApiService {
     }),
   );
   Future<void> sendMessage(int id,String body)async{await post('/support/conversations/'+id.toString()+'/messages',{'body':body});}
+  Future<void> markConversationRead(int id) async {
+    await post('/support/conversations/'+id.toString()+'/read',{});
+  }
   Future<List<Map<String,dynamic>>> pickAndSendMessageWithFile(int id,{String body='',bool paymentProof=false}) async {
     final picked = await FilePicker.pickFiles(
       type: FileType.custom,
