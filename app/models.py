@@ -709,6 +709,9 @@ class ProductDisplaySettings(TimestampMixin, db.Model):
     show_review_count = db.Column(Boolean, nullable=False, default=True)
     card_aspect_ratio = db.Column(String(20), nullable=False, default="3:4")
     card_radius = db.Column(Integer, nullable=False, default=16)
+    card_overrides_json = db.Column(db.JSON, nullable=False, default=dict, server_default="{}")
+    delivery_badges_json = db.Column(db.JSON, nullable=False, default=list, server_default="[]")
+    recommendation_settings_json = db.Column(db.JSON, nullable=False, default=dict, server_default="{}")
 
 
 class SizeGuide(TimestampMixin, ActiveMixin, db.Model):

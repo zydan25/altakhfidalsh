@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from uuid import uuid4
+import re
 
 from PIL import Image, ImageOps
 from flask import current_app
@@ -1082,7 +1083,10 @@ class CatalogService:
         if not product:
             raise LookupError("product not found")
         snapshot = CatalogService.wizard_snapshot(product_id)
-        snapshot["product_card_settings"] = CatalogService.product_card_display_settings()
+        snapshot["product_card_global_settings"] = CatalogService.product_card_display_settings()
+        snapshot["product_card_settings"] = CatalogService.product_card_display_settings(product_id)
+        display_row = db.session.get(ProductDisplaySettings, product_id)
+        snapshot["product_card_overrides"] = dict((display_row.card_overrides_json or {}) if display_row else {})
         brand = db.session.get(Brand, product.brand_id) if product.brand_id else None
         snapshot["product"]["brand"] = {
             "id": brand.id,
@@ -1738,6 +1742,94 @@ class CatalogService:
             settings.card_aspect_ratio = str(payload["card_aspect_ratio"])
         if "card_radius" in payload:
             settings.card_radius = max(0, int(payload["card_radius"]))
+
+        if "card_overrides" in payload:
+            raw = payload.get("card_overrides")
+            if raw in (None, {}):
+                settings.card_overrides_json = {}
+            elif not isinstance(raw, dict):
+                raise ValueError("card_overrides must be an object")
+            else:
+                global_settings = CatalogService.product_card_display_settings()
+                allowed = set(global_settings.keys())
+                clean = {}
+                color_re = re.compile(r"^#[0-9a-fA-F]{6}$")
+                for key, value in raw.items():
+                    if key not in allowed:
+                        continue
+                    global_value = global_settings.get(key)
+                    if isinstance(global_value, bool):
+                        clean[key] = bool(value)
+                    elif isinstance(global_value, (int, float)) and not isinstance(global_value, bool):
+                        try:
+                            clean[key] = float(value)
+                        except (TypeError, ValueError):
+                            raise ValueError(f"قيمة تخصيص بطاقة المنتج غير صالحة: {key}")
+                    elif isinstance(value, str) and (
+                        str(global_value or "").startswith("#") or key.endswith("_color")
+                    ):
+                        if not color_re.fullmatch(value.strip()):
+                            raise ValueError(f"لون تخصيص بطاقة المنتج غير صالح: {key}")
+                        clean[key] = value.strip().lower()
+                    else:
+                        clean[key] = str(value).strip()
+                settings.card_overrides_json = clean
+
+        if "delivery_badges" in payload:
+            raw_badges = payload.get("delivery_badges")
+            if raw_badges is None:
+                raw_badges = []
+            if not isinstance(raw_badges, list):
+                raise ValueError("delivery_badges must be a list")
+            color_re = re.compile(r"^#[0-9a-fA-F]{6}$")
+            normalized = []
+            for raw_badge in raw_badges:
+                if not isinstance(raw_badge, dict):
+                    continue
+                text = str(raw_badge.get("text") or "").strip()[:120]
+                if not text:
+                    continue
+                bg = str(raw_badge.get("background_color") or "#f5f5f5").strip()
+                fg = str(raw_badge.get("text_color") or "#111111").strip()
+                if not color_re.fullmatch(bg) or not color_re.fullmatch(fg):
+                    raise ValueError("ألوان شارة التوصيل يجب أن تكون بصيغة HEX.")
+                try:
+                    font_size = max(7.0, min(24.0, float(raw_badge.get("font_size", 9))))
+                except (TypeError, ValueError):
+                    font_size = 9.0
+                normalized.append({
+                    "id": str(raw_badge.get("id") or uuid4().hex[:10]),
+                    "text": text,
+                    "icon": str(raw_badge.get("icon") or "local_shipping").strip()[:40],
+                    "section": str(raw_badge.get("section") or "shipping").strip()[:40],
+                    "background_color": bg.lower(),
+                    "text_color": fg.lower(),
+                    "font_size": font_size,
+                    "visible": bool(raw_badge.get("visible", True)),
+                    "sort_order": len(normalized),
+                })
+            settings.delivery_badges_json = normalized
+
+        if "recommendation_settings" in payload:
+            recommendation = payload.get("recommendation_settings")
+            if recommendation is None:
+                recommendation = {}
+            if not isinstance(recommendation, dict):
+                raise ValueError("recommendation_settings must be an object")
+            source = str(recommendation.get("source") or "same_category").strip()
+            allowed_sources = {"same_category", "parent_category", "root_category", "random_all"}
+            if source not in allowed_sources:
+                raise ValueError("مصدر التوصيات غير صالح.")
+            try:
+                limit = max(2, min(20, int(recommendation.get("limit", 10))))
+            except (TypeError, ValueError):
+                limit = 10
+            settings.recommendation_settings_json = {
+                "source": source,
+                "limit": limit,
+                "randomize": True,
+            }
+
         db.session.commit()
         return {
             "product_id": product_id,
@@ -1748,6 +1840,9 @@ class CatalogService:
             "show_review_count": settings.show_review_count,
             "card_aspect_ratio": settings.card_aspect_ratio,
             "card_radius": settings.card_radius,
+            "card_overrides": dict(settings.card_overrides_json or {}),
+            "delivery_badges": list(settings.delivery_badges_json or []),
+            "recommendation_settings": dict(settings.recommendation_settings_json or {}),
         }
 
     @staticmethod
@@ -2263,6 +2358,11 @@ class CatalogService:
         ]
         display = db.session.get(ProductDisplaySettings, product_id)
         policies = db.session.get(ProductPolicyAssignment, product_id)
+        product_card_global = CatalogService.product_card_display_settings()
+        product_card_effective = CatalogService.product_card_display_settings(product_id)
+        product_card_overrides = dict((display.card_overrides_json or {}) if display else {})
+        delivery_badges = list((display.delivery_badges_json or []) if display else [])
+        recommendation_settings = dict((display.recommendation_settings_json or {}) if display else {})
         shipping_policy = (
             db.session.get(ShippingPolicy, policies.shipping_policy_id)
             if policies and policies.shipping_policy_id else None
@@ -2300,6 +2400,11 @@ class CatalogService:
             "side_category_circles": side_category_circle_ids,
             "rating_summary": rating_summary,
             "reviews_preview": reviews_preview,
+            "product_card_global_settings": product_card_global,
+            "product_card_settings": product_card_effective,
+            "product_card_overrides": product_card_overrides,
+            "delivery_badges": delivery_badges,
+            "recommendation_settings": recommendation_settings,
             "inventory": inventory,
             "locations": CatalogService.list_inventory_locations(),
             "display": {
