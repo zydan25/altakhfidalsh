@@ -3481,7 +3481,8 @@ class _SxProductCardState extends State<SxProductCard> {
                     .take(
                       _cardNumber('product_badge_max', 2)
                           .round()
-                          .clamp(1, 4),
+                          .clamp(1, 4)
+                          .toInt(),
                     )
                     .map(_badgeChip)
                     .toList(),
