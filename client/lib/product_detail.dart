@@ -433,14 +433,16 @@ class _SxProductScreenState extends State<SxProductScreen> {
                               child: Align(
                                 alignment: Alignment.centerRight,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                  width: 58,
+                                  height: 30,
+                                  alignment: Alignment.center,
                                   decoration: BoxDecoration(
                                     color: Colors.black,
-                                    borderRadius: BorderRadius.circular(5),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: const Text(
-                                    'توصية',
-                                    style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
+                                    'التوصية',
+                                    style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w900),
                                   ),
                                 ),
                               ),
@@ -1478,13 +1480,25 @@ class _ReviewSection extends StatelessWidget {
                     style: const TextStyle(fontSize: 9, color: ClientTheme.muted),
                   ),
                 const SizedBox(width: 6),
-                TextButton(
-                  onPressed: onWriteReview,
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    minimumSize: Size.zero,
+                SizedBox(
+                  height: 38,
+                  child: FilledButton.icon(
+                    onPressed: onWriteReview,
+                    icon: const Icon(Icons.star_outline_rounded, size: 16),
+                    label: const Text(
+                      'قيّم المنتج',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+                    ),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      minimumSize: const Size(112, 38),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                    ),
                   ),
-                  child: const Text('قيّم المنتج', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800)),
                 ),
               ],
             ),
