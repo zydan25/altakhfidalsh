@@ -731,7 +731,7 @@ class _ProductHeroInfo extends StatelessWidget {
       final settings = badge['settings'] is Map
           ? Map<String, dynamic>.from(badge['settings'] as Map)
           : <String, dynamic>{};
-      final position = sxText(settings['position'], globalBadgePosition);
+      final position = sxText(settings['position'], 'before_name');
       if (position == 'after_name') {
         afterName.add(badge);
       } else if (position == 'below_price') {
