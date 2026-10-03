@@ -9,7 +9,8 @@ import 'theme.dart';
 
 class SxProductScreen extends StatefulWidget {
   final int id;
-  const SxProductScreen({super.key, required this.id});
+  final WidgetBuilder? cartBuilder;
+  const SxProductScreen({super.key, required this.id, this.cartBuilder});
 
   @override
   State<SxProductScreen> createState() => _SxProductScreenState();
@@ -217,10 +218,12 @@ class _SxProductScreenState extends State<SxProductScreen> {
   Future<void> _buyNow() async {
     await _addToCart();
     if (!mounted) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const SxCartScreen()),
-    );
+    final builder = widget.cartBuilder;
+    if (builder != null) {
+      Navigator.push(context, MaterialPageRoute(builder: builder));
+    } else {
+      Navigator.pop(context);
+    }
   }
 
   @override

@@ -1053,7 +1053,10 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                   padding: const EdgeInsets.fromLTRB(6, 3, 6, 18),
                   child: SxProductGrid(
                     products: products,
-                    onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id))),
+                    onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(
+                                      id: product.id,
+                                      cartBuilder: (_) => const SxCartScreen(),
+                                    ))),
                     displaySettings: home['product_card_settings'] is Map
                         ? Map<String, dynamic>.from(
                             home['product_card_settings'] as Map,
@@ -4304,7 +4307,10 @@ class _SxResultsState extends State<SxResults> {
                             ? _ResultsList(products: visibleProducts)
                             : SxProductGrid(
                                 products: visibleProducts,
-                                onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id))),
+                                onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(
+                                      id: product.id,
+                                      cartBuilder: (_) => const SxCartScreen(),
+                                    ))),
                                 masonry: false,
                                 displaySettings:
                                     home['product_card_settings'] is Map
@@ -4721,7 +4727,10 @@ class _ResultsListCard extends StatelessWidget {
       child: InkWell(
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id)),
+          MaterialPageRoute(builder: (_) => SxProductScreen(
+                                      id: product.id,
+                                      cartBuilder: (_) => const SxCartScreen(),
+                                    )),
         ),
         child: SizedBox(
           height: 150,
@@ -7422,7 +7431,10 @@ class SxTrendDetailScreen extends StatelessWidget {
           const SxSectionTitle(title: 'منتجات الترند'),
           Padding(
             padding: const EdgeInsets.fromLTRB(7, 0, 7, 20),
-            child: SxProductGrid(products: products, onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id)))),
+            child: SxProductGrid(products: products, onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(
+                                      id: product.id,
+                                      cartBuilder: (_) => const SxCartScreen(),
+                                    )))),
           ),
         ],
       ),
@@ -9204,7 +9216,10 @@ class _SxWishlistScreenState extends State<SxWishlistScreen> {
     try { final ids = await api.wishlistIds(); state.wishlist = ids.toSet(); final all = await api.feed(currencyId: state.currencyId); products = all.where((x) => ids.contains(x.id)).toList(); } catch (_) {}
     if (mounted) setState(() => loading = false);
   }
-  @override Widget build(BuildContext context) => SxShellPage(title: 'المفضلة', back: true, child: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : ListView(padding: const EdgeInsets.fromLTRB(7, 8, 7, 20), children: [SxProductGrid(products: products, onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id))))]));
+  @override Widget build(BuildContext context) => SxShellPage(title: 'المفضلة', back: true, child: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : ListView(padding: const EdgeInsets.fromLTRB(7, 8, 7, 20), children: [SxProductGrid(products: products, onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(
+                                      id: product.id,
+                                      cartBuilder: (_) => const SxCartScreen(),
+                                    ))))]));
 }
 
 class SxNotificationsScreen extends StatefulWidget {
@@ -9697,7 +9712,10 @@ class SxLookDetail extends StatelessWidget {
     return SxShellPage(title: sxText(look['name'], 'الإطلالة'), back: true, child: ListView(children: [
       SizedBox(height: 370, child: SxImage(url: look['cover_url'])),
       Padding(padding: const EdgeInsets.all(14), child: Text(sxText(look['description']), style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, height: 1.5))),
-      const SxSectionTitle(title: 'تسوق الإطلالة'), Padding(padding: const EdgeInsets.fromLTRB(7, 0, 7, 20), child: SxProductGrid(products: products, onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id))))),
+      const SxSectionTitle(title: 'تسوق الإطلالة'), Padding(padding: const EdgeInsets.fromLTRB(7, 0, 7, 20), child: SxProductGrid(products: products, onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(
+                                      id: product.id,
+                                      cartBuilder: (_) => const SxCartScreen(),
+                                    ))))),
     ]));
   }
 }
