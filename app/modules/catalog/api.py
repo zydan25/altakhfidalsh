@@ -37,6 +37,8 @@ from ...models import (
     OrderItem,
     SideCategory,
     SideCategoryCircle,
+    InventoryLocation,
+    StockInventory,
 )
 
 
@@ -715,6 +717,28 @@ def public_product_feed():
             ):
                 option_meta_by_product[int(product_id)] = candidate
 
+    stock_by_product = {}
+    if product_ids:
+        stock_rows = (
+            db.session.query(
+                ProductVariant.product_id,
+                db.func.coalesce(db.func.sum(StockInventory.available), 0),
+            )
+            .join(StockInventory, StockInventory.variant_id == ProductVariant.id)
+            .join(InventoryLocation, InventoryLocation.id == StockInventory.location_id)
+            .filter(
+                ProductVariant.product_id.in_(product_ids),
+                ProductVariant.is_active.is_(True),
+                InventoryLocation.is_active.is_(True),
+            )
+            .group_by(ProductVariant.product_id)
+            .all()
+        )
+        stock_by_product = {
+            int(product_id): max(0, int(available or 0))
+            for product_id, available in stock_rows
+        }
+
     variant_by_product = {}
     if product_ids:
         variant_rows = (
@@ -913,6 +937,8 @@ def public_product_feed():
 
         variant_meta = variant_by_product.get(row.id)
         item["variant_id"] = variant_meta["id"] if variant_meta else None
+        item["available_qty"] = stock_by_product.get(row.id, 0)
+        item["in_stock"] = item["available_qty"] > 0
         item["base_price_sar"] = str(row.base_price)
         item["status"] = row.status
 
