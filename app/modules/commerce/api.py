@@ -298,12 +298,6 @@ def customer_order_payment_proof(order_id):
         return {"item":{"id":proof.id,"status":proof.status,"url":assets[0]["url"]}},201
     except (ValueError,LookupError) as exc: db.session.rollback(); return {"error":"payment_proof_failed","detail":str(exc)},400
 
-@api_bp.patch("/me/orders/<int:order_id>")
-@customer_required
-def update_my_order(order_id):
-    try: return {"item": CommerceService.update_pending_order(order_id,current_customer().id,request.get_json(silent=True) or {})}
-    except (KeyError,ValueError,LookupError) as exc: return {"error":"order_update_failed","detail":str(exc)},400
-
 @api_bp.get("/me/orders/<int:order_id>")
 @customer_required
 def my_order(order_id):
@@ -345,6 +339,7 @@ def my_cart_item():
             current_customer().id,
             int(payload["variant_id"]),
             int(payload.get("qty", 1)),
+            payload.get("selected_options") or payload.get("options") or {},
         )
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "cart_update_failed", "detail": str(exc)}, 400
