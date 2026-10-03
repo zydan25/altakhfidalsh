@@ -122,7 +122,7 @@ class _SxOrderEditScreenState extends State<SxOrderEditScreen> {
 
   Future<void> save() async {
     final status = oeText(widget.order['status']);
-    if (status != 'created' && status != 'awaiting_payment') {
+    if (status != 'created') {
       return;
     }
 
