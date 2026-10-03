@@ -381,6 +381,7 @@ def home():
         "trends": CatalogService.list_public_trends(limit=20),
         "trend_hashtags": CatalogService.list_public_trend_hashtags(limit=500),
         "trend_settings": CatalogService.trend_display_settings(),
+        "product_card_settings": CatalogService.product_card_display_settings(),
         "looks": look_payload,
         "banners": banner_payload,
         "coupon_strip": _coupon_payload(),
