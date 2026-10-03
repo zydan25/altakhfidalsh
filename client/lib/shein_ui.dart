@@ -9990,7 +9990,7 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                   ),
                 ),
               ),
-            if (status == 'created' || status == 'awaiting_payment')
+            if (status == 'created')
               Container(
                 margin: const EdgeInsets.only(top: 9, bottom: 2),
                 child: SizedBox(
