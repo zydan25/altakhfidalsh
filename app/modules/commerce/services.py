@@ -86,13 +86,14 @@ class CommerceService:
         }
 
     @staticmethod
-    def _resolve_shipping(customer_id, city_id, area_id, subtotal_sar, fx_rate):
+    def _resolve_shipping(customer_id, city_id, area_id, subtotal_sar, fx_rate, method_id=None):
         quote = ShippingService.quote(
             customer_id=customer_id,
             city_id=city_id,
             area_id=area_id,
             subtotal_sar=Decimal(subtotal_sar),
             fx_rate=Decimal(fx_rate),
+            method_id=int(method_id) if method_id else None,
         )
         return quote
 
@@ -102,6 +103,7 @@ class CommerceService:
         address_id = int(payload["address_id"])
         requested_currency_id = payload.get("currency_id")
         payment_method_id = int(payload["payment_method_id"]) if payload.get("payment_method_id") else None
+        shipping_method_id = int(payload["shipping_method_id"]) if payload.get("shipping_method_id") else None
         items = payload.get("items") or []
         if not items:
             raise ValueError("order must contain at least one item")
@@ -192,6 +194,7 @@ class CommerceService:
                 address.city_area_id,
                 subtotal_sar,
                 order_items[0]["price"].fx_rate,
+                shipping_method_id,
             )
             shipping = shipping_quote.price_display
             total = subtotal + shipping
@@ -814,6 +817,11 @@ class CommerceService:
                 address.city_area_id,
                 subtotal_sar,
                 first_price.fx_rate if first_price else order.fx_rate,
+                order.shipping_rate_id and (
+                    db.session.get(ShippingRate, order.shipping_rate_id).method_id
+                    if db.session.get(ShippingRate, order.shipping_rate_id)
+                    else None
+                ),
             )
             order.address_snapshot = CommerceService._address_snapshot(address)
             order.city_id = address.city_id
