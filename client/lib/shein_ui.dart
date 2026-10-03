@@ -7738,242 +7738,740 @@ class _EmptyCart extends StatelessWidget {
 
 class SxCheckoutScreen extends StatefulWidget {
   const SxCheckoutScreen({super.key});
-  @override State<SxCheckoutScreen> createState() => _SxCheckoutScreenState();
+  @override
+  State<SxCheckoutScreen> createState() => _SxCheckoutScreenState();
 }
 
 class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
   List<Map<String,dynamic>> addresses=<Map<String,dynamic>>[];
   List<Map<String,dynamic>> shipping=<Map<String,dynamic>>[];
-  List<Map<String,dynamic>> payments=<Map<String,dynamic>>[];
   Map<String,dynamic>? cart;
   Map<String,dynamic>? quote;
-  int? addressId,shippingId,paymentId;
-  bool loading=true,quoteLoading=false,busy=false,addressConfirmed=false;
+  int? addressId, shippingId;
+  bool loading=true, quoteLoading=false, busy=false, addressConfirmed=false;
   final note=TextEditingController();
 
-  @override void initState(){super.initState();load();}
-  @override void dispose(){note.dispose();super.dispose();}
+  @override
+  void initState(){super.initState();load();}
+  @override
+  void dispose(){note.dispose();super.dispose();}
 
-  Future<void> load() async{
-    try{
-      final results=await Future.wait<dynamic>([api.addresses(),api.shippingMethods(),api.paymentMethods(),api.cart(currencyId:state.currencyId)]);
+  Future<void> load() async {
+    try {
+      final results=await Future.wait<dynamic>([
+        api.addresses(),
+        api.shippingMethods(),
+        api.cart(currencyId: state.currencyId),
+      ]);
       addresses=(results[0] as List).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
       shipping=(results[1] as List).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
-      payments=(results[2] as List).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
-      cart=results[3] is Map?Map<String,dynamic>.from(results[3]):null;
-      final a=addresses.firstWhere((x)=>x['is_default']==true,orElse:()=>addresses.isNotEmpty?addresses.first:<String,dynamic>{});
+      cart=results[2] is Map?Map<String,dynamic>.from(results[2]):null;
+      final a=addresses.firstWhere(
+        (x)=>x['is_default']==true,
+        orElse:()=>addresses.isNotEmpty?addresses.first:<String,dynamic>{},
+      );
       addressId=sxInt(a['id'])>0?sxInt(a['id']):null;
       shippingId=shipping.isNotEmpty?sxInt(shipping.first['id']):null;
-      paymentId=payments.isNotEmpty?sxInt(payments.first['id']):null;
       await refreshQuote();
-    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));}
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));
+    }
     if(mounted)setState(()=>loading=false);
   }
 
-  Future<void> refreshQuote() async{
-    if(addressId==null||shippingId==null){if(mounted)setState(()=>quote=null);return;}
-    final a=selectedAddress;if(a==null)return;
+  Future<void> refreshQuote() async {
+    if(addressId==null){
+      if(mounted)setState(()=>quote=null);
+      return;
+    }
+    final a=selectedAddress;
+    if(a==null)return;
     final subtotal=sxText(cart?['item']?['subtotal_sar'],sxText(cart?['item']?['subtotal'],'0'));
-    setState(()=>quoteLoading=true);
-    try{
-      final r=await api.shippingQuote(cityId:sxInt(a['city_id']),cityAreaId:sxInt(a['city_area_id']),currencyId:state.currencyId,shippingMethodId:shippingId,subtotal:subtotal);
+    if(mounted)setState(()=>quoteLoading=true);
+    try {
+      final r=await api.shippingQuote(
+        cityId:sxInt(a['city_id']),
+        cityAreaId:sxInt(a['city_area_id']),
+        currencyId:state.currencyId,
+        shippingMethodId:shippingId,
+        subtotal:subtotal,
+      );
       if(mounted)setState(()=>quote=r['item'] is Map?Map<String,dynamic>.from(r['item']):null);
-    }catch(e){if(mounted){setState(()=>quote=null);ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));}}
-    finally{if(mounted)setState(()=>quoteLoading=false);}
+    }catch(e){
+      if(mounted){
+        setState(()=>quote=null);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));
+      }
+    }finally{
+      if(mounted)setState(()=>quoteLoading=false);
+    }
   }
 
-  Future<void> addAddress() async{
-    final b=await showModalBottomSheet<Map<String,dynamic>>(context:context,isScrollControlled:true,backgroundColor:Colors.white,builder:(_)=>const SxAddressForm());
+  Future<void> addAddress() async {
+    final b=await showModalBottomSheet<Map<String,dynamic>>(
+      context:context,
+      isScrollControlled:true,
+      backgroundColor:Colors.white,
+      builder:(_)=>const SxAddressForm(),
+    );
     if(b==null)return;
     try{
-      final r=await api.addAddress(b);final item=r['item'] is Map?r['item']:r;await load();final id=sxInt(item is Map?item['id']:0);
-      if(id>0&&mounted){setState(()=>addressId=id);await refreshQuote();}
-    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));}
-  }
-  Map<String,dynamic>? get selectedAddress{if(addressId==null)return null;for(final x in addresses){if(sxInt(x['id'])==addressId)return x;}return null;}
-  Map<String,dynamic>? get selectedPayment{if(paymentId==null)return null;for(final x in payments){if(sxInt(x['id'])==paymentId)return x; }return null;}
-  String paymentType(Map<String,dynamic>? m){if(m==null)return '';final s=m['settings'] is Map?Map<String,dynamic>.from(m['settings'] as Map):<String,dynamic>{};return sxText(s['type'],sxText(m['code'])).trim().toLowerCase();}
-  String shippingSummary()=>quote==null?'يُحسب بعد تأكيد العنوان':(quote!['free']==true?'مجاني':sxText(quote!['price_display'],'0')+' '+state.currencySymbol);
-
-  Widget paymentDetails(){
-    final m=selectedPayment;if(m==null)return const SizedBox.shrink();
-    final s=m['settings'] is Map?Map<String,dynamic>.from(m['settings'] as Map):<String,dynamic>{};
-    final rows=<String>[if(sxText(s['account_number']).isNotEmpty)'رقم الحساب: '+sxText(s['account_number']),if(sxText(s['account_name']).isNotEmpty)'اسم صاحب الحساب: '+sxText(s['account_name']),if(sxText(s['point_number']).isNotEmpty)'رقم النقطة / المحفظة: '+sxText(s['point_number']),if(sxText(s['point_name']).isNotEmpty)'اسم النقطة: '+sxText(s['point_name']),if(sxText(s['notes']).isNotEmpty)sxText(s['notes']),if(sxText(s['instructions']).isNotEmpty)sxText(s['instructions'])];
-    return Container(margin:const EdgeInsets.only(top:7),padding:const EdgeInsets.all(11),decoration:BoxDecoration(color:paymentType(m)=='cod'?const Color(0xFFEAF8F0):ClientTheme.soft,borderRadius:BorderRadius.circular(8)),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      Text(paymentType(m)=='cod'?'الدفع عند الاستلام متاح لهذا الطلب':'بيانات الدفع',style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w900)),
-      const SizedBox(height:6),
-      ...rows.map((x)=>Padding(padding:const EdgeInsets.only(bottom:4),child:Text(x,style:const TextStyle(fontSize:9,color:ClientTheme.muted,height:1.4)))),
-      if(paymentType(m)!='cod'&&m['supports_proof']==true)const Padding(padding:EdgeInsets.only(top:3),child:Text('بعد إنشاء الطلب ارفع صورة إثبات الدفع من صفحة الدفع.',style:TextStyle(fontSize:8.5,fontWeight:FontWeight.w700))),
-    ]));
+      await api.addAddress(b);
+      await load();
+      if(addresses.isNotEmpty){
+        setState(()=>addressId=sxInt(addresses.first['id']));
+        await refreshQuote();
+      }
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));
+    }
   }
 
-  Future<void> addOrder() async{
+  Map<String,dynamic>? get selectedAddress{
+    if(addressId==null)return null;
+    for(final x in addresses){if(sxInt(x['id'])==addressId)return x;}
+    return null;
+  }
+
+  String shippingText(){
+    if(quote==null || quote!['configured']!=true){
+      return 'سيحدد المتجر رسوم التوصيل لهذا الطلب بعد مراجعته.';
+    }
+    return quote!['free']==true
+        ? 'مجاني'
+        : sxMoney(quote!['price_display'])+' '+state.currencySymbol;
+  }
+
+  String totalText(){
+    final subtotal=double.tryParse(sxText(cart?['item']?['subtotal'],'0'))??0;
+    if(quote!=null && quote!['configured']==true){
+      final shipping=double.tryParse(sxText(quote!['price_display'],'0'))??0;
+      return sxMoney(subtotal+shipping)+' '+state.currencySymbol;
+    }
+    return sxMoney(subtotal)+' '+state.currencySymbol;
+  }
+
+  Future<void> createOrder() async {
     final rows=sxMaps(cart?['item']?['items']);
-    if(rows.isEmpty||addressId==null||shippingId==null||paymentId==null||!addressConfirmed)return;
-    final ok=await showModalBottomSheet<bool>(context:context,backgroundColor:Colors.white,shape:const RoundedRectangleBorder(borderRadius:BorderRadius.vertical(top:Radius.circular(18))),builder:(_)=>SafeArea(child:Padding(padding:const EdgeInsets.fromLTRB(14,10,14,18),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-      const _Handle(),const SizedBox(height:10),
-      const Text('مراجعة الطلب قبل الإرسال',textAlign:TextAlign.center,style:TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
-      const SizedBox(height:10),
-      Text('العنوان: '+sxText(selectedAddress?['recipient_name'])+' · '+sxText(selectedAddress?['city_name'])+' · '+sxText(selectedAddress?['street']),style:const TextStyle(fontSize:9.5)),
-      Text('التوصيل: '+shippingSummary(),style:const TextStyle(fontSize:9.5,color:ClientTheme.muted)),
-      Text('الدفع: '+sxText(selectedPayment?['name']),style:const TextStyle(fontSize:9.5,color:ClientTheme.muted)),
-      const Divider(height:18),
-      Row(children:[const Expanded(child:Text('المنتجات',style:TextStyle(fontSize:10,fontWeight:FontWeight.w800))),Text(sxText(cart?['item']?['subtotal'],'0')+' '+state.currencySymbol,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w900))]),
-      const SizedBox(height:5),
-      Row(children:[const Expanded(child:Text('التوصيل',style:TextStyle(fontSize:10,color:ClientTheme.muted))),Text(shippingSummary(),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800))]),
-      const SizedBox(height:6),
-      const Text('سيعيد الخادم احتساب الأسعار والعملة والـMarkup وقاعدة الشحن قبل إنشاء الطلب.',style:TextStyle(fontSize:8.5,color:ClientTheme.muted)),
-      const SizedBox(height:11),
-      SizedBox(height:48,child:FilledButton(onPressed:()=>Navigator.pop(context,true),style:FilledButton.styleFrom(backgroundColor:Colors.black),child:const Text('تأكيد وإنشاء الطلب',style:TextStyle(fontWeight:FontWeight.w900)))),
-    ]))));
+    if(rows.isEmpty||addressId==null||!addressConfirmed)return;
+    setState(()=>busy=true);
+    try{
+      final payload=rows.map((row){
+        final selected=row['selected_options'] is Map
+            ? Map<String,dynamic>.from(row['selected_options'] as Map)
+            : <String,dynamic>{};
+        return <String,dynamic>{
+          'variant_id':sxInt(row['variant_id']),
+          'qty':sxInt(row['qty'],1),
+          if(selected.isNotEmpty)'selected_options':selected,
+        };
+      }).toList();
+
+      final r=await api.createOrder(
+        addressId!,
+        payload,
+        shippingMethodId:shippingId,
+        currencyId:state.currencyId,
+        customerNote:note.text.trim(),
+      );
+      final item=r['item'] is Map?Map<String,dynamic>.from(r['item']):<String,dynamic>{};
+      final id=sxInt(item['id']);
+      if(!mounted)return;
+      if(id>0){
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder:(_)=>SxOrderDetailScreen(orderId:id)),
+          (route)=>route.isFirst,
+        );
+      }
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:Text(sxText(e).replaceFirst('Exception: ','')),
+          duration:const Duration(seconds:5),
+        ),
+      );
+    }finally{
+      if(mounted)setState(()=>busy=false);
+    }
+  }
+
+  Future<void> confirmAndCreate() async {
+    final rows=sxMaps(cart?['item']?['items']);
+    if(rows.isEmpty||addressId==null){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('أضف عنوان التسليم أولًا.')));
+      return;
+    }
+    if(!addressConfirmed){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('أكد عنوان التسليم أولًا.')));
+      return;
+    }
+
+    final ok=await showModalBottomSheet<bool>(
+      context:context,
+      backgroundColor:Colors.white,
+      shape:const RoundedRectangleBorder(
+        borderRadius:BorderRadius.vertical(top:Radius.circular(18)),
+      ),
+      builder:(_)=>SafeArea(
+        child:Padding(
+          padding:const EdgeInsets.fromLTRB(14,12,14,18),
+          child:Column(
+            mainAxisSize:MainAxisSize.min,
+            crossAxisAlignment:CrossAxisAlignment.stretch,
+            children:[
+              const _Handle(),
+              const SizedBox(height:10),
+              const Text('مراجعة الطلب قبل الإرسال',textAlign:TextAlign.center,style:TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
+              const SizedBox(height:10),
+              Text(
+                'العنوان: '+sxText(selectedAddress?['recipient_name'])+' · '+sxText(selectedAddress?['city_name'])+' · '+sxText(selectedAddress?['street']),
+                style:const TextStyle(fontSize:9.5),
+              ),
+              const SizedBox(height:4),
+              Text('التوصيل: '+shippingText(),style:const TextStyle(fontSize:9.5,color:ClientTheme.muted)),
+              const Divider(height:18),
+              Row(children:[
+                const Expanded(child:Text('قيمة المنتجات',style:TextStyle(fontSize:10))),
+                Text(sxText(cart?['item']?['subtotal'],'0')+' '+state.currencySymbol,style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w800)),
+              ]),
+              const SizedBox(height:4),
+              Row(children:[
+                const Expanded(child:Text('التوصيل',style:TextStyle(fontSize:10,color:ClientTheme.muted))),
+                Flexible(child:Text(shippingText(),textAlign:TextAlign.end,style:const TextStyle(fontSize:9.5,fontWeight:FontWeight.w800))),
+              ]),
+              const SizedBox(height:6),
+              Row(children:[
+                const Expanded(child:Text('الإجمالي المتوقع',style:TextStyle(fontSize:12,fontWeight:FontWeight.w900))),
+                Text(totalText(),style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900)),
+              ]),
+              const SizedBox(height:8),
+              const Text(
+                'بعد إنشاء الطلب يمكنك الدفع من صفحة الطلب. إذا لم توجد رسوم توصيل مطابقة، سيحددها المتجر ويمكنك متابعة الطلب بعد تحديثها.',
+                style:TextStyle(fontSize:8.5,color:ClientTheme.muted,height:1.45),
+              ),
+              const SizedBox(height:11),
+              SizedBox(
+                height:48,
+                child:FilledButton(
+                  onPressed:()=>Navigator.pop(context,true),
+                  style:FilledButton.styleFrom(backgroundColor:Colors.black),
+                  child:const Text('إنشاء الطلب',style:TextStyle(fontWeight:FontWeight.w900)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
     if(ok==true)await createOrder();
   }
 
-  Future<void> createOrder() async{
-    final rows=sxMaps(cart?['item']?['items']);setState(()=>busy=true);
-    try{
-      final payload=rows.map((row){final selected=row['selected_options'] is Map?Map<String,dynamic>.from(row['selected_options'] as Map):<String,dynamic>{};return <String,dynamic>{'variant_id':sxInt(row['variant_id']),'qty':sxInt(row['qty'],1),if(selected.isNotEmpty)'selected_options':selected};}).toList();
-      final r=await api.createOrder(addressId!,payload,shippingMethodId:shippingId,paymentMethodId:paymentId,currencyId:state.currencyId,customerNote:note.text.trim());
-      final item=r['item'] is Map?Map<String,dynamic>.from(r['item']):<String,dynamic>{};
-      if(!mounted)return;
-      if(paymentType(selectedPayment)=='cod'){
-        Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>SxOrderSuccess(no:sxText(item['order_no']))),(route)=>route.isFirst);
-      }else{
-        Navigator.push(context,MaterialPageRoute(builder:(_)=>SxPaymentScreen(orderId:sxInt(item['id']),orderNo:sxText(item['order_no']),total:sxText(item['total'],'0'),currency:sxText((item['currency'] as Map?)?['symbol'],state.currencySymbol),paymentMethod:selectedPayment??<String,dynamic>{})));
-      }
-    }catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));}
-    finally{if(mounted)setState(()=>busy=false);}
-  }
-
-  @override Widget build(BuildContext context){
+  @override
+  Widget build(BuildContext context){
     if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator(strokeWidth:2)));
-    final subtotal=sxText(cart?['item']?['subtotal'],'0');
+    final rows=sxMaps(cart?['item']?['items']);
     return Scaffold(
-      appBar:const SxAppBar(title:'تأكيد وإتمام الطلب'),
-      body:ListView(padding:const EdgeInsets.fromLTRB(9,7,9,24),children:[
-        const SxSectionTitle(title:'١ · موقع التسليم'),
-        if(addresses.isEmpty)
-          OutlinedButton.icon(onPressed:addAddress,icon:const Icon(Icons.add_location_alt_outlined),label:const Text('إضافة عنوان'))
-        else
-          Container(padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:addressConfirmed?const Color(0xFFBFE2CF):ClientTheme.border),borderRadius:BorderRadius.circular(8)),child:Column(children:[
-            for(final a in addresses)
-              RadioListTile<int>(dense:true,contentPadding:EdgeInsets.zero,value:sxInt(a['id']),groupValue:addressId,onChanged:(v){setState(()=>{addressId=v,addressConfirmed=false});refreshQuote();},title:Row(children:[Expanded(child:Text(sxText(a['recipient_name']),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w900))),if(a['is_default']==true)const Text('افتراضي',style:TextStyle(fontSize:8,color:Color(0xFF18794E),fontWeight:FontWeight.w900))]),subtitle:Text([sxText(a['city_name']),sxText(a['city_area_name']),sxText(a['district']),sxText(a['street'])].where((x)=>x.trim().isNotEmpty).join(' · '),style:const TextStyle(fontSize:8.5,color:ClientTheme.muted))),
-            Row(children:[
-              Expanded(child:OutlinedButton.icon(onPressed:addAddress,icon:const Icon(Icons.add_location_alt_outlined,size:17),label:const Text('إضافة/تعديل عنوان',style:TextStyle(fontSize:9.5)))),
-              const SizedBox(width:6),
-              Expanded(child:FilledButton.icon(onPressed:addressId==null?null:()=>setState(()=>addressConfirmed=true),icon:Icon(addressConfirmed?Icons.verified:Icons.check,size:17),label:Text(addressConfirmed?'تم تأكيده':'تأكيد العنوان'),style:FilledButton.styleFrom(backgroundColor:Colors.black))),
-            ]),
-          ])),
-        const SxSectionTitle(title:'٢ · طريقة التوصيل'),
-        if(shipping.isEmpty)const Text('لا توجد طريقة توصيل مفعلة حاليًا.',style:TextStyle(fontSize:9,color:ClientTheme.muted))
-        else _Choices(rows:shipping,selected:shippingId,sub:(x)=>sxText(x['delivery_days_min'])+' - '+sxText(x['delivery_days_max'])+' يوم',tap:(id){setState(()=>shippingId=id);refreshQuote();}),
-        if(quoteLoading)const Padding(padding:EdgeInsets.only(top:4),child:LinearProgressIndicator(minHeight:2)),
-        if(quote!=null)Container(margin:const EdgeInsets.only(top:6),padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:quote!['free']==true?const Color(0xFFEAF8F0):ClientTheme.soft,borderRadius:BorderRadius.circular(7)),child:Row(children:[const Icon(Icons.local_shipping_outlined,size:18),const SizedBox(width:6),Expanded(child:Text(quote!['free']==true?'شحن مجاني لهذا الطلب':'الشحن: '+shippingSummary(),style:const TextStyle(fontSize:9.5,fontWeight:FontWeight.w800))),if(sxText(quote!['free_shipping_threshold_sar']).isNotEmpty&&quote!['free']==true)const Text('✓',style:TextStyle(color:Color(0xFF18794E),fontWeight:FontWeight.w900))])),
-        const SxSectionTitle(title:'٣ · طريقة الدفع'),
-        if(payments.isEmpty)const Text('لا توجد طريقة دفع مفعلة.',style:TextStyle(fontSize:9,color:ClientTheme.muted))
-        else _Choices(rows:payments,selected:paymentId,sub:(x)=>sxText(x['provider'],'طريقة دفع آمنة'),tap:(id)=>setState(()=>paymentId=id)),
-        paymentDetails(),
-        const SxSectionTitle(title:'٤ · ملاحظة للطلب'),
-        TextField(controller:note,maxLines:3,decoration:const InputDecoration(hintText:'اكتب ملاحظة للطلب إن وجدت…')),
-        const SxSectionTitle(title:'٥ · ملخص الطلب'),
-        Container(padding:const EdgeInsets.all(11),decoration:BoxDecoration(color:Colors.white,border:Border.all(color:ClientTheme.border),borderRadius:BorderRadius.circular(8)),child:Column(children:[
-          Row(children:[const Expanded(child:Text('المنتجات',style:TextStyle(fontSize:10))),Text(subtotal+' '+state.currencySymbol,style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w800))]),
-          const SizedBox(height:6),
-          Row(children:[const Expanded(child:Text('التوصيل',style:TextStyle(fontSize:10,color:ClientTheme.muted))),Text(shippingSummary(),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800))]),
-          const Divider(height:17),
-          Row(children:[const Expanded(child:Text('المجموع',style:TextStyle(fontSize:13,fontWeight:FontWeight.w900))),Text(subtotal+' '+state.currencySymbol,style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900))]),
-        ])),
-        const SizedBox(height:11),
-        SizedBox(height:50,child:FilledButton(onPressed:busy||!addressConfirmed?null:addOrder,style:FilledButton.styleFrom(backgroundColor:Colors.black),child:busy?const CircularProgressIndicator(color:Colors.white,strokeWidth:2):const Text('مراجعة ثم تأكيد الطلب',style:TextStyle(fontWeight:FontWeight.w900)))),
-      ]),
+      appBar:const SxAppBar(title:'إتمام الطلب'),
+      body:ListView(
+        padding:const EdgeInsets.fromLTRB(9,7,9,24),
+        children:[
+          const SxSectionTitle(title:'١ · موقع التسليم'),
+          if(addresses.isEmpty)
+            OutlinedButton.icon(
+              onPressed:addAddress,
+              icon:const Icon(Icons.add_location_alt_outlined),
+              label:const Text('إضافة عنوان'),
+            )
+          else
+            Container(
+              padding:const EdgeInsets.all(8),
+              decoration:BoxDecoration(
+                color:Colors.white,
+                border:Border.all(color:addressConfirmed?const Color(0xFFBFE2CF):ClientTheme.border),
+                borderRadius:BorderRadius.circular(8),
+              ),
+              child:Column(
+                children:[
+                  for(final a in addresses)
+                    RadioListTile<int>(
+                      dense:true,
+                      contentPadding:EdgeInsets.zero,
+                      value:sxInt(a['id']),
+                      groupValue:addressId,
+                      onChanged:(v){
+                        setState((){
+                          addressId=v;
+                          addressConfirmed=false;
+                        });
+                        refreshQuote();
+                      },
+                      title:Row(
+                        children:[
+                          Expanded(child:Text(sxText(a['recipient_name'],'المستلم'),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w900))),
+                          if(a['is_default']==true)const Text('افتراضي',style:TextStyle(fontSize:8,color:Color(0xFF18794E),fontWeight:FontWeight.w900)),
+                        ],
+                      ),
+                      subtitle:Text(
+                        [sxText(a['city_name']),sxText(a['city_area_name']),sxText(a['district']),sxText(a['street'])].where((x)=>x.trim().isNotEmpty).join(' · '),
+                        style:const TextStyle(fontSize:8.5,color:ClientTheme.muted),
+                      ),
+                    ),
+                  Row(
+                    children:[
+                      Expanded(child:OutlinedButton.icon(
+                        onPressed:addAddress,
+                        icon:const Icon(Icons.add_location_alt_outlined,size:17),
+                        label:const Text('إضافة عنوان',style:TextStyle(fontSize:9.5)),
+                      )),
+                      const SizedBox(width:6),
+                      Expanded(child:FilledButton.icon(
+                        onPressed:addressId==null?null:()=>setState(()=>addressConfirmed=true),
+                        icon:Icon(addressConfirmed?Icons.verified:Icons.check,size:17),
+                        label:Text(addressConfirmed?'تم تأكيده':'تأكيد العنوان'),
+                        style:FilledButton.styleFrom(backgroundColor:Colors.black),
+                      )),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          const SxSectionTitle(title:'٢ · التوصيل'),
+          Container(
+            padding:const EdgeInsets.all(10),
+            decoration:BoxDecoration(
+              color:quote!=null&&quote!['configured']==true?Colors.white:ClientTheme.soft,
+              border:Border.all(color:ClientTheme.border),
+              borderRadius:BorderRadius.circular(8),
+            ),
+            child:Row(
+              crossAxisAlignment:CrossAxisAlignment.start,
+              children:[
+                const Icon(Icons.local_shipping_outlined,size:20),
+                const SizedBox(width:8),
+                Expanded(
+                  child:Column(
+                    crossAxisAlignment:CrossAxisAlignment.stretch,
+                    children:[
+                      Text(
+                        shippingId==null?'سيحدد المتجر طريقة التوصيل':'طريقة التوصيل',
+                        style:const TextStyle(fontSize:11,fontWeight:FontWeight.w900),
+                      ),
+                      const SizedBox(height:4),
+                      Text(
+                        shipping.isEmpty
+                            ? 'لم تتم إضافة طريقة توصيل بعد.'
+                            : (shipping.firstWhere((x)=>sxInt(x['id'])==shippingId,orElse:()=>shipping.first)['name']??'التوصيل').toString(),
+                        style:const TextStyle(fontSize:9,color:ClientTheme.muted),
+                      ),
+                      const SizedBox(height:4),
+                      if(quoteLoading)
+                        const LinearProgressIndicator(minHeight:2)
+                      else
+                        Text(
+                          shippingText(),
+                          style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SxSectionTitle(title:'٣ · مراجعة'),
+          Container(
+            padding:const EdgeInsets.all(11),
+            decoration:BoxDecoration(
+              color:Colors.white,
+              border:Border.all(color:ClientTheme.border),
+              borderRadius:BorderRadius.circular(8),
+            ),
+            child:Column(
+              children:[
+                Row(children:[
+                  const Expanded(child:Text('المنتجات',style:TextStyle(fontSize:10))),
+                  Text(sxText(cart?['item']?['subtotal'],'0')+' '+state.currencySymbol,style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w800)),
+                ]),
+                const SizedBox(height:5),
+                Row(children:[
+                  const Expanded(child:Text('التوصيل',style:TextStyle(fontSize:10,color:ClientTheme.muted))),
+                  Flexible(child:Text(shippingText(),textAlign:TextAlign.end,style:const TextStyle(fontSize:9.5,fontWeight:FontWeight.w800))),
+                ]),
+                const Divider(height:16),
+                Row(children:[
+                  const Expanded(child:Text('الإجمالي',style:TextStyle(fontSize:13,fontWeight:FontWeight.w900))),
+                  Text(totalText(),style:const TextStyle(fontSize:17,fontWeight:FontWeight.w900)),
+                ]),
+              ],
+            ),
+          ),
+          const SizedBox(height:8),
+          TextField(
+            controller:note,
+            maxLines:3,
+            decoration:const InputDecoration(labelText:'ملاحظة الطلب',hintText:'ملاحظة أو تعليمات إضافية…'),
+          ),
+          const SizedBox(height:12),
+          SizedBox(
+            height:50,
+            child:FilledButton(
+              onPressed:busy?null:confirmAndCreate,
+              style:FilledButton.styleFrom(backgroundColor:Colors.black),
+              child:busy
+                  ? const CircularProgressIndicator(color:Colors.white,strokeWidth:2)
+                  : const Text('إكمال الطلب',style:TextStyle(fontWeight:FontWeight.w900)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _CartNotice extends StatelessWidget {
-  final IconData icon; final String text; final bool success;
-  const _CartNotice({required this.icon, required this.text, this.success = false});
-  @override Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
-    decoration: BoxDecoration(
-      color: success ? const Color(0xFFEAF8F0) : const Color(0xFFFFF2E8),
-      borderRadius: BorderRadius.circular(9),
-      border: Border.all(color: success ? const Color(0xFFC7E7D5) : const Color(0xFFF0D5C2)),
-    ),
-    child: Row(children: [
-      Icon(icon, size: 18, color: success ? const Color(0xFF18794E) : const Color(0xFF9A5A00)),
-      const SizedBox(width: 7),
-      Expanded(child: Text(text, style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, height: 1.3))),
-    ]),
-  );
-}
-
 class SxPaymentScreen extends StatefulWidget {
-  final int orderId; final String orderNo; final String total; final String currency; final Map<String, dynamic> paymentMethod;
-  const SxPaymentScreen({super.key, required this.orderId, required this.orderNo, required this.total, required this.currency, required this.paymentMethod});
-  @override State<SxPaymentScreen> createState() => _SxPaymentScreenState();
+  final int orderId;
+  final String orderNo;
+  final String total;
+  final String currency;
+  const SxPaymentScreen({
+    super.key,
+    required this.orderId,
+    required this.orderNo,
+    required this.total,
+    required this.currency,
+  });
+
+  @override
+  State<SxPaymentScreen> createState() => _SxPaymentScreenState();
 }
 
 class _SxPaymentScreenState extends State<SxPaymentScreen> {
-  bool uploading = false; bool uploaded = false;
-  Map<String,dynamic> get settings => widget.paymentMethod['settings'] is Map ? Map<String,dynamic>.from(widget.paymentMethod['settings'] as Map) : <String,dynamic>{};
-  bool get cod => sxText(settings['type'], sxText(widget.paymentMethod['code'])).trim().toLowerCase() == 'cod';
+  Map<String,dynamic>? order;
+  List<Map<String,dynamic>> methods=<Map<String,dynamic>>[];
+  Map<String,dynamic>? wallet;
+  int? selectedMethodId;
+  bool loading=true;
+  bool busy=false;
+  bool uploading=false;
 
-  Future<void> uploadProof() async {
-    if (uploading) return;
-    setState(() => uploading = true);
-    try {
-      await api.pickAndUploadPaymentProof(widget.orderId);
-      if (mounted) setState(() => uploaded = true);
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم رفع إثبات الدفع، والطلب بانتظار المراجعة.')));
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e))));
-    } finally {
-      if (mounted) setState(() => uploading = false);
+  @override
+  void initState(){super.initState();load();}
+
+  Future<void> load() async {
+    try{
+      final results=await Future.wait<dynamic>([
+        api.order(widget.orderId),
+        api.paymentMethods(),
+        api.wallet(currencyId:state.currencyId),
+      ]);
+      final raw=results[0];
+      final d=raw is Map && raw['item'] is Map
+          ? Map<String,dynamic>.from(raw['item'])
+          : Map<String,dynamic>.from(raw is Map?raw:<String,dynamic>{});
+      order=d;
+      methods=(results[1] as List).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
+      wallet=results[2] is Map?Map<String,dynamic>.from(results[2]):null;
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));
+    }
+    if(mounted)setState(()=>loading=false);
+  }
+
+  Map<String,dynamic>? get selectedMethod {
+    if(selectedMethodId==null)return null;
+    for(final x in methods){if(sxInt(x['id'])==selectedMethodId)return x;}
+    return null;
+  }
+
+  String paymentType(Map<String,dynamic>? m){
+    if(m==null)return '';
+    final settings=m['settings'] is Map?Map<String,dynamic>.from(m['settings'] as Map):<String,dynamic>{};
+    return sxText(settings['type'],sxText(m['code'])).trim().toLowerCase();
+  }
+
+  bool selectedSupportsProof => selectedMethod?['supports_proof']==true && paymentType(selectedMethod)!='wallet';
+
+  String currentStatus(){
+    return sxText(order?['payment_status'],'unpaid');
+  }
+
+  String orderStatus(){
+    return sxText(order?['status'],'awaiting_payment');
+  }
+
+  Future<void> chooseMethod(Map<String,dynamic> method) async {
+    final id=sxInt(method['id']);
+    if(id<=0||busy)return;
+    setState(()=>busy=true);
+    try{
+      final r=await api.recordOrderPayment(
+        widget.orderId,
+        methodId:id,
+        amount:sxText(order?['total'],widget.total),
+        currencyId:sxInt(order?['currency_id'],state.currencyId??0),
+      );
+      selectedMethodId=id;
+      if(paymentType(method)=='cod'){
+        await load();
+      }else{
+        await load();
+      }
+      if(mounted){
+        final msg=paymentType(method)=='cod'
+            ? 'تم اختيار الدفع عند الاستلام. الطلب بانتظار التجهيز.'
+            : 'تم تسجيل طريقة الدفع لهذا الطلب. ارفع الإثبات من هنا أو من محادثة الطلب.';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(msg)));
+      }
+      if(r['order_status']=='processing') await load();
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));
+    }finally{
+      if(mounted)setState(()=>busy=false);
     }
   }
 
-  @override Widget build(BuildContext context) => SxShellPage(
-    title: 'الدفع', back: true,
-    child: ListView(padding: const EdgeInsets.fromLTRB(10,8,10,25), children: [
-      Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(11)), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text('طلب ' + widget.orderNo, style: const TextStyle(color: Colors.white70, fontSize: 9)),
-        const SizedBox(height: 4), Text(widget.total + ' ' + widget.currency, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 4), Text(sxText(widget.paymentMethod['name'], 'طريقة الدفع'), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800)),
-      ])),
-      const SizedBox(height: 9),
-      Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white, border: Border.all(color: ClientTheme.border), borderRadius: BorderRadius.circular(9)), child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Text('بيانات الدفع', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900)), const SizedBox(height: 8),
-        if (sxText(settings['account_number']).isNotEmpty) _PaymentLine('رقم الحساب', sxText(settings['account_number'])),
-        if (sxText(settings['account_name']).isNotEmpty) _PaymentLine('صاحب الحساب', sxText(settings['account_name'])),
-        if (sxText(settings['point_number']).isNotEmpty) _PaymentLine('رقم النقطة / المحفظة', sxText(settings['point_number'])),
-        if (sxText(settings['point_name']).isNotEmpty) _PaymentLine('اسم النقطة', sxText(settings['point_name'])),
-        if (sxText(settings['notes']).isNotEmpty) _PaymentLine('ملاحظات', sxText(settings['notes'])),
-        if (sxText(settings['instructions']).isNotEmpty) Padding(padding: const EdgeInsets.only(top:4), child: Text(sxText(settings['instructions']), style: const TextStyle(fontSize:9.5,height:1.5,color:ClientTheme.muted))),
-      ])),
-      const SizedBox(height: 10),
-      if (cod) Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFFEAF8F0), borderRadius: BorderRadius.circular(8)), child: const Text('هذا الطلب يقبل الدفع عند الاستلام. لا تحتاج إلى رفع إثبات دفع.', style: TextStyle(fontSize:10,fontWeight:FontWeight.w800)))
-      else SizedBox(height:52, child: FilledButton.icon(
-        onPressed: uploading ? null : uploadProof,
-        icon: uploading ? const SizedBox(width:18,height:18,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)) : const Icon(Icons.upload_file_outlined,size:19),
-        label: Text(uploaded ? 'تم رفع الإثبات — بانتظار المراجعة' : 'رفع صورة إثبات الدفع', style: const TextStyle(fontSize:10,fontWeight:FontWeight.w900)),
-        style: FilledButton.styleFrom(backgroundColor:Colors.black),
-      )),
-      const SizedBox(height:9),
-      SizedBox(height:46, child: OutlinedButton.icon(onPressed:() => Navigator.pushReplacement(context,MaterialPageRoute(builder:(_) => const SxOrdersScreen())), icon:const Icon(Icons.receipt_long_outlined,size:18), label:const Text('الانتقال إلى طلباتي'))),
-    ]),
-  );
-}
+  Future<void> payWallet() async {
+    if(busy)return;
+    setState(()=>busy=true);
+    try{
+      await api.payFromWallet(widget.orderId);
+      await load();
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تم الدفع من الرصيد وبدأ تجهيز الطلب.')));
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));
+    }finally{
+      if(mounted)setState(()=>busy=false);
+    }
+  }
 
-class _PaymentLine extends StatelessWidget {
-  final String label, value;
-  const _PaymentLine(this.label, this.value);
-  @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom:7), child: Row(crossAxisAlignment:CrossAxisAlignment.start, children: [
-    SizedBox(width:128,child:Text(label,style:const TextStyle(fontSize:9,color:ClientTheme.muted))),
-    Expanded(child:Text(value,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w900))),
-  ]));
-}
+  Future<void> uploadProof() async {
+    if(uploading)return;
+    setState(()=>uploading=true);
+    try{
+      await api.pickAndUploadPaymentProof(widget.orderId);
+      await load();
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('تم رفع إثبات الدفع، والطلب بانتظار مراجعة المتجر.')));
+    }catch(e){
+      if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));
+    }finally{
+      if(mounted)setState(()=>uploading=false);
+    }
+  }
 
+  Future<void> openOrderChat() async {
+    final r=await api.newConversation(
+      type:'order_support',
+      orderId:widget.orderId,
+      subject:'الطلب '+widget.orderNo,
+    );
+    final item=r['item'] is Map?Map<String,dynamic>.from(r['item']):r;
+    final id=sxInt(item['id']);
+    if(id<=0||!mounted)return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:(_)=>SxConversationScreen(
+          conversationId:id,
+          title:'الطلب '+widget.orderNo,
+          paymentProofMode:true,
+        ),
+      ),
+    );
+    await load();
+  }
+
+  String settingText(Map<String,dynamic> settings,String key){
+    return sxText(settings[key]).trim();
+  }
+
+  Widget paymentCard(Map<String,dynamic> method){
+    final type=paymentType(method);
+    final settings=method['settings'] is Map?Map<String,dynamic>.from(method['settings'] as Map):<String,dynamic>{};
+    final selected=sxInt(method['id'])==selectedMethodId;
+    final proof=method['supports_proof']==true;
+    return Container(
+      margin:const EdgeInsets.only(bottom:7),
+      decoration:BoxDecoration(
+        color:selected?ClientTheme.soft:Colors.white,
+        border:Border.all(color:selected?Colors.black:ClientTheme.border),
+        borderRadius:BorderRadius.circular(10),
+      ),
+      child:InkWell(
+        borderRadius:BorderRadius.circular(10),
+        onTap:()=>chooseMethod(method),
+        child:Padding(
+          padding:const EdgeInsets.all(11),
+          child:Column(
+            crossAxisAlignment:CrossAxisAlignment.stretch,
+            children:[
+              Row(
+                children:[
+                  Container(
+                    width:35,
+                    height:35,
+                    decoration:BoxDecoration(color:Colors.black,borderRadius:BorderRadius.circular(9)),
+                    child:Icon(
+                      type=='cod'?Icons.local_shipping_outlined:Icons.account_balance_wallet_outlined,
+                      color:Colors.white,
+                      size:18,
+                    ),
+                  ),
+                  const SizedBox(width:8),
+                  Expanded(child:Text(sxText(method['name'],'طريقة الدفع'),style:const TextStyle(fontSize:12,fontWeight:FontWeight.w900))),
+                  if(selected)const Icon(Icons.check_circle,size:18),
+                ],
+              ),
+              const SizedBox(height:8),
+              if(settingText(settings,'account_number').isNotEmpty)_PaymentLine('رقم الحساب',settingText(settings,'account_number')),
+              if(settingText(settings,'account_name').isNotEmpty)_PaymentLine('اسم الحساب',settingText(settings,'account_name')),
+              if(settingText(settings,'point_number').isNotEmpty)_PaymentLine('رقم النقطة / المحفظة',settingText(settings,'point_number')),
+              if(settingText(settings,'point_name').isNotEmpty)_PaymentLine('اسم النقطة',settingText(settings,'point_name')),
+              if(settingText(settings,'instructions').isNotEmpty)Text(settingText(settings,'instructions'),style:const TextStyle(fontSize:9,color:ClientTheme.muted,height:1.5)),
+              if(proof && type!='cod')const Padding(
+                padding:EdgeInsets.only(top:5),
+                child:Text('بعد اختيار الطريقة ارفع صورة إثبات الدفع.',style:TextStyle(fontSize:8.5,fontWeight:FontWeight.w700)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context){
+    if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator(strokeWidth:2)));
+    final totalText=sxText(order?['total'],widget.total);
+    final currencyText=sxText(
+      order?['currency'] is Map
+        ? (order?['currency'] as Map)['symbol']
+        : null,
+      widget.currency,
+    );
+    final balance=double.tryParse(sxText(wallet?['balance'],'0'))??0;
+    final totalValue=double.tryParse(totalText)??0;
+    final unpaid=currentStatus()!='paid';
+    final waiting=orderStatus()=='awaiting_payment' || orderStatus()=='created';
+    return Scaffold(
+      appBar:SxAppBar(title:'دفع الطلب '+widget.orderNo),
+      body:ListView(
+        padding:const EdgeInsets.fromLTRB(10,8,10,24),
+        children:[
+          Container(
+            padding:const EdgeInsets.all(14),
+            decoration:BoxDecoration(color:Colors.black,borderRadius:BorderRadius.circular(11)),
+            child:Column(
+              crossAxisAlignment:CrossAxisAlignment.stretch,
+              children:[
+                Text('طلب '+widget.orderNo,style:const TextStyle(color:Colors.white70,fontSize:9)),
+                const SizedBox(height:4),
+                Text(totalText+' '+currencyText,style:const TextStyle(color:Colors.white,fontSize:22,fontWeight:FontWeight.w900)),
+                const SizedBox(height:4),
+                Text('حالة الطلب: '+sxText(order?['status']),style:const TextStyle(color:Colors.white70,fontSize:9.5)),
+                Text('حالة الدفع: '+currentStatus(),style:const TextStyle(color:Colors.white70,fontSize:9.5)),
+              ],
+            ),
+          ),
+          const SizedBox(height:10),
+          if(waiting && unpaid) ...[
+            const SxSectionTitle(title:'الدفع بعد الطلب'),
+            const Text(
+              'تم إنشاء الطلب أولًا. اختر الآن طريقة الدفع من الطرق التي أضافها المتجر أو ادفع من رصيدك.',
+              style:TextStyle(fontSize:9.5,color:ClientTheme.muted,height:1.5),
+            ),
+            const SizedBox(height:8),
+            for(final method in methods)paymentCard(method),
+            if(methods.isEmpty)
+              const Text('لا توجد طرق دفع مفعلة حاليًا.',style:TextStyle(fontSize:9,color:ClientTheme.muted)),
+            const SizedBox(height:8),
+            Container(
+              padding:const EdgeInsets.all(11),
+              decoration:BoxDecoration(color:Colors.white,border:Border.all(color:ClientTheme.border),borderRadius:BorderRadius.circular(10)),
+              child:Column(
+                crossAxisAlignment:CrossAxisAlignment.stretch,
+                children:[
+                  Row(children:[
+                    const Icon(Icons.account_balance_wallet_outlined,size:20),
+                    const SizedBox(width:7),
+                    const Expanded(child:Text('الدفع من الرصيد',style:TextStyle(fontSize:12,fontWeight:FontWeight.w900))),
+                    Text(sxMoney(balance)+' '+sxText(wallet?['currency_symbol'],currencyText),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w900)),
+                  ]),
+                  const SizedBox(height:6),
+                  const Text('يُخصم المبلغ من رصيدك بنفس عملة الطلب.',style:TextStyle(fontSize:8.5,color:ClientTheme.muted)),
+                  const SizedBox(height:8),
+                  SizedBox(
+                    height:45,
+                    child:FilledButton(
+                      onPressed:balance>=totalValue && !busy ? payWallet : null,
+                      style:FilledButton.styleFrom(backgroundColor:Colors.black),
+                      child:busy?const CircularProgressIndicator(color:Colors.white,strokeWidth:2):const Text('الدفع من الرصيد',style:TextStyle(fontWeight:FontWeight.w900)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if(!waiting || !unpaid)
+            Container(
+              margin:const EdgeInsets.only(top:8),
+              padding:const EdgeInsets.all(11),
+              decoration:BoxDecoration(color:ClientTheme.soft,borderRadius:BorderRadius.circular(9)),
+              child:Text(
+                currentStatus()=='paid'
+                    ? 'تم تأكيد الدفع وبدأت معالجة الطلب.'
+                    : 'حالة الطلب الحالية: '+sxText(order?['status']),
+                style:const TextStyle(fontSize:9.5,fontWeight:FontWeight.w800),
+              ),
+            ),
+          if(selectedSupportsProof && waiting)
+            Container(
+              margin:const EdgeInsets.only(top:9),
+              padding:const EdgeInsets.all(11),
+              decoration:BoxDecoration(color:Colors.white,border:Border.all(color:ClientTheme.border),borderRadius:BorderRadius.circular(9)),
+              child:Column(
+                crossAxisAlignment:CrossAxisAlignment.stretch,
+                children:[
+                  const Text('إثبات الدفع',style:TextStyle(fontSize:12,fontWeight:FontWeight.w900)),
+                  const SizedBox(height:5),
+                  const Text('ارفع صورة التحويل هنا أو أرسلها داخل محادثة الطلب.',style:TextStyle(fontSize:8.8,color:ClientTheme.muted)),
+                  const SizedBox(height:8),
+                  Row(
+                    children:[
+                      Expanded(
+                        child:FilledButton.icon(
+                          onPressed:uploading?null:uploadProof,
+                          icon:uploading?const SizedBox(width:16,height:16,child:CircularProgressIndicator(color:Colors.white,strokeWidth:2)):const Icon(Icons.upload_file_outlined,size:18),
+                          label:Text(uploading?'جارٍ الرفع...':'رفع صورة الدفع'),
+                          style:FilledButton.styleFrom(backgroundColor:Colors.black),
+                        ),
+                      ),
+                      const SizedBox(width:7),
+                      Expanded(
+                        child:OutlinedButton.icon(
+                          onPressed:openOrderChat,
+                          icon:const Icon(Icons.chat_outlined,size:18),
+                          label:const Text('من المحادثة'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          if(selectedMethod!=null && paymentType(selectedMethod)!='wallet')
+            Padding(
+              padding:const EdgeInsets.only(top:8),
+              child:OutlinedButton.icon(
+                onPressed:openOrderChat,
+                icon:const Icon(Icons.chat_outlined,size:18),
+                label:const Text('محادثة الطلب ورفع الإثبات'),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 class SxPoliciesScreen extends StatefulWidget {
   const SxPoliciesScreen({super.key});
