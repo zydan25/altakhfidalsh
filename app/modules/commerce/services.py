@@ -311,6 +311,20 @@ class CommerceService:
         if cart is not None:
             CartItem.query.filter_by(cart_id=cart.id).delete(synchronize_session=False)
             db.session.commit()
+
+        from ...services.notifications import NotificationService
+        NotificationService.create(
+            order.customer_id,
+            "order_created",
+            "تم استلام طلبك",
+            "تم استلام طلبك بنجاح وسيتم مراجعته من المتجر قبل الانتقال إلى مرحلة الدفع.",
+            {
+                "order_id": order.id,
+                "order_no": order.order_no,
+                "status": order.status,
+                "target": "order",
+            },
+        )
         return CommerceService.serialize_order(order)
 
     @staticmethod
