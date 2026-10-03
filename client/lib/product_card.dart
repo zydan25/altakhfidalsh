@@ -196,12 +196,14 @@ class SxProductCard extends StatefulWidget {
   final ProductModel product;
   final bool masonry;
   final Map<String, dynamic>? displaySettings;
+  final ValueChanged<ProductModel>? onProductTap;
 
   const SxProductCard({
     super.key,
     required this.product,
     this.masonry = false,
     this.displaySettings,
+    this.onProductTap,
   });
 
   @override
