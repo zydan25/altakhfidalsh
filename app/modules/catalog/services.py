@@ -2204,6 +2204,22 @@ class CatalogService:
             .order_by(ProductCategory.is_primary.desc(), Category.sort_order, Category.name)
             .all()
         ]
+        category_parent = {
+            int(row.id): (int(row.parent_id) if row.parent_id is not None else None)
+            for row in Category.query.all()
+        }
+        root_category_ids = set()
+        for category in categories:
+            current = int(category["id"])
+            seen = set()
+            while current not in seen:
+                seen.add(current)
+                parent = category_parent.get(current)
+                if parent is None:
+                    root_category_ids.add(current)
+                    break
+                current = int(parent)
+
         options = []
         for option in ProductOption.query.filter_by(product_id=product_id).order_by(ProductOption.sort_order, ProductOption.id):
             values = ProductOptionValue.query.filter_by(option_id=option.id).order_by(ProductOptionValue.sort_order, ProductOptionValue.id).all()
@@ -2388,6 +2404,7 @@ class CatalogService:
         return {
             "product": CatalogService._serialize_product(product),
             "categories": categories,
+            "root_category_ids": sorted(root_category_ids),
             "options": options,
             "variants": variants,
             "media": media,
