@@ -387,20 +387,6 @@ class _SxProductScreenState extends State<SxProductScreen> {
                     ),
                   ),
                   SliverToBoxAdapter(
-                    child: _DetailBadgeStrip(
-                      title: 'الشارات الأولى',
-                      badges: _maps(data['badges']),
-                      positions: const {'first'},
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _DetailBadgeStrip(
-                      title: 'الشارات فوق الصورة',
-                      badges: _maps(data['badges']),
-                      positions: const {'above_image'},
-                    ),
-                  ),
-                  SliverToBoxAdapter(
                     child: SxGallery(
                       rows: media,
                       page: page,
@@ -408,8 +394,30 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       badges: _maps(data['badges']),
                     ),
                   ),
+                  // Thumbnails belong to the gallery and are kept immediately
+                  // underneath it, before any product information.
+                  SliverToBoxAdapter(
+                    child: SxGalleryThumbs(
+                      rows: media,
+                      page: page,
+                      changed: (index) => setState(() => page = index),
+                    ),
+                  ),
+                  // All badges intended for the start/before-price area.
+                  SliverToBoxAdapter(
+                    child: _DetailBadgeStrip(
+                      title: 'الشارات',
+                      badges: _maps(data['badges']),
+                      positions: const {
+                        'first',
+                        'before_price',
+                        'before_price_new_row',
+                      },
+                    ),
+                  ),
                   SliverToBoxAdapter(
                     child: _ProductHeroInfo(
+                      mode: 'price',
                       name: sxText(product['name'], 'منتج'),
                       brand: sxText(brand['name']),
                       sku: sxText(product['sku']),
@@ -428,52 +436,47 @@ class _SxProductScreenState extends State<SxProductScreen> {
                     ),
                   ),
                   SliverToBoxAdapter(
+                    child: _ProductHeroInfo(
+                      mode: 'name',
+                      name: sxText(product['name'], 'منتج'),
+                      brand: sxText(brand['name']),
+                      sku: sxText(product['sku']),
+                      price: price,
+                      oldPrice: oldPrice,
+                      currency: detailCurrency,
+                      discount: discount,
+                      average: average,
+                      reviewCount: reviewCount,
+                      showRating: display['show_rating'] != false,
+                      showReviewCount: display['show_review_count'] != false,
+                      badges: _maps(data['badges']),
+                      trendBadges: trendBadges,
+                      cardSettings: _asMap(data['product_card_settings']),
+                      detailSettings: detailSettings,
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _DetailBadgeStrip(
+                      title: 'الشارات قبل الوصف',
+                      badges: _maps(data['badges']),
+                      positions: const {
+                        'after_price',
+                        'after_price_same_row',
+                        'after_price_new_row',
+                        'below_price',
+                        'after_name',
+                        'after_name_same_row',
+                        'after_name_new_row',
+                        'after_name_row',
+                      },
+                    ),
+                  ),
+                  SliverToBoxAdapter(
                     child: _ProductIdentityPanel(
                       brand: sxText(brand['name']),
                       productType: sxText(product['product_type']),
                       material: sxText(product['material']),
                       sku: sxText(product['sku']),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: SxGalleryThumbs(
-                      rows: media,
-                      page: page,
-                      changed: (index) => setState(() => page = index),
-                    ),
-                  ),
-                  if (colors.isNotEmpty || sizes.isNotEmpty)
-                    SliverToBoxAdapter(
-                      child: _ProductOptions(
-                        colors: colors,
-                        sizes: sizes,
-                        selectedColorId: colorId,
-                        selectedSizeId: sizeId,
-                        onColor: (value) => setState(() {
-                          colorId = value;
-                          page = 0;
-                        }),
-                        onSize: (value) => setState(() => sizeId = value),
-                      ),
-                    ),
-                  if (discount > 0)
-                    SliverToBoxAdapter(
-                      child: _ProductSavings(
-                        percent: discount,
-                        price: price,
-                        oldPrice: oldPrice,
-                        currency: state.currencySymbol,
-                      ),
-                    ),
-                  SliverToBoxAdapter(
-                    child: _ProductTrust(
-                      showShipping: display['show_shipping_banner'] != false,
-                      showReturn: display['show_return'] != false,
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _DeliveryBadgePanel(
-                      badges: _maps(data['delivery_badges']),
                     ),
                   ),
                   SliverToBoxAdapter(
@@ -517,6 +520,31 @@ class _SxProductScreenState extends State<SxProductScreen> {
                         'after_details_same_row',
                         'after_details_new_row',
                       },
+                    ),
+                  ),
+                  if (colors.isNotEmpty || sizes.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: _ProductOptions(
+                        colors: colors,
+                        sizes: sizes,
+                        selectedColorId: colorId,
+                        selectedSizeId: sizeId,
+                        onColor: (value) => setState(() {
+                          colorId = value;
+                          page = 0;
+                        }),
+                        onSize: (value) => setState(() => sizeId = value),
+                      ),
+                    ),
+                  SliverToBoxAdapter(
+                    child: _DeliveryBadgePanel(
+                      badges: _maps(data['delivery_badges']),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _ProductTrust(
+                      showShipping: display['show_shipping_banner'] != false,
+                      showReturn: display['show_return'] != false,
                     ),
                   ),
                   SliverToBoxAdapter(child: _PolicySections(policies: policies)),
@@ -711,6 +739,7 @@ class SxGallery extends StatelessWidget {
                 ),
               ),
             ),
+            ..._galleryBadgeWidgets(badges),
             if (data.length > 1)
               Positioned(
                 left: 10,
@@ -747,11 +776,22 @@ List<Widget> _galleryBadgeWidgets(List<Map<String, dynamic>> badges) {
   }).toList();
 }
 Widget _galleryBadgePosition(String position, Widget child) {
-  switch(position) {
-    case 'top_left': return Positioned(top:8,left:8,child:child);
-    case 'bottom_left': return Positioned(bottom:8,left:8,child:child);
-    case 'bottom_right': return Positioned(bottom:8,right:8,child:child);
-    default: return Positioned(top:48,right:8,child:child);
+  switch (position) {
+    case 'top_left':
+      return Positioned(top: 8, left: 8, child: child);
+    case 'bottom_left':
+      return Positioned(bottom: 8, left: 8, child: child);
+    case 'bottom_right':
+      return Positioned(bottom: 8, right: 8, child: child);
+    case 'right_of_image':
+      return Positioned(
+        top: 0,
+        right: 0,
+        bottom: 0,
+        child: Center(child: child),
+      );
+    default:
+      return Positioned(top: 48, right: 8, child: child);
   }
 }
 
@@ -777,7 +817,7 @@ class SxGalleryThumbs extends StatelessWidget {
         height: 76,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          reverse: true,
+          reverse: false,
           child: Directionality(
             textDirection: TextDirection.rtl,
             child: Row(
@@ -968,6 +1008,7 @@ class _ProductHeroInfo extends StatelessWidget {
   final List<Map<String, dynamic>> trendBadges;
   final Map<String, dynamic> cardSettings;
   final Map<String, dynamic> detailSettings;
+  final String mode;
 
   const _ProductHeroInfo({
     required this.name,
@@ -985,6 +1026,7 @@ class _ProductHeroInfo extends StatelessWidget {
     required this.trendBadges,
     required this.cardSettings,
     required this.detailSettings,
+    required this.mode,
   });
 
   @override
@@ -1256,87 +1298,108 @@ class _ProductHeroInfo extends StatelessWidget {
       );
     }
 
+    final priceChildren = <Widget>[
+      if (trends.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 7),
+          child: Wrap(
+            textDirection: TextDirection.rtl,
+            spacing: 5,
+            runSpacing: 5,
+            children: trends,
+          ),
+        ),
+      strip(beforePriceRow, compact: true),
+      if (beforePriceSame.isNotEmpty || afterPriceSame.isNotEmpty)
+        Row(
+          textDirection: TextDirection.rtl,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (beforePriceSame.isNotEmpty)
+              Flexible(
+                child: Wrap(
+                  textDirection: TextDirection.rtl,
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: beforePriceSame.map(chip).toList(),
+                ),
+              ),
+            if (beforePriceSame.isNotEmpty) const SizedBox(width: 6),
+            Expanded(child: priceBox()),
+            if (afterPriceSame.isNotEmpty) const SizedBox(width: 6),
+            if (afterPriceSame.isNotEmpty)
+              Flexible(
+                child: Wrap(
+                  textDirection: TextDirection.rtl,
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: afterPriceSame.map(chip).toList(),
+                ),
+              ),
+          ],
+        )
+      else
+        priceBox(),
+      strip(afterPriceRow, compact: true),
+      strip(belowPrice, compact: true),
+    ];
+
+    final nameChildren = <Widget>[
+      strip(beforeNameRow, compact: true),
+      beforeSameRow(),
+      if (brand.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            brand,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontSize: 10,
+              color: ClientTheme.muted,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      if (afterNameRow.isNotEmpty) ...[
+        const SizedBox(height: 4),
+        strip(afterNameRow, compact: true),
+      ],
+      if (sku.isNotEmpty)
+        Text(
+          sku,
+          textAlign: TextAlign.right,
+          style: const TextStyle(fontSize: 8, color: Color(0xFF9CA3AF)),
+        ),
+      if (showRating)
+        Padding(
+          padding: const EdgeInsets.only(top: 7),
+          child: Row(
+            textDirection: TextDirection.rtl,
+            children: [
+              const Icon(Icons.star_rounded, size: 16, color: Color(0xFFFFB400)),
+              const SizedBox(width: 2),
+              Text(
+                average > 0 ? average.toStringAsFixed(1) : '—',
+                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+              ),
+              if (showReviewCount)
+                Text(
+                  ' · $reviewCount تقييم',
+                  style: const TextStyle(fontSize: 9, color: ClientTheme.muted),
+                ),
+            ],
+          ),
+        ),
+    ];
+
+    final children = mode == 'price' ? priceChildren : nameChildren;
+
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (trends.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 7),
-              child: Wrap(textDirection: TextDirection.rtl, spacing: 5, runSpacing: 5, children: trends),
-            ),
-          strip(beforePriceRow, compact: true),
-          if (beforePriceSame.isNotEmpty || afterPriceSame.isNotEmpty)
-            Row(
-              textDirection: TextDirection.rtl,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (beforePriceSame.isNotEmpty)
-                  Flexible(
-                    child: Wrap(
-                      textDirection: TextDirection.rtl,
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: beforePriceSame.map(chip).toList(),
-                    ),
-                  ),
-                if (beforePriceSame.isNotEmpty) const SizedBox(width: 6),
-                Expanded(child: priceBox()),
-                if (afterPriceSame.isNotEmpty) const SizedBox(width: 6),
-                if (afterPriceSame.isNotEmpty)
-                  Flexible(
-                    child: Wrap(
-                      textDirection: TextDirection.rtl,
-                      spacing: 4,
-                      runSpacing: 4,
-                      children: afterPriceSame.map(chip).toList(),
-                    ),
-                  ),
-              ],
-            )
-          else
-            priceBox(),
-          strip(afterPriceRow, compact: true),
-          strip(belowPrice, compact: true),
-          const SizedBox(height: 8),
-          strip(beforeNameRow, compact: true),
-          beforeSameRow(),
-          if (brand.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                brand,
-                style: const TextStyle(fontSize: 10, color: ClientTheme.muted, fontWeight: FontWeight.w800),
-              ),
-            ),
-          if (afterNameSame.isEmpty) const SizedBox(height: 4),
-          if (afterNameRow.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            strip(afterNameRow, compact: true),
-          ],
-          if (sku.isNotEmpty)
-            Text(
-              sku,
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 8, color: Color(0xFF9CA3AF)),
-            ),
-          if (showRating)
-            Padding(
-              padding: const EdgeInsets.only(top: 7),
-              child: Row(
-                textDirection: TextDirection.rtl,
-                children: [
-                  const Icon(Icons.star_rounded, size: 16, color: Color(0xFFFFB400)),
-                  const SizedBox(width: 2),
-                  Text(average > 0 ? average.toStringAsFixed(1) : '—', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900)),
-                  if (showReviewCount)
-                    Text(' · $reviewCount تقييم', style: const TextStyle(fontSize: 9, color: ClientTheme.muted)),
-                ],
-              ),
-            ),
-        ],
+        children: children,
       ),
     );
   }
