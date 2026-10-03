@@ -771,12 +771,115 @@ def register_entity_views(admin_bp):
             rows.append(["ضمان", x.id, x.order_id, x.status])
         return _render("الأعمال المعلقة", ["النوع", "ID", "الطلب", "الحالة"], rows, "الرئيسية")
 
-    @admin_bp.get("/notifications")
+    @admin_bp.route("/notifications", methods=["GET", "POST"])
     def notifications():
-        from ..models import Notification
+        from ..models import Notification, Customer, Product, Order
+        from ..services.notifications import NotificationService
+        import json
+
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                title = (request.form.get("title") or "").strip()
+                body = (request.form.get("body") or "").strip()
+                recipient_type = (request.form.get("recipient_type") or "all").strip()
+                screen_type = (request.form.get("screen_type") or "home").strip()
+                customer_id = request.form.get("customer_id", type=int)
+                data_text = (request.form.get("payload") or "").strip()
+
+                if not title or not body:
+                    raise ValueError("عنوان الإشعار ونصه مطلوبان.")
+                if recipient_type not in {"all", "customer"}:
+                    raise ValueError("المستلم غير صحيح.")
+
+                data = {}
+                if data_text:
+                    try:
+                        parsed = json.loads(data_text)
+                    except json.JSONDecodeError as exc:
+                        raise ValueError("Payload يجب أن يكون JSON صحيحًا.") from exc
+                    if not isinstance(parsed, dict):
+                        raise ValueError("Payload يجب أن يكون كائن JSON.")
+                    data.update(parsed)
+
+                if screen_type not in {
+                    "home", "product_details", "order_details",
+                    "conversation", "category", "url",
+                }:
+                    raise ValueError("نوع الشاشة غير مدعوم.")
+
+                data["screen_type"] = screen_type
+                data["type"] = "announcement"
+
+                if screen_type == "product_details":
+                    product_id = request.form.get("product_id", type=int)
+                    if not product_id or db.session.get(Product, product_id) is None:
+                        raise ValueError("اختر منتجًا صحيحًا.")
+                    data["product_id"] = product_id
+                elif screen_type == "order_details":
+                    order_id = request.form.get("order_id", type=int)
+                    if not order_id or db.session.get(Order, order_id) is None:
+                        raise ValueError("اختر طلبًا صحيحًا.")
+                    data["order_id"] = order_id
+                elif screen_type == "conversation":
+                    conversation_id = request.form.get("conversation_id", type=int)
+                    if not conversation_id:
+                        raise ValueError("أدخل رقم المحادثة الصحيح.")
+                    data["conversation_id"] = conversation_id
+                elif screen_type == "category":
+                    category_id = request.form.get("category_id", type=int)
+                    if not category_id:
+                        raise ValueError("أدخل رقم الفئة الصحيح.")
+                    data["category_id"] = category_id
+                elif screen_type == "url":
+                    target_url = (request.form.get("target_url") or "").strip()
+                    if not target_url:
+                        raise ValueError("أدخل رابط الوجهة.")
+                    data["url"] = target_url
+
+                data["target"] = {
+                    "home": "home",
+                    "product_details": "product",
+                    "order_details": "order",
+                    "conversation": "conversation",
+                    "category": "category",
+                    "url": "url",
+                }[screen_type]
+
+                if recipient_type == "customer":
+                    if not customer_id or db.session.get(Customer, customer_id) is None:
+                        raise ValueError("العميل غير موجود.")
+                    NotificationService.create(
+                        customer_id,
+                        "announcement",
+                        title,
+                        body,
+                        data,
+                    )
+                    success = "تم إرسال الإشعار للعميل."
+                else:
+                    result = NotificationService.broadcast(title, body, data)
+                    success = f"تم إرسال الإشعار إلى {result['count']} عميل."
+            except (ValueError, TypeError, OSError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
         rows = Notification.query.order_by(Notification.id.desc()).limit(200).all()
-        return _render("الإشعارات", ["ID", "العميل", "النوع", "العنوان", "الحالة"],
-                       [[x.id, x.customer_id, x.type, x.title, x.status] for x in rows], "العملاء والتواصل")
+        customers = Customer.query.filter_by(status="active").order_by(Customer.id.desc()).limit(300).all()
+        products = Product.query.filter_by(is_active=True, status="published").order_by(Product.id.desc()).limit(300).all()
+        orders = Order.query.order_by(Order.id.desc()).limit(300).all()
+        return render_template(
+            "admin/notifications.html",
+            title="الإشعارات",
+            rows=rows,
+            customers=customers,
+            products=products,
+            orders=orders,
+            success=success,
+            error=error,
+            **build_admin_context(),
+        )
 
     @admin_bp.get("/products/drafts")
     def product_drafts():
