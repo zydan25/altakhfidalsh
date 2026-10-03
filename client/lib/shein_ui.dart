@@ -7658,28 +7658,74 @@ class _SxCartScreenState extends State<SxCartScreen> {
 class _CartRow extends StatelessWidget {
   final Map<String, dynamic> row; final VoidCallback plus, minus, remove;
   const _CartRow({required this.row, required this.plus, required this.minus, required this.remove});
-  @override Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(7),
-    decoration: const BoxDecoration(color: Colors.white, border: Border(bottom: BorderSide(color: ClientTheme.border))),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      SizedBox(width: 99, height: 123, child: ClipRRect(borderRadius: BorderRadius.circular(6), child: SxImage(url: row['image_url']))),
-      const SizedBox(width: 9),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text(sxText(row['product_name'], 'منتج'), maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 5), Text(sxText(row['variant_display']), style: const TextStyle(fontSize: 9, color: ClientTheme.muted)),
-        const SizedBox(height: 8), Text(sxText(row['unit_price'], '0') + ' ' + state.currencySymbol, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 7),
-        Row(children: [
-          InkWell(onTap: remove, child: const Padding(padding: EdgeInsets.all(4), child: Icon(Icons.delete_outline, size: 18))), const Spacer(),
-          Container(height: 34, decoration: BoxDecoration(border: Border.all(color: ClientTheme.border), borderRadius: BorderRadius.circular(4)), child: Row(children: [
-            InkWell(onTap: plus, child: const SizedBox(width: 32, child: Center(child: Text('+', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700))))),
-            Padding(padding: const EdgeInsets.symmetric(horizontal: 9), child: Text(sxText(row['qty'], '1'), style: const TextStyle(fontWeight: FontWeight.w900))),
-            InkWell(onTap: minus, child: const SizedBox(width: 32, child: Center(child: Text('−', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700))))),
-          ])),
-        ]),
-      ])),
-    ]),
+
+  List<Map<String, dynamic>> _selectedOptions() {
+    final raw = row['selected_options'];
+    if (raw is! Map) return <Map<String, dynamic>>[];
+    return raw.entries.map((entry) => <String, dynamic>{
+      'name': entry.key.toString(),
+      'value': entry.value,
+    }).where((item) => sxText(item['value']).trim().isNotEmpty).toList();
+  }
+
+  Widget _tag(String text, {bool strong = false}) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+    decoration: BoxDecoration(color: ClientTheme.soft, borderRadius: BorderRadius.circular(5), border: Border.all(color: ClientTheme.border)),
+    child: Text(text, style: TextStyle(fontSize: 9, fontWeight: strong ? FontWeight.w900 : FontWeight.w700)),
   );
+
+  @override Widget build(BuildContext context) {
+    final options = _selectedOptions();
+    final color = sxText(row['color_name']).trim();
+    final size = sxText(row['size_label']).trim();
+    final currency = sxText(row['currency_symbol'], state.currencySymbol);
+    final unitPrice = sxMoney(double.tryParse(sxText(row['unit_price'])) ?? 0);
+    final lineTotal = sxMoney(double.tryParse(sxText(row['line_total'])) ?? 0);
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(color: Colors.white, border: Border.all(color: ClientTheme.border), borderRadius: BorderRadius.circular(8)),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(width: 96, height: 122, child: ClipRRect(borderRadius: BorderRadius.circular(6), child: SxImage(url: row['image_url']))),
+        const SizedBox(width: 9),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text(sxText(row['product_name'], 'منتج'), maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 7),
+          Wrap(spacing: 5, runSpacing: 5, children: [
+            if (color.isNotEmpty) _tag('اللون: ' + color, strong: true),
+            if (size.isNotEmpty) _tag('المقاس: ' + size, strong: true),
+            for (final option in options) _tag(sxText(option['name']) + ': ' + sxText(option['value'])),
+          ]),
+          const SizedBox(height: 9),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+            decoration: BoxDecoration(color: const Color(0xFFFAFAFA), borderRadius: BorderRadius.circular(6)),
+            child: Column(children: [
+              Row(children: [
+                const Expanded(child: Text('سعر الوحدة', style: TextStyle(fontSize: 9, color: ClientTheme.muted))),
+                Text(unitPrice + ' ' + currency, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+              ]),
+              const SizedBox(height: 4),
+              Row(children: [
+                const Expanded(child: Text('الإجمالي', style: TextStyle(fontSize: 9, color: ClientTheme.muted))),
+                Text(lineTotal + ' ' + currency, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
+              ]),
+            ]),
+          ),
+          const SizedBox(height: 7),
+          Row(children: [
+            InkWell(onTap: remove, borderRadius: BorderRadius.circular(16), child: const Padding(padding: EdgeInsets.all(5), child: Icon(Icons.delete_outline, size: 18, color: Color(0xFF777777)))),
+            const Spacer(),
+            Container(height: 34, decoration: BoxDecoration(border: Border.all(color: ClientTheme.border), borderRadius: BorderRadius.circular(5)), child: Row(children: [
+              InkWell(onTap: plus, child: const SizedBox(width: 33, child: Center(child: Text('+', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700))))),
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 10), child: Text(sxText(row['qty'], '1'), style: const TextStyle(fontWeight: FontWeight.w900))),
+              InkWell(onTap: minus, child: const SizedBox(width: 33, child: Center(child: Text('−', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700))))),
+            ])),
+          ]),
+        ])),
+      ]),
+    );
+  }
 }
 class _EmptyCart extends StatelessWidget {
   const _EmptyCart();
