@@ -189,6 +189,17 @@ def shipping_quote():
                 if quote.free_shipping_threshold_sar is not None
                 else None
             ),
+            "next_benefit_type": quote.next_benefit_type,
+            "next_benefit_threshold_sar": (
+                str(quote.next_benefit_threshold_sar)
+                if quote.next_benefit_threshold_sar is not None
+                else None
+            ),
+            "next_benefit_value": (
+                str(quote.next_benefit_value)
+                if quote.next_benefit_value is not None
+                else None
+            ),
             "base_price_sar": str(quote.base_price_sar),
             "adjustment_sar": str(quote.adjustment_sar),
             "applied_rule_ids": list(quote.applied_rule_ids),
