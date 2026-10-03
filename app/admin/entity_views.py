@@ -1575,14 +1575,17 @@ def register_entity_views(admin_bp):
                 "hint": "تحكم في خلفية البطاقة واسم المنتج والوصف القصير وتناسق النصوص.",
                 "fields": [
                     ("card_radius", "تدوير البطاقة", "number", 0, 30, 1, True),
+                    ("card_background_opacity", "شفافية خلفية البطاقة", "number", 0, 1, .05, False),
                     ("show_name", "إظهار اسم المنتج", "checkbox"),
                     ("name_font_size", "حجم اسم المنتج", "number", 7, 24, .5, False),
                     ("name_font_weight", "وزن اسم المنتج", "number", 300, 900, 100, True),
                     ("name_max_lines", "أقصى أسطر للاسم", "number", 1, 3, 1, True),
+                    ("name_background_opacity", "شفافية خلفية الاسم", "number", 0, 1, .05, False),
                     ("show_short_description", "إظهار الوصف القصير", "checkbox"),
                     ("short_description_font_size", "حجم الوصف القصير", "number", 7, 18, .5, False),
                     ("short_description_font_weight", "وزن الوصف القصير", "number", 300, 900, 100, True),
                     ("short_description_max_lines", "أقصى أسطر للوصف", "number", 1, 3, 1, True),
+                    ("short_description_background_opacity", "شفافية خلفية الوصف", "number", 0, 1, .05, False),
                 ],
             },
             {

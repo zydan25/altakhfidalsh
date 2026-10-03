@@ -1,17 +1,46 @@
 {% extends "admin/base.html" %}
-
 {% block content %}
-<section class="module-header product-admin-header">
-  <div class="module-toolbar">
+<style>
+.admin-product-list-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.admin-product-cards{display:grid;grid-template-columns:1fr;gap:8px;margin-top:12px}
+.admin-product-card{position:relative;display:flex;align-items:center;gap:9px;min-width:0;background:#fff;border:1px solid #ececec;border-radius:14px;overflow:visible;padding:7px;box-shadow:0 3px 14px rgba(17,24,39,.045)}
+.admin-product-card.is-archived{opacity:.72}
+.admin-product-card-media{position:relative;flex:0 0 68px;width:68px;height:68px;background:#f5f5f5;border-radius:11px;overflow:hidden}
+.admin-product-card-media img{width:100%;height:100%;display:block;object-fit:cover}
+.admin-product-card-placeholder{width:100%;height:100%;display:grid;place-items:center;color:#9ca3af;font-size:25px}
+.admin-product-card-status{position:absolute;right:4px;bottom:4px;z-index:2}
+.admin-product-card-menu{position:absolute;top:3px;left:3px;z-index:4}
+.admin-product-menu-trigger{width:29px;height:29px;border:0;background:rgba(255,255,255,.94);border-radius:50%;font-size:20px;line-height:1;box-shadow:0 2px 7px rgba(0,0,0,.08)}
+.admin-product-menu{position:absolute;top:32px;left:0;min-width:150px;background:#fff;border:1px solid #ececec;border-radius:11px;padding:5px;box-shadow:0 12px 30px rgba(0,0,0,.12)}
+.admin-product-menu a,.admin-product-menu button{display:block;width:100%;padding:8px 9px;border:0;background:transparent;text-align:right;border-radius:7px;text-decoration:none;color:#202020;font:inherit;font-size:11px}
+.admin-product-menu a:hover,.admin-product-menu button:hover{background:#f6f6f6}
+.admin-product-card-body{min-width:0;flex:1;padding:1px 2px}
+.admin-product-card-title-row{display:flex;gap:6px;align-items:flex-start;justify-content:space-between}
+.admin-product-card-title{display:block;flex:1;min-width:0;color:#161616;text-decoration:none;font-size:12px;font-weight:800;line-height:1.42;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.admin-product-card-sku{font-size:7.5px;color:#9aa0a6;direction:ltr;white-space:nowrap}
+.admin-product-card-price-row{display:flex;align-items:baseline;gap:4px;margin-top:5px}
+.admin-product-card-price-row strong{font-size:13px;font-weight:900}
+.admin-product-card-price-row span{font-size:8px;color:#7b8188}
+.admin-product-card-price-row del{margin-inline-start:auto;color:#9da2a8;font-size:8.5px}
+.admin-product-card-stats{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.admin-product-card-stats span{font-size:7.5px;color:#777;background:#f7f7f7;border-radius:99px;padding:3px 5px}
+.admin-product-card-actions{display:flex;gap:5px;margin-top:6px}
+.compact{min-height:30px;padding:6px 9px;font-size:10px}
+.catalog-view-tabs{display:flex;gap:5px;overflow:auto;margin-top:10px}
+.catalog-view-tabs a{white-space:nowrap}
+@media(min-width:760px){.admin-product-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+</style>
+
+<section class="module-header">
+  <div class="admin-product-list-header">
     <div class="module-heading-copy">
       <span class="eyebrow">الكتالوج</span>
       <h2>المنتجات</h2>
-      <p class="muted">إدارة سريعة ببطاقات صغيرة: صورة، سعر، حالة، وأهم الإحصائيات دون فتح المنتج.</p>
+      <p class="muted">إدارة المنتجات من بطاقات مختصرة: الصورة، الاسم، السعر، الإحصائيات والإجراءات السريعة.</p>
     </div>
     <div class="module-toolbar-actions">
       <span class="status-pill">فعال {{ active_count }}</span>
-      <a class="ghost-button" href="/admin/products?view=archived">الأرشيف {{ archived_count }}</a>
-      <a class="primary-button" href="/admin/products/new">＋ إضافة منتج</a>
+      <a class="primary-button compact" href="/admin/products/new">＋ إضافة</a>
     </div>
   </div>
 </section>
@@ -26,67 +55,55 @@
 </nav>
 
 <section class="admin-product-cards">
-  {% for product in products %}
-  <article class="admin-product-card {% if not product.is_active %}is-archived{% endif %}">
-    <div class="admin-product-card-media">
-      {% if product._admin_image_url %}
-        <img src="{{ product._admin_image_url }}" alt="{{ product.name }}" loading="lazy">
-      {% else %}
-        <div class="admin-product-card-placeholder" aria-hidden="true"><span>▧</span></div>
-      {% endif %}
-      <div class="admin-product-card-status">
-        {% if product.is_active %}<span class="status-pill">فعال</span>{% else %}<span class="status-pill archived-pill">مؤرشف</span>{% endif %}
-      </div>
-      <div class="admin-product-card-menu">
-        <button type="button" class="icon-button admin-product-menu-trigger" aria-label="إجراءات {{ product.name }}" data-product-menu="{{ product.id }}">⋮</button>
-        <div class="admin-product-menu" data-menu-for="{{ product.id }}" hidden>
-          <a href="/admin/products/{{ product.id }}/edit">تعديل المنتج</a>
-          <a href="/admin/products/{{ product.id }}/edit#marketing">الشارات والمظهر</a>
-          {% if product.is_active %}
-          <form method="post"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ product.id }}"><button type="submit">أرشفة</button></form>
-          {% else %}
-          <form method="post"><input type="hidden" name="action" value="restore"><input type="hidden" name="id" value="{{ product.id }}"><button type="submit">إعادة التفعيل</button></form>
-          {% endif %}
-        </div>
-      </div>
+{% for product in products %}
+<article class="admin-product-card {% if not product.is_active %}is-archived{% endif %}">
+  <div class="admin-product-card-media">
+    {% if product._admin_image_url %}<img src="{{ product._admin_image_url }}" alt="{{ product.name }}" loading="lazy">
+    {% else %}<div class="admin-product-card-placeholder" aria-hidden="true">▧</div>{% endif %}
+    <div class="admin-product-card-status">
+      <span class="status-pill {% if not product.is_active %}archived-pill{% endif %}">{{ "فعال" if product.is_active else "مؤرشف" }}</span>
     </div>
-
-    <div class="admin-product-card-body">
-      <div class="admin-product-card-title-row">
-        <a href="/admin/products/{{ product.id }}/edit" class="admin-product-card-title">{{ product.name }}</a>
-        <span class="admin-product-card-sku">{{ product.sku }}</span>
-      </div>
-      <div class="admin-product-card-price-row">
-        <strong>{{ product.base_price }}</strong>
-        <span>{{ product.base_currency_id }}</span>
-        {% if product.compare_at_price %}
-          <del>{{ product.compare_at_price }}</del>
+    <div class="admin-product-card-menu">
+      <button type="button" class="icon-button admin-product-menu-trigger" aria-label="إجراءات {{ product.name }}" data-product-menu="{{ product.id }}">⋮</button>
+      <div class="admin-product-menu" data-menu-for="{{ product.id }}" hidden>
+        <a href="/admin/products/{{ product.id }}/edit#basics">تفاصيل وتعديل</a>
+        <a href="/admin/products/{{ product.id }}/edit#marketing">الشارات والمظهر</a>
+        {% if product.is_active %}
+        <form method="post"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ product.id }}"><button type="submit">أرشفة</button></form>
+        {% else %}
+        <form method="post"><input type="hidden" name="action" value="restore"><input type="hidden" name="id" value="{{ product.id }}"><button type="submit">إعادة التفعيل</button></form>
         {% endif %}
       </div>
-      <div class="admin-product-card-stats">
-        <span><b>{{ product._admin_variant_count }}</b> متغير</span>
-        <span><b>{{ product._admin_badge_count }}</b> شارة</span>
-        <span><b>{{ product.status }}</b></span>
-      </div>
-      <div class="admin-product-card-actions">
-        <a class="primary-button compact" href="/admin/products/{{ product.id }}/edit">التفاصيل</a>
-        <a class="ghost-button compact" href="/admin/products/{{ product.id }}/edit#basics">تعديل</a>
-      </div>
     </div>
-  </article>
-  {% else %}
-  <section class="empty-state panel">
-    <div class="empty-icon">▣</div>
-    {% if view == "archived" %}
-      <h3>الأرشيف فارغ</h3>
-      <p class="muted">المنتجات المؤرشفة محفوظة ويمكن إعادة تفعيلها كمسودة.</p>
-    {% else %}
-      <h3>لا توجد منتجات</h3>
-      <p class="muted">ابدأ بإنشاء أول منتج من الزر في الأعلى.</p>
-      <a class="primary-button" href="/admin/products/new">إنشاء أول منتج</a>
-    {% endif %}
-  </section>
-  {% endfor %}
+  </div>
+  <div class="admin-product-card-body">
+    <div class="admin-product-card-title-row">
+      <a href="/admin/products/{{ product.id }}/edit" class="admin-product-card-title">{{ product.name }}</a>
+      <span class="admin-product-card-sku">{{ product.sku }}</span>
+    </div>
+    <div class="admin-product-card-price-row">
+      <strong>{{ product.base_price }}</strong><span>{{ product._admin_currency_code }}</span>
+      {% if product.compare_at_price %}<del>{{ product.compare_at_price }}</del>{% endif %}
+    </div>
+    <div class="admin-product-card-stats">
+      <span><b>{{ product._admin_variant_count }}</b> متغير</span>
+      <span><b>{{ product._admin_badge_count }}</b> شارة</span>
+      <span><b>{{ "منشور" if product.status == "published" else ("مسودة" if product.status == "draft" else product.status) }}</b></span>
+    </div>
+    <div class="admin-product-card-actions">
+      <a class="primary-button compact" href="/admin/products/{{ product.id }}/edit">فتح المنتج</a>
+      <a class="ghost-button compact" href="/admin/products/{{ product.id }}/edit#marketing">المظهر</a>
+    </div>
+  </div>
+</article>
+{% else %}
+<section class="empty-state panel">
+  <div class="empty-icon">▣</div>
+  <h3>{% if view == "archived" %}الأرشيف فارغ{% else %}لا توجد منتجات{% endif %}</h3>
+  <p class="muted">{% if view == "archived" %}المنتجات المؤرشفة محفوظة ويمكن إعادة تفعيلها.{% else %}ابدأ بإنشاء أول منتج.{% endif %}</p>
+  {% if view != "archived" %}<a class="primary-button" href="/admin/products/new">إنشاء أول منتج</a>{% endif %}
+</section>
+{% endfor %}
 </section>
 
 <script>

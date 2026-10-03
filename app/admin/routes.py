@@ -406,8 +406,14 @@ def register_admin_routes(admin_bp):
                 .all()
             )
 
+        currency_ids = {int(item.base_currency_id) for item in items if item.base_currency_id}
+        currencies_map = {
+            currency.id: currency.code
+            for currency in Currency.query.filter(Currency.id.in_(currency_ids)).all()
+        } if currency_ids else {}
         for item in items:
             item._admin_image_url = media_map.get(item.id)
+            item._admin_currency_code = currencies_map.get(item.base_currency_id, "")
             item._admin_variant_count = int(variant_counts.get(item.id, 0))
             item._admin_badge_count = int(badge_counts.get(item.id, 0))
 
