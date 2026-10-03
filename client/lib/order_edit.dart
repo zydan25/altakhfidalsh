@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'api.dart';
 import 'app_state.dart';
+import 'models.dart';
 import 'theme.dart';
 
 String oeText(dynamic value, [String fallback = '']) => (value ?? fallback).toString();
@@ -120,6 +121,80 @@ class _SxOrderEditScreenState extends State<SxOrderEditScreen> {
     if (mounted) setState(() => loading = false);
   }
 
+  Future<void> addProduct() async {
+    try {
+      final products = await api.feed(currencyId: state.currencyId);
+      if (!mounted) return;
+      final product = await showModalBottomSheet<ProductModel>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+        builder: (context) => _OrderProductPicker(products: products),
+      );
+      if (product == null || !mounted) return;
+
+      final detailResponse = await api.product(product.id, currencyId: state.currencyId);
+      final detail = detailResponse['item'] is Map
+          ? Map<String, dynamic>.from(detailResponse['item'])
+          : <String, dynamic>{};
+      final variants = oeMaps(detail['variants']).where(
+        (v) => oeInt(v['id']) > 0 && oeInt(v['available_qty']) > 0,
+      ).toList();
+      if (variants.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('هذا المنتج لا يملك مخزونًا متاحًا حاليًا.')),
+        );
+        return;
+      }
+
+      final colors = oeMaps(detail['reference_colors']);
+      final sizes = oeMaps(detail['reference_sizes']);
+      final selectedVariant = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+        builder: (context) => _OrderVariantPicker(
+          productName: product.name,
+          variants: variants,
+          colors: colors,
+          sizes: sizes,
+        ),
+      );
+      if (selectedVariant == null || !mounted) return;
+
+      final options = <String, dynamic>{};
+      final colorId = oeInt(selectedVariant['color_id']);
+      final sizeId = oeInt(selectedVariant['size_id']);
+      final color = colors.where((x) => oeInt(x['id']) == colorId).toList();
+      final size = sizes.where((x) => oeInt(x['id']) == sizeId).toList();
+      if (color.isNotEmpty) options['اللون'] = oeText(color.first['name']);
+      if (size.isNotEmpty) options['المقاس'] = oeText(size.first['label'], oeText(size.first['code']));
+
+      setState(() {
+        items.add(<String, dynamic>{
+          'variant_id': oeInt(selectedVariant['id']),
+          'name': product.name,
+          'image_url': product.image,
+          'sale_price_display': product.price,
+          '_selected_options': options,
+          '_qty': 1,
+        });
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(oeText(error))),
+        );
+      }
+    }
+  }
+
   Future<void> save() async {
     final status = oeText(widget.order['status']);
     if (status != 'created') {
@@ -211,13 +286,26 @@ class _SxOrderEditScreenState extends State<SxOrderEditScreen> {
           ),
         ),
         body: ListView(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 24),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.fromLTRB(10, 8, 10, 120),
           children: [
             const Text(
               'المنتجات والاختيارات',
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
+            SizedBox(
+              height: 44,
+              child: OutlinedButton.icon(
+                onPressed: saving ? null : addProduct,
+                icon: const Icon(Icons.add_shopping_cart_outlined, size: 19),
+                label: const Text(
+                  'إضافة منتج إلى الطلب',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                ),
+              ),
+            ),
+            const SizedBox(height: 9),
             for (final row in items)
               Container(
                 margin: const EdgeInsets.only(bottom: 7),
@@ -324,6 +412,11 @@ class _SxOrderEditScreenState extends State<SxOrderEditScreen> {
                           icon: const Icon(Icons.remove_circle_outline, size: 21),
                         ),
                         const Spacer(),
+                        IconButton(
+                          tooltip: 'حذف المنتج من الطلب',
+                          onPressed: () => setState(() => row['_qty'] = 0),
+                          icon: const Icon(Icons.delete_outline, size: 20, color: Color(0xFFC62828)),
+                        ),
                         if (oeInt(row['_qty'], 1) <= 0)
                           const Text(
                             'سيُحذف من الطلب',
@@ -424,6 +517,155 @@ class _SxOrderEditScreenState extends State<SxOrderEditScreen> {
       ),
     );
   }
+}
+
+class _OrderProductPicker extends StatefulWidget {
+  final List<ProductModel> products;
+  const _OrderProductPicker({required this.products});
+  @override
+  State<_OrderProductPicker> createState() => _OrderProductPickerState();
+}
+class _OrderProductPickerState extends State<_OrderProductPicker> {
+  final search = TextEditingController();
+  List<ProductModel> visible = const [];
+  @override
+  void initState() {
+    super.initState();
+    visible = widget.products;
+    search.addListener(_filter);
+  }
+  void _filter() {
+    final q = search.text.trim().toLowerCase();
+    setState(() {
+      visible = q.isEmpty
+          ? widget.products
+          : widget.products.where((p) => p.name.toLowerCase().contains(q)).toList();
+    });
+  }
+  @override
+  void dispose() {
+    search.removeListener(_filter);
+    search.dispose();
+    super.dispose();
+  }
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * .86,
+          child: Column(
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 13, 16, 8),
+                child: Row(
+                  children: [
+                    Expanded(child: Text('إضافة منتج', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900))),
+                    Icon(Icons.shopping_bag_outlined),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: TextField(
+                  controller: search,
+                  textDirection: TextDirection.rtl,
+                  decoration: const InputDecoration(
+                    labelText: 'ابحث عن المنتج',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: visible.isEmpty
+                    ? const Center(child: Text('لا توجد منتجات مطابقة.', style: TextStyle(fontSize: 10, color: ClientTheme.muted)))
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 18),
+                        itemCount: visible.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 7),
+                        itemBuilder: (_, index) {
+                          final product = visible[index];
+                          return ListTile(
+                            tileColor: const Color(0xFFF8F8F8),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            leading: SizedBox(
+                              width: 48,
+                              height: 60,
+                              child: product.image == null || product.image!.isEmpty
+                                  ? Container(color: ClientTheme.soft)
+                                  : Image.network(
+                                      api.url(product.image),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => Container(color: ClientTheme.soft),
+                                    ),
+                            ),
+                            title: Text(product.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900)),
+                            subtitle: Text('${product.price} ${state.currencySymbol}', style: const TextStyle(fontSize: 9, color: ClientTheme.muted)),
+                            trailing: const Icon(Icons.chevron_left),
+                            onTap: () => Navigator.pop(context, product),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+class _OrderVariantPicker extends StatelessWidget {
+  final String productName;
+  final List<Map<String, dynamic>> variants;
+  final List<Map<String, dynamic>> colors;
+  final List<Map<String, dynamic>> sizes;
+  const _OrderVariantPicker({
+    required this.productName,
+    required this.variants,
+    required this.colors,
+    required this.sizes,
+  });
+  String label(Map<String, dynamic> variant) {
+    final color = colors.where((x) => oeInt(x['id']) == oeInt(variant['color_id'])).toList();
+    final size = sizes.where((x) => oeInt(x['id']) == oeInt(variant['size_id'])).toList();
+    final parts = <String>[
+      if (color.isNotEmpty) oeText(color.first['name']),
+      if (size.isNotEmpty) oeText(size.first['label'], oeText(size.first['code'])),
+    ].where((x) => x.trim().isNotEmpty).toList();
+    return parts.isEmpty ? oeText(variant['sku'], 'اختيار المنتج') : parts.join(' · ');
+  }
+  @override
+  Widget build(BuildContext context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(productName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+              const SizedBox(height: 4),
+              const Text('اختر اللون/المقاس المتاح قبل إضافة المنتج.', style: TextStyle(fontSize: 9, color: ClientTheme.muted)),
+              const SizedBox(height: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 420),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: variants.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  itemBuilder: (_, index) {
+                    final variant = variants[index];
+                    final available = oeInt(variant['available_qty']);
+                    return ListTile(
+                      tileColor: const Color(0xFFF8F8F8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+                      title: Text(label(variant), style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
+                      subtitle: Text('المتاح: $available', style: const TextStyle(fontSize: 8.5, color: ClientTheme.success)),
+                      trailing: const Icon(Icons.add_circle_outline),
+                      onTap: () => Navigator.pop(context, variant),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 }
 
 // Returns the current shared ApiService token through the app singleton.
