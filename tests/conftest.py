@@ -23,6 +23,7 @@ def app():
     app = create_app(TestConfig)
     with app.app_context():
         db.create_all()
+        db.session().expire_on_commit = False
         yield app
         db.session.remove()
         db.drop_all()
