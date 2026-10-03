@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -198,11 +199,11 @@ void notificationBackgroundEntrypoint(ServiceInstance service) async {
       final socketBase = base.replaceFirst(RegExp(r'^https?://'), socketScheme);
       final channel = WebSocketChannel.connect(
         Uri.parse(socketBase + '/notifications/ws'),
-        headers: <String, String>{
-          'Authorization': 'Bearer ' + token,
-          'Accept': 'application/json',
-        },
       );
+      channel.sink.add(jsonEncode({
+        'type': 'auth',
+        'token': token,
+      }));
 
       final done = Completer<void>();
       late StreamSubscription<dynamic> subscription;
@@ -271,7 +272,7 @@ Future<void> _showFromLocal(FlutterLocalNotificationsPlugin local, Map<String, d
     id: id,
     title: (payload['title'] ?? 'التخفيض الصح').toString(),
     body: (payload['body'] ?? '').toString(),
-    notificationDetails: const NotificationDetails(
+    notificationDetails: NotificationDetails(
       android: AndroidNotificationDetails(
         notificationAlertsChannelId,
         'تنبيهات التخفيض الصح',
@@ -283,7 +284,9 @@ Future<void> _showFromLocal(FlutterLocalNotificationsPlugin local, Map<String, d
         playSound: true,
         enableVibration: true,
         vibrationPattern: Int64List.fromList(<int>[0, 250, 120, 250]),
-        styleInformation: BigTextStyleInformation(''),
+        styleInformation: BigTextStyleInformation(
+          (payload['body'] ?? '').toString(),
+        ),
       ),
     ),
     payload: jsonEncode(payload),
@@ -304,5 +307,7 @@ String _apiBaseUrl() {
 void notificationTapBackground(NotificationResponse response) {
   final raw = response.payload;
   if (raw == null || raw.trim().isEmpty) return;
-  unawaited(_storePendingPayload(raw));
+  unawaited(
+    AltakhfidNotificationService._storePendingPayload(raw),
+  );
 }
