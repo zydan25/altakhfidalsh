@@ -3,6 +3,18 @@
 <section class="module-header"><span class="eyebrow">النظام</span><h2>الإعدادات</h2><p class="muted">إعدادات عامة قابلة للتعديل من قاعدة البيانات بدل القيم الثابتة.</p></section>
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="panel" style="margin-bottom:12px">
+  <div class="panel-heading"><div><span class="eyebrow">إعدادات التطبيق العميل</span><h3>بيانات التواصل والموقع</h3></div></div>
+  <p class="muted" style="line-height:1.7">
+    يقرأ التطبيق هذه القيم مباشرة من الخادم. أنشئ أو عدّل المفاتيح التالية تحت المجموعة
+    <code dir="ltr">storefront</code>:
+    <span dir="ltr">support_phone</span>، <span dir="ltr">whatsapp_phone</span>،
+    <span dir="ltr">store_name</span>، <span dir="ltr">store_address</span>،
+    <span dir="ltr">store_latitude</span>، <span dir="ltr">store_longitude</span>،
+    <span dir="ltr">store_map_url</span>، <span dir="ltr">store_image_url</span>،
+    <span dir="ltr">store_hours</span>.
+  </p>
+</section>
 <section class="two-panel">
 <article class="panel">
 <div class="panel-heading"><div><span class="eyebrow">إضافة</span><h3>إعداد جديد</h3></div></div>
