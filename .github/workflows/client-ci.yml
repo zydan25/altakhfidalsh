@@ -136,10 +136,21 @@ jobs:
               if permission not in text:
                   text = text.replace(marker, permission + "\n    " + marker, 1)
 
+          # The Android plugin declares the same service as exported=true.
+          # Explicitly replace that attribute in the app manifest so the merge
+          # is deterministic and compatible with the background-service plugin.
+          if 'xmlns:tools="http://schemas.android.com/tools"' not in text:
+              text = text.replace(
+                  '<manifest xmlns:android=',
+                  '<manifest xmlns:tools="http://schemas.android.com/tools" xmlns:android=',
+                  1,
+              )
+
           service = '''    <service
               android:name="id.flutter.flutter_background_service.BackgroundService"
               android:exported="false"
-              android:foregroundServiceType="remoteMessaging" />'''
+              android:foregroundServiceType="remoteMessaging"
+              tools:replace="android:exported" />'''
           if "id.flutter.flutter_background_service.BackgroundService" not in text:
               text = text.replace(
                   "    </application>",
