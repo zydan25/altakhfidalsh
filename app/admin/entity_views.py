@@ -40,6 +40,7 @@ from .context import build_admin_context
 from ..modules.commerce.services import CommerceService
 from ..modules.catalog.services import CatalogService, MediaService
 from ..modules.support.services import SupportService
+from ..services.customer_deletion import delete_customer_permanently
 
 
 def _ctx():
@@ -198,6 +199,33 @@ def register_entity_views(admin_bp):
             success=success,
             **build_admin_context(),
         )
+
+    @admin_bp.post("/customers/<int:customer_id>/delete-permanently")
+    def delete_customer_permanently_page(customer_id):
+        customer = db.session.get(Customer, customer_id)
+        if customer is None:
+            return redirect(url_for("admin.customers"))
+
+        if (request.form.get("confirmation") or "").strip() != "DELETE":
+            return (
+                render_template(
+                    "admin/module.html",
+                    title="تأكيد حذف العميل",
+                    section="العملاء والتواصل",
+                    requested_path=request.path,
+                    **build_admin_context(),
+                ),
+                400,
+            )
+
+        try:
+            deleted_id = delete_customer_permanently(customer.id)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
+        return redirect(url_for("admin.customers"))
 
     @admin_bp.get("/orders")
     def orders():
