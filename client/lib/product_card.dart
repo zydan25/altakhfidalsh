@@ -759,7 +759,7 @@ class _SxProductCardState extends State<SxProductCard> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: product.badges
                     .where((badge) => _badgePosition(badge) == position)
-                    .take(_cardNumber('product_badge_max', 4).round().clamp(1, 4).toInt())
+                    .take(_cardNumber('product_badge_max', 4).round().clamp(1, 8).toInt())
                     .map(_badgeChip)
                     .toList(),
               ),
