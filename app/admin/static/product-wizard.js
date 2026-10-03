@@ -365,6 +365,7 @@
     show_brand:"إظهار العلامة التجارية",brand_position:"موقع العلامة التجارية",brand_background_color:"خلفية العلامة",brand_text_color:"لون العلامة",brand_font_size:"حجم خط العلامة",brand_radius:"نصف قطر العلامة",
     show_product_badges:"إظهار شارات المنتج",product_badge_position:"الموقع الافتراضي للشارات",product_badge_font_size:"حجم خط الشارات",product_badge_radius:"نصف قطر الشارات",product_badge_max:"الحد الأقصى للشارات",
     show_trend_badge:"إظهار شارة الترند",trend_badge_text:"نص شارة الترند",trend_badge_background_color:"خلفية شارة الترند",trend_badge_text_color:"لون نص شارة الترند",trend_badge_font_size:"حجم شارة الترند",trend_badge_radius:"نصف قطر شارة الترند",
+    discount_badge_background_color:"خلفية شارة الخصم",discount_badge_text_color:"لون نص شارة الخصم",discount_badge_font_size:"حجم خط شارة الخصم",discount_badge_font_weight:"وزن شارة الخصم",discount_badge_radius:"نصف قطر شارة الخصم",
     show_trend_hashtag:"إظهار هاشتاج الترند",trend_hashtag_text_color:"لون هاشتاج الترند",trend_hashtag_background_color:"خلفية هاشتاج الترند",trend_hashtag_use_background:"خلفية هاشتاج الترند",
     trend_hashtag_font_size:"حجم هاشتاج الترند",trend_hashtag_font_weight:"وزن هاشتاج الترند",trend_show_arrow:"إظهار سهم الترند",trend_arrow_text:"رمز سهم الترند",trend_arrow_color:"لون سهم الترند",trend_ribbon_gap:"المسافة في شريط الترند",
     colors_show:"إظهار الألوان",colors_position:"موقع الألوان",colors_direction:"اتجاه الألوان",colors_size:"حجم دائرة اللون",colors_gap:"المسافة بين الألوان",colors_max:"عدد الألوان",colors_container_size:"حجم حاوية اللون",colors_border_width:"سُمك حدود اللون",
@@ -1232,7 +1233,11 @@
   });
 
   document.getElementById("saveMarketing").addEventListener("click", async () => {
-    const badgeItems = [...document.querySelectorAll("[data-badge-checkbox]:checked")].map((input, index) => {
+    const orderedRows = [...document.querySelectorAll(".product-badge-editor")];
+    const badgeItems = orderedRows
+      .map(row => row.querySelector("[data-badge-checkbox]"))
+      .filter(input => input?.checked)
+      .map((input, index) => {
       const id = input.value;
       const pick = (selector, fallback = "") => document.querySelector(selector + id)?.value ?? fallback;
       return {
@@ -1250,7 +1255,7 @@
           text_color: pick('[data-badge-fg-text="', "#ffffff"),
         },
       };
-    });
+      });
     const hashtagIds = [...document.querySelectorAll("[data-hashtag-checkbox]:checked")].map(input => Number(input.value));
     const stripIds = [...document.querySelectorAll("[data-strip-checkbox]:checked")].map(input => Number(input.value));
     const campaignIds = [...document.querySelectorAll("[data-campaign-checkbox]:checked")].map(input => Number(input.value));
@@ -1425,6 +1430,22 @@
     const select = event.target.closest("[data-setting-value]");
     if (select) select.dataset.changed = "1";
   });
+  document.getElementById("badgeSelection")?.addEventListener("input", event => {
+    const text = event.target.closest("[data-badge-bg-text],[data-badge-fg-text]");
+    if (text && /^#[0-9a-fA-F]{6}$/.test(text.value.trim())) {
+      const picker = text.closest(".color-input-row")?.querySelector('input[type="color"]');
+      if (picker) picker.value = text.value.trim();
+    }
+  });
+  document.getElementById("badgeSelection")?.addEventListener("change", event => {
+    const picker = event.target.closest("[data-badge-bg],[data-badge-fg]");
+    if (!picker) return;
+    const suffix = picker.dataset.badgeBg != null ? "bg" : "fg";
+    const id = picker.dataset.badgeBg ?? picker.dataset.badgeFg;
+    const text = picker.closest(".color-input-row")?.querySelector("[data-badge-" + suffix + '-text="' + id + '"]');
+    if (text) text.value = picker.value;
+  });
+
   document.getElementById("productCardEditor")?.addEventListener("input", event => {
     const colorText = event.target.closest("[data-setting-color-text]");
     if (colorText && /^#[0-9a-fA-F]{6}$/.test(colorText.value.trim())) {
