@@ -164,9 +164,17 @@ class _SxProductScreenState extends State<SxProductScreen> {
 
   Map<String, dynamic>? _selectedVariant() {
     final variants = _maps(data['variants']);
+    final colors = _colors();
+    final sizes = _sizes();
+    final requiresColor = colors.isNotEmpty;
+    final requiresSize = sizes.isNotEmpty;
+
+    if (requiresColor && colorId == null) return null;
+    if (requiresSize && sizeId == null) return null;
+
     for (final variant in variants) {
-      final colorOk = colorId == null || sxInt(variant['color_id']) == colorId;
-      final sizeOk = sizeId == null || sxInt(variant['size_id']) == sizeId;
+      final colorOk = !requiresColor || sxInt(variant['color_id']) == sxInt(colorId);
+      final sizeOk = !requiresSize || sxInt(variant['size_id']) == sxInt(sizeId);
       if (colorOk && sizeOk && sxInt(variant['id']) > 0) {
         return variant;
       }
