@@ -1093,6 +1093,8 @@ class CommerceService:
             raise ValueError("illegal status transition")
 
         previous = order.status
+        if to_status == "awaiting_payment":
+            order.payment_status = "unpaid"
         with db.session.begin_nested():
             items = OrderItem.query.filter_by(order_id=order.id).all()
             if to_status == "cancelled":
