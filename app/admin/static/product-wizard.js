@@ -1233,37 +1233,12 @@
   });
 
   document.getElementById("saveMarketing").addEventListener("click", async () => {
-    const orderedRows = [...document.querySelectorAll(".product-badge-editor")];
-    const badgeItems = orderedRows
-      .map(row => row.querySelector("[data-badge-checkbox]"))
-      .filter(input => input?.checked)
-      .map((input, index) => {
-      const id = input.value;
-      const pick = (selector, fallback = "") => document.querySelector(selector + id)?.value ?? fallback;
-      return {
-        badge_id: Number(id),
-        duration_days: Number(pick('[data-badge-days="', "0") || 0),
-        sort_order: index,
-        custom_text: pick('[data-badge-text="', ""),
-        settings: {
-          position: pick('[data-badge-position="', "top_right"),
-          font_size: Number(pick('[data-badge-font="', "9") || 9),
-          font_weight: Number(pick('[data-badge-weight="', "800") || 800),
-          background_opacity: Number(pick('[data-badge-opacity="', "1") || 1),
-          text_decoration: pick('[data-badge-decoration="', "none"),
-          background_color: pick('[data-badge-bg-text="', "#111827"),
-          text_color: pick('[data-badge-fg-text="', "#ffffff"),
-        },
-      };
-      });
     const hashtagIds = [...document.querySelectorAll("[data-hashtag-checkbox]:checked")].map(input => Number(input.value));
     const stripIds = [...document.querySelectorAll("[data-strip-checkbox]:checked")].map(input => Number(input.value));
     const campaignIds = [...document.querySelectorAll("[data-campaign-checkbox]:checked")].map(input => Number(input.value));
     try {
-      await requestJson("/api/v1/catalog/products/" + productId + "/badges", {
-        method: "POST",
-        body: JSON.stringify({ badges: badgeItems }),
-      });
+      // Product badges are intentionally managed only from the standalone
+      // presentation screen, so this form never overwrites their settings.
       await requestJson("/api/v1/catalog/products/" + productId + "/hashtags", {
         method: "POST",
         body: JSON.stringify({ hashtag_ids: hashtagIds }),
@@ -1277,7 +1252,7 @@
         body: JSON.stringify({ campaign_ids: campaignIds }),
       });
       await load();
-      notify("تم حفظ الشارات والهاشتاجات وشرائط العروض والحملات.");
+      notify("تم حفظ الهاشتاجات وشرائط العروض والحملات.");
     } catch (error) { notify(error.message, "error"); }
   });
 
