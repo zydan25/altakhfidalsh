@@ -24,6 +24,7 @@ class ShippingQuote:
     base_price_sar: Decimal = Decimal("0")
     adjustment_sar: Decimal = Decimal("0")
     applied_rule_ids: tuple = ()
+    free_shipping_threshold_sar: Optional[Decimal] = None
 
 
 class ShippingService:
@@ -151,10 +152,49 @@ class ShippingService:
             method_id=method_id,
         )
         if resolved is None:
+            if method_id:
+                raise ValueError("طريقة الشحن المحددة غير متاحة لهذا العنوان أو قيمة السلة.")
             return ShippingQuote(None, None, None, Decimal("0"), Decimal("0"), True, "default", None, None, None)
 
         row, price_sar, free, free_over = resolved
         method = db.session.get(ShippingMethod, row.method_id)
+        free_threshold = (
+            Decimal(free_over)
+            if free_over is not None and Decimal(free_over) > Decimal(subtotal_sar)
+            else None
+        )
+        location_city = db.session.get(City, city_id) if city_id else None
+        effective_region_id = region_id or (location_city.region_id if location_city else None)
+        free_rules = (
+            ShippingRule.query
+            .filter(
+                ShippingRule.method_id == row.method_id,
+                ShippingRule.is_active.is_(True),
+                ShippingRule.rule_type == "free_shipping",
+            )
+            .order_by(ShippingRule.priority.desc(), ShippingRule.id.asc())
+            .all()
+        )
+        for rule in free_rules:
+            minimum = Decimal(rule.min_order_sar) if rule.min_order_sar is not None else None
+            maximum = Decimal(rule.max_order_sar) if rule.max_order_sar is not None else None
+            if minimum is None or minimum <= Decimal(subtotal_sar):
+                continue
+            if maximum is not None and Decimal(subtotal_sar) > maximum:
+                continue
+            target_match = bool(rule.applies_to_all)
+            if not target_match:
+                targets = ShippingRuleTarget.query.filter_by(rule_id=rule.id).all()
+                target_match = any(
+                    (target.target_type == "area" and area_id == target.target_id)
+                    or (target.target_type == "city" and city_id == target.target_id)
+                    or (target.target_type == "region" and effective_region_id == target.target_id)
+                    for target in targets
+                )
+            if target_match and (free_threshold is None or minimum < free_threshold):
+                free_threshold = minimum
+
+        display_rate = Decimal(fx_rate) if fx_rate is not None else Decimal("1")
         display_rate = Decimal(fx_rate) if fx_rate is not None else Decimal("1")
         base_price_sar = Decimal(price_sar or 0)
         final_price_sar = Decimal("0") if free else base_price_sar
@@ -234,4 +274,5 @@ class ShippingService:
             base_price_sar=base_price_sar,
             adjustment_sar=final_price_sar - base_price_sar,
             applied_rule_ids=tuple(applied_rule_ids),
+            free_shipping_threshold_sar=free_threshold,
         )
