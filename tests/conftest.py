@@ -10,6 +10,7 @@ class TestConfig:
     SECRET_KEY = "test-secret"
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_SESSION_OPTIONS = {"expire_on_commit": False}
     MEDIA_ROOT = "/tmp/altakhfidalsh-test-media"
     MEDIA_BASE_URL = "/media"
     MEDIA_MAX_SIDE = 800
