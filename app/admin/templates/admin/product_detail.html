@@ -102,7 +102,7 @@
     <h3>الشارات المرتبطة</h3>
     <div class="admin-detail-badges">
       {% for row in snapshot.badges %}
-        <span class="admin-detail-badge" style="background:{{ row.settings.background_color if row.settings and row.settings.background_color else '#111827' }};color:{{ row.settings.text_color if row.settings and row.settings.text_color else '#fff' }}">{{ row.custom_text or row.id }}</span>
+        <span class="admin-detail-badge" style="background:{{ row.settings.background_color if row.settings and row.settings.background_color else '#111827' }};color:{{ row.settings.text_color if row.settings and row.settings.text_color else '#fff' }}">{{ row.custom_text or row.name }}</span>
       {% else %}<span class="muted">لا توجد شارات مرتبطة.</span>{% endfor %}
     </div>
   </article>
@@ -110,7 +110,7 @@
   <article class="panel admin-detail-panel">
     <h3>الهاشتاجات</h3>
     <div class="admin-detail-badges">
-      {% for row in snapshot.hashtags %}<span class="admin-detail-category">#{{ row.id }}</span>{% else %}<span class="muted">لا توجد هاشتاجات.</span>{% endfor %}
+      {% for row in snapshot.hashtags %}<span class="admin-detail-category">{{ row.display_name or row.name }}</span>{% else %}<span class="muted">لا توجد هاشتاجات.</span>{% endfor %}
     </div>
   </article>
 
