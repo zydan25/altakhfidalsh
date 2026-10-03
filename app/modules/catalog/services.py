@@ -2416,7 +2416,7 @@ class CatalogService:
                 Trend.status == "active",
                 Hashtag.is_active.is_(True),
             )
-            .order_by(TrendProduct.sort_order, Trend.id.desc(), TrendProduct.slot)
+            .order_by(TrendProduct.slot, Trend.id.desc(), TrendProduct.slot)
             .all()
         )
         for trend_product, trend, hashtag in trend_rows:
