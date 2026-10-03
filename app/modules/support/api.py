@@ -34,7 +34,7 @@ def conversations():
             "customer_id": x.customer_id,
             "order_id": x.order_id,
             "type": x.type,
-            "subject": x.subject,
+            "subject": x.subject or ("محادثة الدعم" if x.type == "customer_service" and x.order_id is None else "محادثة"),
             "status": x.status,
             "last_message_at": x.last_message_at.isoformat() if x.last_message_at else None,
         }
