@@ -284,6 +284,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
       (data['policies'] as Map?) ?? <String, dynamic>{},
     );
     final reviews = _maps(data['reviews_preview']);
+    final detailSettings = _asMap(data['product_detail_settings']);
+    final trendBadges = _maps(data['trend_badges']);
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -346,7 +348,9 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       showRating: display['show_rating'] != false,
                       showReviewCount: display['show_review_count'] != false,
                       badges: _maps(data['badges']),
+                      trendBadges: trendBadges,
                       cardSettings: _asMap(data['product_card_settings']),
+                      detailSettings: detailSettings,
                     ),
                   ),
                   SliverToBoxAdapter(
@@ -435,8 +439,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
                                     borderRadius: BorderRadius.circular(5),
                                   ),
                                   child: const Text(
-                                    'توصية مفعّلة · الترتيب عشوائي',
-                                    style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w800),
+                                    'توصية',
+                                    style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800),
                                   ),
                                 ),
                               ),
@@ -583,6 +587,7 @@ class SxGallery extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 PageView.builder(
+                  reverse: true,
                   itemCount: data.length,
                   onPageChanged: changed,
                   itemBuilder: (_, index) => _DetailNetworkImage(
@@ -591,7 +596,7 @@ class SxGallery extends StatelessWidget {
                 ),
                 if (data.length > 1)
                   Positioned(
-                    right: 10,
+                    left: 10,
                     bottom: 10,
                     child: _DetailCounter(
                       text: page.toString() + '/' + data.length.toString(),
@@ -599,7 +604,7 @@ class SxGallery extends StatelessWidget {
                   ),
                 if (data.length > 1)
                   Positioned(
-                    left: 10,
+                    right: 10,
                     bottom: 10,
                     child: Row(
                       children: List.generate(
@@ -608,7 +613,7 @@ class SxGallery extends StatelessWidget {
                           duration: const Duration(milliseconds: 150),
                           width: index == page ? 18 : 6,
                           height: 3,
-                          margin: const EdgeInsets.only(right: 3),
+                          margin: const EdgeInsets.only(left: 3),
                           decoration: BoxDecoration(
                             color: index == page ? Colors.white : Colors.white70,
                             borderRadius: BorderRadius.circular(10),
@@ -691,7 +696,9 @@ class _ProductHeroInfo extends StatelessWidget {
   final bool showRating;
   final bool showReviewCount;
   final List<Map<String, dynamic>> badges;
+  final List<Map<String, dynamic>> trendBadges;
   final Map<String, dynamic> cardSettings;
+  final Map<String, dynamic> detailSettings;
 
   const _ProductHeroInfo({
     required this.name,
@@ -706,157 +713,276 @@ class _ProductHeroInfo extends StatelessWidget {
     required this.showRating,
     required this.showReviewCount,
     required this.badges,
+    required this.trendBadges,
     required this.cardSettings,
+    required this.detailSettings,
   });
 
   @override
-  Widget build(BuildContext context) => Container(
-        color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 9),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (badges.isNotEmpty)
-              Wrap(
-                spacing: 5,
-                runSpacing: 5,
-                children: badges.map((badge) {
-                  final settings = badge['settings'] is Map
-                      ? Map<String, dynamic>.from(badge['settings'] as Map)
-                      : <String, dynamic>{};
-                  final tab = sxText(badge['storefront_tab']);
-                  final fallback = tab == 'new'
-                      ? const Color(0xFF16A34A)
-                      : tab == 'offers'
-                          ? const Color(0xFFDC2626)
-                          : Colors.black;
-                  final bg = sxColor(
-                    sxText(settings['background_color'], sxText(badge['bg_color'])),
-                    fallback,
-                  ).withOpacity(
-                    sxDouble(settings['background_opacity'], 1).clamp(0, 1),
-                  );
-                  final fg = sxColor(
-                    sxText(settings['text_color'], sxText(badge['text_color'])),
-                    Colors.white,
-                  );
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: bg,
-                      borderRadius: BorderRadius.circular(
-                        sxDouble(settings['border_radius'], 5),
-                      ),
-                    ),
-                    child: Text(
-                      sxText(
-                        badge['custom_text'],
-                        sxText(badge['name'], sxText(badge['code'])),
-                      ),
-                      style: TextStyle(
-                        color: fg,
-                        fontSize: sxDouble(settings['font_size'], 9),
-                        fontWeight: _weight(sxInt(settings['font_weight'], 800)),
-                        decoration: sxText(settings['text_decoration']) == 'line_through'
-                            ? TextDecoration.lineThrough
-                            : TextDecoration.none,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            if (badges.isNotEmpty) const SizedBox(height: 7),
-            if (brand.isNotEmpty)
-              Text(
-                brand,
-                style: const TextStyle(
-                  fontSize: 9.5,
-                  color: ClientTheme.muted,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            const SizedBox(height: 2),
-            Text(
-              name,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: sxColor(sxText(cardSettings['name_color']), const Color(0xFF111111)),
-                fontSize: sxDouble(cardSettings['name_font_size'], 16),
-                fontWeight: _weight(sxInt(cardSettings['name_font_weight'], 900)),
-                height: 1.35,
-              ),
-            ),
-            if (sku.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 3),
-                child: Text(
-                  sku,
-                  style: const TextStyle(fontSize: 8, color: Color(0xFF9CA3AF)),
-                ),
-              ),
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  price,
-                  style: TextStyle(
-                    color: sxColor(sxText(cardSettings['price_color']), const Color(0xFF111111)),
-                    fontSize: sxDouble(cardSettings['price_font_size'], 22),
-                    fontWeight: _weight(sxInt(cardSettings['price_font_weight'], 900)),
-                    height: 1,
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  currency,
-                  style: TextStyle(
-                    color: sxColor(sxText(cardSettings['currency_color']), const Color(0xFF111111)),
-                    fontSize: sxDouble(cardSettings['currency_font_size'], 10.5),
-                    fontWeight: _weight(sxInt(cardSettings['currency_font_weight'], 800)),
-                  ),
-                ),
-                if (discount > 0) ...[
-                  const SizedBox(width: 8),
-                  _Pill(text: '-' + discount.toString() + '%', background: const Color(0xFFFFEEF2), foreground: ClientTheme.promo),
-                ],
-                const Spacer(),
-                if (oldPrice.isNotEmpty)
-                  Text(
-                    oldPrice + ' ' + currency,
-                    style: TextStyle(
-                      fontSize: sxDouble(cardSettings['compare_price_font_size'], 10),
-                      color: sxColor(sxText(cardSettings['compare_price_color']), const Color(0xFF9CA3AF)),
-                      decoration: sxText(cardSettings['compare_price_text_decoration'], 'line_through') == 'line_through'
-                          ? TextDecoration.lineThrough
-                          : TextDecoration.none,
-                    ),
-                  ),
-              ],
-            ),
-            if (showRating && average > 0)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Row(
-                  children: [
-                    const Icon(Icons.star_rounded, size: 15, color: Color(0xFFFFB400)),
-                    const SizedBox(width: 2),
-                    Text(
-                      average.toStringAsFixed(1),
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
-                    ),
-                    if (showReviewCount && reviewCount > 0)
-                      Text(
-                        ' · ' + reviewCount.toString() + ' تقييم',
-                        style: const TextStyle(fontSize: 9, color: ClientTheme.muted),
-                      ),
-                  ],
-                ),
-              ),
-          ],
+  Widget build(BuildContext context) {
+    final globalBadgePosition = sxText(
+      cardSettings['product_badge_position'],
+      'before_name',
+    );
+    final beforeName = <Map<String, dynamic>>[];
+    final afterName = <Map<String, dynamic>>[];
+    final belowPrice = <Map<String, dynamic>>[];
+
+    for (final badge in badges) {
+      final settings = badge['settings'] is Map
+          ? Map<String, dynamic>.from(badge['settings'] as Map)
+          : <String, dynamic>{};
+      final position = sxText(settings['position'], globalBadgePosition);
+      if (position == 'after_name') {
+        afterName.add(badge);
+      } else if (position == 'below_price') {
+        belowPrice.add(badge);
+      } else {
+        beforeName.add(badge);
+      }
+    }
+
+    Widget badgeChip({
+      required String text,
+      required Color background,
+      required Color foreground,
+      required double fontSize,
+      required int fontWeight,
+      double radius = 5,
+    }) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(radius),
+        ),
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: foreground,
+            fontSize: fontSize,
+            fontWeight: _weight(fontWeight),
+          ),
         ),
       );
+    }
+
+    Widget productBadge(Map<String, dynamic> badge) {
+      final settings = badge['settings'] is Map
+          ? Map<String, dynamic>.from(badge['settings'] as Map)
+          : <String, dynamic>{};
+      final background = sxColor(
+        sxText(settings['background_color'], sxText(badge['bg_color'], '#111827')),
+        Colors.black,
+      ).withOpacity(sxDouble(settings['background_opacity'], 1).clamp(0, 1));
+      final foreground = sxColor(
+        sxText(settings['text_color'], sxText(badge['text_color'], '#ffffff')),
+        Colors.white,
+      );
+      final size = sxDouble(
+        settings['font_size'],
+        sxDouble(cardSettings['product_badge_font_size'], 9),
+      );
+      final radius = sxDouble(
+        settings['border_radius'],
+        sxDouble(cardSettings['product_badge_radius'], 5),
+      );
+      final decoration = sxText(settings['text_decoration']);
+      final label = sxText(
+        badge['custom_text'],
+        sxText(badge['name'], sxText(badge['code'], 'شارة')),
+      );
+      final chip = badgeChip(
+        text: label,
+        background: background,
+        foreground: foreground,
+        fontSize: size,
+        fontWeight: sxInt(settings['font_weight'], 800),
+        radius: radius,
+      );
+      if (decoration == 'line_through') {
+        return DefaultTextStyle.merge(
+          style: const TextStyle(decoration: TextDecoration.lineThrough),
+          child: chip,
+        );
+      }
+      return chip;
+    }
+
+    final trendWidgets = trendBadges.map((trend) {
+      final settings = trend['settings'] is Map
+          ? Map<String, dynamic>.from(trend['settings'] as Map)
+          : <String, dynamic>{};
+      final hashtag = trend['hashtag'] is Map
+          ? Map<String, dynamic>.from(trend['hashtag'] as Map)
+          : <String, dynamic>{};
+      final label = sxText(
+        hashtag['display_name'],
+        sxText(trend['text'], 'ترند'),
+      );
+      return badgeChip(
+        text: label,
+        background: sxColor(
+          sxText(settings['trend_badge_background_color']),
+          const Color(0xFF8B5CF6),
+        ).withOpacity(sxDouble(settings['trend_badge_background_opacity'], 1).clamp(0, 1)),
+        foreground: sxColor(
+          sxText(settings['trend_badge_text_color']),
+          Colors.white,
+        ),
+        fontSize: sxDouble(
+          settings['trend_badge_font_size'],
+          sxDouble(cardSettings['trend_badge_font_size'], 9),
+        ),
+        fontWeight: sxInt(settings['trend_badge_font_weight'], 800),
+        radius: sxDouble(settings['trend_badge_radius'], 5),
+      );
+    }).toList();
+
+    Widget discountBadge() {
+      return badgeChip(
+        text: 'خصم ' + discount.toString() + '%',
+        background: sxColor(
+          sxText(cardSettings['discount_badge_background_color']),
+          const Color(0xFFDC2626),
+        ),
+        foreground: sxColor(
+          sxText(cardSettings['discount_badge_text_color']),
+          Colors.white,
+        ),
+        fontSize: sxDouble(cardSettings['discount_badge_font_size'], 9),
+        fontWeight: sxInt(cardSettings['discount_badge_font_weight'], 900),
+        radius: sxDouble(cardSettings['discount_badge_radius'], 5),
+      );
+    }
+
+    Widget badgeRow(List<Widget> items) {
+      if (items.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Wrap(
+          alignment: WrapAlignment.start,
+          spacing: 5,
+          runSpacing: 5,
+          children: items,
+        ),
+      );
+    }
+
+    final beforeWidgets = <Widget>[
+      ...trendWidgets,
+      ...beforeName.map(productBadge),
+      if (discount > 0) discountBadge(),
+    ];
+    final afterWidgets = afterName.map(productBadge).toList();
+    final belowPriceWidgets = belowPrice.map(productBadge).toList();
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 9),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          badgeRow(beforeWidgets),
+          if (brand.isNotEmpty)
+            Text(
+              brand,
+              style: const TextStyle(
+                fontSize: 10,
+                color: ClientTheme.muted,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          const SizedBox(height: 3),
+          Text(
+            name,
+            maxLines: sxInt(detailSettings['name_max_lines'], 4).clamp(2, 6),
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: sxColor(sxText(detailSettings['name_color']), const Color(0xFF111111)),
+              fontSize: sxDouble(detailSettings['name_font_size'], 20),
+              fontWeight: _weight(sxInt(detailSettings['name_font_weight'], 800)),
+              height: 1.3,
+            ),
+          ),
+          badgeRow(afterWidgets),
+          if (sku.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(
+                sku,
+                textAlign: TextAlign.right,
+                style: const TextStyle(fontSize: 8, color: Color(0xFF9CA3AF)),
+              ),
+            ),
+          const SizedBox(height: 8),
+          Row(
+            textDirection: TextDirection.rtl,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                price,
+                style: TextStyle(
+                  color: sxColor(sxText(cardSettings['price_color']), const Color(0xFF111111)),
+                  fontSize: sxDouble(cardSettings['price_font_size'], 22),
+                  fontWeight: _weight(sxInt(cardSettings['price_font_weight'], 900)),
+                  height: 1,
+                ),
+              ),
+              const SizedBox(width: 5),
+              Text(
+                currency,
+                style: TextStyle(
+                  color: sxColor(sxText(cardSettings['currency_color']), const Color(0xFF111111)),
+                  fontSize: sxDouble(cardSettings['currency_font_size'], 10.5),
+                  fontWeight: _weight(sxInt(cardSettings['currency_font_weight'], 800)),
+                ),
+              ),
+              const Spacer(),
+              if (oldPrice.isNotEmpty)
+                Text(
+                  oldPrice + ' ' + currency,
+                  style: TextStyle(
+                    fontSize: sxDouble(cardSettings['compare_price_font_size'], 10),
+                    color: sxColor(sxText(cardSettings['compare_price_color']), const Color(0xFF9CA3AF)),
+                    decoration: sxText(cardSettings['compare_price_text_decoration'], 'line_through') == 'line_through'
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                  ),
+                ),
+            ],
+          ),
+          badgeRow(belowPriceWidgets),
+          if (showRating)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                textDirection: TextDirection.rtl,
+                children: [
+                  const Icon(Icons.star_rounded, size: 16, color: Color(0xFFFFB400)),
+                  const SizedBox(width: 2),
+                  Text(
+                    average > 0 ? average.toStringAsFixed(1) : '—',
+                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+                  ),
+                  if (showReviewCount)
+                    Text(
+                      ' · ' + reviewCount.toString() + ' تقييم',
+                      style: const TextStyle(fontSize: 9, color: ClientTheme.muted),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+  
+  );
 }
 
 class _ProductIdentityPanel extends StatelessWidget {
