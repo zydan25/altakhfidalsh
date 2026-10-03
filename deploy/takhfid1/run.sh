@@ -12,4 +12,7 @@ set -a
 source "$APP_ROOT/.env"
 set +a
 
-exec "$APP_ROOT/.venv/bin/gunicorn"   -w 3   -k gthread   --threads 4   --timeout 120   --bind 127.0.0.1:4008   'app:create_app()'
+# Flask-Sock uses one thread per active WebSocket connection. PostgreSQL
+# LISTEN/NOTIFY bridges events between Gunicorn workers, so multiple workers
+# remain safe while still allowing a useful number of persistent sockets.
+exec "$APP_ROOT/.venv/bin/gunicorn"   -w 3   -k gthread   --threads 20   --timeout 120   --bind 127.0.0.1:4008   'app:create_app()'
