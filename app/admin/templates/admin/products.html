@@ -63,17 +63,18 @@
     <div class="admin-product-card-status">
       <span class="status-pill {% if not product.is_active %}archived-pill{% endif %}">{{ "فعال" if product.is_active else "مؤرشف" }}</span>
     </div>
-    <div class="admin-product-card-menu">
-      <button type="button" class="icon-button admin-product-menu-trigger" aria-label="إجراءات {{ product.name }}" data-product-menu="{{ product.id }}">⋮</button>
-      <div class="admin-product-menu" data-menu-for="{{ product.id }}" hidden>
-        <a href="/admin/products/{{ product.id }}/edit#basics">تفاصيل وتعديل</a>
-        <a href="/admin/products/{{ product.id }}/edit#marketing">الشارات والمظهر</a>
-        {% if product.is_active %}
-        <form method="post"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ product.id }}"><button type="submit">أرشفة</button></form>
-        {% else %}
-        <form method="post"><input type="hidden" name="action" value="restore"><input type="hidden" name="id" value="{{ product.id }}"><button type="submit">إعادة التفعيل</button></form>
-        {% endif %}
-      </div>
+  </div>
+  <div class="admin-product-card-menu">
+    <button type="button" class="icon-button admin-product-menu-trigger" aria-label="إجراءات {{ product.name }}" data-product-menu="{{ product.id }}">⋮</button>
+    <div class="admin-product-menu" data-menu-for="{{ product.id }}" hidden>
+      <a href="/admin/products/{{ product.id }}">عرض التفاصيل</a>
+      <a href="/admin/products/{{ product.id }}/edit">تعديل المنتج</a>
+      <a href="/admin/products/{{ product.id }}/edit#marketing">الشارات والمظهر</a>
+      {% if product.is_active %}
+      <form method="post"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ product.id }}"><button type="submit">أرشفة المنتج</button></form>
+      {% else %}
+      <form method="post"><input type="hidden" name="action" value="restore"><input type="hidden" name="id" value="{{ product.id }}"><button type="submit">إعادة التفعيل</button></form>
+      {% endif %}
     </div>
   </div>
   <div class="admin-product-card-body">
@@ -91,7 +92,7 @@
       <span><b>{{ "منشور" if product.status == "published" else ("مسودة" if product.status == "draft" else product.status) }}</b></span>
     </div>
     <div class="admin-product-card-actions">
-      <a class="primary-button compact" href="/admin/products/{{ product.id }}/edit">فتح المنتج</a>
+      <a class="primary-button compact" href="/admin/products/{{ product.id }}">فتح المنتج</a>
       <a class="ghost-button compact" href="/admin/products/{{ product.id }}/edit#marketing">المظهر</a>
     </div>
   </div>
