@@ -812,6 +812,6 @@ def test_product_detail_uses_customer_pricing_group_and_selected_currency(app):
         priced = snapshot["product"]
 
         # 100 SAR * 700 = 70,000 YER; +10% = 7,000; +5 SAR = 3,500.
-        assert priced["display_price"] == "80500"
+        assert Decimal(priced["display_price"]) == Decimal("80500")
         assert priced["display_currency"]["code"] == "YER"
 
