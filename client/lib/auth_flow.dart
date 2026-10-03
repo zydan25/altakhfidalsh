@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app_state.dart';
 import 'shein_ui.dart';
 import 'theme.dart';
+import 'widgets.dart';
 
 class SxWelcomeScreen extends StatefulWidget {
   const SxWelcomeScreen({super.key});
@@ -490,6 +491,7 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
       tf(confirmPassword, 'تأكيد كلمة المرور', obscure: true, icon: Icons.lock_outline),
       const SizedBox(height: 14),
       action('متابعة والتحقق من الرقم', startRegistration),
+      const SxDeveloperSignature(),
     ],
   );
 
@@ -528,6 +530,7 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
         ],
       ),
       TextButton(onPressed: busy ? null : () => setState(() => mode = 'phone'), child: const Text('تغيير الرقم')),
+      const SxDeveloperSignature(),
     ],
   );
 
@@ -588,6 +591,7 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
           ],
         ),
       ),
+      const SxDeveloperSignature(),
     ],
   );
 
@@ -603,6 +607,7 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
         onPressed: busy ? null : () => setState(() => mode = registration ? 'register' : 'phone'),
         child: const Text('تغيير الرقم'),
       ),
+      const SxDeveloperSignature(),
     ],
   );
 
@@ -619,6 +624,7 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
       const SizedBox(height: 12),
       action('حفظ والدخول', resetPassword),
       TextButton(onPressed: busy ? null : () => setState(() => mode = 'existing_password'), child: const Text('العودة للدخول')),
+      const SxDeveloperSignature(),
     ],
   );
 
