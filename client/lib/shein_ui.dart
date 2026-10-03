@@ -7744,10 +7744,9 @@ class SxCheckoutScreen extends StatefulWidget {
 
 class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
   List<Map<String,dynamic>> addresses=<Map<String,dynamic>>[];
-  List<Map<String,dynamic>> shipping=<Map<String,dynamic>>[];
   Map<String,dynamic>? cart;
   Map<String,dynamic>? quote;
-  int? addressId, shippingId;
+  int? addressId;
   bool loading=true, quoteLoading=false, busy=false, addressConfirmed=false;
   final note=TextEditingController();
 
@@ -7760,18 +7759,15 @@ class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
     try {
       final results=await Future.wait<dynamic>([
         api.addresses(),
-        api.shippingMethods(),
         api.cart(currencyId: state.currencyId),
       ]);
       addresses=(results[0] as List).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
-      shipping=(results[1] as List).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
-      cart=results[2] is Map?Map<String,dynamic>.from(results[2]):null;
+      cart=results[1] is Map?Map<String,dynamic>.from(results[1]):null;
       final a=addresses.firstWhere(
         (x)=>x['is_default']==true,
         orElse:()=>addresses.isNotEmpty?addresses.first:<String,dynamic>{},
       );
       addressId=sxInt(a['id'])>0?sxInt(a['id']):null;
-      shippingId=shipping.isNotEmpty?sxInt(shipping.first['id']):null;
       await refreshQuote();
     }catch(e){
       if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));
@@ -7793,7 +7789,6 @@ class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
         cityId:sxInt(a['city_id']),
         cityAreaId:sxInt(a['city_area_id']),
         currencyId:state.currencyId,
-        shippingMethodId:shippingId,
         subtotal:subtotal,
       );
       if(mounted)setState(()=>quote=r['item'] is Map?Map<String,dynamic>.from(r['item']):null);
@@ -7870,7 +7865,6 @@ class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
       final r=await api.createOrder(
         addressId!,
         payload,
-        shippingMethodId:shippingId,
         currencyId:state.currencyId,
         customerNote:note.text.trim(),
       );
@@ -8053,24 +8047,19 @@ class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
                   child:Column(
                     crossAxisAlignment:CrossAxisAlignment.stretch,
                     children:[
-                      Text(
-                        shippingId==null?'سيحدد المتجر طريقة التوصيل':'طريقة التوصيل',
-                        style:const TextStyle(fontSize:11,fontWeight:FontWeight.w900),
-                      ),
-                      const SizedBox(height:4),
-                      Text(
-                        shipping.isEmpty
-                            ? 'لم تتم إضافة طريقة توصيل بعد.'
-                            : (shipping.firstWhere((x)=>sxInt(x['id'])==shippingId,orElse:()=>shipping.first)['name']??'التوصيل').toString(),
-                        style:const TextStyle(fontSize:9,color:ClientTheme.muted),
-                      ),
+                      const Text('رسوم وطريقة التوصيل',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900)),
                       const SizedBox(height:4),
                       if(quoteLoading)
                         const LinearProgressIndicator(minHeight:2)
-                      else
+                      else if(quote!=null&&quote!['configured']==true)
                         Text(
-                          shippingText(),
+                          (sxText(quote!['method_name'],'التوصيل'))+' · '+shippingText(),
                           style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800),
+                        )
+                      else
+                        const Text(
+                          'لم توجد قاعدة شحن مطابقة للعميل حاليًا. سيحدد المتجر الرسوم بعد إنشاء الطلب.',
+                          style:TextStyle(fontSize:9,color:ClientTheme.muted,height:1.45),
                         ),
                     ],
                   ),
