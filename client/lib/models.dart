@@ -18,6 +18,7 @@ class CategoryModel {
 class ProductModel {
   final int id;
   final String name;
+  final String shortDescription;
   final String price;
   final String? oldPrice;
   final String? image;
@@ -41,6 +42,7 @@ class ProductModel {
   const ProductModel({
     required this.id,
     required this.name,
+    this.shortDescription = '',
     required this.price,
     this.oldPrice,
     this.image,
@@ -105,6 +107,7 @@ class ProductModel {
     return ProductModel(
       id:int.tryParse((p['id'] ?? j['product_id'] ?? 0).toString()) ?? 0,
       name:(p['name'] ?? j['name'] ?? '').toString(),
+      shortDescription:(j['short_description'] ?? p['short_description'] ?? p['description'] ?? '').toString(),
       price:(j['price'] ?? p['base_price_sar'] ?? p['price'] ?? '0').toString(),
       oldPrice:(j['compare_at_price'] ?? p['compare_at_price'])?.toString(),
       image:unique.isNotEmpty ? unique.first : primary,
