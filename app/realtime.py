@@ -157,22 +157,8 @@ def customer_notification_socket(ws):
 
         while True:
             try:
-                payload = events.get(timeout=20)
-                ws.send(json.dumps(payload, ensure_ascii=False))
-            except queue.Empty:
-                ws.send(json.dumps({
-                    "type": "heartbeat",
-                    "ts": int(time.time()),
-                }))
-        ws.send(json.dumps({
-            "type": "connected",
-            "customer_id": customer_id,
-        }, ensure_ascii=False))
-
-        while True:
-            try:
-                payload = events.get(timeout=20)
-                ws.send(json.dumps(payload, ensure_ascii=False))
+                event_payload = events.get(timeout=20)
+                ws.send(json.dumps(event_payload, ensure_ascii=False))
             except queue.Empty:
                 ws.send(json.dumps({
                     "type": "heartbeat",
