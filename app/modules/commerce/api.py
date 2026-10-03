@@ -101,6 +101,7 @@ from .payment_shipping import PaymentShippingService
 @api_bp.get("/payment-methods")
 def payment_methods():
     from ...models import PaymentMethod
+    PaymentShippingService.ensure_default_payment_methods()
     rows = PaymentMethod.query.filter_by(is_active=True).order_by(PaymentMethod.id).all()
     return {"items": [{"id": x.id, "name": x.name, "code": x.code, "provider": x.provider, "supports_proof": x.supports_proof, "settings": dict(x.settings_json or {})} for x in rows]}
 
