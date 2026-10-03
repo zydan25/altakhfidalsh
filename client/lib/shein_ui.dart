@@ -4532,7 +4532,7 @@ class _SxResultsState extends State<SxResults> {
           ? null
           : selectedCategoryId ??
               ((widget.categoryIds == null || widget.categoryIds!.isEmpty)
-                  ? (widget.categoryId ?? categoryContextId)
+                  ? widget.categoryId
                   : null),
       categoryIds: sideScope
           ? null
