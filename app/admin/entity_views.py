@@ -1453,6 +1453,7 @@ def register_entity_views(admin_bp):
                     ("show_counter", "إظهار العداد", "checkbox"),
                     ("counter_font_size", "حجم العداد", "number", 7, 18, 1, True),
                     ("counter_bottom", "موضع العداد من الأسفل", "number", 0, 30, 1, True),
+                    ("counter_align", "محاذاة العداد", "select", ["right", "center", "left"]),
                 ],
             },
             {
@@ -1479,6 +1480,8 @@ def register_entity_views(admin_bp):
                 "hint": "أزرار الهاشتاج وتعليمات السحب والتحديث.",
                 "fields": [
                     ("hashtag_font_size", "حجم الهاشتاج", "number", 8, 18, .5, False),
+                    ("hashtag_height", "ارتفاع زر الهاشتاج", "number", 24, 48, 1, True),
+                    ("hashtag_horizontal_padding", "الحشو الأفقي لزر الهاشتاج", "number", 4, 28, 1, True),
                     ("hashtag_radius", "تدوير الهاشتاج", "number", 0, 20, 1, True),
                     ("pull_enabled", "تفعيل السحب للتحديث", "checkbox"),
                     ("pull_text", "نص السحب", "text", 120),
@@ -1543,6 +1546,7 @@ def register_entity_views(admin_bp):
             ("hashtag_active_text_color", "لون الهاشتاج النشط"),
             ("hashtag_background_color", "خلفية الهاشتاج"),
             ("hashtag_active_background_color", "خلفية الهاشتاج النشط"),
+            ("picks_section_background_color", "خلفية منطقة منتجات الترند"),
             ("pull_background_color", "خلفية السحب"),
             ("pull_indicator_color", "لون مؤشر السحب"),
             ("pull_text_color", "لون نص السحب"),
