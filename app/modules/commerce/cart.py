@@ -12,6 +12,7 @@ class CartService:
         items = CartItem.query.filter_by(cart_id=cart.id).order_by(CartItem.id).all()
         response = []
         subtotal = 0
+        subtotal_sar = 0
         for item in items:
             variant = db.session.get(ProductVariant, item.variant_id)
             product = db.session.get(Product, variant.product_id) if variant else None
@@ -54,8 +55,15 @@ class CartService:
                 ),
             })
             subtotal += price.final * item.qty
+            subtotal_sar += price.base_sar * item.qty
+            response[-1]["selected_options"] = dict(item.selected_options or {})
         db.session.commit()
-        return {"id": cart.id, "items": response, "subtotal": str(subtotal)}
+        return {
+            "id": cart.id,
+            "items": response,
+            "subtotal": str(subtotal),
+            "subtotal_sar": str(subtotal_sar),
+        }
 
 
     @staticmethod

@@ -101,6 +101,7 @@ class CommerceService:
         customer_id = int(payload["customer_id"])
         address_id = int(payload["address_id"])
         requested_currency_id = payload.get("currency_id")
+        payment_method_id = int(payload["payment_method_id"]) if payload.get("payment_method_id") else None
         items = payload.get("items") or []
         if not items:
             raise ValueError("order must contain at least one item")
@@ -113,6 +114,13 @@ class CommerceService:
             raise ValueError("shipping address is invalid")
         if address.city_id is None:
             raise ValueError("shipping address must have a city")
+
+        payment_method = db.session.get(PaymentMethod, payment_method_id) if payment_method_id else None
+        if payment_method is None:
+            payment_method = PaymentMethod.query.filter(PaymentMethod.is_active.is_(True)).order_by(PaymentMethod.id).first()
+            payment_method_id = payment_method.id if payment_method else None
+        if payment_method is None or not payment_method.is_active:
+            raise ValueError("لا توجد طريقة دفع مفعلة.")
 
         with db.session.begin_nested():
             context, _ = price_for_customer(
@@ -215,6 +223,7 @@ class CommerceService:
                 status="created",
                 payment_status="unpaid",
                 shipping_status="pending",
+                payment_method_id=payment_method_id,
                 customer_note=str(payload.get("customer_note") or payload.get("note") or "").strip()[:4000] or None,
                 shipping_rule_ids_json=list(shipping_quote.applied_rule_ids or []),
             )
@@ -266,11 +275,21 @@ class CommerceService:
                             option_value=option_value,
                         ))
 
+            method_type = str((payment_method.settings_json or {}).get("type") or "manual").strip().lower()
+            order.status = "created" if method_type == "cod" else "awaiting_payment"
+            db.session.add(PaymentTransaction(
+                order_id=order.id,
+                method_id=payment_method_id,
+                amount=total,
+                currency_id=context.currency_id,
+                provider_ref="ORDER-" + order.order_no,
+                status="cod_pending" if method_type == "cod" else "pending",
+            ))
             db.session.add(
                 OrderStatusHistory(
                     order_id=order.id,
                     from_status=None,
-                    to_status="created",
+                    to_status=order.status,
                     actor_type="customer",
                     actor_id=customer_id,
                     note="Order created",
@@ -494,6 +513,7 @@ class CommerceService:
     @staticmethod
     def serialize_order(order):
         currency = db.session.get(Currency, order.currency_id) if order.currency_id else None
+        payment_method = db.session.get(PaymentMethod, order.payment_method_id) if getattr(order, "payment_method_id", None) else None
         order_items = (
             OrderItem.query
             .filter_by(order_id=order.id)
@@ -546,6 +566,15 @@ class CommerceService:
             "status": order.status,
             "payment_status": order.payment_status,
             "shipping_status": order.shipping_status,
+            "payment_method_id": getattr(order, "payment_method_id", None),
+            "payment_method": ({
+                "id": payment_method.id,
+                "name": payment_method.name,
+                "code": payment_method.code,
+                "supports_proof": bool(payment_method.supports_proof),
+                "settings": dict(payment_method.settings_json or {}),
+            } if payment_method else None),
+            "shipping_rules": list(order.shipping_rule_ids_json or []),
             "item_count": sum(int(x.qty or 0) for x in order_items),
             "items_preview": previews,
             "customer_note": order.customer_note,

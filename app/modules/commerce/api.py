@@ -360,6 +360,39 @@ def my_cart():
         return {"error": "cart_read_failed", "detail": str(exc)}, 400
 
 
+@api_bp.post("/me/payment-proofs/upload")
+@customer_required
+def upload_my_payment_proof():
+    from ...models import PaymentTransaction
+    order_id = request.form.get("order_id", type=int)
+    order = db.session.get(Order, order_id) if order_id else None
+    if order is None or order.customer_id != current_customer().id:
+        return {"error": "not_found"}, 404
+    files = request.files.getlist("files")
+    if not files:
+        return {"error": "file_required", "detail": "اختر صورة أو ملف إثبات الدفع."}, 400
+    from ..catalog.services import MediaService
+    try:
+        assets = MediaService.save_generic_files(files[:3], f"payments/{order.id}")
+        tx = PaymentTransaction.query.filter_by(order_id=order.id).order_by(PaymentTransaction.id.desc()).first()
+        rows = []
+        for asset in assets:
+            row = PaymentShippingService.attach_payment_proof({
+                "order_id": order.id,
+                "transaction_id": tx.id if tx else None,
+                "asset_id": asset["id"],
+                "submitted_by": current_customer().id,
+            })
+            row["url"] = asset["url"]
+            rows.append(row)
+        order.payment_status = "pending_proof"
+        db.session.commit()
+        return {"items": rows}
+    except (ValueError, LookupError) as exc:
+        db.session.rollback()
+        return {"error": "payment_proof_upload_failed", "detail": str(exc)}, 400
+
+
 @api_bp.post("/me/payment-proofs")
 @customer_required
 def my_payment_proof():

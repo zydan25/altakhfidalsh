@@ -92,6 +92,34 @@ def update_feature(key):
     return {"item": {"key": row.key, "enabled": row.enabled, "conditions": row.conditions}}
 
 
+@api_bp.get("/policies")
+def public_policies():
+    from ...models import ReturnPolicy
+    privacy_row = AppSetting.query.filter_by(group_code="storefront", key="privacy_policy").first()
+    privacy = privacy_row.value if privacy_row and privacy_row.value else (
+        "نلتزم بحماية بياناتك واستخدامها فقط لتقديم خدمات المتجر والطلب والتوصيل والدعم، "
+        "ونحتفظ بالبيانات اللازمة لإدارة الحسابات والطلبات وفق الأنظمة المعمول بها."
+    )
+    policy = ReturnPolicy.query.filter_by(is_active=True).order_by(ReturnPolicy.id).first()
+    return {
+        "privacy": {"title": "سياسة الخصوصية", "body": privacy},
+        "return": {
+            "title": policy.name if policy else "سياسة الإرجاع والاسترداد",
+            "body": (
+                "\n".join(
+                    part for part in [
+                        policy.conditions if policy else None,
+                        (f"مدة الإرجاع: {policy.return_window_days} يومًا" if policy and policy.return_window_days else None),
+                        (f"الرسوم: {policy.fee_rule}" if policy and policy.fee_rule else None),
+                        (f"الاسترداد: {policy.refund_method}" if policy and policy.refund_method else None),
+                    ] if part
+                )
+                if policy else "تطبق سياسة الإرجاع والاسترداد المعتمدة في المتجر."
+            ),
+        },
+    }
+
+
 @api_bp.get("/theme/<string:code>")
 def theme(code):
     theme = Theme.query.filter_by(code=code, is_active=True).first()
