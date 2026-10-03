@@ -731,29 +731,23 @@ class _SxProductCardState extends State<SxProductCard> {
           ),
 
         if (_cardBool('show_product_badges', true) && product.badges.isNotEmpty)
-          ...() {
-            final overlay = product.badges
-                .where((badge) {
-                  final p = _badgePosition(badge);
-                  return p == 'top_left' || p == 'top_right' ||
-                      p == 'bottom_left' || p == 'bottom_right';
-                })
-                .take(_cardNumber('product_badge_max', 4).round().clamp(1, 4).toInt())
-                .toList();
-            if (overlay.isEmpty) return <Widget>[];
-            final defaultPosition = badgePosition;
-            return <Widget>[
-              _cornerPositioned(
-                defaultPosition,
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: overlay.map(_badgeChip).toList(),
-                ),
-                offset: 6,
-              ),
-            ];
-          }(),
+          _cornerPositioned(
+            badgePosition,
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: product.badges
+                  .where((badge) {
+                    final p = _badgePosition(badge);
+                    return p == 'top_left' || p == 'top_right' ||
+                        p == 'bottom_left' || p == 'bottom_right';
+                  })
+                  .take(_cardNumber('product_badge_max', 4).round().clamp(1, 4).toInt())
+                  .map(_badgeChip)
+                  .toList(),
+            ),
+            offset: 6,
+          ),
 
         if (_cardBool('colors_show', true) && product.colors.isNotEmpty)
           _cornerPositioned(
@@ -911,7 +905,7 @@ class _SxProductCardState extends State<SxProductCard> {
               : TextDecoration.none,
           decorationColor: fg,
           height: 1,
-        ).copyWith(fontWeight: _fontWeight(weight)),
+        ),
       ),
     );
   }
