@@ -7903,6 +7903,8 @@ class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
       );
       final item=r['item'] is Map?Map<String,dynamic>.from(r['item']):<String,dynamic>{};
       final id=sxInt(item['id']);
+      try { await api.clearCart(); } catch (_) {}
+      cartBadge.value = 0;
       if(!mounted)return;
       if(id>0){
         Navigator.pushAndRemoveUntil(
@@ -9021,7 +9023,24 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
         const SxSectionTitle(title:'تفضيلات التسوق'),
         ListTile(leading:const Icon(Icons.location_on_outlined),title:const Text('العناوين',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800)),trailing:const Icon(Icons.chevron_left),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxAddressesScreen()))),
         const SizedBox(height:8),
-        OutlinedButton(onPressed:()async{await state.clearSession();if(context.mounted)Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>const SxAuthScreen()),(_)=>false);},style:OutlinedButton.styleFrom(minimumSize:const Size.fromHeight(47),side:const BorderSide(color:Colors.black),shape:const RoundedRectangleBorder(borderRadius:BorderRadius.zero)),child:const Text('تسجيل الخروج',style:TextStyle(fontWeight:FontWeight.w900))),
+        OutlinedButton(
+  onPressed: () async {
+    await state.clearSession();
+    if (context.mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const SxAuthFlowScreen()),
+        (_) => false,
+      );
+    }
+  },
+  style: OutlinedButton.styleFrom(
+    minimumSize: const Size.fromHeight(49),
+    side: const BorderSide(color: Colors.black),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  ),
+  child: const Text('تسجيل الخروج', style: TextStyle(fontWeight: FontWeight.w900)),
+),
       ]),
     ),
   );
@@ -9079,11 +9098,204 @@ class _SxSettingsScreenState extends State<SxSettingsScreen> {
     TextField(controller: name, decoration: const InputDecoration(labelText: 'الاسم')), const SizedBox(height: 7),
     TextField(controller: email, decoration: const InputDecoration(labelText: 'البريد الإلكتروني')), const SizedBox(height: 12),
     SizedBox(height: 48, child: FilledButton(onPressed: busy ? null : save, style: FilledButton.styleFrom(backgroundColor: Colors.black), child: busy ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2) : const Text('حفظ التعديلات'))),
-    const SizedBox(height: 18), const Text('الإعدادات السريعة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+    const SizedBox(height: 8),
+    ListTile(
+      leading: const Icon(Icons.lock_reset_outlined),
+      title: const Text('تحديث كلمة المرور', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+      subtitle: const Text('تغيير كلمة المرور الحالية', style: TextStyle(fontSize: 9, color: ClientTheme.muted)),
+      trailing: const Icon(Icons.chevron_left),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => SxChangePasswordScreen(me: widget.me)),
+      ),
+    ),
+    const SizedBox(height: 10),
+    const Text('الإعدادات السريعة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
     ListTile(leading: const Icon(Icons.currency_exchange), title: const Text('العملة'), subtitle: Text(state.currencyCode), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCurrencyScreen()))),
     ListTile(leading: const Icon(Icons.location_city_outlined), title: const Text('المدينة'), subtitle: Text(state.cityName ?? 'اختيار المدينة'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCityScreen()))),
     ListTile(leading: const Icon(Icons.notifications_none), title: const Text('الإشعارات'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen()))),
   ]));
+}
+
+class SxChangePasswordScreen extends StatefulWidget {
+  final Map<String, dynamic> me;
+  const SxChangePasswordScreen({super.key, required this.me});
+
+  @override
+  State<SxChangePasswordScreen> createState() => _SxChangePasswordScreenState();
+}
+
+class _SxChangePasswordScreenState extends State<SxChangePasswordScreen> {
+  final current = TextEditingController();
+  final next = TextEditingController();
+  final confirm = TextEditingController();
+  bool busy = false;
+  bool obscureCurrent = true;
+  bool obscureNext = true;
+  bool obscureConfirm = true;
+
+  @override
+  void dispose() {
+    current.dispose();
+    next.dispose();
+    confirm.dispose();
+    super.dispose();
+  }
+
+  InputDecoration fieldDeco(String label, IconData icon, bool obscure, VoidCallback toggle) =>
+      InputDecoration(
+        labelText: label,
+        floatingLabelBehavior: FloatingLabelBehavior.never,
+        filled: true,
+        fillColor: const Color(0xFFF8F8F8),
+        prefixIcon: Icon(icon, size: 20, color: ClientTheme.muted),
+        suffixIcon: IconButton(
+          onPressed: toggle,
+          icon: Icon(
+            obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            size: 20,
+          ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E2E2)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE2E2E2)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Colors.black, width: 1.3),
+        ),
+      );
+
+  Future<void> save() async {
+    final password = next.text.trim();
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('كلمة المرور يجب أن تكون 6 أحرف على الأقل.')),
+      );
+      return;
+    }
+    if (password != confirm.text.trim()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تأكيد كلمة المرور غير مطابق.')),
+      );
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      await api.setMyPassword(password, currentPassword: current.text.trim());
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('تم تحديث كلمة المرور بنجاح.')),
+      );
+      Navigator.pop(context, true);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(sxText(error).replaceFirst('Exception: ', ''))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => SxShellPage(
+    title: 'تحديث كلمة المرور',
+    back: true,
+    child: ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: EdgeInsets.fromLTRB(
+        14, 14, 14, 40 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: ClientTheme.border),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Icon(Icons.lock_reset_outlined, size: 34),
+              const SizedBox(height: 9),
+              const Text(
+                'حدّث كلمة مرور حسابك بأمان',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 5),
+              const Text(
+                'إذا كان للحساب كلمة مرور حالية أدخلها أولًا. الحسابات التي لم تضبط كلمة مرور من قبل يمكنها ترك الحقل فارغًا.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 9, color: ClientTheme.muted, height: 1.5),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: current,
+                obscureText: obscureCurrent,
+                textDirection: TextDirection.ltr,
+                textAlign: TextAlign.left,
+                scrollPadding: const EdgeInsets.only(bottom: 190),
+                decoration: fieldDeco(
+                  'كلمة المرور الحالية (اختياري للحساب الجديد)',
+                  Icons.lock_outline,
+                  obscureCurrent,
+                  () => setState(() => obscureCurrent = !obscureCurrent),
+                ),
+              ),
+              const SizedBox(height: 9),
+              TextField(
+                controller: next,
+                obscureText: obscureNext,
+                textDirection: TextDirection.ltr,
+                textAlign: TextAlign.left,
+                scrollPadding: const EdgeInsets.only(bottom: 190),
+                decoration: fieldDeco(
+                  'كلمة المرور الجديدة',
+                  Icons.lock_reset_outlined,
+                  obscureNext,
+                  () => setState(() => obscureNext = !obscureNext),
+                ),
+              ),
+              const SizedBox(height: 9),
+              TextField(
+                controller: confirm,
+                obscureText: obscureConfirm,
+                textDirection: TextDirection.ltr,
+                textAlign: TextAlign.left,
+                scrollPadding: const EdgeInsets.only(bottom: 190),
+                decoration: fieldDeco(
+                  'تأكيد كلمة المرور الجديدة',
+                  Icons.verified_user_outlined,
+                  obscureConfirm,
+                  () => setState(() => obscureConfirm = !obscureConfirm),
+                ),
+              ),
+              const SizedBox(height: 13),
+              SizedBox(
+                height: 49,
+                child: FilledButton(
+                  onPressed: busy ? null : save,
+                  style: FilledButton.styleFrom(backgroundColor: Colors.black),
+                  child: busy
+                      ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                      : const Text('حفظ كلمة المرور', style: TextStyle(fontWeight: FontWeight.w900)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class SxCurrencyScreen extends StatefulWidget {
@@ -10076,6 +10288,69 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                   ),
                 ),
               ),
+            if (status == 'created' || status == 'awaiting_payment')
+              Container(
+                margin: const EdgeInsets.only(top: 7, bottom: 2),
+                child: SizedBox(
+                  height: 45,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final ok = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text(
+                            'إلغاء الطلب',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+                          ),
+                          content: const Text(
+                            'سيتم إلغاء الطلب وإعادة الكميات المحجوزة إلى المخزون. هل تريد المتابعة؟',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 10, height: 1.45),
+                          ),
+                          actionsAlignment: MainAxisAlignment.spaceBetween,
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dialogContext, false),
+                              child: const Text('رجوع'),
+                            ),
+                            FilledButton(
+                              onPressed: () => Navigator.pop(dialogContext, true),
+                              style: FilledButton.styleFrom(backgroundColor: Colors.black),
+                              child: const Text('إلغاء الطلب'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (ok != true || !mounted) return;
+                      try {
+                        await api.cancelOrder(sxInt(order['id']));
+                        if (!mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('تم إلغاء الطلب بالكامل.')),
+                        );
+                        await load();
+                      } catch (error) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(sxText(error).replaceFirst('Exception: ', ''))),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.cancel_outlined, size: 19),
+                    label: const Text(
+                      'إلغاء الطلب بالكامل',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFC62828),
+                      side: const BorderSide(color: Color(0xFFC62828)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                ),
+              )
             const SxSectionTitle(title: 'المنتجات'),
             Container(
               decoration: BoxDecoration(
@@ -10745,7 +11020,35 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
         decoration:const BoxDecoration(color:Colors.white,border:Border(top:BorderSide(color:ClientTheme.border))),
         child:Row(children:[
           IconButton(onPressed:uploading?null:sendFile,icon:uploading?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.attach_file_outlined,size:20)),
-          Expanded(child:TextField(controller:input,minLines:1,maxLines:4,textInputAction:TextInputAction.newline,decoration:const InputDecoration(hintText:'اكتب رسالتك...',border:InputBorder.none))),
+          Expanded(
+  child: Container(
+    constraints: const BoxConstraints(minHeight: 42, maxHeight: 118),
+    decoration: BoxDecoration(
+      color: const Color(0xFFF7F7F7),
+      border: Border.all(color: const Color(0xFFE0E0E0)),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    padding: const EdgeInsets.symmetric(horizontal: 4),
+    alignment: Alignment.center,
+    child: TextField(
+      controller: input,
+      minLines: 1,
+      maxLines: 4,
+      textInputAction: TextInputAction.newline,
+      textDirection: TextDirection.rtl,
+      textAlign: TextAlign.right,
+      textAlignVertical: TextAlignVertical.center,
+      scrollPadding: const EdgeInsets.only(bottom: 180),
+      style: const TextStyle(fontSize: 11.5, height: 1.35, color: Colors.black),
+      decoration: const InputDecoration(
+        hintText: 'اكتب رسالتك...',
+        hintStyle: TextStyle(fontSize: 10.5, color: ClientTheme.muted),
+        border: InputBorder.none,
+        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      ),
+    ),
+  ),
+),
           IconButton(onPressed:sending?null:send,icon:sending?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.arrow_upward_rounded,size:21)),
         ]),
       )),
