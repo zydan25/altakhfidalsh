@@ -22,16 +22,71 @@ class ApiService {
   }
   Map<String,String> headers()=>{'Accept':'application/json',if(token.isNotEmpty)'Authorization':'Bearer '+token};
   dynamic decode(http.Response r){
-    dynamic x;try{x=jsonDecode(utf8.decode(r.bodyBytes));}catch(_){x={};}
+    dynamic x;
+    try { x=jsonDecode(utf8.decode(r.bodyBytes)); } catch (_) { x={}; }
     if(r.statusCode>=200&&r.statusCode<300)return x;
     if(x is Map&&x['detail']!=null)throw Exception(x['detail'].toString());
     if(x is Map&&x['error']!=null)throw Exception(x['error'].toString());
-    throw Exception('تعذر الاتصال بالخادم');
+    throw Exception('تعذر تنفيذ الطلب (undefined)');
   }
-  Future<dynamic> get(String p,{Map<String,String>? q})async=>decode(await http.get(Uri.parse(baseUrl+p).replace(queryParameters:q),headers:headers()));
-  Future<dynamic> post(String p,Map<String,dynamic> b)async=>decode(await http.post(Uri.parse(baseUrl+p),headers:{...headers(),'Content-Type':'application/json'},body:jsonEncode(b)));
-  Future<dynamic> patch(String p,Map<String,dynamic> b)async=>decode(await http.patch(Uri.parse(baseUrl+p),headers:{...headers(),'Content-Type':'application/json'},body:jsonEncode(b)));
-  Future<dynamic> delete(String p)async=>decode(await http.delete(Uri.parse(baseUrl+p),headers:headers()));
+  Future<dynamic> get(String p,{Map<String,String>? q}) async {
+    try {
+      return decode(await http.get(
+        Uri.parse(baseUrl+p).replace(queryParameters:q),
+        headers:headers(),
+      ).timeout(const Duration(seconds:25)));
+    } catch(e) {
+      final s=e.toString();
+      if(s.contains('SocketException')||s.contains('TimeoutException')||s.contains('ClientException')) {
+        throw Exception('تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.');
+      }
+      rethrow;
+    }
+  }
+  Future<dynamic> post(String p,Map<String,dynamic> b) async {
+    try {
+      return decode(await http.post(
+        Uri.parse(baseUrl+p),
+        headers:{...headers(),'Content-Type':'application/json'},
+        body:jsonEncode(b),
+      ).timeout(const Duration(seconds:25)));
+    } catch(e) {
+      final s=e.toString();
+      if(s.contains('SocketException')||s.contains('TimeoutException')||s.contains('ClientException')) {
+        throw Exception('تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.');
+      }
+      rethrow;
+    }
+  }
+  Future<dynamic> patch(String p,Map<String,dynamic> b) async {
+    try {
+      return decode(await http.patch(
+        Uri.parse(baseUrl+p),
+        headers:{...headers(),'Content-Type':'application/json'},
+        body:jsonEncode(b),
+      ).timeout(const Duration(seconds:25)));
+    } catch(e) {
+      final s=e.toString();
+      if(s.contains('SocketException')||s.contains('TimeoutException')||s.contains('ClientException')) {
+        throw Exception('تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.');
+      }
+      rethrow;
+    }
+  }
+  Future<dynamic> delete(String p) async {
+    try {
+      return decode(await http.delete(
+        Uri.parse(baseUrl+p),
+        headers:headers(),
+      ).timeout(const Duration(seconds:25)));
+    } catch(e) {
+      final s=e.toString();
+      if(s.contains('SocketException')||s.contains('TimeoutException')||s.contains('ClientException')) {
+        throw Exception('تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.');
+      }
+      rethrow;
+    }
+  }
 
   String _scopeCacheKey(int? rootCategoryId) =>
       (rootCategoryId ?? -1).toString();
@@ -415,6 +470,18 @@ class ApiService {
   }
   Future<Map<String,dynamic>> order(int id)async=>Map<String,dynamic>.from(await get('/commerce/me/orders/'+id.toString()+'/detail'));
   Future<Map<String,dynamic>> updateOrder(int id,Map<String,dynamic> body)async=>Map<String,dynamic>.from(await patch('/commerce/me/orders/'+id.toString(),body));
+  Future<Map<String,dynamic>> recordOrderPayment(
+    int orderId, {
+    required int methodId,
+    String? amount,
+    int? currencyId,
+  }) async => Map<String,dynamic>.from(
+    await post('/commerce/me/orders/'+orderId.toString()+'/payment',{
+      'method_id':methodId,
+      if(amount!=null&&amount.trim().isNotEmpty)'amount':amount.trim(),
+      if(currencyId!=null)'currency_id':currencyId,
+    }),
+  );
   Future<Map<String,dynamic>> createOrder(int addressId,List<Map<String,dynamic>> items,{int? shippingMethodId,int? paymentMethodId,int? currencyId,String? customerNote}) async =>
       Map<String,dynamic>.from(await post('/commerce/orders',{
         'address_id':addressId,'items':items,
@@ -490,7 +557,9 @@ class ApiService {
     final req=http.MultipartRequest('POST',Uri.parse(baseUrl+'/support/conversations/'+id.toString()+'/attachments'));
     req.headers.addAll(headers()); if(body.trim().isNotEmpty)req.fields['body']=body.trim();
     for(final f in files){if(f.bytes!=null)req.files.add(http.MultipartFile.fromBytes('files',f.bytes!,filename:f.name));}
-    final response=await http.Response.fromStream(await req.send());
+    final response=await http.Response.fromStream(
+      await req.send().timeout(const Duration(seconds:25)),
+    );
     final data=decode(response);
     final item=data['item']; return [item is Map?Map<String,dynamic>.from(item):<String,dynamic>{}];
   }
