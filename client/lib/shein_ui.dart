@@ -7874,7 +7874,7 @@ class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
       if(id>0){
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder:(_)=>SxOrderDetailScreen(orderId:id)),
+          MaterialPageRoute(builder:(_)=>SxOrderDetailScreen(id:id)),
           (route)=>route.isFirst,
         );
       }
