@@ -646,7 +646,10 @@ class ApiService {
   Future<List<Map<String,dynamic>>> uploadPaymentProof(int orderId,List<PlatformFile> files)async{
     final req=http.MultipartRequest('POST',Uri.parse(baseUrl+'/commerce/me/payment-proofs/upload'));
     req.headers.addAll(headers());req.fields['order_id']=orderId.toString();
-    for(final f in files){if(f.bytes!=null)req.files.add(http.MultipartFile.fromBytes('files',f.bytes!,filename:f.name));}
+    for(final f in files){
+      final bytes=await f.readAsBytes();
+      req.files.add(http.MultipartFile.fromBytes('files',bytes,filename:f.name));
+    }
     final response=await http.Response.fromStream(await req.send());
     final data=decode(response);
     return ((data['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
