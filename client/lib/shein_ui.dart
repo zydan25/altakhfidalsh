@@ -12,6 +12,7 @@ import 'app_state.dart';
 import 'models.dart';
 import 'theme.dart';
 import 'product_card.dart';
+import 'order_edit.dart';
 import 'product_detail.dart';
 
 String sxText(dynamic v, [String fallback = '']) => (v ?? fallback).toString();
@@ -9252,6 +9253,36 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                 ],
               ),
             ),
+            if (status == 'created' || status == 'awaiting_payment')
+              Container(
+                margin: const EdgeInsets.only(top: 9, bottom: 2),
+                child: SizedBox(
+                  height: 45,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final changed = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => SxOrderEditScreen(order: order),
+                        ),
+                      );
+                      if (changed == true && mounted) await load();
+                    },
+                    icon: const Icon(Icons.edit_note_outlined, size: 19),
+                    label: const Text(
+                      'تعديل الطلب قبل اعتماده',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black,
+                      side: const BorderSide(color: Colors.black),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             const SxSectionTitle(title: 'المنتجات'),
             Container(
               decoration: BoxDecoration(
