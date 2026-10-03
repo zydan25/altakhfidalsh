@@ -1049,7 +1049,14 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(6, 3, 6, 18),
-                  child: SxProductGrid(products: products),
+                  child: SxProductGrid(
+                    products: products,
+                    displaySettings: home['product_card_settings'] is Map
+                        ? Map<String, dynamic>.from(
+                            home['product_card_settings'] as Map,
+                          )
+                        : null,
+                  ),
                 ),
               ),
           ],
@@ -2801,11 +2808,13 @@ double sxProductImageRatio(ProductModel product) {
 class SxProductGrid extends StatelessWidget {
   final List<ProductModel> products;
   final bool masonry;
+  final Map<String, dynamic>? displaySettings;
 
   const SxProductGrid({
     super.key,
     required this.products,
     this.masonry = true,
+    this.displaySettings,
   });
 
   @override
@@ -2851,6 +2860,7 @@ class SxProductGrid extends StatelessWidget {
             child: SxProductCard(
               key: ValueKey<int>(products[i].id),
               product: products[i],
+              displaySettings: displaySettings,
             ),
           ),
         ),
@@ -2888,6 +2898,7 @@ class _SxMasonryProductGrid extends StatelessWidget {
                 key: ValueKey<int>(rows[i].id),
                 product: rows[i],
                 masonry: true,
+                displaySettings: displaySettings,
               ),
               if (i != rows.length - 1) const SizedBox(height: 7),
             ],
@@ -2917,11 +2928,13 @@ class _SxMasonryProductGrid extends StatelessWidget {
 class SxProductCard extends StatefulWidget {
   final ProductModel product;
   final bool masonry;
+  final Map<String, dynamic>? displaySettings;
 
   const SxProductCard({
     super.key,
     required this.product,
     this.masonry = false,
+    this.displaySettings,
   });
 
   @override
@@ -3031,6 +3044,229 @@ class _SxProductCardState extends State<SxProductCard> {
     }
   }
 
+  Map<String, dynamic> get _cardSettings => widget.displaySettings ?? const {};
+
+  dynamic _cardValue(String key, dynamic fallback) {
+    final value = _cardSettings[key];
+    return value ?? fallback;
+  }
+
+  bool _cardBool(String key, bool fallback) {
+    final value = _cardValue(key, fallback);
+    return value is bool ? value : (value.toString().toLowerCase() == 'true');
+  }
+
+  double _cardNumber(String key, double fallback) {
+    final value = _cardValue(key, fallback);
+    final parsed = value is num ? value.toDouble() : double.tryParse(value.toString());
+    return (parsed == null || !parsed.isFinite) ? fallback : parsed;
+  }
+
+  String _cardText(String key, String fallback) {
+    final value = _cardValue(key, fallback).toString().trim();
+    return value.isEmpty ? fallback : value;
+  }
+
+  Color _cardColor(String key, Color fallback) =>
+      sxColor(_cardText(key, ''), fallback);
+
+  Widget _cornerPositioned(
+    String position,
+    Widget child, {
+    double offset = 6,
+    double? bottomOffset,
+  }) {
+    final bottom = bottomOffset ?? offset;
+    switch (position) {
+      case 'top_left':
+        return Positioned(top: offset, left: offset, child: child);
+      case 'top_right':
+        return Positioned(top: offset, right: offset, child: child);
+      case 'bottom_left':
+        return Positioned(bottom: bottom, left: offset, child: child);
+      default:
+        return Positioned(bottom: bottom, right: offset, child: child);
+    }
+  }
+
+  Widget _cardMetaChip(Map<String, dynamic> meta) {
+    final text = sxText(meta['label']);
+    if (text.isEmpty || !_cardBool('meta_show', true)) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: _cardNumber('meta_padding_horizontal', 4),
+        vertical: _cardNumber('meta_padding_vertical', 2),
+      ),
+      decoration: BoxDecoration(
+        color: _cardColor('meta_background_color', const Color(0xFFF4F4F4)),
+        borderRadius: BorderRadius.circular(_cardNumber('meta_radius', 3)),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: _cardColor('meta_text_color', const Color(0xFF111111)),
+          fontSize: _cardNumber('meta_font_size', 7.5),
+          fontWeight: FontWeight.w800,
+          height: 1,
+        ),
+      ),
+    );
+  }
+
+  Widget _trendRibbon() {
+    final trend = widget.product.trendCard;
+    final trendSettings = trend?['settings'] is Map
+        ? Map<String, dynamic>.from(trend!['settings'] as Map)
+        : const <String, dynamic>{};
+    final trendHashtag = trend?['hashtag'] is Map
+        ? Map<String, dynamic>.from(trend!['hashtag'] as Map)
+        : null;
+    final hashtag = trendHashtag ??
+        (widget.product.hashtags.isNotEmpty
+            ? widget.product.hashtags.first
+            : null);
+    final showTrend =
+        trend != null && _cardBool('show_trend_badge', true) &&
+        trendSettings['show_trend_badge'] != false;
+    final showHashtag = hashtag != null &&
+        _cardBool('show_trend_hashtag', true) &&
+        trendSettings['show_trend_hashtag'] != false;
+
+    if (!showTrend && !showHashtag) return const SizedBox.shrink();
+
+    final trendText = sxText(
+      trendSettings['trend_badge_text'],
+      _cardText('trend_badge_text', 'Trends'),
+    );
+    final hashtagText = sxText(
+      hashtag?['display_name'],
+      hashtag == null ? '' : '#' + sxText(hashtag['name']),
+    );
+
+    final trendBg = sxColor(
+      sxText(
+        trendSettings['trend_badge_background_color'],
+        _cardText('trend_badge_background_color', '#8b5cf6'),
+      ),
+      const Color(0xFF8B5CF6),
+    );
+    final trendFg = sxColor(
+      sxText(
+        trendSettings['trend_badge_text_color'],
+        _cardText('trend_badge_text_color', '#ffffff'),
+      ),
+      Colors.white,
+    );
+    final hashtagFg = sxColor(
+      sxText(
+        trendSettings['trend_hashtag_text_color'],
+        _cardText('trend_hashtag_text_color', '#7c3aed'),
+      ),
+      const Color(0xFF7C3AED),
+    );
+    final hashtagBg = sxColor(
+      sxText(
+        trendSettings['trend_hashtag_background_color'],
+        _cardText('trend_hashtag_background_color', '#f0e6ff'),
+      ),
+      const Color(0xFFF0E6FF),
+    );
+    final useHashtagBg = trendSettings['trend_hashtag_use_background']
+            is bool
+        ? trendSettings['trend_hashtag_use_background'] as bool
+        : _cardBool('trend_hashtag_use_background', true);
+    final showArrow = trendSettings['trend_show_arrow'] is bool
+        ? trendSettings['trend_show_arrow'] as bool
+        : _cardBool('trend_show_arrow', true);
+
+    Widget hashtagChip = Flexible(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 170),
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        decoration: BoxDecoration(
+          color: useHashtagBg ? hashtagBg : Colors.transparent,
+          borderRadius: BorderRadius.circular(
+            _cardNumber('trend_badge_radius', 3),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (showArrow)
+              Text(
+                _cardText('trend_arrow_text', '‹'),
+                style: TextStyle(
+                  color: sxColor(
+                    sxText(
+                      trendSettings['trend_arrow_color'],
+                      _cardText('trend_arrow_color', '#7c3aed'),
+                    ),
+                    const Color(0xFF7C3AED),
+                  ),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
+            Flexible(
+              child: Text(
+                hashtagText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.left,
+                style: TextStyle(
+                  color: hashtagFg,
+                  fontSize: _cardNumber('trend_hashtag_font_size', 8),
+                  fontWeight: FontWeight.w800,
+                  height: 1,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    Widget trendChip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+      decoration: BoxDecoration(
+        color: trendBg,
+        borderRadius: BorderRadius.circular(
+          _cardNumber('trend_badge_radius', 3),
+        ),
+      ),
+      child: Text(
+        trendText,
+        style: TextStyle(
+          color: trendFg,
+          fontSize: _cardNumber('trend_badge_font_size', 8),
+          fontWeight: FontWeight.w900,
+          height: 1,
+        ),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 1),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            if (showHashtag) hashtagChip,
+            if (showHashtag && showTrend)
+              SizedBox(width: _cardNumber('trend_ribbon_gap', 3)),
+            if (showTrend) trendChip,
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _imageStack({
     required double ratio,
     required bool masonry,
@@ -3091,6 +3327,96 @@ class _SxProductCardState extends State<SxProductCard> {
       child: image,
     );
 
+    final product = widget.product;
+    final meta = product.cardMeta;
+    final metaPosition = _cardText('meta_position', 'top_right');
+    final brandPosition = _cardText('brand_position', 'top_left');
+    final badgePosition = _cardText('product_badge_position', 'top_right');
+    final colorPosition = _cardText('colors_position', 'bottom_right');
+    final badgeTopOffset =
+        badgePosition == 'top_right' && meta != null && _cardBool('meta_show', true)
+            ? 31.0
+            : 6.0;
+    final brandText = sxText(product.brandName);
+
+    Widget colorSwatches() {
+      if (!_cardBool('colors_show', true) || product.colors.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      final swatchSize = _cardNumber('colors_size', 13);
+      final containerSize =
+          _cardNumber('colors_container_size', 16).clamp(swatchSize, 28);
+      final gap = _cardNumber('colors_gap', 2);
+      final max = _cardNumber('colors_max', 6).round().clamp(1, 8);
+      final items = product.colors.take(max).map((color) {
+        final hex = sxText(color['hex_code']);
+        final swatchUrl = sxText(color['swatch_url']);
+        return Container(
+          width: containerSize,
+          height: containerSize,
+          padding: EdgeInsets.all(
+            ((containerSize - swatchSize) / 2).clamp(0, 8),
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(.94),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.white,
+              width: _cardNumber('colors_border_width', 1),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                blurRadius: 2,
+                offset: Offset(0, 1),
+                color: Colors.black26,
+              ),
+            ],
+          ),
+          child: swatchUrl.isNotEmpty
+              ? ClipOval(
+                  child: Image.network(
+                    api.url(swatchUrl),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: sxColor(hex, const Color(0xFFE5E7EB)),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                )
+              : DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: sxColor(hex, const Color(0xFFE5E7EB)),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+        );
+      }).toList();
+
+      final direction = _cardText('colors_direction', 'horizontal');
+      final child = direction == 'vertical'
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List<Widget>.from(
+                items.map((item) => Padding(
+                  padding: EdgeInsets.only(bottom: gap),
+                  child: item,
+                )),
+              ),
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: List<Widget>.from(
+                items.map((item) => Padding(
+                  padding: EdgeInsets.only(left: gap),
+                  child: item,
+                )),
+              ),
+            );
+      return child;
+    }
+
     final body = Stack(
       fit: StackFit.passthrough,
       children: [
@@ -3098,76 +3424,76 @@ class _SxProductCardState extends State<SxProductCard> {
           AspectRatio(aspectRatio: ratio, child: imageContainer)
         else
           Positioned.fill(child: imageContainer),
-        if (sxText(widget.product.brandName).isNotEmpty)
-          Positioned(
-            top: 6,
-            right: 6,
-            child: SxPill(
-              text: sxText(widget.product.brandName),
-              background: Colors.black.withOpacity(.82),
-              foreground: Colors.white,
-            ),
-          ),
-        if (widget.product.isTrend)
-          const Positioned(
-            top: 6,
-            left: 6,
-            child: SxPill(
-              text: 'ترندات',
-              background: Colors.black87,
-              foreground: Colors.white,
-            ),
-          ),
-        if (widget.product.colors.isNotEmpty)
-          Positioned(
-            left: 6,
-            top: 54,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: widget.product.colors.take(6).map((color) {
-                final hex = sxText(color['hex_code']);
-                final swatchUrl = sxText(color['swatch_url']);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 5),
-                  child: Container(
-                    width: 19,
-                    height: 19,
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(.95),
-                      shape: BoxShape.circle,
-                      boxShadow: const [
-                        BoxShadow(
-                          blurRadius: 2,
-                          offset: Offset(0, 1),
-                          color: Colors.black26,
-                        ),
-                      ],
-                    ),
-                    child: swatchUrl.isNotEmpty
-                        ? ClipOval(
-                            child: Image.network(
-                              api.url(swatchUrl),
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: sxColor(hex, const Color(0xFFE5E7EB)),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                          )
-                        : DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: sxColor(hex, const Color(0xFFE5E7EB)),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
+
+        if (_cardBool('show_brand', true) && brandText.isNotEmpty)
+          _cornerPositioned(
+            brandPosition,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
+              decoration: BoxDecoration(
+                color: _cardColor(
+                  'brand_background_color',
+                  const Color(0xFF111827),
+                ).withOpacity(.90),
+                borderRadius: BorderRadius.circular(
+                  _cardNumber('brand_radius', 4),
+                ),
+              ),
+              child: Text(
+                brandText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: _cardColor(
+                    'brand_text_color',
+                    Colors.white,
                   ),
-                );
-              }).toList(),
+                  fontSize: _cardNumber('brand_font_size', 8),
+                  fontWeight: FontWeight.w900,
+                  height: 1,
+                ),
+              ),
             ),
           ),
+
+        if (meta != null && sxText(meta['label']).isNotEmpty &&
+            _cardBool('meta_show', true))
+          _cornerPositioned(
+            metaPosition,
+            _cardMetaChip(meta),
+          ),
+
+        if (_cardBool('show_product_badges', true) &&
+            product.badges.isNotEmpty)
+          _cornerPositioned(
+            badgePosition,
+            Padding(
+              padding: EdgeInsets.only(
+                top: badgePosition == 'top_right' ? badgeTopOffset - 6 : 0,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: product.badges
+                    .take(
+                      _cardNumber('product_badge_max', 2)
+                          .round()
+                          .clamp(1, 4),
+                    )
+                    .map(_badgeChip)
+                    .toList(),
+              ),
+            ),
+            offset: 6,
+          ),
+
+        if (_cardBool('colors_show', true) && product.colors.isNotEmpty)
+          _cornerPositioned(
+            colorPosition,
+            colorSwatches(),
+            bottomOffset: discount > 0 ? 32 : 6,
+          ),
+
         if (gallery.length > 1)
           Positioned(
             left: 0,
@@ -3190,6 +3516,7 @@ class _SxProductCardState extends State<SxProductCard> {
               ),
             ),
           ),
+
         if (_galleryLoading)
           const Positioned.fill(
             child: Center(
@@ -3203,19 +3530,7 @@ class _SxProductCardState extends State<SxProductCard> {
               ),
             ),
           ),
-        if (widget.product.badges.isNotEmpty)
-          Positioned(
-            top: widget.product.brandName != null &&
-                    sxText(widget.product.brandName).isNotEmpty
-                ? 35
-                : 6,
-            right: 6,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: widget.product.badges.take(2).map(_badgeChip).toList(),
-            ),
-          ),
+
         if (discount > 0)
           Positioned(
             left: 0,
@@ -3247,6 +3562,7 @@ class _SxProductCardState extends State<SxProductCard> {
               ),
             ),
           ),
+
         Positioned(
           left: 7,
           bottom: discount > 0 ? 27 : 7,
@@ -3262,7 +3578,6 @@ class _SxProductCardState extends State<SxProductCard> {
         ),
       ],
     );
-
     if (!masonry) {
       return Expanded(child: body);
     }
@@ -3276,25 +3591,33 @@ class _SxProductCardState extends State<SxProductCard> {
         : tab == 'offers'
             ? const Color(0xFFDC2626)
             : const Color(0xFF111827);
-    final bg = sxColor(badge['bg_color'], fallback);
-    final fg = sxColor(badge['text_color'], Colors.white);
+    final bg = sxColor(sxText(badge['bg_color']), fallback);
+    final fg = sxColor(
+      sxText(badge['text_color']),
+      Colors.white,
+    );
     final text = sxText(
       badge['custom_text'],
       sxText(badge['name'], sxText(badge['code'])),
     );
-
     return Container(
+      margin: const EdgeInsets.only(bottom: 3),
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(
+          _cardNumber('product_badge_radius', 3),
+        ),
       ),
       child: Text(
         text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: fg,
-          fontSize: 9,
+          fontSize: _cardNumber('product_badge_font_size', 8),
           fontWeight: FontWeight.w900,
+          height: 1,
         ),
       ),
     );
@@ -3330,7 +3653,8 @@ class _SxProductCardState extends State<SxProductCard> {
               discount: discount,
               gallery: gallery,
             ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
+          _trendRibbon(),
           Text(
             product.name,
             maxLines: 2,
@@ -4898,6 +5222,12 @@ class _SxResultsState extends State<SxResults> {
                             : SxProductGrid(
                                 products: visibleProducts,
                                 masonry: false,
+                                displaySettings:
+                                    home['product_card_settings'] is Map
+                                        ? Map<String, dynamic>.from(
+                                            home['product_card_settings'] as Map,
+                                          )
+                                        : null,
                               ),
                         if (isChanging)
                           const Positioned(
