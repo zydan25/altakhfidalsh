@@ -8115,6 +8115,8 @@ class _TrendProductTileState extends State<_TrendProductTile> {
     );
   }
 
+  @override
+  Widget build(BuildContext context) {
     final scale =
         (MediaQuery.sizeOf(context).width / 360.0).clamp(.86, 1.15).toDouble();
     final imageHeight =
