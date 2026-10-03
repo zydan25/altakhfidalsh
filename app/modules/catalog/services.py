@@ -53,6 +53,7 @@ from ...models import (
     ProductColorReference,
     ProductSizeReference,
     AppSetting,
+    Review,
 )
 
 
@@ -980,12 +981,14 @@ class CatalogService:
 
     @staticmethod
     def _serialize_product(product):
+        brand = db.session.get(Brand, product.brand_id) if product.brand_id else None
         return {
             "id": product.id,
             "sku": product.sku,
             "name": product.name,
             "slug": product.slug,
             "description": product.description,
+            "short_description": product.description,
             "base_price_sar": str(product.base_price),
             "compare_at_price": str(product.compare_at_price) if product.compare_at_price is not None else None,
             "base_currency_id": product.base_currency_id,
@@ -993,6 +996,7 @@ class CatalogService:
             "material": product.material,
             "care_instructions": product.care_instructions,
             "brand_id": product.brand_id,
+            "brand": {"id": brand.id, "name": brand.name} if brand else None,
             "product_type": product.product_type,
         }
 
@@ -2174,13 +2178,63 @@ class CatalogService:
             }
             for media_row, asset, color in media_rows
         ]
+        color_reference_rows = (
+            db.session.query(ProductColorReference, Color)
+            .join(Color, Color.id == ProductColorReference.color_id)
+            .filter(ProductColorReference.product_id == product_id, Color.is_active.is_(True))
+            .order_by(ProductColorReference.sort_order, ProductColorReference.id)
+            .all()
+        )
         reference_colors = [
-            {"id": row.color_id}
-            for row in ProductColorReference.query.filter_by(product_id=product_id).order_by(ProductColorReference.sort_order, ProductColorReference.id).all()
+            {
+                "id": row.color_id,
+                "name": color.name,
+                "hex_code": color.hex_code,
+                "swatch_asset_id": color.swatch_asset_id,
+            }
+            for row, color in color_reference_rows
         ]
+        size_reference_rows = (
+            db.session.query(ProductSizeReference, __import__("app.models", fromlist=["Size"]).Size)
+            .join(__import__("app.models", fromlist=["Size"]).Size, __import__("app.models", fromlist=["Size"]).Size.id == ProductSizeReference.size_id)
+            .filter(ProductSizeReference.product_id == product_id, __import__("app.models", fromlist=["Size"]).Size.is_active.is_(True))
+            .order_by(ProductSizeReference.sort_order, ProductSizeReference.id)
+            .all()
+        )
         reference_sizes = [
-            {"id": row.size_id}
-            for row in ProductSizeReference.query.filter_by(product_id=product_id).order_by(ProductSizeReference.sort_order, ProductSizeReference.id).all()
+            {
+                "id": row.size_id,
+                "label": size.label,
+                "code": size.code,
+                "group": size.group,
+            }
+            for row, size in size_reference_rows
+        ]
+
+        avg_rating, review_count = db.session.query(
+            db.func.avg(Review.rating),
+            db.func.count(Review.id),
+        ).filter(
+            Review.product_id == product_id,
+            Review.status == "approved",
+            Review.is_active.is_(True),
+        ).one()
+        rating_summary = {
+            "average": round(float(avg_rating or 0), 2),
+            "count": int(review_count or 0),
+        }
+        reviews_preview = [
+            {
+                "id": review.id,
+                "rating": review.rating,
+                "title": review.title,
+                "body": review.body,
+            }
+            for review in Review.query.filter(
+                Review.product_id == product_id,
+                Review.status == "approved",
+                Review.is_active.is_(True),
+            ).order_by(Review.id.desc()).limit(8).all()
         ]
         side_category_circle_ids = [
             {"id": circle_id}
@@ -2228,6 +2282,8 @@ class CatalogService:
             "reference_colors": reference_colors,
             "reference_sizes": reference_sizes,
             "side_category_circles": side_category_circle_ids,
+            "rating_summary": rating_summary,
+            "reviews_preview": reviews_preview,
             "inventory": inventory,
             "locations": CatalogService.list_inventory_locations(),
             "display": {
