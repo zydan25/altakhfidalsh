@@ -176,9 +176,6 @@ def create_my_review(product_id):
 
     title = str(payload.get("title") or "").strip()[:200]
     body = str(payload.get("body") or "").strip()[:4000]
-    if not title and not body:
-        return {"error": "review_text_required", "detail": "اكتب تعليقًا أو عنوانًا للتقييم."}, 400
-
     existing = Review.query.filter_by(
         product_id=product_id,
         customer_id=current_customer().id,
