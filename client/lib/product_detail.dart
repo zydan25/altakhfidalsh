@@ -983,9 +983,6 @@ class _ProductHeroInfo extends StatelessWidget {
     );
   }
 }
-  
-  );
-}
 
 class _ProductIdentityPanel extends StatelessWidget {
   final String brand;
