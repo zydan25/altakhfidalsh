@@ -420,6 +420,18 @@ def update_my_order(order_id):
         return {"error": "order_update_failed", "detail": str(exc)}, 400
 
 
+@api_bp.post("/me/orders/<int:order_id>/cancel")
+@customer_required
+def cancel_my_order(order_id):
+    try:
+        return {"item": CommerceService.cancel_customer_order(
+            current_customer().id,
+            order_id,
+        )}
+    except (ValueError, LookupError) as exc:
+        return {"error": "order_cancel_failed", "detail": str(exc)}, 400
+
+
 @api_bp.post("/me/cart/items")
 @customer_required
 def my_cart_item():
