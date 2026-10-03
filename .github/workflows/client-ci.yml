@@ -176,6 +176,83 @@ jobs:
           print("Android application label set to: التخفيض الصح")
           PY
 
+      - name: Enable Android core library desugaring
+        working-directory: client
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          groovy = Path("android/app/build.gradle")
+          kotlin = Path("android/app/build.gradle.kts")
+
+          if kotlin.exists():
+              path = kotlin
+              text = path.read_text(encoding="utf-8")
+
+              compile_marker = "compileOptions {"
+              if compile_marker not in text:
+                  raise SystemExit("build.gradle.kts: compileOptions block not found")
+              if "isCoreLibraryDesugaringEnabled" not in text:
+                  text = text.replace(
+                      compile_marker,
+                      compile_marker + "\n        isCoreLibraryDesugaringEnabled = true",
+                      1,
+                  )
+
+              if "coreLibraryDesugaring(" not in text:
+                  dep_marker = "dependencies {"
+                  if dep_marker not in text:
+                      text += (
+                          "\n\ndependencies {\n"
+                          '    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")\n'
+                          "}\n"
+                      )
+                  else:
+                      text = text.replace(
+                          dep_marker,
+                          dep_marker
+                          + '\n    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")',
+                          1,
+                      )
+          elif groovy.exists():
+              path = groovy
+              text = path.read_text(encoding="utf-8")
+
+              compile_marker = "compileOptions {"
+              if compile_marker not in text:
+                  raise SystemExit("build.gradle: compileOptions block not found")
+              if "coreLibraryDesugaringEnabled" not in text:
+                  text = text.replace(
+                      compile_marker,
+                      compile_marker + "\n        coreLibraryDesugaringEnabled true",
+                      1,
+                  )
+
+              if "coreLibraryDesugaring '" not in text and 'coreLibraryDesugaring "' not in text:
+                  dep_marker = "dependencies {"
+                  if dep_marker not in text:
+                      text += (
+                          "\n\ndependencies {\n"
+                          "    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'\n"
+                          "}\n"
+                      )
+                  else:
+                      text = text.replace(
+                          dep_marker,
+                          dep_marker
+                          + "\n    coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.1.4'",
+                          1,
+                      )
+          else:
+              raise SystemExit("Android app Gradle file not found")
+
+          path.write_text(text, encoding="utf-8")
+          print(f"Enabled core library desugaring in {path}")
+          PY
+
+          grep -n -E "CoreLibraryDesugaring|coreLibraryDesugaring|desugar_jdk_libs"             android/app/build.gradle android/app/build.gradle.kts 2>/dev/null || true
+
       - name: Dependencies
         working-directory: client
         run: flutter pub get
