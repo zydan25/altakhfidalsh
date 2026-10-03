@@ -57,6 +57,53 @@ def mark_read(customer_id, notification_id):
     return {"ok": True, "read": True}
 
 
+
+
+@api_bp.get("/notifications/me")
+@customer_required
+def my_notifications():
+    customer_id = current_customer().id
+    rows = (
+        CustomerNotification.query
+        .filter_by(customer_id=customer_id)
+        .order_by(CustomerNotification.id.desc())
+        .limit(100)
+        .all()
+    )
+    items = []
+    unread_count = 0
+    for row in rows:
+        notification = db.session.get(Notification, row.notification_id)
+        if notification is None:
+            continue
+        if row.read_at is None:
+            unread_count += 1
+        items.append({
+            "id": notification.id,
+            "type": notification.type,
+            "title": notification.title,
+            "body": notification.body,
+            "data": notification.data or {},
+            "status": notification.status,
+            "sent_at": notification.sent_at.isoformat() if notification.sent_at else None,
+            "created_at": notification.created_at.isoformat() if notification.created_at else None,
+            "read_at": row.read_at.isoformat() if row.read_at else None,
+        })
+    return {"items": items, "unread_count": unread_count}
+
+
+@api_bp.post("/notifications/me/read-all")
+@customer_required
+def read_all_notifications():
+    customer_id = current_customer().id
+    CustomerNotification.query.filter(
+        CustomerNotification.customer_id == customer_id,
+        CustomerNotification.read_at.is_(None),
+    ).update({"read_at": db.func.now()}, synchronize_session=False)
+    db.session.commit()
+    return {"ok": True, "unread_count": 0}
+
+
 @api_bp.get("/whatsapp/console")
 @__import__("app.security", fromlist=["admin_api_required"]).admin_api_required("system.manage")
 def whatsapp_console():
