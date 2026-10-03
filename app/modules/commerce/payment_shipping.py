@@ -1,4 +1,69 @@
-from datetime import datetime, timezone
+class PaymentShippingService:
+    @staticmethod
+    def ensure_default_payment_methods():
+        """Create starter payment methods once without overwriting admin settings."""
+        defaults = [
+            {
+                "name": "الكريمي",
+                "code": "alkuraimi",
+                "provider": "manual_bank",
+                "supports_proof": True,
+                "settings": {
+                    "type": "bank_transfer",
+                    "account_number": "",
+                    "account_name": "",
+                    "point_number": "",
+                    "point_name": "",
+                    "instructions": "حوّل المبلغ إلى الحساب ثم ارفع صورة إثبات الدفع.",
+                },
+            },
+            {
+                "name": "محفظة جيب",
+                "code": "jeeb",
+                "provider": "wallet",
+                "supports_proof": True,
+                "settings": {
+                    "type": "wallet",
+                    "account_number": "",
+                    "account_name": "",
+                    "point_number": "",
+                    "point_name": "",
+                    "instructions": "حوّل المبلغ إلى المحفظة ثم ارفع صورة إثبات الدفع.",
+                },
+            },
+            {
+                "name": "الدفع عند الاستلام",
+                "code": "cod",
+                "provider": "cash_on_delivery",
+                "supports_proof": False,
+                "settings": {
+                    "type": "cod",
+                    "account_number": "",
+                    "account_name": "",
+                    "point_number": "",
+                    "point_name": "",
+                    "instructions": "سيتم تحصيل المبلغ عند استلام الطلب.",
+                },
+            },
+        ]
+        created = []
+        for item in defaults:
+            if PaymentMethod.query.filter_by(code=item["code"]).first():
+                continue
+            row = PaymentMethod(
+                name=item["name"],
+                code=item["code"],
+                provider=item["provider"],
+                supports_proof=item["supports_proof"],
+                settings_json=item["settings"],
+            )
+            db.session.add(row)
+            created.append(row)
+        if created:
+            db.session.commit()
+        return created
+
+ timezone
 from decimal import Decimal
 from uuid import uuid4
 
