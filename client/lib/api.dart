@@ -390,8 +390,13 @@ class ApiService {
     }
     return d;
   }
-  Future<Map<String,dynamic>> checkPhone(String phone) async =>
-      Map<String,dynamic>.from(await post('/customer/auth/check-phone', {'phone': phone}));
+  Future<Map<String,dynamic>> checkPhone(String phone) async {
+    final d = Map<String, dynamic>.from(
+      await post('/customer/auth/check-phone', {'phone': phone}),
+    );
+    final item = d['item'];
+    return item is Map ? Map<String, dynamic>.from(item) : d;
+  }
 
   Future<Map<String,dynamic>> passwordLogin(String phone, String password) async {
     final d=Map<String,dynamic>.from(await post('/customer/auth/password/login',{
