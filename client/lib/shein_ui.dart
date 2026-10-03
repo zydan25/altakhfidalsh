@@ -2884,7 +2884,10 @@ class _SxMasonryProductGrid extends StatelessWidget {
 
         for (final product in products) {
           final ratio = sxProductImageRatio(product);
-          final estimatedHeight = columnWidth / ratio + 112;
+          final ribbonHeight =
+              product.trendCard != null || product.hashtags.isNotEmpty ? 20 : 0;
+          final estimatedHeight =
+              columnWidth / ratio + 112 + ribbonHeight;
           final column = heights[0] <= heights[1] ? 0 : 1;
           columns[column].add(product);
           heights[column] += estimatedHeight + 7;
