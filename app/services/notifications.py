@@ -3,8 +3,8 @@ from datetime import datetime, timezone
 
 from sqlalchemy import or_, text
 
-from ...extensions import db
-from ...models import Customer, CustomerNotification, CustomerPreference, Notification
+from ..extensions import db
+from ..models import Customer, CustomerNotification, CustomerPreference, Notification
 
 
 class NotificationService:
