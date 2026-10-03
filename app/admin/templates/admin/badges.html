@@ -1,0 +1,87 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<style>
+.badges-page{display:grid;gap:10px;max-width:980px;margin:0 auto}
+.badges-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.badges-toolbar h2{margin:3px 0;font-size:18px}
+.badges-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.badge-admin-card{background:#fff;border:1px solid #e8e8e8;border-radius:13px;overflow:hidden}
+.badge-admin-preview{height:76px;display:grid;place-items:center;background:#fafafa}
+.badge-admin-chip{padding:6px 10px;border-radius:7px;font-size:11px;font-weight:900}
+.badge-admin-body{padding:10px}
+.badge-admin-body strong{display:block;font-size:11px}
+.badge-admin-body small{display:block;margin-top:3px;color:#888;font-size:8px}
+.badge-admin-actions{display:flex;gap:5px;margin-top:8px}
+.badge-admin-actions form,.badge-admin-actions details{flex:1}
+.badge-admin-actions summary{list-style:none;cursor:pointer;text-align:center;padding:7px 9px;border:1px solid #e5e5e5;border-radius:8px;font-size:9px;font-weight:800}
+.badge-admin-actions summary::-webkit-details-marker{display:none}
+.badge-edit-form{margin-top:8px;padding-top:8px;border-top:1px solid #eee;display:grid;gap:7px}
+.badge-edit-form input,.badge-edit-form select{min-height:36px;border-radius:8px}
+.badge-create details{background:#fff;border:1px solid #e8e8e8;border-radius:13px;overflow:hidden}
+.badge-create summary{list-style:none;cursor:pointer;padding:12px;font-size:11px;font-weight:900}
+.badge-create summary::-webkit-details-marker{display:none}
+.badge-create-form{padding:12px;border-top:1px solid #eee;display:grid;gap:8px}
+@media(max-width:650px){.badges-grid{grid-template-columns:1fr}.badges-toolbar h2{font-size:15px}}
+</style>
+<div class="badges-page">
+<section class="panel" style="padding:12px">
+  <div class="badges-toolbar"><div><span class="eyebrow">المحتوى والمتجر</span><h2>الشارات العامة</h2></div><span class="status-pill">{{ badges|selectattr("is_active")|list|length }} فعالة</span></div>
+  <p class="muted" style="font-size:9px;line-height:1.5">كل شارة بطاقة مستقلة. إعدادها العام يُستخدم افتراضيًا، ويمكن للمنتج تخصيص موضعها ومظهرها وترتيبها.</p>
+</section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<section class="badge-create">
+<details>
+<summary>＋ إنشاء شارة عامة</summary>
+<form method="post" class="badge-create-form">
+<input type="hidden" name="action" value="create">
+<label>اسم الشارة<input name="name" required placeholder="خصم 20%"></label>
+<label>الكود<input name="code" required dir="ltr" placeholder="discount-20"></label>
+<label>الأولوية<input name="priority" type="number" value="0"></label>
+<label>التبويب<select name="storefront_tab"><option value="none">عام</option><option value="new">جديد</option><option value="offers">العروض</option></select></label>
+<label>لون الخلفية<input type="color" name="bg_color" value="#111827"></label>
+<label>لون النص<input type="color" name="text_color" value="#ffffff"></label>
+<label>النمط<select name="style"><option value="solid">Solid</option><option value="soft">Soft</option><option value="outline">Outline</option></select></label>
+<button class="primary-button">حفظ الشارة</button>
+</form>
+</details>
+</section>
+<section class="badges-grid">
+{% for badge in badges %}
+<article class="badge-admin-card">
+<div class="badge-admin-preview"><span class="badge-admin-chip" style="background:{{ badge.bg_color or '#111827' }};color:{{ badge.text_color or '#fff' }}">{{ badge.name }}</span></div>
+<div class="badge-admin-body">
+<strong>{{ badge.name }}</strong>
+<small>{{ badge.code }} · {{ badge.storefront_tab }} · أولوية {{ badge.priority }} · {{ "فعالة" if badge.is_active else "مؤرشفة" }}</small>
+<div class="badge-admin-actions">
+<details><summary>تعديل الشارة</summary>
+<form method="post" class="badge-edit-form">
+<input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ badge.id }}">
+<label>الاسم<input name="name" value="{{ badge.name }}" required></label>
+<label>الكود<input name="code" value="{{ badge.code }}" required dir="ltr"></label>
+<label>الأولوية<input name="priority" type="number" value="{{ badge.priority }}"></label>
+<label>التبويب<select name="storefront_tab">
+<option value="none" {% if badge.storefront_tab=="none" %}selected{% endif %}>عام</option>
+<option value="new" {% if badge.storefront_tab=="new" %}selected{% endif %}>جديد</option>
+<option value="offers" {% if badge.storefront_tab=="offers" %}selected{% endif %}>العروض</option>
+</select></label>
+<label>لون الخلفية<input type="color" name="bg_color" value="{{ badge.bg_color or '#111827' }}"></label>
+<label>لون النص<input type="color" name="text_color" value="{{ badge.text_color or '#ffffff' }}"></label>
+<label>النمط<select name="style"><option value="solid" {% if badge.style=="solid" %}selected{% endif %}>Solid</option><option value="soft" {% if badge.style=="soft" %}selected{% endif %}>Soft</option><option value="outline" {% if badge.style=="outline" %}selected{% endif %}>Outline</option></select></label>
+<button class="primary-button compact">حفظ التعديل</button>
+</form>
+</details>
+{% if badge.is_active %}
+<form method="post"><input type="hidden" name="id" value="{{ badge.id }}"><input type="hidden" name="action" value="archive"><button class="ghost-button compact">أرشفة</button></form>
+{% else %}
+<form method="post"><input type="hidden" name="id" value="{{ badge.id }}"><input type="hidden" name="action" value="restore"><button class="ghost-button compact">إعادة التفعيل</button></form>
+{% endif %}
+</div>
+</div>
+</article>
+{% else %}
+<section class="empty-state panel"><strong>لا توجد شارات.</strong></section>
+{% endfor %}
+</section>
+</div>
+{% endblock %}
