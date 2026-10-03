@@ -9,6 +9,7 @@ from ...models import (
     Cart,
     CartItem,
     City,
+    Currency,
     Conversation,
     Customer,
     CustomerAddress,
@@ -474,12 +475,46 @@ class CommerceService:
 
     @staticmethod
     def serialize_order(order):
+        currency = db.session.get(Currency, order.currency_id) if order.currency_id else None
+        order_items = (
+            OrderItem.query
+            .filter_by(order_id=order.id)
+            .order_by(OrderItem.id)
+            .all()
+        )
+        previews = []
+        for item in order_items[:4]:
+            media = (
+                ProductMedia.query
+                .filter_by(product_id=item.product_id)
+                .order_by(ProductMedia.sort_order, ProductMedia.id)
+                .first()
+                if item.product_id
+                else None
+            )
+            asset = db.session.get(MediaAsset, media.asset_id) if media else None
+            previews.append({
+                "id": item.id,
+                "product_id": item.product_id,
+                "name": item.name_snapshot,
+                "qty": item.qty,
+                "unit_price": str(item.sale_price_display),
+                "total": str(item.total),
+                "image_url": asset.url if asset else None,
+            })
+
         return {
             "id": order.id,
             "order_no": order.order_no,
             "customer_id": order.customer_id,
             "city_id": order.city_id,
             "currency_id": order.currency_id,
+            "currency": {
+                "id": currency.id,
+                "code": currency.code,
+                "symbol": currency.symbol or currency.code,
+                "name_ar": currency.name_ar,
+            } if currency else None,
             "pricing_group_id": order.pricing_group_id,
             "fx_rate": str(order.fx_rate),
             "subtotal": str(order.subtotal),
@@ -491,6 +526,10 @@ class CommerceService:
             "status": order.status,
             "payment_status": order.payment_status,
             "shipping_status": order.shipping_status,
+            "item_count": sum(int(x.qty or 0) for x in order_items),
+            "items_preview": previews,
+            "created_at": order.created_at.isoformat() if order.created_at else None,
+            "updated_at": order.updated_at.isoformat() if order.updated_at else None,
             "address_snapshot": order.address_snapshot,
         }
 
