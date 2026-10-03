@@ -9831,6 +9831,7 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
           builder: (_) => SxConversationScreen(
             conversationId: id,
             title: 'طلب ' + sxText(order['order_no'], '#'),
+            paymentProofMode: sxText(order['status']) == 'awaiting_payment',
           ),
         ),
       );
@@ -9882,7 +9883,9 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                         ),
                       ),
                       SxPill(
-                        text: statusLabel(status),
+                        text: status == 'shipped'
+                            ? shippingStatusLabel(sxText(order['shipping_status'], 'shipped'))
+                            : statusLabel(status),
                         background: status == 'cancelled' ? const Color(0xFFFFEEEE) : ClientTheme.soft,
                         foreground: status == 'cancelled' ? const Color(0xFFC62828) : Colors.black,
                       ),
