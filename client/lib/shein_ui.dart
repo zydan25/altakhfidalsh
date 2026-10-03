@@ -9242,27 +9242,259 @@ class SxAddressesScreen extends StatefulWidget {
   const SxAddressesScreen({super.key});
   @override State<SxAddressesScreen> createState() => _SxAddressesScreenState();
 }
+
 class _SxAddressesScreenState extends State<SxAddressesScreen> {
-  List<Map<String, dynamic>> rows = []; bool loading = true;
-  @override void initState() { super.initState(); load(); }
-  Future<void> load() async { try { rows = await api.addresses(); } catch (_) {} if (mounted) setState(() => loading = false); }
-  @override Widget build(BuildContext context) => SxShellPage(title: 'العناوين', back: true, child: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : ListView(
-    padding: const EdgeInsets.all(10),
-    children: [
-      for (final x in rows) Container(margin: const EdgeInsets.only(bottom: 8), padding: const EdgeInsets.all(12), decoration: BoxDecoration(border: Border.all(color: x['is_default'] == true ? Colors.black : ClientTheme.border), borderRadius: BorderRadius.circular(7)), child: Row(children: [
-        const Icon(Icons.location_on_outlined), const SizedBox(width: 8), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Row(children: [Expanded(child: Text(sxText(x['recipient_name']), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900))), if (x['is_default'] == true) const SxPill(text: 'افتراضي', background: Colors.black, foreground: Colors.white)]),
-          const SizedBox(height: 4), Text(sxText(x['phone']), style: const TextStyle(fontSize: 9)), const SizedBox(height: 3),
-          Text(sxText(x['district']) + ' ' + sxText(x['street']) + ' ' + sxText(x['landmark']), style: const TextStyle(fontSize: 9, color: ClientTheme.muted)),
-        ])),
-      ])),
-      SizedBox(height: 48, child: OutlinedButton.icon(
-        onPressed: () async { final b = await showModalBottomSheet<Map<String, dynamic>>(context: context, isScrollControlled: true, backgroundColor: Colors.white, builder: (_) => const SxAddressForm()); if (b != null) { await api.addAddress(b); await load(); } },
-        icon: const Icon(Icons.add), label: const Text('إضافة عنوان جديد', style: TextStyle(fontWeight: FontWeight.w900)),
-        style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.black), shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero)),
-      )),
-    ],
-  ));
+  List<Map<String, dynamic>> rows = [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      rows = await api.addresses();
+    } catch (_) {}
+    if (mounted) setState(() => loading = false);
+  }
+
+  Future<void> openForm({Map<String, dynamic>? initial}) async {
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.white,
+      builder: (_) => SxAddressForm(initial: initial),
+    );
+    if (result == null) return;
+    try {
+      if (initial == null) {
+        await api.addAddress(result);
+      } else {
+        await api.updateAddress(sxInt(initial['id']), result);
+      }
+      await load();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(initial == null ? 'تمت إضافة العنوان' : 'تم حفظ العنوان')),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(sxText(e))),
+      );
+    }
+  }
+
+  Future<void> makeDefault(Map<String, dynamic> address) async {
+    try {
+      await api.updateAddress(sxInt(address['id']), {'is_default': true});
+      await load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(sxText(e))),
+      );
+    }
+  }
+
+  Future<void> remove(Map<String, dynamic> address) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('حذف العنوان', style: TextStyle(fontWeight: FontWeight.w900)),
+        content: const Text('هل تريد حذف هذا العنوان؟'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.black),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await api.deleteAddress(sxInt(address['id']));
+      await load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(sxText(e))),
+      );
+    }
+  }
+
+  String addressLine(Map<String, dynamic> x) {
+    return [
+      sxText(x['country_name']),
+      sxText(x['region_name']),
+      sxText(x['city_name']),
+      sxText(x['city_area_name']),
+      sxText(x['district']),
+      sxText(x['street']),
+      sxText(x['landmark']),
+    ].where((v) => v.trim().isNotEmpty).join(' • ');
+  }
+
+  @override
+  Widget build(BuildContext context) => SxShellPage(
+    title: 'العناوين',
+    back: true,
+    child: loading
+        ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+        : ListView(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 24),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: ClientTheme.soft,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.shield_outlined, size: 19),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'احفظ أكثر من عنوان واختر عنوانًا افتراضيًا. يمكنك تحديد المدينة والمنطقة من بيانات الخادم وإضافة تفاصيل أدق يدويًا.',
+                        style: TextStyle(fontSize: 9, height: 1.45),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 9),
+              if (rows.isEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(vertical: 55),
+                  alignment: Alignment.center,
+                  child: Column(
+                    children: [
+                      const Icon(Icons.location_off_outlined, size: 45, color: Color(0xFF909090)),
+                      const SizedBox(height: 9),
+                      const Text('لا توجد عناوين محفوظة', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 4),
+                      const Text('أضف عنوانك الأول لتسهيل إتمام الطلبات.', style: TextStyle(fontSize: 9, color: ClientTheme.muted)),
+                    ],
+                  ),
+                )
+              else
+                for (final x in rows)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.fromLTRB(10, 11, 10, 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(
+                        color: x['is_default'] == true ? Colors.black : ClientTheme.border,
+                        width: x['is_default'] == true ? 1.1 : .7,
+                      ),
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 39,
+                              height: 39,
+                              decoration: const BoxDecoration(
+                                color: ClientTheme.soft,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.location_on_outlined, size: 20),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          sxText(x['recipient_name'], 'المستلم'),
+                                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900),
+                                        ),
+                                      ),
+                                      if (x['is_default'] == true)
+                                        const SxPill(
+                                          text: 'العنوان الافتراضي',
+                                          background: Colors.black,
+                                          foreground: Colors.white,
+                                        ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    sxText(x['phone']),
+                                    style: const TextStyle(fontSize: 8.5, color: ClientTheme.muted),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(9),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFAFAFA),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            addressLine(x).isEmpty ? 'لم تتم إضافة تفاصيل العنوان بعد' : addressLine(x),
+                            style: const TextStyle(fontSize: 9, height: 1.55),
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextButton.icon(
+                                onPressed: () => openForm(initial: x),
+                                icon: const Icon(Icons.edit_outlined, size: 16),
+                                label: const Text('تعديل', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800)),
+                              ),
+                            ),
+                            Expanded(
+                              child: TextButton.icon(
+                                onPressed: x['is_default'] == true ? null : () => makeDefault(x),
+                                icon: const Icon(Icons.check_circle_outline, size: 16),
+                                label: const Text('جعله افتراضيًا', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800)),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => remove(x),
+                              tooltip: 'حذف',
+                              icon: const Icon(Icons.delete_outline, size: 19),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+              const SizedBox(height: 2),
+              SizedBox(
+                height: 49,
+                child: OutlinedButton.icon(
+                  onPressed: () => openForm(),
+                  icon: const Icon(Icons.add_location_alt_outlined, size: 19),
+                  label: const Text('إضافة عنوان جديد', style: TextStyle(fontWeight: FontWeight.w900)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black,
+                    side: const BorderSide(color: Colors.black),
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                  ),
+                ),
+              ),
+            ],
+          ),
+  );
 }
 
 class SxOrdersScreen extends StatefulWidget {
