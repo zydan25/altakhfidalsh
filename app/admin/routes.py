@@ -510,6 +510,43 @@ def register_admin_routes(admin_bp):
             **context,
         )
 
+    @admin_bp.get("/products/<int:product_id>")
+    def product_detail(product_id):
+        context = _navigation_context()
+        product = db.session.get(Product, product_id)
+        if product is None:
+            return render_template(
+                "admin/module.html",
+                title="المنتج غير موجود",
+                section="الكتالوج",
+                requested_path=request.path,
+                **context,
+            ), 404
+        snapshot = CatalogService.wizard_snapshot(product_id)
+        media = snapshot.get("media") or []
+        primary_image = media[0]["url"] if media else None
+        stats = {
+            "variants": len(snapshot.get("variants") or []),
+            "active_variants": sum(
+                1 for x in (snapshot.get("variants") or [])
+                if x.get("status") not in {"archived", "inactive"}
+            ),
+            "badges": len(snapshot.get("badges") or []),
+            "hashtags": len(snapshot.get("hashtags") or []),
+            "images": len(media),
+            "stock": sum(int(x.get("available") or 0) for x in (snapshot.get("inventory") or [])),
+            "reviews": int((snapshot.get("rating_summary") or {}).get("count") or 0),
+        }
+        return render_template(
+            "admin/product_detail.html",
+            title=f"تفاصيل المنتج · {product.name}",
+            product=product,
+            snapshot=snapshot,
+            primary_image=primary_image,
+            stats=stats,
+            **context,
+        )
+
     @admin_bp.get("/products/<int:product_id>/edit")
     def product_edit(product_id):
         context = _navigation_context()

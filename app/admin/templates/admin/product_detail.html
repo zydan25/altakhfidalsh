@@ -1,0 +1,141 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<style>
+.admin-product-detail{display:grid;gap:10px}
+.admin-product-detail-hero{display:grid;grid-template-columns:150px minmax(0,1fr);gap:14px;align-items:start}
+.admin-detail-image{width:150px;height:190px;border-radius:16px;overflow:hidden;background:#f5f5f5;border:1px solid #ececec}
+.admin-detail-image img{width:100%;height:100%;object-fit:cover;display:block}
+.admin-detail-placeholder{height:100%;display:grid;place-items:center;color:#9ca3af;font-size:34px}
+.admin-detail-title h2{margin:3px 0 7px;font-size:20px;line-height:1.25}
+.admin-detail-meta{display:flex;flex-wrap:wrap;gap:5px}
+.admin-detail-meta span{padding:4px 7px;border-radius:999px;background:#f6f6f6;font-size:8px;color:#666}
+.admin-detail-price{display:flex;gap:8px;align-items:baseline;margin-top:9px}
+.admin-detail-price strong{font-size:21px;font-weight:900}
+.admin-detail-price del{font-size:11px;color:#999}
+.admin-detail-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.admin-detail-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.admin-detail-stat{padding:10px;background:#fff;border:1px solid #ececec;border-radius:12px}
+.admin-detail-stat b{display:block;font-size:16px;font-weight:900}
+.admin-detail-stat span{font-size:8px;color:#777}
+.admin-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.admin-detail-panel{padding:12px}
+.admin-detail-panel h3{font-size:13px;margin:0 0 9px}
+.admin-detail-list{display:grid;gap:6px}
+.admin-detail-row{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #f0f0f0;font-size:9px}
+.admin-detail-row:last-child{border-bottom:0}
+.admin-detail-row strong{color:#222}
+.admin-detail-row span{color:#777;text-align:left;direction:ltr}
+.admin-detail-badges{display:flex;flex-wrap:wrap;gap:6px}
+.admin-detail-badge{padding:4px 8px;border-radius:6px;font-size:8px;font-weight:900}
+.admin-detail-category{display:inline-flex;padding:5px 8px;border-radius:8px;background:#f7f7f7;font-size:9px}
+.admin-detail-gallery{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.admin-detail-gallery img{width:100%;aspect-ratio:1;border-radius:8px;object-fit:cover;background:#f5f5f5}
+@media(max-width:650px){
+ .admin-product-detail-hero{grid-template-columns:84px minmax(0,1fr);gap:10px}
+ .admin-detail-image{width:84px;height:112px;border-radius:11px}
+ .admin-detail-title h2{font-size:15px}
+ .admin-detail-price strong{font-size:17px}
+ .admin-detail-stat-grid{grid-template-columns:repeat(2,1fr)}
+ .admin-detail-grid{grid-template-columns:1fr}
+ .admin-detail-gallery{grid-template-columns:repeat(4,1fr)}
+ .admin-detail-actions>*{flex:1}
+}
+</style>
+
+<section class="module-header panel admin-product-detail">
+  <div class="admin-product-detail-hero">
+    <div class="admin-detail-image">
+      {% if primary_image %}<img src="{{ primary_image }}" alt="{{ product.name }}">
+      {% else %}<div class="admin-detail-placeholder">▧</div>{% endif %}
+    </div>
+    <div class="admin-detail-title">
+      <span class="eyebrow">تفاصيل المنتج #{{ product.id }}</span>
+      <h2>{{ product.name }}</h2>
+      <div class="admin-detail-meta">
+        <span>{{ product.sku }}</span>
+        <span>{{ "منشور" if product.status == "published" else ("مسودة" if product.status == "draft" else product.status) }}</span>
+        <span>{{ "فعال" if product.is_active else "مؤرشف" }}</span>
+      </div>
+      <div class="admin-detail-price">
+        <strong>{{ product.base_price }}</strong>
+        {% if product.compare_at_price %}<del>{{ product.compare_at_price }}</del>{% endif %}
+      </div>
+      <div class="admin-detail-actions">
+        <a class="primary-button" href="/admin/products/{{ product.id }}/edit">تعديل المنتج</a>
+        <a class="ghost-button" href="/admin/products/{{ product.id }}/edit#marketing">الشارات والمظهر</a>
+        {% if product.is_active %}
+        <form method="post" action="/admin/products"><input type="hidden" name="id" value="{{ product.id }}"><input type="hidden" name="action" value="archive"><button class="ghost-button" type="submit">أرشفة المنتج</button></form>
+        {% else %}
+        <form method="post" action="/admin/products"><input type="hidden" name="id" value="{{ product.id }}"><input type="hidden" name="action" value="restore"><button class="ghost-button" type="submit">إعادة التفعيل</button></form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="admin-detail-stat-grid">
+  <article class="admin-detail-stat"><b>{{ stats.variants }}</b><span>إجمالي المتغيرات</span></article>
+  <article class="admin-detail-stat"><b>{{ stats.stock }}</b><span>المتاح في المخزون</span></article>
+  <article class="admin-detail-stat"><b>{{ stats.badges }}</b><span>الشارات</span></article>
+  <article class="admin-detail-stat"><b>{{ stats.reviews }}</b><span>التقييمات المنشورة</span></article>
+</section>
+
+<section class="admin-detail-grid">
+  <article class="panel admin-detail-panel">
+    <h3>بيانات المنتج</h3>
+    <div class="admin-detail-list">
+      <div class="admin-detail-row"><strong>Slug</strong><span>{{ product.slug }}</span></div>
+      <div class="admin-detail-row"><strong>العلامة</strong><span dir="rtl">{{ snapshot.product.brand.name if snapshot.product.brand else "—" }}</span></div>
+      <div class="admin-detail-row"><strong>نوع المنتج</strong><span dir="rtl">{{ product.product_type or "—" }}</span></div>
+      <div class="admin-detail-row"><strong>الخامة</strong><span dir="rtl">{{ product.material or "—" }}</span></div>
+    </div>
+  </article>
+
+  <article class="panel admin-detail-panel">
+    <h3>التصنيفات</h3>
+    <div class="admin-detail-badges">
+      {% for row in snapshot.categories %}<span class="admin-detail-category">{{ row.name }}</span>{% else %}<span class="muted">لا توجد تصنيفات.</span>{% endfor %}
+    </div>
+  </article>
+
+  <article class="panel admin-detail-panel">
+    <h3>الشارات المرتبطة</h3>
+    <div class="admin-detail-badges">
+      {% for row in snapshot.badges %}
+        <span class="admin-detail-badge" style="background:{{ row.settings.background_color if row.settings and row.settings.background_color else '#111827' }};color:{{ row.settings.text_color if row.settings and row.settings.text_color else '#fff' }}">{{ row.custom_text or row.id }}</span>
+      {% else %}<span class="muted">لا توجد شارات مرتبطة.</span>{% endfor %}
+    </div>
+  </article>
+
+  <article class="panel admin-detail-panel">
+    <h3>الهاشتاجات</h3>
+    <div class="admin-detail-badges">
+      {% for row in snapshot.hashtags %}<span class="admin-detail-category">#{{ row.id }}</span>{% else %}<span class="muted">لا توجد هاشتاجات.</span>{% endfor %}
+    </div>
+  </article>
+
+  <article class="panel admin-detail-panel">
+    <h3>التوصيات</h3>
+    {% set rec = snapshot.recommendation_settings or {} %}
+    <div class="admin-detail-list">
+      <div class="admin-detail-row"><strong>المصدر</strong><span dir="rtl">{{ {'same_category':'نفس الفئة','parent_category':'الفئة الأب','root_category':'الفئة الرئيسية العليا','random_all':'عشوائي من كل المنتجات'}.get(rec.source, 'نفس الفئة') }}</span></div>
+      <div class="admin-detail-row"><strong>العدد</strong><span>{{ rec.limit or 10 }}</span></div>
+      <div class="admin-detail-row"><strong>العشوائية</strong><span dir="rtl">مفعلة</span></div>
+    </div>
+  </article>
+
+  <article class="panel admin-detail-panel">
+    <h3>شارات التوصيل الخاصة</h3>
+    <div class="admin-detail-badges">
+      {% for row in snapshot.delivery_badges %}<span class="admin-detail-badge" style="background:{{ row.background_color }};color:{{ row.text_color }}">{{ row.text }}</span>{% else %}<span class="muted">لا توجد شارات توصيل مخصصة.</span>{% endfor %}
+    </div>
+  </article>
+
+  <article class="panel admin-detail-panel" style="grid-column:1/-1">
+    <h3>معرض المنتج · {{ stats.images }} صورة</h3>
+    <div class="admin-detail-gallery">
+      {% for row in snapshot.media %}<img src="{{ row.url }}" alt="{{ product.name }}" loading="lazy">{% endfor %}
+    </div>
+  </article>
+</section>
+{% endblock %}
