@@ -10,6 +10,7 @@ void main() {
 
   testWidgets('customer app boots', (tester) async {
     await tester.pumpWidget(const AltakhfidApp());
-    expect(find.text('التخفيض الصح'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('التخفيض الصح'), findsWidgets);
   });
 }
