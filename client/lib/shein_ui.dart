@@ -9029,6 +9029,95 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
     }
     return orders.where(match).length;
   }
+  Future<void> _deleteAccount() async {
+    final first = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف الحساب نهائيًا', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+        content: const Text(
+          'سيتم حذف حسابك وطلباتك وعناوينك ومحفظتك ومفضلاتك وبياناتك التابعة نهائيًا من قاعدة البيانات. لا يمكن التراجع عن هذا الإجراء.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 10, height: 1.6),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFC62828)),
+            child: const Text('متابعة'),
+          ),
+        ],
+      ),
+    );
+    if (first != true || !mounted) return;
+
+    final password = TextEditingController();
+    final confirm = TextEditingController();
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تأكيد الحذف', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'للتأكد أنك تقصد حذف الحساب، اكتب DELETE. إذا كان للحساب كلمة مرور فأدخلها أيضًا.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 9.5, color: ClientTheme.muted, height: 1.5),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: confirm,
+              textDirection: TextDirection.ltr,
+              decoration: const InputDecoration(
+                labelText: 'اكتب DELETE',
+                prefixIcon: Icon(Icons.warning_amber_outlined),
+              ),
+            ),
+            const SizedBox(height: 9),
+            TextField(
+              controller: password,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'كلمة المرور الحالية (إن وجدت)',
+                prefixIcon: Icon(Icons.lock_outline),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, confirm.text.trim().toUpperCase() == 'DELETE'),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFC62828)),
+            child: const Text('حذف نهائي'),
+          ),
+        ],
+      ),
+    );
+    final currentPassword = password.text;
+    password.dispose();
+    confirm.dispose();
+    if (proceed != true || !mounted) return;
+
+    try {
+      await api.deleteMyAccount(password: currentPassword);
+      await state.clearSession();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const SxAuthFlowScreen()),
+        (_) => false,
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(sxText(error).replaceFirst('Exception: ', ''))),
+        );
+      }
+    }
+  }
+
   @override Widget build(BuildContext context)=>Scaffold(
     body:loading?const Center(child:CircularProgressIndicator(strokeWidth:2)):RefreshIndicator(
       onRefresh:load,
@@ -9064,6 +9153,8 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
           _AccountTile(Icons.privacy_tip_outlined,'السياسات',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxPoliciesScreen()))),
           _AccountTile(Icons.currency_exchange,'العملة',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxCurrencyScreen()))),
           _AccountTile(Icons.location_city_outlined,'المدينة',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxCityScreen()))),
+          _AccountTile(Icons.support_agent_outlined,'تواصل معنا',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxStoreContactScreen()))),
+          _AccountTile(Icons.storefront_outlined,'موقعنا',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxStoreLocationScreen()))),
         ]),
         const SxSectionTitle(title:'تفضيلات التسوق'),
         ListTile(leading:const Icon(Icons.location_on_outlined),title:const Text('العناوين',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800)),trailing:const Icon(Icons.chevron_left),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxAddressesScreen()))),
@@ -9086,6 +9177,19 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
   ),
   child: const Text('تسجيل الخروج', style: TextStyle(fontWeight: FontWeight.w900)),
 ),
+        const SizedBox(height: 14),
+        const Text('الأمان', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 7),
+        OutlinedButton.icon(
+          onPressed: _deleteAccount,
+          icon: const Icon(Icons.delete_forever_outlined, color: Color(0xFFC62828), size: 19),
+          label: const Text('حذف حسابي نهائيًا', style: TextStyle(color: Color(0xFFC62828), fontSize: 10, fontWeight: FontWeight.w900)),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(46),
+            side: const BorderSide(color: Color(0xFFE0A1A1)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
         const SxDeveloperSignature(),
       ]),
     ),
@@ -9123,6 +9227,183 @@ class _AccountTile extends StatelessWidget {
     decoration: BoxDecoration(color: Colors.white, border: Border.all(color: ClientTheme.border), borderRadius: BorderRadius.circular(5)),
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(icon, size: 21), const SizedBox(height: 5), Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 8.8, fontWeight: FontWeight.w700))]),
   ));
+}
+
+class SxStoreContactScreen extends StatefulWidget {
+  const SxStoreContactScreen({super.key});
+  @override State<SxStoreContactScreen> createState() => _SxStoreContactScreenState();
+}
+
+class _SxStoreContactScreenState extends State<SxStoreContactScreen> {
+  Map<String, dynamic> info = {};
+  bool loading = true;
+
+  @override void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final next = await api.storeInfo();
+      if (mounted) setState(() => info = next);
+    } catch (_) {}
+    if (mounted) setState(() => loading = false);
+  }
+
+  String _digits(String value) => value.replaceAll(RegExp(r'[^0-9]'), '');
+
+  Future<void> _call() async {
+    final number = _digits(sxText(info['support_phone']));
+    if (number.isEmpty) return;
+    await launchUrl(Uri(scheme: 'tel', path: number), mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _whatsapp() async {
+    final number = _digits(sxText(info['whatsapp_phone'], sxText(info['support_phone'])));
+    if (number.isEmpty) return;
+    final uri = Uri.parse('https://wa.me/$number');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح WhatsApp.')));
+    }
+  }
+
+  @override Widget build(BuildContext context) => SxShellPage(
+    title: 'تواصل معنا',
+    back: true,
+    child: loading
+      ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+      : ListView(
+          padding: const EdgeInsets.fromLTRB(14, 16, 14, 90),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(18)),
+              child: Column(
+                children: [
+                  const Icon(Icons.support_agent_outlined, color: Colors.white, size: 42),
+                  const SizedBox(height: 8),
+                  Text(sxText(info['name'], 'خدمة عملاء التخفيض الصح'), style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 5),
+                  Text(sxText(info['hours'], 'نحن هنا لخدمتك'), textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 9)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            _contactAction(Icons.phone_outlined, 'اتصال هاتفي', sxText(info['support_phone'], 'غير محدد'), _call),
+            const SizedBox(height: 8),
+            _contactAction(Icons.chat_outlined, 'WhatsApp', sxText(info['whatsapp_phone'], sxText(info['support_phone'], 'غير محدد')), _whatsapp),
+            const SxDeveloperSignature(),
+          ],
+        ),
+  );
+
+  Widget _contactAction(IconData icon, String title, String subtitle, VoidCallback tap) => ListTile(
+    onTap: tap,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    tileColor: const Color(0xFFF7F7F7),
+    leading: Container(width: 40, height: 40, decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle), child: Icon(icon, color: Colors.white, size: 20)),
+    title: Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+    subtitle: Text(subtitle, textDirection: TextDirection.ltr, style: const TextStyle(fontSize: 9, color: ClientTheme.muted)),
+    trailing: const Icon(Icons.chevron_left),
+  );
+}
+
+class SxStoreLocationScreen extends StatefulWidget {
+  const SxStoreLocationScreen({super.key});
+  @override State<SxStoreLocationScreen> createState() => _SxStoreLocationScreenState();
+}
+
+class _SxStoreLocationScreenState extends State<SxStoreLocationScreen> {
+  Map<String, dynamic> info = {};
+  bool loading = true;
+
+  @override void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final next = await api.storeInfo();
+      if (mounted) setState(() => info = next);
+    } catch (_) {}
+    if (mounted) setState(() => loading = false);
+  }
+
+  Future<void> _openMap() async {
+    final configured = sxText(info['map_url']).trim();
+    final lat = sxText(info['latitude']).trim();
+    final lng = sxText(info['longitude']).trim();
+    final url = configured.isNotEmpty
+        ? configured
+        : lat.isNotEmpty && lng.isNotEmpty
+            ? 'https://www.google.com/maps/search/?api=1&query=$lat,$lng'
+            : '';
+    if (url.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لم يتم تحديد موقع المتجر بعد.')));
+      return;
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح موقع المتجر.')));
+    }
+  }
+
+  @override Widget build(BuildContext context) => SxShellPage(
+    title: 'موقعنا',
+    back: true,
+    child: loading
+      ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+      : ListView(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
+          children: [
+            if (sxText(info['image_url']).trim().isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: SxImage(url: info['image_url'], height: 220, fit: BoxFit.cover),
+              )
+            else
+              Container(
+                height: 220,
+                decoration: BoxDecoration(color: ClientTheme.soft, borderRadius: BorderRadius.circular(16)),
+                child: const Center(child: Icon(Icons.storefront_outlined, size: 62, color: Color(0xFF8A8A8A))),
+              ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: ClientTheme.border)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(sxText(info['name'], 'موقع المتجر'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 6),
+                  Text(sxText(info['address'], 'لم يتم تحديد عنوان المتجر بعد.'), style: const TextStyle(fontSize: 10, color: ClientTheme.muted, height: 1.5)),
+                  if (sxText(info['hours']).isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text('ساعات العمل: ' + sxText(info['hours']), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+                  ],
+                  if (sxText(info['latitude']).isNotEmpty && sxText(info['longitude']).isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text('الإحداثيات: ' + sxText(info['latitude']) + ' ، ' + sxText(info['longitude']), textDirection: TextDirection.ltr, textAlign: TextAlign.left, style: const TextStyle(fontSize: 9, color: ClientTheme.muted)),
+                  ],
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 48,
+                    child: FilledButton.icon(
+                      onPressed: _openMap,
+                      icon: const Icon(Icons.map_outlined),
+                      label: const Text('فتح الموقع على الخريطة', style: TextStyle(fontWeight: FontWeight.w900)),
+                      style: FilledButton.styleFrom(backgroundColor: Colors.black),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SxDeveloperSignature(),
+          ],
+        ),
+  );
 }
 
 class SxSettingsScreen extends StatefulWidget {
