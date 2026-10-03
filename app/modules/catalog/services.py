@@ -2242,9 +2242,22 @@ class CatalogService:
             }
             for variant in ProductVariant.query.filter_by(product_id=product_id).order_by(ProductVariant.id).all()
         ]
+        badge_rows = (
+            db.session.query(ProductBadge, Badge)
+            .join(Badge, Badge.id == ProductBadge.badge_id)
+            .filter(ProductBadge.product_id == product_id)
+            .order_by(ProductBadge.sort_order, ProductBadge.id)
+            .all()
+        )
         badges = [
             {
-                "id": row.badge_id,
+                "id": badge.id,
+                "code": badge.code,
+                "name": badge.name,
+                "bg_color": badge.bg_color,
+                "text_color": badge.text_color,
+                "style": badge.style,
+                "storefront_tab": badge.storefront_tab,
                 "starts_at": row.starts_at.isoformat() if row.starts_at else None,
                 "ends_at": row.ends_at.isoformat() if row.ends_at else None,
                 "custom_text": row.custom_text,
@@ -2252,10 +2265,7 @@ class CatalogService:
                 "sort_order": int(row.sort_order or 0),
                 "settings": dict(row.settings_json or {}),
             }
-            for row in ProductBadge.query
-            .filter_by(product_id=product_id)
-            .order_by(ProductBadge.sort_order, ProductBadge.id)
-            .all()
+            for row, badge in badge_rows
         ]
         hashtags = [
             {"id": row.hashtag_id}
