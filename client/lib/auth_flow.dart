@@ -216,9 +216,30 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
       normalizedPhone = (result['phone'] ?? value).toString();
       final exists = result['exists'] == true;
       final hasPassword = result['has_password'] == true;
-      setState(() => mode = exists ? (hasPassword ? 'existing_password' : 'existing_otp') : 'register');
-    } catch (e) { fail(e); }
-    finally { if (mounted) setState(() => busy = false); }
+
+      if (!exists) {
+        // Only a genuinely new phone number can enter the registration form.
+        if (mounted) setState(() => mode = 'register');
+        return;
+      }
+
+      if (hasPassword) {
+        if (mounted) setState(() => mode = 'existing_password');
+        return;
+      }
+
+      // Existing account without a password: request the login OTP immediately.
+      final otp = await api.requestOtp(normalizedPhone ?? value, purpose: 'login');
+      otpRequestId = int.tryParse((otp['otp_request_id'] ?? '').toString());
+      if (otpRequestId == null) {
+        throw Exception('تعذر إنشاء رمز الدخول للحساب الموجود.');
+      }
+      if (mounted) setState(() => mode = 'otp_login');
+    } catch (e) {
+      fail(e);
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
 
   Future<void> loginPassword() async {
@@ -586,7 +607,10 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
       tf(code, 'كود التحقق', type: TextInputType.number, ltr: true),
       const SizedBox(height: 12),
       action(registration ? 'تأكيد وإنشاء الحساب' : 'تأكيد الدخول', registration ? verifyRegistration : verifyLoginOtp),
-      TextButton(onPressed: busy ? null : () => setState(() => mode = registration ? 'register' : 'existing_password'), child: const Text('العودة')),
+      TextButton(
+        onPressed: busy ? null : () => setState(() => mode = registration ? 'register' : 'phone'),
+        child: const Text('تغيير الرقم'),
+      ),
     ],
   );
 
