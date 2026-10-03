@@ -9678,6 +9678,7 @@ class SxOrderDetailScreen extends StatefulWidget {
 class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
   Map<String, dynamic> order = {};
   bool loading = true;
+  bool feedbackPromptShown = false;
 
   static const stages = <String>[
     'created',
@@ -9700,6 +9701,14 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
         order = Map<String, dynamic>.from(item);
         loading = false;
       });
+      final delivered = sxText(item is Map ? item['status'] : '') == 'delivered';
+      final rated = sxText(item is Map ? item['customer_rating'] : '').trim().isNotEmpty;
+      if (delivered && !rated && !feedbackPromptShown) {
+        feedbackPromptShown = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) showFeedbackDialog();
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => loading = false);
     }
@@ -9724,6 +9733,86 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
     if (status == 'shipped') return 2;
     if (status == 'paid' || status == 'processing') return 1;
     return 0;
+  }
+
+  String shippingStatusLabel(String value) {
+    const labels = <String,String>{
+      'pending':'بانتظار التجهيز',
+      'picked_up':'استلمتها شركة الشحن',
+      'in_transit':'جاري الشحن',
+      'out_for_delivery':'بانتظار التسليم',
+      'delivered':'تم التسليم',
+      'exception':'يوجد تحديث على الشحنة',
+    };
+    return labels[value] ?? value;
+  }
+
+  Future<void> openPayment() async {
+    final id = sxInt(order['id']);
+    if (id <= 0) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SxPaymentScreen(
+          orderId: id,
+          orderNo: sxText(order['order_no'], '#'),
+          total: sxText(order['total'], '0'),
+          currency: order['currency'] is Map
+              ? sxText((order['currency'] as Map)['symbol'], state.currencySymbol)
+              : state.currencySymbol,
+        ),
+      ),
+    );
+    if (mounted) await load();
+  }
+
+  Future<void> showFeedbackDialog() async {
+    int rating = 5;
+    final note = TextEditingController(text: sxText(order['customer_feedback']));
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocalState) => AlertDialog(
+          title: const Text('شكرًا لإتمام طلبك',textAlign:TextAlign.center,style:TextStyle(fontSize:15,fontWeight:FontWeight.w900)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('كيف كانت تجربتك مع التخفيض الصح؟',style:TextStyle(fontSize:10,color:ClientTheme.muted)),
+              const SizedBox(height:10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5,(i)=>IconButton(
+                  onPressed:()=>setLocalState(()=>rating=i+1),
+                  icon:Icon(i<rating?Icons.star_rounded:Icons.star_border_rounded,size:28),
+                )),
+              ),
+              TextField(
+                controller:note,
+                maxLines:3,
+                decoration:const InputDecoration(hintText:'ملاحظاتك أو اقتراحاتك'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed:()=>Navigator.pop(dialogContext),child:const Text('لاحقًا')),
+            FilledButton(
+              onPressed:() async {
+                try {
+                  await api.submitOrderFeedback(widget.id,rating:rating,feedback:note.text.trim());
+                  if(context.mounted)Navigator.pop(dialogContext);
+                  await load();
+                } catch(e) {
+                  if(context.mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(sxText(e))));
+                }
+              },
+              style:FilledButton.styleFrom(backgroundColor:Colors.black),
+              child:const Text('إرسال التقييم'),
+            ),
+          ],
+        ),
+      ),
+    );
+    note.dispose();
   }
 
   Future<void> openOrderChat() async {
@@ -9855,12 +9944,49 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                   const SizedBox(height: 9),
                   Text(
                     'الدفع: ' + sxText(order['payment_status'], 'غير محدد') +
-                        '  •  الشحن: ' + sxText(order['shipping_status'], 'غير محدد'),
+                        '  •  الشحن: ' + shippingStatusLabel(sxText(order['shipping_status'], 'غير محدد')),
                     style: const TextStyle(fontSize: 8.7, color: ClientTheme.muted),
                   ),
                 ],
               ),
             ),
+            if (status == 'created')
+              Container(
+                margin: const EdgeInsets.only(top: 9, bottom: 2),
+                padding: const EdgeInsets.all(11),
+                decoration: BoxDecoration(
+                  color: ClientTheme.soft,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.schedule_outlined, size: 19),
+                    SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        'طلبك أُرسل للمتجر وبانتظار التأكيد قبل بدء الدفع والتجهيز.',
+                        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800, height: 1.45),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            if (status == 'awaiting_payment')
+              Container(
+                margin: const EdgeInsets.only(top: 9, bottom: 2),
+                child: SizedBox(
+                  height: 49,
+                  child: FilledButton.icon(
+                    onPressed: openPayment,
+                    icon: const Icon(Icons.payments_outlined, size: 19),
+                    label: const Text(
+                      'الدفع بعد تأكيد الطلب',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+                    ),
+                    style: FilledButton.styleFrom(backgroundColor: Colors.black),
+                  ),
+                ),
+              ),
             if (status == 'created' || status == 'awaiting_payment')
               Container(
                 margin: const EdgeInsets.only(top: 9, bottom: 2),
@@ -10088,7 +10214,7 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                             ),
                           ),
                           SxPill(
-                            text: sxText(shipment['status'], 'قيد التجهيز'),
+                            text: shippingStatusLabel(sxText(shipment['status'], 'قيد التجهيز')),
                             background: ClientTheme.soft,
                             foreground: Colors.black,
                           ),
@@ -10119,6 +10245,41 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                   ),
                 ),
             ],
+            if (status == 'delivered')
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: ClientTheme.border),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text('أكملت طلبك 🎉',style:TextStyle(fontSize:13,fontWeight:FontWeight.w900)),
+                    const SizedBox(height:4),
+                    const Text('شاركنا تقييمك وملاحظاتك لنحسن تجربة التخفيض الصح.',style:TextStyle(fontSize:9,color:ClientTheme.muted)),
+                    const SizedBox(height:8),
+                    if (sxInt(order['customer_rating']) > 0)
+                      Text(
+                        'تقييمك: ' + '★'.padLeft(sxInt(order['customer_rating']), '★'),
+                        style: const TextStyle(fontSize:11,fontWeight:FontWeight.w900),
+                      ),
+                    if (sxText(order['customer_feedback']).isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top:4),
+                        child: Text(sxText(order['customer_feedback']),style:const TextStyle(fontSize:9,color:ClientTheme.muted)),
+                      ),
+                    const SizedBox(height:7),
+                    OutlinedButton.icon(
+                      onPressed:showFeedbackDialog,
+                      icon:const Icon(Icons.star_outline,size:18),
+                      label:Text(sxInt(order['customer_rating'])>0?'تعديل التقييم':'قيّم تجربتك'),
+                    ),
+                  ],
+                ),
+              ),
             const SizedBox(height: 4),
             SizedBox(
               height: 47,
