@@ -2267,9 +2267,21 @@ class CatalogService:
             }
             for row, badge in badge_rows
         ]
+        hashtag_rows = (
+            db.session.query(ProductHashtag, Hashtag)
+            .join(Hashtag, Hashtag.id == ProductHashtag.hashtag_id)
+            .filter(ProductHashtag.product_id == product_id)
+            .order_by(ProductHashtag.id)
+            .all()
+        )
         hashtags = [
-            {"id": row.hashtag_id}
-            for row in ProductHashtag.query.filter_by(product_id=product_id).order_by(ProductHashtag.id).all()
+            {
+                "id": tag.id,
+                "name": tag.name,
+                "display_name": tag.display_name or ("#" + tag.name),
+                "slug": tag.slug,
+            }
+            for row, tag in hashtag_rows
         ]
         promotional_strips = [
             {"id": row.strip_id}
