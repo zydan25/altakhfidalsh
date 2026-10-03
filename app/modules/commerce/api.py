@@ -506,17 +506,66 @@ def upload_my_payment_proof():
         )
         if tx is None:
             raise ValueError("اختر طريقة الدفع أولًا قبل رفع إثبات الدفع.")
+        from ..support.services import SupportService
+        conversation = (
+            Conversation.query
+            .filter_by(customer_id=current_customer().id, order_id=order.id)
+            .order_by(Conversation.id.desc())
+            .first()
+        )
+        if conversation is None:
+            conversation = SupportService.create_conversation(
+                current_customer().id,
+                "order_support",
+                order.id,
+                "الطلب " + order.order_no,
+            )
+            conversation = db.session.get(Conversation, conversation["id"])
+
         rows = []
+        proof_assets = []
         for asset in assets:
-            row = PaymentShippingService.attach_payment_proof({
+            proof = PaymentProof(
+                order_id=order.id,
+                transaction_id=tx.id,
+                asset_id=asset["id"],
+                submitted_by=current_customer().id,
+                status="pending",
+            )
+            db.session.add(proof)
+            proof_assets.append((proof, asset))
+            rows.append({
+                "id": None,
                 "order_id": order.id,
-                "transaction_id": tx.id if tx else None,
                 "asset_id": asset["id"],
-                "submitted_by": current_customer().id,
+                "url": asset["url"],
+                "status": "pending",
             })
-            row["url"] = asset["url"]
-            rows.append(row)
+
         order.payment_status = "pending_proof"
+        db.session.flush()
+
+        # A proof uploaded directly from the order page is also recorded as a
+        # normal payment-proof message in the order conversation, so the
+        # customer and support team see the same proof in both places.
+        message = SupportService.send_message(
+            conversation.id,
+            "customer",
+            current_customer().id,
+            "تم رفع إثبات الدفع من صفحة الطلب.",
+            "payment_proof",
+            [
+                {
+                    "id": asset["id"],
+                    "mime_type": asset["mime_type"],
+                    "sort_order": idx,
+                }
+                for idx, (_, asset) in enumerate(proof_assets)
+            ],
+        )
+        for row, (proof, _) in zip(rows, proof_assets):
+            row["id"] = proof.id
+            row["message_id"] = message["id"]
         db.session.commit()
         return {"items": rows}
     except (ValueError, LookupError) as exc:
