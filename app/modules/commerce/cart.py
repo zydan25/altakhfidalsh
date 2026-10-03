@@ -1,5 +1,5 @@
 from ...extensions import db
-from ...models import Cart, CartItem, Product, ProductMedia, ProductVariant, MediaAsset, Color, Size
+from ...models import Cart, CartItem, Product, ProductMedia, ProductVariant, MediaAsset, Color, Size, Currency
 from ...services.pricing import price_for_customer
 
 
@@ -24,6 +24,7 @@ class CartService:
                 currency_id=currency_id or cart.currency_id,
             )
             item.unit_price_snapshot = price.final
+            currency = db.session.get(Currency, context.currency_id)
             media = (
                 db.session.query(MediaAsset)
                 .join(ProductMedia, ProductMedia.asset_id == MediaAsset.id)
@@ -40,6 +41,7 @@ class CartService:
                 "unit_price": str(price.final),
                 "currency_id": context.currency_id,
                 "currency_code": context.currency_code,
+                "currency_symbol": (currency.symbol or currency.code) if currency else context.currency_code,
                 "line_total": str(price.final * item.qty),
                 "product_id": product.id,
                 "product_name": product.name,
@@ -63,6 +65,9 @@ class CartService:
             "items": response,
             "subtotal": str(subtotal),
             "subtotal_sar": str(subtotal_sar),
+            "currency_id": response[0]["currency_id"] if response else (cart.currency_id or None),
+            "currency_code": response[0]["currency_code"] if response else None,
+            "currency_symbol": response[0]["currency_symbol"] if response else None,
         }
 
 
