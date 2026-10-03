@@ -1169,5 +1169,3 @@ class _SxProductCardState extends State<SxProductCard> {
     );
   }
 }
-}
-
