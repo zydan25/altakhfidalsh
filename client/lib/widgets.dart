@@ -2,6 +2,80 @@ import 'package:flutter/material.dart';
 import 'models.dart';
 import 'theme.dart';
 
+class SxDeveloperSignature extends StatelessWidget {
+  const SxDeveloperSignature({super.key});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 16, bottom: 6),
+    child: Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8F8F8),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE8E8E8)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: const BoxDecoration(
+                    color: Colors.black,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.code_rounded,
+                    size: 12,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 7),
+                const Text(
+                  'برمجة وتصميم م. زيدان العطاب',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 8.7,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Text(
+                  '774952665',
+                  textDirection: TextDirection.ltr,
+                  style: TextStyle(
+                    fontSize: 8.4,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF5F6872),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'يمن كود للتقنيات الذكية',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 8.2,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF7A838D),
+                letterSpacing: .1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 class SearchBox extends StatelessWidget {
   final VoidCallback onTap;
   const SearchBox({super.key,required this.onTap});
