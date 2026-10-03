@@ -82,7 +82,7 @@
       <input type="hidden" name="action" value="save_trends">
       <div class="settings-details">
         {% for group in trend_groups %}
-        <details {% if loop.index <= 4 %}open{% endif %}>
+        <details>
           <summary>
             <span>{{ group.title }}</span>
             <small>{{ group.hint }}</small>
@@ -171,7 +171,7 @@
       <input type="hidden" name="action" value="save_product_card">
       <div class="settings-details">
         {% for group in product_card_groups %}
-        <details {% if loop.first %}open{% endif %}>
+        <details>
           <summary>
             <span>{{ group.title }}</span>
             <small>{{ group.hint }}</small>
@@ -242,6 +242,50 @@
       </div>
     </form>
   </section>
+
+<section class="panel settings-section">
+  <div class="settings-section-head">
+    <span class="eyebrow">تفاصيل المنتج</span>
+    <h3>عنوان المنتج في صفحة التفاصيل</h3>
+    <p class="muted">هذه القيم مستقلة عن اسم المنتج في بطاقة المتجر، وتتحكم في العنوان الكبير داخل صفحة تفاصيل المنتج.</p>
+  </div>
+
+  <form method="post">
+    <input type="hidden" name="action" value="save_product_detail">
+    <div class="settings-details">
+      {% for group in product_detail_groups %}
+      <details>
+        <summary>
+          <span>{{ group.title }}</span>
+          <small>{{ group.hint }}</small>
+        </summary>
+        <div class="settings-grid">
+          {% for field in group.fields %}
+            {% set key = field[0] %}
+            {% set label = field[1] %}
+            {% set kind = field[2] %}
+            {% if kind == "number" %}
+            <label>
+              {{ label }}
+              <input name="{{ key }}" type="number"
+                     min="{{ field[3] }}" max="{{ field[4] }}" step="{{ field[5] }}"
+                     value="{{ product_detail_settings[key] }}">
+            </label>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </details>
+      {% endfor %}
+    </div>
+    <div class="save-bar">
+      <div>
+        <strong>إعدادات اسم المنتج في التفاصيل</strong>
+        <small>لن تغيّر حجم اسم المنتج في بطاقة المتجر.</small>
+      </div>
+      <button class="primary-button" type="submit">حفظ إعدادات تفاصيل المنتج</button>
+    </div>
+  </form>
+</section>
 </div>
 
 <script>
