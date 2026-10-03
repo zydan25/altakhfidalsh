@@ -7901,6 +7901,8 @@ class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
         currencyId:state.currencyId,
         customerNote:note.text.trim(),
       );
+      await api.clearCart();
+      cartBadge.value = 0;
       final item=r['item'] is Map?Map<String,dynamic>.from(r['item']):<String,dynamic>{};
       final id=sxInt(item['id']);
       try { await api.clearCart(); } catch (_) {}
@@ -9084,45 +9086,82 @@ class SxSettingsScreen extends StatefulWidget {
   const SxSettingsScreen({super.key, required this.me});
   @override State<SxSettingsScreen> createState() => _SxSettingsScreenState();
 }
+
 class _SxSettingsScreenState extends State<SxSettingsScreen> {
-  late TextEditingController name, email; bool busy = false;
-  @override void initState() { super.initState(); name = TextEditingController(text: sxText(widget.me['name'])); email = TextEditingController(text: sxText(widget.me['email'])); }
+  late TextEditingController name, email;
+  bool busy = false;
+  @override void initState() {
+    super.initState();
+    name = TextEditingController(text: sxText(widget.me['name']));
+    email = TextEditingController(text: sxText(widget.me['email']));
+  }
   @override void dispose() { name.dispose(); email.dispose(); super.dispose(); }
+
   Future<void> save() async {
     setState(() => busy = true);
-    try { await api.updateMe({'name': name.text.trim(), 'email': email.text.trim()}); if (mounted) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ البيانات'))); Navigator.pop(context); } } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e)))); }
-    if (mounted) setState(() => busy = false);
+    try {
+      await api.updateMe({'name': name.text.trim(), 'email': email.text.trim()});
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ البيانات')));
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(error))));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
-  @override Widget build(BuildContext context) => SxShellPage(title: 'الإعدادات', back: true, child: ListView(padding: const EdgeInsets.all(13), children: [
-    const Text('الحساب', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)), const SizedBox(height: 10),
-    TextField(controller: name, decoration: const InputDecoration(labelText: 'الاسم')), const SizedBox(height: 7),
-    TextField(controller: email, decoration: const InputDecoration(labelText: 'البريد الإلكتروني')), const SizedBox(height: 12),
-    SizedBox(height: 48, child: FilledButton(onPressed: busy ? null : save, style: FilledButton.styleFrom(backgroundColor: Colors.black), child: busy ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2) : const Text('حفظ التعديلات'))),
-    const SizedBox(height: 8),
-    ListTile(
-      leading: const Icon(Icons.lock_reset_outlined),
-      title: const Text('تحديث كلمة المرور', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
-      subtitle: const Text('تغيير كلمة المرور الحالية', style: TextStyle(fontSize: 9, color: ClientTheme.muted)),
-      trailing: const Icon(Icons.chevron_left),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => SxChangePasswordScreen(me: widget.me)),
-      ),
+
+  @override Widget build(BuildContext context) => SxShellPage(
+    title: 'الإعدادات',
+    back: true,
+    child: ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.fromLTRB(13, 13, 13, 80),
+      children: [
+        const Text('الحساب', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 10),
+        TextField(controller: name, decoration: const InputDecoration(labelText: 'الاسم', prefixIcon: Icon(Icons.person_outline))),
+        const SizedBox(height: 8),
+        TextField(
+          controller: email,
+          keyboardType: TextInputType.emailAddress,
+          textDirection: TextDirection.ltr,
+          textAlign: TextAlign.left,
+          decoration: const InputDecoration(labelText: 'البريد الإلكتروني', prefixIcon: Icon(Icons.email_outlined)),
+        ),
+        const SizedBox(height: 11),
+        SizedBox(
+          height: 48,
+          child: FilledButton(
+            onPressed: busy ? null : save,
+            style: FilledButton.styleFrom(backgroundColor: Colors.black),
+            child: busy ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2) : const Text('حفظ التعديلات', style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ),
+        const SizedBox(height: 18),
+        const Text('الأمان', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 8),
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+          tileColor: const Color(0xFFF8F8F8),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          leading: const Icon(Icons.lock_reset_outlined),
+          title: const Text('تحديث كلمة المرور', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+          subtitle: const Text('تغيير كلمة المرور الحالية بأمان', style: TextStyle(fontSize: 8.5, color: ClientTheme.muted)),
+          trailing: const Icon(Icons.chevron_left),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxChangePasswordScreen())),
+        ),
+        const SizedBox(height: 18),
+        const Text('الإعدادات السريعة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+        ListTile(leading: const Icon(Icons.currency_exchange), title: const Text('العملة'), subtitle: Text(state.currencyCode), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCurrencyScreen()))),
+        ListTile(leading: const Icon(Icons.location_city_outlined), title: const Text('المدينة'), subtitle: Text(state.cityName ?? 'اختيار المدينة'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCityScreen()))),
+        ListTile(leading: const Icon(Icons.notifications_none), title: const Text('الإشعارات'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen()))),
+      ],
     ),
-    const SizedBox(height: 10),
-    const Text('الإعدادات السريعة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-    ListTile(leading: const Icon(Icons.currency_exchange), title: const Text('العملة'), subtitle: Text(state.currencyCode), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCurrencyScreen()))),
-    ListTile(leading: const Icon(Icons.location_city_outlined), title: const Text('المدينة'), subtitle: Text(state.cityName ?? 'اختيار المدينة'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCityScreen()))),
-    ListTile(leading: const Icon(Icons.notifications_none), title: const Text('الإشعارات'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen()))),
-  ]));
+  );
 }
 
 class SxChangePasswordScreen extends StatefulWidget {
-  final Map<String, dynamic> me;
-  const SxChangePasswordScreen({super.key, required this.me});
-
-  @override
-  State<SxChangePasswordScreen> createState() => _SxChangePasswordScreenState();
+  const SxChangePasswordScreen({super.key});
+  @override State<SxChangePasswordScreen> createState() => _SxChangePasswordScreenState();
 }
 
 class _SxChangePasswordScreenState extends State<SxChangePasswordScreen> {
@@ -9130,167 +9169,68 @@ class _SxChangePasswordScreenState extends State<SxChangePasswordScreen> {
   final next = TextEditingController();
   final confirm = TextEditingController();
   bool busy = false;
-  bool obscureCurrent = true;
-  bool obscureNext = true;
-  bool obscureConfirm = true;
+  bool showCurrent = false, showNext = false, showConfirm = false;
 
-  @override
-  void dispose() {
-    current.dispose();
-    next.dispose();
-    confirm.dispose();
-    super.dispose();
-  }
-
-  InputDecoration fieldDeco(String label, IconData icon, bool obscure, VoidCallback toggle) =>
-      InputDecoration(
-        labelText: label,
-        floatingLabelBehavior: FloatingLabelBehavior.never,
-        filled: true,
-        fillColor: const Color(0xFFF8F8F8),
-        prefixIcon: Icon(icon, size: 20, color: ClientTheme.muted),
-        suffixIcon: IconButton(
-          onPressed: toggle,
-          icon: Icon(
-            obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-            size: 20,
-          ),
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E2E2)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E2E2)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.black, width: 1.3),
-        ),
-      );
+  @override void dispose() { current.dispose(); next.dispose(); confirm.dispose(); super.dispose(); }
 
   Future<void> save() async {
-    final password = next.text.trim();
-    if (password.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('كلمة المرور يجب أن تكون 6 أحرف على الأقل.')),
-      );
+    if (next.text.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل.')));
       return;
     }
-    if (password != confirm.text.trim()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تأكيد كلمة المرور غير مطابق.')),
-      );
+    if (next.text != confirm.text) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تأكيد كلمة المرور غير مطابق.')));
       return;
     }
     setState(() => busy = true);
     try {
-      await api.setMyPassword(password, currentPassword: current.text.trim());
+      await api.setMyPassword(next.text, currentPassword: current.text);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم تحديث كلمة المرور بنجاح.')),
-      );
-      Navigator.pop(context, true);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث كلمة المرور بنجاح.')));
+      Navigator.pop(context);
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(sxText(error).replaceFirst('Exception: ', ''))),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(error))));
     } finally {
       if (mounted) setState(() => busy = false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) => SxShellPage(
+  Widget field(TextEditingController controller, String label, bool obscure, VoidCallback toggle) => TextField(
+    controller: controller,
+    obscureText: obscure,
+    textDirection: TextDirection.ltr,
+    textAlign: TextAlign.left,
+    scrollPadding: const EdgeInsets.only(bottom: 180),
+    decoration: InputDecoration(
+      labelText: label,
+      prefixIcon: const Icon(Icons.lock_outline),
+      suffixIcon: IconButton(onPressed: toggle, icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined)),
+    ),
+  );
+
+  @override Widget build(BuildContext context) => SxShellPage(
     title: 'تحديث كلمة المرور',
     back: true,
     child: ListView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: EdgeInsets.fromLTRB(
-        14, 14, 14, 40 + MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: const EdgeInsets.fromLTRB(14, 18, 14, 120),
       children: [
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: ClientTheme.border),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Icon(Icons.lock_reset_outlined, size: 34),
-              const SizedBox(height: 9),
-              const Text(
-                'حدّث كلمة مرور حسابك بأمان',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 5),
-              const Text(
-                'إذا كان للحساب كلمة مرور حالية أدخلها أولًا. الحسابات التي لم تضبط كلمة مرور من قبل يمكنها ترك الحقل فارغًا.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 9, color: ClientTheme.muted, height: 1.5),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: current,
-                obscureText: obscureCurrent,
-                textDirection: TextDirection.ltr,
-                textAlign: TextAlign.left,
-                scrollPadding: const EdgeInsets.only(bottom: 190),
-                decoration: fieldDeco(
-                  'كلمة المرور الحالية (اختياري للحساب الجديد)',
-                  Icons.lock_outline,
-                  obscureCurrent,
-                  () => setState(() => obscureCurrent = !obscureCurrent),
-                ),
-              ),
-              const SizedBox(height: 9),
-              TextField(
-                controller: next,
-                obscureText: obscureNext,
-                textDirection: TextDirection.ltr,
-                textAlign: TextAlign.left,
-                scrollPadding: const EdgeInsets.only(bottom: 190),
-                decoration: fieldDeco(
-                  'كلمة المرور الجديدة',
-                  Icons.lock_reset_outlined,
-                  obscureNext,
-                  () => setState(() => obscureNext = !obscureNext),
-                ),
-              ),
-              const SizedBox(height: 9),
-              TextField(
-                controller: confirm,
-                obscureText: obscureConfirm,
-                textDirection: TextDirection.ltr,
-                textAlign: TextAlign.left,
-                scrollPadding: const EdgeInsets.only(bottom: 190),
-                decoration: fieldDeco(
-                  'تأكيد كلمة المرور الجديدة',
-                  Icons.verified_user_outlined,
-                  obscureConfirm,
-                  () => setState(() => obscureConfirm = !obscureConfirm),
-                ),
-              ),
-              const SizedBox(height: 13),
-              SizedBox(
-                height: 49,
-                child: FilledButton(
-                  onPressed: busy ? null : save,
-                  style: FilledButton.styleFrom(backgroundColor: Colors.black),
-                  child: busy
-                      ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                      : const Text('حفظ كلمة المرور', style: TextStyle(fontWeight: FontWeight.w900)),
-                ),
-              ),
-            ],
+        const Text('حماية الحساب', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)),
+        const SizedBox(height: 5),
+        const Text('أدخل كلمة المرور الحالية ثم اختر كلمة مرور جديدة.', style: TextStyle(fontSize: 9.5, color: ClientTheme.muted)),
+        const SizedBox(height: 18),
+        field(current, 'كلمة المرور الحالية', !showCurrent, () => setState(() => showCurrent = !showCurrent)),
+        const SizedBox(height: 9),
+        field(next, 'كلمة المرور الجديدة', !showNext, () => setState(() => showNext = !showNext)),
+        const SizedBox(height: 9),
+        field(confirm, 'تأكيد كلمة المرور الجديدة', !showConfirm, () => setState(() => showConfirm = !showConfirm)),
+        const SizedBox(height: 15),
+        SizedBox(
+          height: 50,
+          child: FilledButton(
+            onPressed: busy ? null : save,
+            style: FilledButton.styleFrom(backgroundColor: Colors.black),
+            child: busy ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2) : const Text('تحديث كلمة المرور', style: TextStyle(fontWeight: FontWeight.w900)),
           ),
         ),
       ],
@@ -10970,7 +10910,10 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
     }
     return Container(margin:const EdgeInsets.only(top:6),padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:const Color(0xFFF3F3F3),borderRadius:BorderRadius.circular(7)),child:Row(children:[const Icon(Icons.attach_file,size:15),const SizedBox(width:5),Expanded(child:Text('مرفق '+mime,style:const TextStyle(fontSize:8.5,fontWeight:FontWeight.w700)))]));
   }
-  @override Widget build(BuildContext context)=>Scaffold(
+  @override Widget build(BuildContext context){
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    return Scaffold(
+    resizeToAvoidBottomInset:false,
     backgroundColor:const Color(0xFFF6F6F6),
     appBar:AppBar(
       titleSpacing:0,
@@ -10988,7 +10931,11 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
       ]),
       actions:[IconButton(onPressed:load,icon:const Icon(Icons.refresh_outlined,size:20))],
     ),
-    body:loading?const Center(child:CircularProgressIndicator(strokeWidth:2)):Column(children:[
+    body:loading?const Center(child:CircularProgressIndicator(strokeWidth:2)):AnimatedPadding(
+      duration:const Duration(milliseconds:180),
+      curve:Curves.easeOut,
+      padding:EdgeInsets.only(bottom:keyboard),
+      child:Column(children:[
       Expanded(child:messages.isEmpty
         ? const Center(child:Padding(padding:EdgeInsets.all(24),child:Text('ابدأ المحادثة برسالة قصيرة، ويمكنك أيضًا إرفاق صورة.',textAlign:TextAlign.center,style:TextStyle(fontSize:10,color:ClientTheme.muted))))
         : ListView.builder(
@@ -11052,8 +10999,9 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
           IconButton(onPressed:sending?null:send,icon:sending?const SizedBox(width:18,height:18,child:CircularProgressIndicator(strokeWidth:2)):const Icon(Icons.arrow_upward_rounded,size:21)),
         ]),
       )),
-    ]),
-  );
+      ]),
+    );
+  }
 }
 
 class SxLooksScreen extends StatefulWidget {
@@ -11105,21 +11053,120 @@ class SxAuthScreen extends StatefulWidget {
   const SxAuthScreen({super.key});
   @override State<SxAuthScreen> createState() => _SxAuthScreenState();
 }
+
 class _SxAuthScreenState extends State<SxAuthScreen> {
-  final phone = TextEditingController(); bool busy = false;
+  final phone = TextEditingController();
+  bool busy = false;
+
   Future<void> send() async {
-    if (phone.text.trim().isEmpty) return; setState(() => busy = true);
-    try { final r = await api.requestOtp(phone.text.trim()); final id = sxInt(r['otp_request_id']); if (mounted) Navigator.push(context, MaterialPageRoute(builder: (_) => SxOtpScreen(requestId: id, phone: phone.text.trim()))); } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(e)))); }
-    if (mounted) setState(() => busy = false);
+    final value = phone.text.trim();
+    if (value.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('أدخل رقم الهاتف أولًا.')),
+      );
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      final r = await api.requestOtp(value);
+      final id = sxInt(r['otp_request_id']);
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => SxOtpScreen(requestId: id, phone: value)),
+      );
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(error))));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
   }
+
   @override void dispose() { phone.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) => Scaffold(backgroundColor: Colors.white, body: SafeArea(child: ListView(padding: const EdgeInsets.fromLTRB(22, 30, 22, 25), children: [
-    const SizedBox(height: 70), const Text('التخفيض الصح', textAlign: TextAlign.center, style: TextStyle(fontSize: 30, fontWeight: FontWeight.w900)),
-    const SizedBox(height: 8), const Text('تسوق سريع، اكتشاف أسهل، وعروض في مكان واحد.', textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: ClientTheme.muted)),
-    const SizedBox(height: 45), const Text('تسجيل الدخول', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900)), const SizedBox(height: 10),
-    TextField(controller: phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(prefixText: '+967 ', hintText: '7XXXXXXXX')),
-    const SizedBox(height: 11), SizedBox(height: 50, child: FilledButton(onPressed: busy ? null : send, style: FilledButton.styleFrom(backgroundColor: Colors.black), child: busy ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2) : const Text('إرسال رمز التحقق'))),
-  ])));
+
+  @override
+  Widget build(BuildContext context) {
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        resizeToAvoidBottomInset: false,
+        backgroundColor: Colors.white,
+        body: AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.only(bottom: keyboard),
+          child: SafeArea(
+            child: ListView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 50),
+              children: [
+                const SizedBox(height: 28),
+                Center(
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(22)),
+                    child: const Icon(Icons.shopping_bag_outlined, color: Colors.white, size: 32),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                const Text('مرحبًا بعودتك', textAlign: TextAlign.center, style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900)),
+                const SizedBox(height: 6),
+                const Text('أدخل رقم جوالك للوصول إلى حسابك ومتابعة طلباتك.', textAlign: TextAlign.center, style: TextStyle(fontSize: 10.5, color: ClientTheme.muted, height: 1.6)),
+                const SizedBox(height: 30),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8F8F8),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: ClientTheme.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text('رقم الهاتف', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: phone,
+                        keyboardType: TextInputType.phone,
+                        textDirection: TextDirection.ltr,
+                        textAlign: TextAlign.left,
+                        textInputAction: TextInputAction.done,
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        scrollPadding: const EdgeInsets.only(bottom: 180),
+                        decoration: const InputDecoration(
+                          hintText: '7XXXXXXXX',
+                          prefixIcon: Icon(Icons.phone_outlined, size: 20),
+                          prefixText: '+967  ',
+                          prefixStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+                        ),
+                        onSubmitted: (_) => send(),
+                      ),
+                      const SizedBox(height: 11),
+                      SizedBox(
+                        height: 50,
+                        child: FilledButton(
+                          onPressed: busy ? null : send,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),
+                          ),
+                          child: busy ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2) : const Text('متابعة', style: TextStyle(fontWeight: FontWeight.w900)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 13),
+                const Text('سنرسل رمز تحقق إلى رقمك عند الحاجة.', textAlign: TextAlign.center, style: TextStyle(fontSize: 8.5, color: ClientTheme.muted)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class SxOtpScreen extends StatefulWidget {
