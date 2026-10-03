@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'customer_flow.dart';
 import 'app_state.dart';
 import 'shein_ui.dart';
 import 'models.dart';
@@ -1035,363 +1036,73 @@ class TrustRow extends StatelessWidget {
   }
 }
 
-class ProductScreen extends StatefulWidget {
-  final int id;
-
-  const ProductScreen(this.id, {super.key});
-
-  @override
-  State<ProductScreen> createState() => _ProductScreenState();
+class ProductScreen extends StatefulWidget{
+  final int id;const ProductScreen(this.id,{super.key});
+  @override State<ProductScreen> createState()=>_ProductScreenState();
 }
-
-class _ProductScreenState extends State<ProductScreen> {
-  Map<String, dynamic>? data;
-  int imageIndex = 0;
-  int? selectedVariant;
-  bool wished = false;
-
-  @override
-  void initState() {
-    super.initState();
-    load();
-  }
-
-  Future<void> load() async {
-    try {
-      final Map<String, dynamic> result = await api.product(widget.id);
-      final dynamic value = result['item'];
-      if (!mounted || value is! Map) return;
-
-      final Map<String, dynamic> snapshot =
-          Map<String, dynamic>.from(value);
-      final List<Map<String, dynamic>> variants =
-          ((snapshot['variants'] as List?) ?? const <dynamic>[])
-              .whereType<Map>()
-              .map((Map<dynamic, dynamic> row) =>
-                  Map<String, dynamic>.from(row))
-              .toList();
-
-      int? firstVariant;
-      if (variants.isNotEmpty) {
-        firstVariant =
-            int.tryParse((variants.first['id'] ?? '').toString());
-      }
-
-      setState(() {
-        data = snapshot;
-        selectedVariant = firstVariant;
-      });
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
-      }
-    }
-  }
-
-  Future<void> toggleWishlist() async {
-    try {
-      if (wished) {
-        await api.wishlistRemove(widget.id);
-      } else {
-        await api.wishlistAdd(widget.id);
-      }
-      if (mounted) {
-        setState(() => wished = !wished);
-      }
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
-      }
-    }
-  }
-
-  Future<void> addToCart({bool checkout = false}) async {
-    if (selectedVariant == null) return;
-    try {
-      await api.addCart(selectedVariant!);
-      if (!mounted) return;
-
-      if (checkout) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CartScreen()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('تمت الإضافة إلى السلة')),
-        );
-      }
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (data == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    final Map<String, dynamic> product = data!['product'] is Map
-        ? Map<String, dynamic>.from(data!['product'])
-        : <String, dynamic>{};
-
-    final List<Map<String, dynamic>> media =
-        ((data!['media'] as List?) ?? const <dynamic>[])
-            .whereType<Map>()
-            .map((Map<dynamic, dynamic> row) =>
-                Map<String, dynamic>.from(row))
-            .toList();
-
-    final List<Map<String, dynamic>> options =
-        ((data!['options'] as List?) ?? const <dynamic>[])
-            .whereType<Map>()
-            .map((Map<dynamic, dynamic> row) =>
-                Map<String, dynamic>.from(row))
-            .toList();
-
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        body: CustomScrollView(
-          slivers: <Widget>[
-            SliverAppBar(
-              pinned: true,
-              backgroundColor: Colors.white,
-              title: const Text(
-                'التخفيض الصح',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              actions: <Widget>[
-                IconButton(
-                  onPressed: toggleWishlist,
-                  icon: Icon(
-                    wished ? Icons.favorite : Icons.favorite_border,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const CartScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.shopping_bag_outlined),
-                ),
-              ],
-            ),
-            SliverToBoxAdapter(
-              child: ProductGallery(
-                media: media,
-                current: imageIndex,
-                onChanged: (int value) {
-                  setState(() => imageIndex = value);
-                },
-              ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      (product['name'] ?? '').toString(),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    PriceLine(
-                      current:
-                          (product['base_price_sar'] ?? '0').toString() +
-                              ' SAR',
-                      old: product['compare_at_price']?.toString(),
-                    ),
-                    const SizedBox(height: 12),
-                    const TrustRow(),
-                    for (final Map<String, dynamic> option in options)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 16),
-                        child: OptionBlock(option: option),
-                      ),
-                    const SizedBox(height: 16),
-                    ExpansionTile(
-                      tilePadding: EdgeInsets.zero,
-                      title: const Text(
-                        'تفاصيل المنتج',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      children: <Widget>[
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(
-                            (product['description'] ?? 'لا يوجد وصف')
-                                .toString(),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        bottomNavigationBar: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: addToCart,
-                    child: const Text('أضف إلى السلة'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => addToCart(checkout: true),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: ClientTheme.ink,
-                    ),
-                    child: const Text('اشتر الآن'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class ProductGallery extends StatelessWidget {
-  final List<Map<String, dynamic>> media;
-  final int current;
-  final ValueChanged<int> onChanged;
-
-  const ProductGallery({
-    super.key,
-    required this.media,
-    required this.current,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final int count = media.isEmpty ? 1 : media.length;
-
-    return Column(
-      children: <Widget>[
-        AspectRatio(
-          aspectRatio: .84,
-          child: PageView.builder(
-            itemCount: count,
-            onPageChanged: onChanged,
-            itemBuilder: (BuildContext context, int index) {
-              if (media.isEmpty) {
-                return Container(
-                  color: const Color(0xFFEDEDED),
-                  child: const Icon(
-                    Icons.image_outlined,
-                    size: 42,
-                  ),
-                );
-              }
-
-              final String image =
-                  (media[index]['url'] ?? '').toString();
-
-              if (image.isEmpty) {
-                return Container(color: const Color(0xFFEDEDED));
-              }
-
-              return Image.network(
-                image,
-                fit: BoxFit.cover,
-              );
-            },
-          ),
-        ),
-        if (media.length > 1)
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List<Widget>.generate(
-                media.length,
-                (int index) => Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  width: index == current ? 18 : 5,
-                  height: 3,
-                  color: index == current
-                      ? Colors.black
-                      : const Color(0xFFCCCCCC),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-class OptionBlock extends StatelessWidget{
-  final Map<String,dynamic>option;const OptionBlock({super.key,required this.option});
-  @override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-    Text((option['name']??'اختيار').toString(),style:const TextStyle(fontWeight:FontWeight.w800,fontSize:13)),
-    const SizedBox(height:7),
-    Wrap(spacing:7,runSpacing:7,children:((option['values']as List?)??const[]).whereType<Map>().map((v)=>ChoiceChip(label:Text((v['label']??'').toString(),style:const TextStyle(fontSize:10)),selected:false,onSelected:(_){},)).toList()),
-  ]);
-}
-
-class CartScreen extends StatefulWidget{const CartScreen({super.key});@override State<CartScreen> createState()=>_CartScreenState();}
-class _CartScreenState extends State<CartScreen>{
-  Map<String,dynamic>?cart;bool busy=true;
+class _ProductScreenState extends State<ProductScreen>{
+  Map<String,dynamic>?data;int imageIndex=0;bool adding=false;
   @override void initState(){super.initState();load();}
-  Future<void>load()async{if(!state.loggedIn){setState(()=>busy=false);return;}try{final d=await api.cart();cart=d['item']is Map?Map<String,dynamic>.from(d['item']):null;}catch(e){}if(mounted)setState(()=>busy=false);}
+  Future<void>load()async{try{final r=await api.product(widget.id,currencyId:state.currencyId);final x=r['item'];if(mounted)setState(()=>data=x is Map?Map<String,dynamic>.from(x):null);}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}}
+  Future<void>pickAndAdd()async{final d=data;if(d==null)return;setState(()=>adding=true);try{await showModalBottomSheet(context:context,isScrollControlled:true,backgroundColor:Colors.white,builder:(_)=>ProductSelectionSheet(data:d,onConfirm:(v,q,o)async{await api.addCart(v,q,o);}));}finally{if(mounted)setState(()=>adding=false);}}
+  Future<void>review()async{final r=await showModalBottomSheet(context:context,isScrollControlled:true,backgroundColor:Colors.white,builder:(_)=>_ReviewComposer(productId:widget.id));if(r==true)load();}
   @override Widget build(BuildContext context){
-    if(!state.loggedIn)return const LoginRequired();
-    if(busy)return const Center(child:CircularProgressIndicator());
-    final rows=((cart?['items']as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
-    final subtotal=(cart?['subtotal']??'0').toString();
+    final d=data;if(d==null)return const Scaffold(body:Center(child:CircularProgressIndicator()));
+    final p=d['product']is Map?Map<String,dynamic>.from(d['product']):<String,dynamic>{};
+    final media=((d['media']as List?)??const[]).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
+    final badges=((d['badges']as List?)??const[]).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
+    final delivery=((d['delivery_badges']as List?)??const[]).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
+    final options=((d['options']as List?)??const[]).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
+    final detail=d['product_detail_settings']is Map?Map<String,dynamic>.from(d['product_detail_settings']):<String,dynamic>{};
+    final currency=p['display_currency']is Map?Map<String,dynamic>.from(p['display_currency']):<String,dynamic>{};
+    final price=(p['display_price']??p['base_price_sar']??'0').toString(),old=(p['display_compare_price']??p['compare_at_price'])?.toString();
+    final pn=double.tryParse(price)??0,on=double.tryParse(old??'')??0,disc=on>pn&&on>0?((1-pn/on)*100).round():0;
+    final first=badgesFor(badges,'first'),above=badgesFor(badges,'above_image'),right=badgesFor(badges,'right_of_image'),belowPrice=badgesFor(badges,'below_price'),beforeName=badgesFor(badges,'before_name'),beforeRow=badgesFor(badges,'before_name_row'),afterName=badgesFor(badges,'after_name'),afterRow=badgesFor(badges,'after_name_row'),belowDesc=badgesFor(badges,'below_description'),afterDetails=badgesFor(badges,'after_details'),last=badgesFor(badges,'last');
+    final summary=d['rating_summary']is Map?Map<String,dynamic>.from(d['rating_summary']):<String,dynamic>{};final avg=double.tryParse((summary['average']??0).toString())??0;final rc=int.tryParse((summary['count']??0).toString())??0;final reviews=((d['reviews_preview']as List?)??const[]).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();
     return Directionality(textDirection:TextDirection.rtl,child:Scaffold(
-      appBar:AppBar(title:Text('السلة ('+rows.length.toString()+')',style:const TextStyle(fontWeight:FontWeight.w900))),
-      body:rows.isEmpty?const Center(child:Text('سلتك فارغة')):ListView.separated(padding:const EdgeInsets.all(8),itemCount:rows.length,separatorBuilder:(_,__)=>const SizedBox(height:5),itemBuilder:(_,i)=>CartRow(
-        item:rows[i],
-        onPlus:()async{await api.cartQty(int.parse(rows[i]['id'].toString()),int.parse(rows[i]['qty'].toString())+1);load();},
-        onMinus:()async{await api.cartQty(int.parse(rows[i]['id'].toString()),int.parse(rows[i]['qty'].toString())-1);load();},
-        onRemove:()async{await api.removeCart(int.parse(rows[i]['id'].toString()));load();},
-      )),
-      bottomNavigationBar:rows.isEmpty?null:SafeArea(child:Container(color:Colors.white,padding:const EdgeInsets.all(11),child:Column(mainAxisSize:MainAxisSize.min,children:[
-        Row(children:[const Expanded(child:Text('المجموع',style:TextStyle(fontWeight:FontWeight.w700))),Text(subtotal+' SAR',style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900))]),
-        const SizedBox(height:8),SizedBox(width:double.infinity,height:48,child:FilledButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const CheckoutScreen())),style:FilledButton.styleFrom(backgroundColor:ClientTheme.ink),child:const Text('المتابعة للدفع'))),
-      ]))),
+      body:CustomScrollView(slivers:[
+        SliverAppBar(pinned:true,backgroundColor:Colors.white,title:const Text('التخفيض الصح',style:TextStyle(fontSize:17,fontWeight:FontWeight.w900)),actions:[IconButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const CartScreen())),icon:const Icon(Icons.shopping_bag_outlined))]),
+        if(first.isNotEmpty)SliverToBoxAdapter(child:_DetailBadgeRow(items:first)),
+        if(above.isNotEmpty)SliverToBoxAdapter(child:_DetailBadgeRow(items:above)),
+        SliverToBoxAdapter(child:ProductGallery(media:media,current:imageIndex,onChanged:(v)=>setState(()=>imageIndex=v),rightBadges:right)),
+        SliverToBoxAdapter(child:Padding(padding:const EdgeInsets.fromLTRB(12,9,12,20),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
+          Row(crossAxisAlignment:CrossAxisAlignment.end,children:[Text(price+' '+(currency['symbol']??state.currencySymbol).toString(),style:const TextStyle(fontSize:22,fontWeight:FontWeight.w900)),if(on>pn)Padding(padding:const EdgeInsets.only(right:7,bottom:2),child:Text(old!+' '+(currency['symbol']??state.currencySymbol).toString(),style:const TextStyle(fontSize:11,color:Color(0xFF858A91),decoration:TextDecoration.lineThrough))),if(disc>0)Padding(padding:const EdgeInsets.only(right:6,bottom:2),child:Container(padding:const EdgeInsets.symmetric(horizontal:6,vertical:3),decoration:BoxDecoration(color:const Color(0xFFFDE8E8),borderRadius:BorderRadius.circular(4)),child:Text('خصم '+disc.toString()+'%',style:const TextStyle(fontSize:8.5,fontWeight:FontWeight.w900))))]),
+          if(belowPrice.isNotEmpty)Padding(padding:const EdgeInsets.only(top:5),child:_DetailBadgeRow(items:belowPrice)),const SizedBox(height:9),
+          if(beforeRow.isNotEmpty)_DetailBadgeRow(items:beforeRow),
+          Row(crossAxisAlignment:CrossAxisAlignment.start,children:[if(beforeName.isNotEmpty)Padding(padding:const EdgeInsets.only(left:5),child:_DetailBadgeInline(items:beforeName)),Expanded(child:Text(p['name']?.toString()??'',maxLines:int.tryParse((detail['name_max_lines']??4).toString())??4,overflow:TextOverflow.ellipsis,textAlign:TextAlign.right,style:TextStyle(fontSize:double.tryParse((detail['name_font_size']??20).toString())??20,fontWeight:_detailWeight(int.tryParse((detail['name_font_weight']??800).toString())??800)))),if(afterName.isNotEmpty)Padding(padding:const EdgeInsets.only(right:5),child:_DetailBadgeInline(items:afterName))]),
+          if(afterRow.isNotEmpty)Padding(padding:const EdgeInsets.only(top:5),child:_DetailBadgeRow(items:afterRow)),
+          if((p['short_description']??p['description']??'').toString().trim().isNotEmpty)Padding(padding:const EdgeInsets.only(top:8),child:Text((p['short_description']??p['description']).toString(),style:const TextStyle(fontSize:10,height:1.55,color:ClientTheme.muted))),
+          if(delivery.isNotEmpty)Padding(padding:const EdgeInsets.only(top:9),child:_DeliveryBadgeRows(items:delivery)),
+          if(belowDesc.isNotEmpty)Padding(padding:const EdgeInsets.only(top:5),child:_DetailBadgeRow(items:belowDesc)),
+          if(media.length>1)Padding(padding:const EdgeInsets.only(top:10),child:_ThumbnailRail(media:media,current:imageIndex,onTap:(v)=>setState(()=>imageIndex=v))),
+          if(options.isNotEmpty)...options.map((o)=>Padding(padding:const EdgeInsets.only(top:12),child:_SelectableOptionPreview(option:o))),
+          Padding(padding:const EdgeInsets.only(top:10),child:ExpansionTile(tilePadding:EdgeInsets.zero,title:const Text('تفاصيل المنتج',style:TextStyle(fontSize:13,fontWeight:FontWeight.w900)),children:[Align(alignment:Alignment.centerRight,child:Text((p['description']??'لا توجد تفاصيل إضافية.').toString(),style:const TextStyle(fontSize:9.5,height:1.65,color:ClientTheme.muted)))])),
+          if(afterDetails.isNotEmpty)Padding(padding:const EdgeInsets.only(top:7),child:_DetailBadgeRow(items:afterDetails)),
+          Padding(padding:const EdgeInsets.only(top:10),child:_ProductRating(avg:avg,count:rc,reviews:reviews,onReview:review)),
+          if(last.isNotEmpty)Padding(padding:const EdgeInsets.only(top:7),child:_DetailBadgeRow(items:last)),
+        ]))),
+      ]),
+      bottomNavigationBar:SafeArea(child:Padding(padding:const EdgeInsets.fromLTRB(10,7,10,7),child:SizedBox(height:48,child:FilledButton(onPressed:adding?null:pickAndAdd,style:FilledButton.styleFrom(backgroundColor:Colors.black),child:adding?const CircularProgressIndicator(color:Colors.white):const Text('أضف إلى عربة التسوق',style:TextStyle(fontSize:11,fontWeight:FontWeight.w900)))))),
     ));
   }
 }
-
+List<Map<String,dynamic>> badgesFor(List<Map<String,dynamic>>rows,String pos)=>rows.where((b){final s=b['settings']is Map?Map<String,dynamic>.from(b['settings']):<String,dynamic>{};return s['visible']!=false&&(s['position']??b['position']??'before_name')==pos;}).toList();
+FontWeight _detailWeight(int v){if(v>=900)return FontWeight.w900;if(v>=800)return FontWeight.w800;if(v>=700)return FontWeight.w700;if(v>=600)return FontWeight.w600;if(v>=500)return FontWeight.w500;return FontWeight.w400;}
+class _DetailBadgeInline extends StatelessWidget{final List<Map<String,dynamic>>items;const _DetailBadgeInline({required this.items});@override Widget build(BuildContext context)=>Wrap(spacing:3,runSpacing:3,children:items.map((b)=>_DetailBadge(badge:b)).toList());}
+class _DetailBadgeRow extends StatelessWidget{final List<Map<String,dynamic>>items;const _DetailBadgeRow({required this.items});@override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.only(top:2),child:Wrap(alignment:WrapAlignment.end,spacing:5,runSpacing:4,children:items.map((b)=>_DetailBadge(badge:b)).toList()));}
+class _DetailBadge extends StatelessWidget{final Map<String,dynamic>badge;const _DetailBadge({required this.badge});@override Widget build(BuildContext context){final s=badge['settings']is Map?Map<String,dynamic>.from(badge['settings']):<String,dynamic>{};final bg=_dc(s['background_color']??badge['bg_color'],'#111111'),fg=_dc(s['text_color']??badge['text_color'],'#FFFFFF');final fs=double.tryParse((s['font_size']??9).toString())??9;final op=(double.tryParse((s['background_opacity']??1).toString())??1).clamp(0,1);return Container(padding:EdgeInsets.symmetric(horizontal:double.tryParse((s['padding_horizontal']??6).toString())??6,vertical:double.tryParse((s['padding_vertical']??3).toString())??3),decoration:BoxDecoration(color:bg.withOpacity(op),borderRadius:BorderRadius.circular(double.tryParse((s['border_radius']??5).toString())??5),border:((double.tryParse((s['border_width']??0).toString())??0)>0)?Border.all(width:double.tryParse((s['border_width']??0).toString())??0,color:_dc(s['border_color'],'#FFFFFF')):null)),child:Text((s['text']??badge['custom_text']??badge['name']??badge['code']??'').toString(),maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(color:fg,fontSize:fs,fontWeight:_detailWeight(int.tryParse((s['font_weight']??800).toString())??800),decoration:(s['text_decoration']??'none')=='line_through'?TextDecoration.lineThrough:TextDecoration.none)));}Color _dc(dynamic v,String fb){final s=(v??fb).toString();if(!RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(s))return const Color(0xFF111111);return Color(int.parse('FF'+s.substring(1),radix:16));}}
+class _DeliveryBadgeRows extends StatelessWidget{final List<Map<String,dynamic>>items;const _DeliveryBadgeRows({required this.items});@override Widget build(BuildContext context)=>Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:items.where((x)=>x['visible']!=false).map((x)=>Container(margin:const EdgeInsets.only(bottom:5),padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(7),border:Border.all(color:const Color(0xFFE7E7E7))),child:Row(children:[Text((x['icon']??'🚚').toString(),style:const TextStyle(fontSize:16)),const SizedBox(width:7),Expanded(child:Text((x['text']??'').toString(),style:TextStyle(fontSize:double.tryParse((x['font_size']??9).toString())??9,fontWeight:FontWeight.w800))),Text((x['section']??'').toString(),style:const TextStyle(fontSize:8,color:ClientTheme.muted))]))).toList());}
+class _ThumbnailRail extends StatelessWidget{final List<Map<String,dynamic>>media;final int current;final ValueChanged<int>onTap;const _ThumbnailRail({required this.media,required this.current,required this.onTap});@override Widget build(BuildContext context)=>SizedBox(height:72,child:Directionality(textDirection:TextDirection.rtl,child:SingleChildScrollView(scrollDirection:Axis.horizontal,child:Row(children:List.generate(media.length,(i)=>Padding(padding:const EdgeInsets.only(left:5),child:InkWell(onTap:()=>onTap(i),child:Container(width:58,height:70,clipBehavior:Clip.antiAlias,decoration:BoxDecoration(border:Border.all(color:i==current?Colors.black:const Color(0xFFE1E1E1),width:i==current?2:1),borderRadius:BorderRadius.circular(5)),child:Image.network(api.url((media[i]['url']??'').toString()),fit:BoxFit.cover))))))));}
+class _SelectableOptionPreview extends StatelessWidget{final Map<String,dynamic>option;const _SelectableOptionPreview({required this.option});@override Widget build(BuildContext context){final vals=((option['values']as List?)??const[]).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Text((option['name']??'اختيار').toString(),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w900)),const SizedBox(height:4),Wrap(spacing:5,runSpacing:4,children:vals.map((v)=>Chip(label:Text((v['label']??'').toString(),style:const TextStyle(fontSize:8.5)))).toList())]);}}
+class _ProductRating extends StatelessWidget{final double avg;final int count;final List<Map<String,dynamic>>reviews;final VoidCallback onReview;const _ProductRating({required this.avg,required this.count,required this.reviews,required this.onReview});@override Widget build(BuildContext context)=>Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(9)),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Row(children:[const Expanded(child:Text('التقييمات والمراجعات',style:TextStyle(fontSize:12,fontWeight:FontWeight.w900))),SizedBox(height:36,child:OutlinedButton.icon(onPressed:onReview,icon:const Icon(Icons.star_outline,size:15),label:const Text('قيّم المنتج',style:TextStyle(fontSize:9))))]),const SizedBox(height:7),if(count>0)Row(children:[Text(avg.toStringAsFixed(1),style:const TextStyle(fontSize:25,fontWeight:FontWeight.w900)),const SizedBox(width:6),...List.generate(5,(i)=>Icon(i<avg.round()?Icons.star:Icons.star_border,size:15,color:const Color(0xFFFFB400))),const SizedBox(width:5),Text(count.toString()+' تقييم',style:const TextStyle(fontSize:8,color:ClientTheme.muted))]) else const Text('لا توجد مراجعات منشورة بعد.',style:TextStyle(fontSize:9,color:ClientTheme.muted)),if(reviews.isNotEmpty)...[const Divider(height:18),...reviews.take(3).map((r)=>Padding(padding:const EdgeInsets.only(bottom:8),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Row(children:[...List.generate(5,(i)=>Icon(i<(int.tryParse((r['rating']??0).toString())??0)?Icons.star:Icons.star_border,size:11,color:const Color(0xFFFFB400))),const Spacer(),const Text('عميل',style:TextStyle(fontSize:7,color:ClientTheme.muted))]),if((r['title']??'').toString().trim().isNotEmpty)Text(r['title'].toString(),style:const TextStyle(fontSize:9,fontWeight:FontWeight.w900)),if((r['body']??'').toString().trim().isNotEmpty)Text(r['body'].toString(),maxLines:3,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:8.5,height:1.45))])))]);}
+}
+class _ReviewComposer extends StatefulWidget{final int productId;const _ReviewComposer({required this.productId});@override State<_ReviewComposer> createState()=>_ReviewComposerState();}
+class _ReviewComposerState extends State<_ReviewComposer>{int rating=5;bool busy=false;final title=TextEditingController(),body=TextEditingController();@override void dispose(){title.dispose();body.dispose();super.dispose();}Future<void>send()async{setState(()=>busy=true);try{await api.submitProductReview(widget.productId,rating:rating,title:title.text,body:body.text);if(mounted)Navigator.pop(context,true);}catch(e){if(mounted){setState(()=>busy=false);ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}}}@override Widget build(BuildContext context)=>SafeArea(child:Directionality(textDirection:TextDirection.rtl,child:Padding(padding:EdgeInsets.fromLTRB(12,10,12,MediaQuery.viewInsetsOf(context).bottom+14),child:Column(mainAxisSize:MainAxisSize.min,crossAxisAlignment:CrossAxisAlignment.stretch,children:[Center(child:Container(width:38,height:4,decoration:BoxDecoration(color:const Color(0xFFD0D0D0),borderRadius:BorderRadius.circular(8)))),const SizedBox(height:10),const Text('أضف تقييمك',textAlign:TextAlign.center,style:TextStyle(fontSize:17,fontWeight:FontWeight.w900)),Row(mainAxisAlignment:MainAxisAlignment.center,children:List.generate(5,(i)=>IconButton(onPressed:busy?null:()=>setState(()=>rating=i+1),icon:Icon(i<rating?Icons.star:Icons.star_border,size:27,color:const Color(0xFFFFB400))))),TextField(controller:title,textDirection:TextDirection.rtl,decoration:const InputDecoration(labelText:'عنوان (اختياري)')),const SizedBox(height:6),TextField(controller:body,maxLines:4,textDirection:TextDirection.rtl,decoration:const InputDecoration(labelText:'مراجعتك')),const SizedBox(height:9),SizedBox(height:46,child:FilledButton(onPressed:busy?null:send,style:FilledButton.styleFrom(backgroundColor:Colors.black),child:busy?const CircularProgressIndicator(color:Colors.white):const Text('إرسال التقييم')))]))));
+}
+class ProductGallery extends StatelessWidget{final List<Map<String,dynamic>>media;final int current;final ValueChanged<int>onChanged;final List<Map<String,dynamic>>rightBadges;const ProductGallery({super.key,required this.media,required this.current,required this.onChanged,this.rightBadges=const[]});@override Widget build(BuildContext context){final count=media.isEmpty?1:media.length;return Stack(children:[AspectRatio(aspectRatio:.84,child:PageView.builder(reverse:true,itemCount:count,onPageChanged:onChanged,itemBuilder:(context,index){if(media.isEmpty)return Container(color:const Color(0xFFEDEDED),child:const Icon(Icons.image_outlined,size:42));final u=api.url((media[index]['url']??'').toString());return u.isEmpty?Container(color:const Color(0xFFEDEDED)):Image.network(u,fit:BoxFit.cover);})),if(rightBadges.isNotEmpty)Positioned(right:6,top:12,child:Column(children:rightBadges.take(5).map((b)=>Padding(padding:const EdgeInsets.only(bottom:4),child:_DetailBadge(badge:b))).toList()))]);}}
+class OptionBlock extends StatelessWidget{final Map<String,dynamic>option;const OptionBlock({super.key,required this.option});@override Widget build(BuildContext context)=>_SelectableOptionPreview(option:option);}
+class CartScreen extends StatefulWidget{const CartScreen({super.key});@override State<CartScreen> createState()=>_CartScreenState();}
+class _CartScreenState extends State<CartScreen>{Map<String,dynamic>?cart;bool busy=true;@override void initState(){super.initState();load();}Future<void>load()async{if(!state.loggedIn){setState(()=>busy=false);return;}try{final d=await api.cart(currencyId:state.currencyId);cart=d['item']is Map?Map<String,dynamic>.from(d['item']):null;}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}if(mounted)setState(()=>busy=false);} @override Widget build(BuildContext context){if(!state.loggedIn)return const LoginRequired();if(busy)return const Scaffold(body:Center(child:CircularProgressIndicator()));final rows=((cart?['items']as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();final subtotal=pfText(cart?['subtotal'],'0');final currency=rows.isNotEmpty?pfText(rows.first['currency_code'],state.currencyCode):state.currencyCode;return Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text('السلة ('+rows.length.toString()+')',style:const TextStyle(fontWeight:FontWeight.w900))),body:rows.isEmpty?const Center(child:Text('سلتك فارغة')):ListView(children:[if((cart?['subtotal_sar']??'0').toString()!='0')CartShippingPromo(subtotalSar:pfText(cart?['subtotal_sar'])),Padding(padding:const EdgeInsets.all(8),child:ListView.separated(shrinkWrap:true,physics:const NeverScrollableScrollPhysics(),itemCount:rows.length,separatorBuilder:(_,__)=>const SizedBox(height:5),itemBuilder:(_,i)=>CartRow(item:rows[i],onPlus:()async{await api.cartQty(int.parse(rows[i]['id'].toString()),int.parse(rows[i]['qty'].toString())+1);load();},onMinus:()async{await api.cartQty(int.parse(rows[i]['id'].toString()),int.parse(rows[i]['qty'].toString())-1);load();},onRemove:()async{await api.removeCart(int.parse(rows[i]['id'].toString()));load();})))],),bottomNavigationBar:rows.isEmpty?null:SafeArea(child:Container(color:Colors.white,padding:const EdgeInsets.all(10),child:Column(mainAxisSize:MainAxisSize.min,children:[Row(children:[const Expanded(child:Text('المجموع',style:TextStyle(fontWeight:FontWeight.w700))),Text(subtotal+' '+currency,style:const TextStyle(fontSize:19,fontWeight:FontWeight.w900))]),const SizedBox(height:7),SizedBox(width:double.infinity,height:48,child:FilledButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>CheckoutScreen(onFinished:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const OrdersScreen()))))),style:FilledButton.styleFrom(backgroundColor:Colors.black),child:const Text('المتابعة للتوصيل والدفع')))]))));}}
 class CartRow extends StatelessWidget{
   final Map<String,dynamic>item;final VoidCallback onPlus,onMinus,onRemove;
   const CartRow({super.key,required this.item,required this.onPlus,required this.onMinus,required this.onRemove});
@@ -1417,33 +1128,6 @@ class CartRow extends StatelessWidget{
   ]));
 }
 
-class CheckoutScreen extends StatefulWidget{const CheckoutScreen({super.key});@override State<CheckoutScreen> createState()=>_CheckoutScreenState();}
-class _CheckoutScreenState extends State<CheckoutScreen>{
-  List<Map<String,dynamic>>addresses=[];Map<String,dynamic>?cart;int?selected;bool busy=false;
-  @override void initState(){super.initState();load();}
-  Future<void>load()async{try{addresses=await api.addresses();final d=await api.cart();cart=d['item']is Map?Map<String,dynamic>.from(d['item']):null;if(addresses.isNotEmpty)selected=int.tryParse((addresses.firstWhere((e)=>e['is_default']==true,orElse:()=>addresses.first)['id']).toString());}catch(e){}if(mounted)setState((){});}
-  Future<void>submit()async{
-    if(selected==null||cart==null)return;
-    final items=((cart!['items']as List?)??const[]).whereType<Map>().map((e)=>{'variant_id':e['variant_id'],'qty':e['qty']}).toList();
-    if(items.isEmpty)return;setState(()=>busy=true);
-    try{final r=await api.createOrder(selected!,items);final it=r['item'];if(!mounted)return;Navigator.pushAndRemoveUntil(context,MaterialPageRoute(builder:(_)=>OrderSuccess(no:it is Map?(it['order_no']??'').toString():'')),(route)=>route.isFirst);}
-    catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}
-    if(mounted)setState(()=>busy=false);
-  }
-  @override Widget build(BuildContext context)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(
-    appBar:AppBar(title:const Text('إتمام الطلب',style:TextStyle(fontWeight:FontWeight.w900))),
-    body:ListView(padding:const EdgeInsets.all(10),children:[
-      const Text('عنوان الشحن',style:TextStyle(fontSize:16,fontWeight:FontWeight.w900)),
-      const SizedBox(height:8),
-      if(addresses.isEmpty)Container(color:Colors.white,padding:const EdgeInsets.all(14),child:const Text('أضف عنوانًا من الحساب أولًا.')),
-      ...addresses.map((a)=>RadioListTile<int>(value:int.parse(a['id'].toString()),groupValue:selected,onChanged:(v)=>setState(()=>selected=v),title:Text((a['recipient_name']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text((a['street']??'').toString()+'\n'+(a['phone']??'').toString()))),
-      const SizedBox(height:12),
-      Container(color:Colors.white,padding:const EdgeInsets.all(14),child:Row(children:[const Expanded(child:Text('الإجمالي',style:TextStyle(fontWeight:FontWeight.w800))),Text((cart?['subtotal']??'0').toString()+' SAR',style:const TextStyle(fontSize:20,fontWeight:FontWeight.w900))])),
-    ]),
-    bottomNavigationBar:addresses.isEmpty?null:SafeArea(child:Padding(padding:const EdgeInsets.all(10),child:SizedBox(height:50,child:FilledButton(onPressed:busy?null:submit,style:FilledButton.styleFrom(backgroundColor:ClientTheme.ink),child:busy?const CircularProgressIndicator(color:Colors.white):const Text('تأكيد الطلب'))))),
-  ));
-}
-
 class OrderSuccess extends StatelessWidget{
   final String no;const OrderSuccess({super.key,required this.no});
   @override Widget build(BuildContext context)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(body:SafeArea(child:Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
@@ -1455,53 +1139,22 @@ class OrderSuccess extends StatelessWidget{
 }
 
 class OrdersScreen extends StatefulWidget{const OrdersScreen({super.key});@override State<OrdersScreen> createState()=>_OrdersScreenState();}
-class _OrdersScreenState extends State<OrdersScreen>{
-  late Future<List<Map<String,dynamic>>>future;
-  @override void initState(){super.initState();future=api.orders();}
-  @override Widget build(BuildContext context)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(
-    appBar:AppBar(title:const Text('طلباتي',style:TextStyle(fontWeight:FontWeight.w900))),
-    body:FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,s){if(s.connectionState!=ConnectionState.done)return const Center(child:CircularProgressIndicator());if(s.hasError)return Center(child:Text(s.error.toString()));final rows=s.data??const[];if(rows.isEmpty)return const Center(child:Text('لا توجد طلبات'));return ListView.separated(padding:const EdgeInsets.all(10),itemCount:rows.length,separatorBuilder:(_,__)=>const SizedBox(height:6),itemBuilder:(_,i)=>Container(color:Colors.white,child:ListTile(
-      title:Text((rows[i]['order_no']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w900)),
-      subtitle:Text('الحالة: '+(rows[i]['status']??'').toString()+' • الدفع: '+(rows[i]['payment_status']??'').toString()),
-      trailing:Text((rows[i]['total']??'0').toString()+' SAR',style:const TextStyle(fontWeight:FontWeight.w900)),
-      onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>OrderDetailScreen(int.parse(rows[i]['id'].toString())))),
-    )));}),
-  ));
+class _OrdersScreenState extends State<OrdersScreen>{List<Map<String,dynamic>>rows=[];String filter='all';bool loading=true;@override void initState(){super.initState();load();}Future<void>load()async{try{rows=await api.orders();}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}if(mounted)setState(()=>loading=false);}List<Map<String,dynamic>>get filtered=>rows.where((o){final s=pfText(o['status']);if(filter=='pending')return s=='created'||s=='awaiting_payment';if(filter=='payment')return s=='awaiting_payment';if(filter=='shipping')return s=='shipped';if(filter=='completed')return s=='delivered';return true;}).toList();@override Widget build(BuildContext context)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:const Text('طلباتي',style:TextStyle(fontWeight:FontWeight.w900))),body:loading?const Center(child:CircularProgressIndicator()):Column(children:[SizedBox(height:48,child:ListView(scrollDirection:Axis.horizontal,padding:const EdgeInsets.symmetric(horizontal:6),children:[_f('all','الكل',Icons.list_alt_outlined),_f('pending','قيد المراجعة',Icons.pending_actions_outlined),_f('payment','بانتظار الدفع',Icons.payments_outlined),_f('shipping','قيد الشحن',Icons.local_shipping_outlined),_f('completed','مكتملة',Icons.check_circle_outline)])),Expanded(child:filtered.isEmpty?const Center(child:Text('لا توجد طلبات بهذه الحالة.')):RefreshIndicator(onRefresh:load,child:ListView.separated(padding:const EdgeInsets.fromLTRB(9,5,9,12),itemCount:filtered.length,separatorBuilder:(_,__)=>const SizedBox(height:6),itemBuilder:(_,i){final o=filtered[i],s=pfText(o['status']),cur=o['currency']is Map?Map<String,dynamic>.from(o['currency']):<String,dynamic>{};return InkWell(onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>OrderDetailScreen(int.parse(pfText(o['id']))))).then((_)=>load()),child:Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10)),child:Row(children:[Container(width:37,height:37,decoration:BoxDecoration(color:const Color(0xFFF3F3F3),borderRadius:BorderRadius.circular(9)),child:Icon(orderStatusIcon(s),size:19)),const SizedBox(width:8),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Text(pfText(o['order_no']),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w900)),const SizedBox(height:2),Text(orderStatusText(s)+' · '+pfText(o['payment_status']),style:const TextStyle(fontSize:8,color:ClientTheme.muted))])),Text(pfText(o['total'],'0')+' '+pfText(cur['symbol'],state.currencySymbol),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w900))])));}))))]));}
+Widget _f(String k,String t,IconData i)=>Padding(padding:const EdgeInsets.symmetric(horizontal:3,vertical:5),child:ChoiceChip(avatar:Icon(i,size:14),label:Text(t,style:const TextStyle(fontSize:8)),selected:filter==k,onSelected:(_)=>setState(()=>filter=k)));
 }
-
-class OrderDetailScreen extends StatefulWidget{
-  final int id;const OrderDetailScreen(this.id,{super.key});
-  @override State<OrderDetailScreen> createState()=>_OrderDetailScreenState();
-}
-class _OrderDetailScreenState extends State<OrderDetailScreen>{
-  Map<String,dynamic>?data;
-  @override void initState(){super.initState();api.order(widget.id).then((v){if(mounted)setState(()=>data=v['item']is Map?Map<String,dynamic>.from(v['item']):null);});}
-  @override Widget build(BuildContext context){
-    if(data==null)return const Scaffold(body:Center(child:CircularProgressIndicator()));
-    final items=((data!['items']as List?)??const[]).whereType<Map>().toList();
-    final shipments=((data!['shipments']as List?)??const[]).whereType<Map>().toList();
-    return Directionality(textDirection:TextDirection.rtl,child:Scaffold(
-      appBar:AppBar(title:Text((data!['order_no']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w900))),
-      body:ListView(padding:const EdgeInsets.all(10),children:[
-        Container(color:Colors.white,padding:const EdgeInsets.all(14),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-          Text('الحالة الحالية: '+(data!['status']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w900)),
-          const SizedBox(height:6),Text('الشحن: '+(data!['shipping_status']??'').toString()),Text('الدفع: '+(data!['payment_status']??'').toString()),
-          const SizedBox(height:8),Text('الإجمالي: '+(data!['total']??'0').toString()+' SAR',style:const TextStyle(fontWeight:FontWeight.w900)),
-        ])),
-        ...items.map((raw){final e=Map<String,dynamic>.from(raw);final media=(e['media']as List?)??const[];final image=media.isNotEmpty?api.url((media.first as Map)['url']?.toString()):'';return Container(color:Colors.white,margin:const EdgeInsets.only(top:6),padding:const EdgeInsets.all(8),child:Row(children:[
-          SizedBox(width:76,height:94,child:image.isEmpty?Container(color:const Color(0xFFEDEDED)):Image.network(image,fit:BoxFit.cover)),
-          const SizedBox(width:10),Expanded(child:Text((e['name']??'').toString()+'\n'+(e['qty']??1).toString()+' × '+(e['sale_price_display']??'0').toString(),style:const TextStyle(fontSize:12,fontWeight:FontWeight.w700))),
-        ]));}),
-        if(shipments.isNotEmpty)...[
-          const SectionTitle(title:'تتبع الشحنة'),
-          ...shipments.expand((s)=>((s['events']as List?)??const[]).whereType<Map>().map((e)=>ListTile(leading:const Icon(Icons.local_shipping_outlined),title:Text((e['status']??'').toString()),subtitle:Text(((e['location']??'').toString()+' '+(e['description']??'').toString()).trim())))),
-        ],
-      ]),
-    ));
-  }
-}
-
-class WishlistScreen extends StatefulWidget{const WishlistScreen({super.key});@override State<WishlistScreen> createState()=>_WishlistScreenState();}
+String orderStatusText(String s){switch(s){case'created':return'قيد المراجعة';case'awaiting_payment':return'بانتظار الدفع';case'paid':return'تم الدفع';case'processing':return'قيد التجهيز';case'shipped':return'قيد الشحن';case'delivered':return'مكتمل';case'returned':return'مرتجع';case'cancelled':return'ملغي';default:return s.isEmpty?'غير محدد':s;}}
+IconData orderStatusIcon(String s){switch(s){case'created':return Icons.pending_actions_outlined;case'awaiting_payment':return Icons.payments_outlined;case'paid':return Icons.verified_outlined;case'processing':return Icons.inventory_2_outlined;case'shipped':return Icons.local_shipping_outlined;case'delivered':return Icons.check_circle_outline;case'returned':return Icons.assignment_return_outlined;case'cancelled':return Icons.cancel_outlined;default:return Icons.receipt_long_outlined;}}
+class OrderDetailScreen extends StatefulWidget{final int id;const OrderDetailScreen(this.id,{super.key});@override State<OrderDetailScreen> createState()=>_OrderDetailScreenState();}
+class _OrderDetailScreenState extends State<OrderDetailScreen>{Map<String,dynamic>?data;bool loading=true;@override void initState(){super.initState();load();}Future<void>load()async{try{final d=await api.order(widget.id),x=d['item'];if(mounted)setState(()=>{data:x is Map?Map<String,dynamic>.from(x):null,loading=false});}catch(_){if(mounted)setState(()=>loading=false);}}@override Widget build(BuildContext context){if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator()));final d=data;if(d==null)return const Scaffold(body:Center(child:Text('تعذر تحميل الطلب.')));final s=pfText(d['status']),editable=s=='created'||s=='awaiting_payment',cur=d['currency']is Map?Map<String,dynamic>.from(d['currency']):<String,dynamic>{},addr=d['address_snapshot']is Map?Map<String,dynamic>.from(d['address_snapshot']):<String,dynamic>{};final items=((d['items']as List?)??const[]).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();final pays=((d['payments']as List?)??const[]).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();final proofs=((d['payment_proofs']as List?)??const[]).whereType<Map>().map((x)=>Map<String,dynamic>.from(x)).toList();final method=d['payment_method']is Map?Map<String,dynamic>.from(d['payment_method']):<String,dynamic>{};return Directionality(textDirection:TextDirection.rtl,child:Scaffold(appBar:AppBar(title:Text(pfText(d['order_no']),style:const TextStyle(fontWeight:FontWeight.w900)),actions:[if(editable)IconButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>OrderEditScreen(order:d))).then((_){load();}),icon:const Icon(Icons.edit_outlined))]),body:ListView(padding:const EdgeInsets.all(9),children:[
+  _orderSection('الحالة',orderStatusIcon(s),Row(children:[Icon(orderStatusIcon(s),size:21),const SizedBox(width:7),Text(orderStatusText(s),style:const TextStyle(fontSize:11,fontWeight:FontWeight.w900)),const Spacer(),Text('الدفع: '+pfText(d['payment_status']),style:const TextStyle(fontSize:8,color:ClientTheme.muted))])),
+  const SizedBox(height:7),_orderSection('العنوان',Icons.location_on_outlined,Text([pfText(addr['recipient_name']),pfText(addr['country_name']),pfText(addr['region_name']),pfText(addr['city_name']),pfText(addr['city_area_name']),pfText(addr['district']),pfText(addr['street']),pfText(addr['landmark']),pfText(addr['phone'])].where((x)=>x.isNotEmpty).join('\n'),style:const TextStyle(fontSize:9.5,height:1.55))),
+  const SizedBox(height:7),_orderSection('المنتجات',Icons.shopping_bag_outlined,Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:items.map((e){final vd=e['variant_display']is Map?Map<String,dynamic>.from(e['variant_display']):<String,dynamic>{},co=vd['color']is Map?Map<String,dynamic>.from(vd['color']):<String,dynamic>{},sz=vd['size']is Map?Map<String,dynamic>.from(vd['size']):<String,dynamic>{},opts=((e['options']as List?)??const[]).whereType<Map>().map((x)=>x['name'].toString()+': '+x['value'].toString()).join(' · '),media=((e['media']as List?)??const[]).whereType<Map>().toList(),img=media.isNotEmpty?api.url(pfText(media.first['url'])):'';return Container(margin:const EdgeInsets.only(bottom:6),padding:const EdgeInsets.all(8),decoration:BoxDecoration(color:const Color(0xFFF9F9F9),borderRadius:BorderRadius.circular(8)),child:Row(crossAxisAlignment:CrossAxisAlignment.start,children:[SizedBox(width:70,height:86,child:img.isEmpty?Container(color:ClientTheme.soft,child:const Icon(Icons.image_outlined)):Image.network(img,fit:BoxFit.cover)),const SizedBox(width:8),Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Text(pfText(e['name']),maxLines:2,overflow:TextOverflow.ellipsis,style:const TextStyle(fontSize:10.5,fontWeight:FontWeight.w900)),Text('الكمية: '+pfText(e['qty'])+' · سعر الوحدة: '+pfText(e['sale_price_display'])+' '+pfText(cur['symbol'],state.currencySymbol),style:const TextStyle(fontSize:8.5)),if(co.isNotEmpty)Text('اللون: '+pfText(co['name']),style:const TextStyle(fontSize:8.5)),if(sz.isNotEmpty)Text('المقاس: '+pfText(sz['label']),style:const TextStyle(fontSize:8.5)),if(opts.isNotEmpty)Text(opts,style:const TextStyle(fontSize:8,color:ClientTheme.muted))]))]));}).toList())),
+  const SizedBox(height:7),_orderSection('المبلغ',Icons.receipt_long_outlined,Column(children:[_or('المجموع',pfText(d['subtotal'],'0')+' '+pfText(cur['symbol'],state.currencySymbol)),_or('الخصم',pfText(d['discount'],'0')+' '+pfText(cur['symbol'],state.currencySymbol)),_or('التوصيل',pfText(d['shipping'],'0')+' '+pfText(cur['symbol'],state.currencySymbol)),const Divider(height:12),_or('الإجمالي',pfText(d['total'],'0')+' '+pfText(cur['symbol'],state.currencySymbol),true)])),
+  const SizedBox(height:7),_orderSection('الدفع',Icons.account_balance_wallet_outlined,Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Text(pfText(method['name']),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w900)),...pays.map((p)=>Text(pfText(p['status'])+' · '+pfText(p['amount'])+' '+pfText(cur['symbol'],state.currencySymbol),style:const TextStyle(fontSize:8.5))),if(editable&&pfText(d['payment_status'])!='paid')Padding(padding:const EdgeInsets.only(top:7),child:OutlinedButton.icon(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>PaymentProofScreen(orderId:widget.id,orderNo:pfText(d['order_no']),payment:method,total:pfText(d['total'],'0'),currency:pfText(cur['symbol'],state.currencySymbol))).then((_){load();}),icon:const Icon(Icons.upload_file_outlined,size:17),label:const Text('رفع إثبات الدفع')))])),
+  if(proofs.isNotEmpty)Padding(padding:const EdgeInsets.only(top:7),child:_orderSection('إثباتات الدفع',Icons.attach_file,Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:proofs.map((p)=>Text('إثبات #'+pfText(p['id'])+' · '+pfText(p['status']),style:const TextStyle(fontSize:8.5))).toList()))),
+  if(pfText(d['customer_note']).isNotEmpty)Padding(padding:const EdgeInsets.only(top:7),child:_orderSection('ملاحظات الطلب',Icons.sticky_note_2_outlined,Text(pfText(d['customer_note']),style:const TextStyle(fontSize:9.5,height:1.6)))),
+]));}Widget _orderSection(String t,IconData i,Widget child)=>Container(padding:const EdgeInsets.all(10),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(10)),child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[Row(children:[Icon(i,size:18),const SizedBox(width:6),Text(t,style:const TextStyle(fontSize:11,fontWeight:FontWeight.w900))]),const Divider(height:15),child]));Widget _or(String a,String b,[bool bold=false])=>Padding(padding:const EdgeInsets.symmetric(vertical:3),child:Row(children:[Expanded(child:Text(a,style:TextStyle(fontSize:9,fontWeight:bold?FontWeight.w900:FontWeight.w600))),Text(b,style:TextStyle(fontSize:bold?15:10,fontWeight:FontWeight.w900))]));}
+class WishlistScreenclass WishlistScreen extends StatefulWidget{const WishlistScreen({super.key});@override State<WishlistScreen> createState()=>_WishlistScreenState();}
 class _WishlistScreenState extends State<WishlistScreen>{
   List<ProductModel>rows=[];bool busy=true;
   @override void initState(){super.initState();load();}
@@ -1579,18 +1232,9 @@ class _AccountScreenState extends State<AccountScreen> {
                 },
               ),
             ),
-            AccountTile(
-              icon: Icons.shopping_bag_outlined,
-              title: 'طلباتي',
-              tap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const OrdersScreen(),
-                  ),
-                );
-              },
-            ),
+            AccountTile(icon: Icons.receipt_long_outlined,title: 'طلباتي',tap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const OrdersScreen()))),
+            AccountTile(icon: Icons.pending_actions_outlined,title:'طلبات قيد المراجعة',tap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const OrdersScreen()))),
+            AccountTile(icon: Icons.payments_outlined,title:'طلبات بانتظار الدفع',tap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const OrdersScreen()))),
             AccountTile(
               icon: Icons.favorite_border,
               title: 'المفضلة',
@@ -1627,6 +1271,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 );
               },
             ),
+            AccountTile(icon: Icons.policy_outlined,title:'الخصوصية والإرجاع',tap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const PolicyScreen()))),
             AccountTile(
               icon: Icons.support_agent,
               title: 'خدمة العملاء',
@@ -1712,25 +1357,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>{
   @override Widget build(BuildContext context)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(
     appBar:AppBar(title:const Text('الإشعارات',style:TextStyle(fontWeight:FontWeight.w900))),
     body:FutureBuilder<List<Map<String,dynamic>>>(future:future,builder:(context,s){if(s.connectionState!=ConnectionState.done)return const Center(child:CircularProgressIndicator());final rows=s.data??const[];if(rows.isEmpty)return const Center(child:Text('لا توجد إشعارات'));return ListView.separated(itemCount:rows.length,separatorBuilder:(_,__)=>const Divider(height:1),itemBuilder:(_,i)=>ListTile(title:Text((rows[i]['title']??'').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text((rows[i]['body']??'').toString())));}),
-  ));
-}
-
-class SupportScreen extends StatefulWidget{const SupportScreen({super.key});@override State<SupportScreen> createState()=>_SupportScreenState();}
-class _SupportScreenState extends State<SupportScreen>{
-  List<Map<String,dynamic>>convs=[];int?current;List<Map<String,dynamic>>messages=[];final input=TextEditingController();
-  @override void initState(){super.initState();load();}
-  Future<void>load()async{convs=await api.conversations();if(mounted)setState((){});}
-  Future<void>openChat(int id)async{current=id;messages=await api.messages(id);if(mounted)setState((){});}
-  Future<void>send()async{final text=input.text.trim();if(current==null||text.isEmpty)return;input.clear();await api.sendMessage(current!,text);await openChat(current!);}
-  @override Widget build(BuildContext context)=>Directionality(textDirection:TextDirection.rtl,child:Scaffold(
-    appBar:AppBar(title:Text(current==null?'خدمة العملاء':'المحادثة',style:const TextStyle(fontWeight:FontWeight.w900))),
-    body:current==null?ListView.separated(padding:const EdgeInsets.all(10),itemCount:convs.length+1,separatorBuilder:(_,__)=>const SizedBox(height:6),itemBuilder:(_,i){
-      if(i==0)return FilledButton.icon(onPressed:()async{final r=await api.newConversation();final id=int.tryParse((r['item']as Map)['id'].toString());if(id!=null){await load();await openChat(id);}},icon:const Icon(Icons.chat_bubble_outline),label:const Text('بدء محادثة'));
-      final c=convs[i-1];return Container(color:Colors.white,child:ListTile(title:Text((c['subject']??'خدمة العملاء').toString(),style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text((c['status']??'').toString()),onTap:()=>openChat(int.parse(c['id'].toString()))));
-    }):Column(children:[
-      Expanded(child:ListView.builder(padding:const EdgeInsets.all(12),itemCount:messages.length,itemBuilder:(_,i){final m=messages[i];final me=m['sender_type']=='customer';return Align(alignment:me?Alignment.centerRight:Alignment.centerLeft,child:Container(margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(10),constraints:const BoxConstraints(maxWidth:300),decoration:BoxDecoration(color:me?ClientTheme.ink:const Color(0xFFF0F0F0),borderRadius:const BorderRadius.all(Radius.circular(12))),child:Text((m['body']??'').toString(),style:TextStyle(color:me?Colors.white:ClientTheme.ink,fontSize:12))));})),
-      SafeArea(child:Padding(padding:const EdgeInsets.all(8),child:Row(children:[Expanded(child:TextField(controller:input,decoration:const InputDecoration(hintText:'اكتب رسالتك'))),IconButton(onPressed:send,icon:const Icon(Icons.send))]))),
-    ]),
   ));
 }
 
