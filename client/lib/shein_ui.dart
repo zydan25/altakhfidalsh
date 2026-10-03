@@ -31,14 +31,8 @@ List<Map<String, dynamic>> sxMaps(dynamic value) {
   return value.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
 }
 String sxImage(dynamic value) => api.url(sxText(value));
-String sxMoney(dynamic value) {
-  final number = double.tryParse(sxText(value));
-  if (number == null) return sxText(value);
-  var result = number.toStringAsFixed(2);
-  while (result.contains('.') && result.endsWith('0')) result = result.substring(0, result.length - 1);
-  if (result.endsWith('.')) result = result.substring(0, result.length - 1);
-  return result;
-}
+String sxMoney(dynamic value) =>
+    sxFormatMoney(value, currencyCode: state.currencyCode);
 
 class SxAppShell extends StatefulWidget {
   const SxAppShell({super.key});
@@ -4785,13 +4779,13 @@ class _ResultsListCard extends StatelessWidget {
                         ),
                       const SizedBox(width: 4),
                       Text(
-                        product.price + ' ' + state.currencySymbol,
+                        sxMoney(product.price) + ' ' + state.currencySymbol,
                         style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
                       ),
                     ]),
                     if (product.oldPrice != null && product.oldPrice!.isNotEmpty)
                       Text(
-                        product.oldPrice! + ' ' + state.currencySymbol,
+                        sxMoney(product.oldPrice!) + ' ' + state.currencySymbol,
                         style: const TextStyle(fontSize: 9, color: ClientTheme.muted, decoration: TextDecoration.lineThrough),
                       ),
                     const SizedBox(height: 4),
@@ -6664,7 +6658,7 @@ class _MiniTrendProduct extends StatelessWidget {
                             Alignment.centerRight,
                           ),
                           child: Text(
-                            price + ' ' + state.currencySymbol,
+                            sxMoney(price) + ' ' + state.currencySymbol,
                             textDirection: TextDirection.ltr,
                             textAlign: _sxTrendTextAlign(
                               ui['hero_product_price_align'],
@@ -7355,7 +7349,7 @@ class _TrendProductTileState extends State<_TrendProductTile> {
                                 Alignment.centerRight,
                               ),
                               child: Text(
-                                widget.product.price +
+                                sxMoney(widget.product.price) +
                                     ' ' +
                                     state.currencySymbol,
                                 textDirection: TextDirection.ltr,
