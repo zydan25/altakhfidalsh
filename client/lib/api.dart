@@ -432,6 +432,22 @@ class ApiService {
     final d=await get('/customer/me/wishlist');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>int.tryParse(e['product_id'].toString())).whereType<int>().toList();
   }
+  Future<Map<String,dynamic>> submitProductReview(
+    int productId, {
+    required int rating,
+    String? title,
+    String? body,
+  }) async {
+    final d = await post(
+      '/customer/me/products/' + productId.toString() + '/reviews',
+      {
+        'rating': rating,
+        'title': title?.trim() ?? '',
+        'body': body?.trim() ?? '',
+      },
+    );
+    return d is Map ? Map<String,dynamic>.from(d) : <String,dynamic>{};
+  }
   Future<void> wishlistAdd(int id)async{await post('/customer/me/wishlist/'+id.toString(),{});}
   Future<void> wishlistRemove(int id)async{await delete('/customer/me/wishlist/'+id.toString());}
   Future<List<Map<String,dynamic>>> notifications(int customerId)async{
