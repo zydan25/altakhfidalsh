@@ -296,6 +296,18 @@ class CustomerAuthService:
         return {"ok": True, "customer_id": customer.id}
 
     @staticmethod
+    def set_password(customer_id, new_password):
+        password = str(new_password or "")
+        if len(password) < 6:
+            raise ValueError("كلمة المرور يجب أن تكون 6 أحرف على الأقل.")
+        customer = db.session.get(Customer, int(customer_id))
+        if customer is None:
+            raise LookupError("الحساب غير موجود.")
+        customer.password_hash = generate_password_hash(password)
+        db.session.commit()
+        return {"ok": True}
+
+    @staticmethod
     def refresh(refresh_token, device_id=None):
         token_hash = CustomerAuthService._hash_token(refresh_token)
         session = AuthSession.query.filter_by(refresh_token_hash=token_hash).first()
