@@ -1,3 +1,5 @@
+from werkzeug.security import check_password_hash
+
 from flask import request
 
 from . import api_bp
@@ -6,6 +8,7 @@ from .security import customer_required, current_customer
 from .services import CustomerService
 from .wishlist import CustomerEngagementService
 from ...extensions import db
+from ...services.customer_deletion import delete_customer_permanently
 from ...models import Customer, CustomerAddress, City, CityArea, Country, Region, Product, Review
 
 
@@ -125,10 +128,31 @@ def logout():
     return {"ok": True}
 
 
+@api_bp.post("/me/delete")
+@customer_required
+def delete_my_account():
+    payload = request.get_json(silent=True) or {}
+    if str(payload.get("confirmation") or "").strip().upper() != "DELETE":
+        return {"error": "confirmation_required", "detail": "اكتب DELETE لتأكيد حذف الحساب."}, 400
+
+    customer = current_customer()
+    supplied_password = str(payload.get("password") or "")
+    if customer.password_hash:
+        if not supplied_password or not check_password_hash(customer.password_hash, supplied_password):
+            return {"error": "invalid_password", "detail": "أدخل كلمة المرور الحالية لتأكيد حذف الحساب."}, 401
+
+    try:
+        delete_customer_permanently(customer.id)
+        db.session.commit()
+        return {"ok": True}
+    except Exception as exc:
+        db.session.rollback()
+        return {"error": "account_delete_failed", "detail": str(exc)}, 400
+
+
 @api_bp.get("/me")
 @customer_required
-def me():
-    return {"item": CustomerService.serialize(current_customer())}
+def me():    return {"item": CustomerService.serialize(current_customer())}
 
 
 @api_bp.post("/me/privacy-acceptance")
