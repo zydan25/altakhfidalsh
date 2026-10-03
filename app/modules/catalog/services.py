@@ -2552,7 +2552,15 @@ class CatalogService:
         return items
 
     @staticmethod
-    def product_card_display_settings():
+    def merge_product_card_settings(global_settings, display_row=None):
+        merged = dict(global_settings or {})
+        overrides = getattr(display_row, "card_overrides_json", None) if display_row else {}
+        if isinstance(overrides, dict):
+            merged.update(overrides)
+        return merged
+
+    @staticmethod
+    def product_card_display_settings(product_id=None):
         """Global storefront product-card decoration/layout controlled by AppSetting."""
         import json
         defaults = {
@@ -2656,6 +2664,15 @@ class CatalogService:
                 custom = {}
 
         merged = {**defaults, **custom}
+
+        # Product-level overrides are sparse. Any key not overridden inherits
+        # the current global setting, so changing the global theme continues
+        # to affect every product that has no override for that key.
+        if product_id is not None:
+            row = db.session.get(ProductDisplaySettings, int(product_id))
+            overrides = row.card_overrides_json if row else {}
+            if isinstance(overrides, dict):
+                merged.update(overrides)
 
         def _number(key, low, high, integer=False):
             raw = merged.get(key)
