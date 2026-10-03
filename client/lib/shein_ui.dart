@@ -4808,6 +4808,7 @@ class _SxResultsState extends State<SxResults> {
     try {
       filters = await api.scopedFilters(
         categoryIds: sideScoped ? null : categoryIds,
+        circleId: sideScoped ? activeCircleId : null,
         sideCategoryId: sideScoped ? effectiveSideCategoryId : null,
         hashtagIds: [
           if (widget.hashtagId != null && widget.hashtagId! > 0)
@@ -4816,10 +4817,9 @@ class _SxResultsState extends State<SxResults> {
         ],
       );
     } catch (_) {
-      // Compatibility fallback: both endpoints are server-defined taxonomy
-      // sources. This also keeps the client working while an older API
-      // deployment is being restarted.
-      if (categoryIds.isNotEmpty) {
+      // Compatibility fallback applies only to normal catalog-category
+      // results. Side/circle results must never fall back to the root taxonomy.
+      if (!sideScoped && categoryIds.isNotEmpty) {
         try {
           filters = await api.categoryFiltersForCategories(
             categoryIds,
@@ -4831,9 +4831,7 @@ class _SxResultsState extends State<SxResults> {
       }
     }
 
-    // A successful but empty scoped response can occur on an older server
-    // that still exposes category filters.
-    if (filters.isEmpty && categoryIds.isNotEmpty) {
+    if (filters.isEmpty && !sideScoped && categoryIds.isNotEmpty) {
       try {
         filters = await api.categoryFiltersForCategories(
           categoryIds,
@@ -4949,6 +4947,9 @@ class _SxResultsState extends State<SxResults> {
     _changingCategoryNotifier.value = true;
 
     try {
+      // Rebuild the filter sheet for the newly selected circle, not just
+      // the parent side-category scope.
+      await _loadFiltersForCurrentScope();
       final next = await _fetch();
       if (mounted) {
         products = next;
