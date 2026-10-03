@@ -966,6 +966,79 @@ def register_entity_views(admin_bp):
         return _render("دوائر الفئات", ["ID", "الفئة", "الأب", "الترتيب"],
                        [[x.id, x.name, x.parent_id or "—", x.sort_order] for x in rows], "المحتوى والمتجر")
 
+    @admin_bp.route("/badges", methods=["GET", "POST"])
+    def badges():
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                action = (request.form.get("action") or "create").strip()
+                row = db.session.get(Badge, request.form.get("id", type=int))
+                color_re = re.compile(r"^#[0-9a-fA-F]{6}$")
+                name = (request.form.get("name") or "").strip()
+                code = (request.form.get("code") or "").strip().lower()
+                bg = (request.form.get("bg_color") or "#111827").strip()
+                fg = (request.form.get("text_color") or "#ffffff").strip()
+                if not name or not code:
+                    raise ValueError("اسم الشارة والكود مطلوبان.")
+                if not color_re.fullmatch(bg) or not color_re.fullmatch(fg):
+                    raise ValueError("ألوان الشارة يجب أن تكون بصيغة HEX.")
+                tab = (request.form.get("storefront_tab") or "none").strip()
+                if tab not in {"none", "new", "offers"}:
+                    raise ValueError("تبويب الشارة غير صالح.")
+                if action == "create":
+                    if Badge.query.filter_by(code=code).first():
+                        raise ValueError("كود الشارة مستخدم مسبقًا.")
+                    db.session.add(Badge(
+                        name=name, code=code, bg_color=bg, text_color=fg,
+                        style=(request.form.get("style") or "solid").strip(),
+                        storefront_tab=tab,
+                        priority=request.form.get("priority", 0, type=int),
+                    ))
+                    success = "تم إنشاء الشارة."
+                elif row is None:
+                    raise ValueError("الشارة غير موجودة.")
+                elif action == "archive":
+                    row.is_active = False
+                    success = "تمت أرشفة الشارة."
+                elif action == "restore":
+                    row.is_active = True
+                    success = "تمت إعادة تفعيل الشارة."
+                elif action == "update":
+                    duplicate = Badge.query.filter(
+                        Badge.id != row.id, Badge.code == code
+                    ).first()
+                    if duplicate:
+                        raise ValueError("كود الشارة مستخدم مسبقًا.")
+                    row.name = name
+                    row.code = code
+                    row.bg_color = bg
+                    row.text_color = fg
+                    row.style = (request.form.get("style") or "solid").strip()
+                    row.storefront_tab = tab
+                    row.priority = request.form.get("priority", row.priority, type=int)
+                    row.is_active = True
+                    success = "تم تحديث الشارة."
+                else:
+                    raise ValueError("إجراء الشارة غير معروف.")
+                db.session.commit()
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+        rows = Badge.query.order_by(
+            Badge.is_active.desc(), Badge.priority.desc(), Badge.name
+        ).limit(500).all()
+        return render_template(
+            "admin/badges.html",
+            title="الشارات",
+            section="المحتوى والمتجر",
+            badges=rows,
+            success=success,
+            error=error,
+            **build_admin_context(),
+        )
+
     @admin_bp.route("/side-categories", methods=["GET", "POST"])
     def side_categories():
         from ..models import (
