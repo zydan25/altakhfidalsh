@@ -236,6 +236,8 @@ def register_entity_views(admin_bp):
                     )
                     success = "تم تحديث حالة الطلب."
                 elif action == "edit":
+                    if order.status != "created":
+                        raise ValueError("لا يمكن تعديل الطلب بعد تأكيده.")
                     from ..models import OrderItem, OrderItemOption
                     items = []
                     for item in OrderItem.query.filter_by(order_id=order.id).order_by(OrderItem.id).all():
