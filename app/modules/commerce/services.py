@@ -525,6 +525,8 @@ class CommerceService:
     def serialize_order(order):
         currency = db.session.get(Currency, order.currency_id) if order.currency_id else None
         payment_method = db.session.get(PaymentMethod, order.payment_method_id) if getattr(order, "payment_method_id", None) else None
+        shipping_rate = db.session.get(ShippingRate, order.shipping_rate_id) if order.shipping_rate_id else None
+        shipping_method = db.session.get(ShippingMethod, shipping_rate.method_id) if shipping_rate else None
         order_items = (
             OrderItem.query
             .filter_by(order_id=order.id)
@@ -573,6 +575,13 @@ class CommerceService:
             "customer_note": order.customer_note,
             "shipping_rule_ids": list(order.shipping_rule_ids_json or []),
             "shipping_rate_id": order.shipping_rate_id,
+            "shipping_method_id": shipping_rate.method_id if shipping_rate else None,
+            "shipping_method": {
+                "id": shipping_method.id,
+                "name": shipping_method.name,
+                "code": shipping_method.code,
+                "supports_cod": bool(shipping_method.supports_cod),
+            } if shipping_method else None,
             "total": str(order.total),
             "status": order.status,
             "payment_status": order.payment_status,
@@ -811,17 +820,21 @@ class CommerceService:
                             option_value=option_value,
                         ))
 
+            selected_shipping_method_id = (
+                int(payload["shipping_method_id"])
+                if payload.get("shipping_method_id")
+                else None
+            )
+            if selected_shipping_method_id is None and order.shipping_rate_id:
+                previous_rate = db.session.get(ShippingRate, order.shipping_rate_id)
+                selected_shipping_method_id = previous_rate.method_id if previous_rate else None
             shipping_quote = CommerceService._resolve_shipping(
                 customer_id,
                 address.city_id,
                 address.city_area_id,
                 subtotal_sar,
                 first_price.fx_rate if first_price else order.fx_rate,
-                order.shipping_rate_id and (
-                    db.session.get(ShippingRate, order.shipping_rate_id).method_id
-                    if db.session.get(ShippingRate, order.shipping_rate_id)
-                    else None
-                ),
+                selected_shipping_method_id,
             )
             order.address_snapshot = CommerceService._address_snapshot(address)
             order.city_id = address.city_id
