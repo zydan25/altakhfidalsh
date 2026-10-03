@@ -1367,9 +1367,32 @@ def product_scope_filters():
                 item["values"].append(value)
                 seen.add(int(value["id"]))
 
-    # Custom filter definitions are built from values actually assigned to
-    # products in the current scope.
-    rows = (
+    # Custom filter definitions are server taxonomy. For a normal category
+    # result use its category scope; for a side/circle result derive only the
+    # categories actually assigned to products in that side/circle. This keeps
+    # all configured values (including currently unused values) while avoiding
+    # the unrelated parent root category.
+    filter_category_ids = list(category_scope_ids)
+    if side_category_id or circle_id:
+        scoped_category_rows = (
+            db.session.query(ProductCategory.category_id)
+            .filter(
+                ProductCategory.product_id.in_(
+                    db.session.query(product_scope.c.id)
+                )
+            )
+            .distinct()
+            .all()
+        )
+        filter_category_ids = sorted(
+            {
+                int(category_id)
+                for (category_id,) in scoped_category_rows
+                if category_id is not None
+            }
+        )
+
+    custom_filter_query = (
         db.session.query(
             CategoryFilterDefinition.id,
             CategoryFilterDefinition.name,
@@ -1384,23 +1407,25 @@ def product_scope_filters():
             CategoryFilterValue,
             CategoryFilterValue.filter_id == CategoryFilterDefinition.id,
         )
-        .join(
-            ProductFilterValue,
-            ProductFilterValue.filter_value_id == CategoryFilterValue.id,
-        )
         .filter(
-            ProductFilterValue.product_id.in_(db.session.query(product_scope.c.id)),
             CategoryFilterDefinition.is_active.is_(True),
             CategoryFilterValue.is_active.is_(True),
         )
-        .order_by(
-            CategoryFilterDefinition.sort_order,
-            CategoryFilterDefinition.id,
-            CategoryFilterValue.sort_order,
-            CategoryFilterValue.id,
-        )
-        .all()
     )
+
+    if filter_category_ids:
+        custom_filter_query = custom_filter_query.filter(
+            CategoryFilterDefinition.category_id.in_(filter_category_ids)
+        )
+    else:
+        custom_filter_query = custom_filter_query.filter(False)
+
+    rows = custom_filter_query.order_by(
+        CategoryFilterDefinition.sort_order,
+        CategoryFilterDefinition.id,
+        CategoryFilterValue.sort_order,
+        CategoryFilterValue.id,
+    ).all()
 
     for (
         definition_id,
