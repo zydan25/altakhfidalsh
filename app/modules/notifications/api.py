@@ -89,7 +89,11 @@ def my_notifications():
             "created_at": notification.created_at.isoformat() if notification.created_at else None,
             "read_at": row.read_at.isoformat() if row.read_at else None,
         })
-    return {"items": items, "unread_count": unread_count}
+    return {
+        "customer_id": customer_id,
+        "items": items,
+        "unread_count": unread_count,
+    }
 
 
 @api_bp.post("/notifications/me/read-all")
