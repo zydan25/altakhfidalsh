@@ -24,8 +24,11 @@ from ...models import (
     ProductMedia,
     ProductSideCategoryCircle,
     ProductVariant,
+    ProductOption,
+    ProductOptionValue,
     ProductColorReference,
     ProductSizeReference,
+    Size,
     Brand,
     Review,
     Order,
@@ -538,21 +541,165 @@ def public_product_feed():
         }
 
     trend_product_ids = set()
+    trend_card_by_product = {}
     if product_ids:
-        trend_product_ids = {
-            int(product_id)
-            for (product_id,) in (
-                db.session.query(TrendProduct.product_id)
-                .join(Trend, Trend.id == TrendProduct.trend_id)
-                .filter(
-                    TrendProduct.product_id.in_(product_ids),
-                    Trend.is_active.is_(True),
-                    Trend.status == "published",
-                )
-                .distinct()
-                .all()
+        trend_rows = (
+            db.session.query(TrendProduct, Trend, Hashtag)
+            .join(Trend, Trend.id == TrendProduct.trend_id)
+            .join(Hashtag, Hashtag.id == Trend.hashtag_id)
+            .filter(
+                TrendProduct.product_id.in_(product_ids),
+                Trend.is_active.is_(True),
+                Trend.status == "active",
+                Hashtag.is_active.is_(True),
             )
-        }
+            .order_by(
+                TrendProduct.product_id,
+                Trend.sort_order,
+                Trend.id.desc(),
+                TrendProduct.slot,
+            )
+            .all()
+        )
+        for trend_product, trend, hashtag in trend_rows:
+            if CatalogService.is_trend_timer_expired(trend):
+                continue
+            product_id = int(trend_product.product_id)
+            trend_product_ids.add(product_id)
+            if product_id in trend_card_by_product:
+                continue
+            assignment_settings = (
+                trend_product.settings_json
+                if isinstance(trend_product.settings_json, dict)
+                else {}
+            )
+            trend_card_by_product[product_id] = {
+                "id": trend.id,
+                "hashtag": {
+                    "id": hashtag.id,
+                    "name": hashtag.name,
+                    "slug": hashtag.slug,
+                    "display_name": hashtag.display_name or f"#{hashtag.name}",
+                },
+                "settings": assignment_settings,
+            }
+
+    hashtags_by_product = {}
+    if product_ids:
+        hashtag_rows = (
+            db.session.query(ProductHashtag.product_id, Hashtag)
+            .join(Hashtag, Hashtag.id == ProductHashtag.hashtag_id)
+            .filter(
+                ProductHashtag.product_id.in_(product_ids),
+                Hashtag.is_active.is_(True),
+            )
+            .order_by(
+                ProductHashtag.product_id,
+                Hashtag.sort_order,
+                Hashtag.id,
+            )
+            .all()
+        )
+        for product_id, hashtag in hashtag_rows:
+            bucket = hashtags_by_product.setdefault(int(product_id), [])
+            bucket.append({
+                "id": hashtag.id,
+                "name": hashtag.name,
+                "slug": hashtag.slug,
+                "display_name": hashtag.display_name or f"#{hashtag.name}",
+            })
+
+    # Product cards can expose one compact size/age label without loading the
+    # full product-detail payload. Prefer an Age option, then Size option,
+    # then the first active variant's catalog size as a safe fallback.
+    option_meta_by_product = {}
+    if product_ids:
+        option_rows = (
+            db.session.query(
+                ProductOption.product_id,
+                ProductOption.name,
+                ProductOption.sort_order,
+                ProductOptionValue.label,
+                ProductOptionValue.sort_order,
+            )
+            .join(
+                ProductOptionValue,
+                ProductOptionValue.option_id == ProductOption.id,
+            )
+            .filter(ProductOption.product_id.in_(product_ids))
+            .order_by(
+                ProductOption.product_id,
+                ProductOption.sort_order,
+                ProductOptionValue.sort_order,
+                ProductOptionValue.id,
+            )
+            .all()
+        )
+        for product_id, option_name, option_sort, label, value_sort in option_rows:
+            label_text = (label or "").strip()
+            if not label_text:
+                continue
+            name_text = (option_name or "").strip().casefold()
+            kind = None
+            if any(token in name_text for token in (
+                "age", "year", "years", "عمر", "سن", "سنوات", "الفئة العمرية"
+            )):
+                kind = "age"
+            elif any(token in name_text for token in (
+                "size", "sizes", "مقاس", "المقاس", "مقاسات"
+            )):
+                kind = "size"
+            if kind is None:
+                continue
+
+            current = option_meta_by_product.get(int(product_id))
+            priority = 0 if kind == "age" else 1
+            candidate = {
+                "label": label_text,
+                "kind": kind,
+                "_priority": priority,
+                "_sort": int(option_sort or 0),
+                "_value_sort": int(value_sort or 0),
+            }
+            if (
+                current is None
+                or candidate["_priority"] < current["_priority"]
+                or (
+                    candidate["_priority"] == current["_priority"]
+                    and (
+                        candidate["_sort"], candidate["_value_sort"]
+                    ) < (
+                        current["_sort"], current["_value_sort"]
+                    )
+                )
+            ):
+                option_meta_by_product[int(product_id)] = candidate
+
+    variant_by_product = {}
+    if product_ids:
+        variant_rows = (
+            db.session.query(ProductVariant.product_id, ProductVariant.id, Size.label)
+            .outerjoin(Size, Size.id == ProductVariant.size_id)
+            .filter(
+                ProductVariant.product_id.in_(product_ids),
+                ProductVariant.is_active.is_(True),
+            )
+            .order_by(ProductVariant.product_id, ProductVariant.id)
+            .all()
+        )
+        for product_id, variant_id, size_label in variant_rows:
+            product_key = int(product_id)
+            if product_key in variant_by_product:
+                continue
+            variant_by_product[product_key] = {
+                "id": int(variant_id),
+                "size_label": (size_label or "").strip() or None,
+            }
+
+    for meta in option_meta_by_product.values():
+        meta.pop("_priority", None)
+        meta.pop("_sort", None)
+        meta.pop("_value_sort", None)
 
     display_by_product = {
         row.product_id: row
@@ -663,6 +810,20 @@ def public_product_feed():
                 item_colors.append(color)
         item["colors"] = item_colors[:8]
         item["is_trend"] = row.id in trend_product_ids
+        if row.id in trend_card_by_product:
+            item["trend_card"] = trend_card_by_product[row.id]
+        else:
+            item["trend_card"] = None
+        item["hashtags"] = hashtags_by_product.get(row.id, [])
+        card_meta = option_meta_by_product.get(row.id)
+        if card_meta is None:
+            variant_meta = variant_by_product.get(row.id)
+            if variant_meta and variant_meta.get("size_label"):
+                card_meta = {
+                    "label": variant_meta["size_label"],
+                    "kind": "size",
+                }
+        item["card_meta"] = card_meta
         first_media = row_media[0] if row_media else None
         if first_media and first_media.get("width") and first_media.get("height"):
             item["image_aspect_ratio"] = float(first_media["width"]) / float(first_media["height"])
@@ -703,11 +864,8 @@ def public_product_feed():
             for product_badge, badge in badge_rows
         ]
 
-        variant = ProductVariant.query.filter_by(
-            product_id=row.id,
-            is_active=True,
-        ).order_by(ProductVariant.id).first()
-        item["variant_id"] = variant.id if variant else None
+        variant_meta = variant_by_product.get(row.id)
+        item["variant_id"] = variant_meta["id"] if variant_meta else None
         item["base_price_sar"] = str(row.base_price)
         item["status"] = row.status
 
