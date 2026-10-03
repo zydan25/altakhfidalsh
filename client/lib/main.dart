@@ -7,11 +7,16 @@ import 'auth_flow.dart';
 import 'app_state.dart';
 import 'shein_ui.dart';
 import 'theme.dart';
+import 'notifications_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await api.restore();
   await state.restorePreferences();
+  await AltakhfidNotificationService.initialize();
+  if (api.token.isNotEmpty) {
+    await AltakhfidNotificationService.ensureStarted();
+  }
   runApp(const AltakhfidApp());
 }
 
