@@ -216,7 +216,6 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
       final result = await api.checkPhone(value);
       normalizedPhone = (result['phone'] ?? value).toString();
       final exists = result['exists'] == true;
-      final hasPassword = result['has_password'] == true;
       existingCustomerName = (result['name'] ?? '').toString().trim();
       if (existingCustomerName!.isEmpty) existingCustomerName = null;
 
