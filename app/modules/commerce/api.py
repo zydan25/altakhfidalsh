@@ -356,6 +356,11 @@ def update_my_cart_item(item_id):
         return {"error": "cart_update_failed", "detail": str(exc)}, 400
 
 
+@api_bp.delete("/me/cart")
+@customer_required
+def clear_my_cart():
+    return {"item": CartService.clear_cart(current_customer().id)}
+
 @api_bp.get("/me/cart")
 @customer_required
 def my_cart():
