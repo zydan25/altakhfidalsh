@@ -28,8 +28,14 @@ def conversations():
     customer_id = current_customer().id
     query = Conversation.query.filter(Conversation.customer_id == customer_id)
     rows = query.order_by(Conversation.last_message_at.desc(), Conversation.id.desc()).limit(100).all()
-    return {"items": [
-        {
+    items = []
+    for x in rows:
+        unread_count = Message.query.filter(
+            Message.conversation_id == x.id,
+            Message.sender_type != "customer",
+            Message.read_at.is_(None),
+        ).count()
+        items.append({
             "id": x.id,
             "customer_id": x.customer_id,
             "order_id": x.order_id,
@@ -37,9 +43,9 @@ def conversations():
             "subject": x.subject or ("محادثة الدعم" if x.type == "customer_service" and x.order_id is None else "محادثة"),
             "status": x.status,
             "last_message_at": x.last_message_at.isoformat() if x.last_message_at else None,
-        }
-        for x in rows
-    ]}
+            "unread_count": unread_count,
+        })
+    return {"items": items}
 
 
 @api_bp.get("/conversations/<int:conversation_id>/messages")
@@ -83,6 +89,21 @@ def send_message(conversation_id):
         )}, 201
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "message_send_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/conversations/<int:conversation_id>/read")
+@customer_required
+def mark_conversation_read(conversation_id):
+    conversation = db.session.get(Conversation, conversation_id)
+    if conversation is None or conversation.customer_id != current_customer().id:
+        return {"error": "not_found"}, 404
+    Message.query.filter(
+        Message.conversation_id == conversation_id,
+        Message.sender_type != "customer",
+        Message.read_at.is_(None),
+    ).update({"read_at": db.func.now()}, synchronize_session=False)
+    db.session.commit()
+    return {"ok": True, "unread_count": 0}
 
 
 @api_bp.post("/conversations/<int:conversation_id>/attachments")
