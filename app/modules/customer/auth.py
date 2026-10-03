@@ -8,12 +8,27 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from ...extensions import db
 from ...models import AuthSession, Customer, CustomerAddress, CustomerPreference, Currency, City, CityArea, OTPRequest
-from ...services.phone import normalize_phone
+from ...services.phone import normalize_phone, phone_candidates
 from ...services.whatsapp import WhatsAppService
 
 
 class CustomerAuthService:
     PRIVACY_POLICY_VERSION = "2026-10-03"
+
+    @staticmethod
+    def _find_customer(raw_phone):
+        phone = normalize_phone(raw_phone)
+        if not phone:
+            return None, phone
+        customer = Customer.query.filter_by(phone_normalized=phone).first()
+        if customer is None:
+            for candidate in phone_candidates(raw_phone):
+                if candidate == phone:
+                    continue
+                customer = Customer.query.filter_by(phone_normalized=candidate).first()
+                if customer is not None:
+                    break
+        return customer, phone
 
     @staticmethod
     def _hash_code(code):
@@ -104,10 +119,9 @@ class CustomerAuthService:
 
     @staticmethod
     def check_phone(raw_phone):
-        phone = normalize_phone(raw_phone)
+        customer, phone = CustomerAuthService._find_customer(raw_phone)
         if not phone:
             raise ValueError("phone is required")
-        customer = Customer.query.filter_by(phone_normalized=phone).first()
         return {
             "phone": phone,
             "exists": customer is not None,
@@ -217,7 +231,14 @@ class CustomerAuthService:
             raise ValueError("invalid OTP")
 
         otp.status = "verified"
-        customer = Customer.query.filter_by(phone_normalized=otp.phone).first()
+        customer, canonical_phone = CustomerAuthService._find_customer(otp.phone)
+        if customer is not None and customer.phone_normalized != canonical_phone:
+            # Normalize legacy local records when they are successfully authenticated.
+            existing_canonical = Customer.query.filter_by(
+                phone_normalized=canonical_phone
+            ).first()
+            if existing_canonical is None:
+                customer.phone_normalized = canonical_phone
 
         if otp.purpose == "password_reset":
             if customer is None:
@@ -249,8 +270,7 @@ class CustomerAuthService:
 
     @staticmethod
     def password_login(raw_phone, password, device_id=None):
-        phone = normalize_phone(raw_phone)
-        customer = Customer.query.filter_by(phone_normalized=phone).first() if phone else None
+        customer, phone = CustomerAuthService._find_customer(raw_phone)
         if customer is None or not customer.password_hash:
             raise ValueError("لا يوجد دخول بكلمة مرور لهذا الرقم.")
         if not check_password_hash(customer.password_hash, str(password or "")):
@@ -285,7 +305,7 @@ class CustomerAuthService:
         password = str(new_password or "")
         if len(password) < 6:
             raise ValueError("كلمة المرور يجب أن تكون 6 أحرف على الأقل.")
-        customer = Customer.query.filter_by(phone_normalized=otp.phone).first()
+        customer, canonical_phone = CustomerAuthService._find_customer(otp.phone)
         if customer is None:
             raise LookupError("الحساب غير موجود.")
         customer.password_hash = generate_password_hash(password)
