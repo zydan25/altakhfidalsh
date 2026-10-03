@@ -5,7 +5,8 @@ import 'models.dart';
 
 class ApiService {
   static const _homeCachePrefix = 'storefront_home_v5_';
-  static const _feedCachePrefix = 'storefront_feed_v5_';
+  // v6 invalidates older result caches after the circle-result filtering fixes.
+  static const _feedCachePrefix = 'storefront_feed_v6_';
   String token='';
   final String baseUrl;
   ApiService():baseUrl=(const String.fromEnvironment('API_BASE_URL',defaultValue:'https://takhfidsh.alattab.site/api/v1')).replaceAll(RegExp(r'/$'),'');
