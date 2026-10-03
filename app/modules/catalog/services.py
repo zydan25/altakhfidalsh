@@ -50,6 +50,7 @@ from ...models import (
     SideCircleDisplayGroupItem,
     ProductSideCategoryCircle,
     SizeGuide,
+    Size,
     ProductColorReference,
     ProductSizeReference,
     AppSetting,
@@ -2195,9 +2196,12 @@ class CatalogService:
             for row, color in color_reference_rows
         ]
         size_reference_rows = (
-            db.session.query(ProductSizeReference, __import__("app.models", fromlist=["Size"]).Size)
-            .join(__import__("app.models", fromlist=["Size"]).Size, __import__("app.models", fromlist=["Size"]).Size.id == ProductSizeReference.size_id)
-            .filter(ProductSizeReference.product_id == product_id, __import__("app.models", fromlist=["Size"]).Size.is_active.is_(True))
+            db.session.query(ProductSizeReference, Size)
+            .join(Size, Size.id == ProductSizeReference.size_id)
+            .filter(
+                ProductSizeReference.product_id == product_id,
+                Size.is_active.is_(True),
+            )
             .order_by(ProductSizeReference.sort_order, ProductSizeReference.id)
             .all()
         )
@@ -2259,6 +2263,18 @@ class CatalogService:
         ]
         display = db.session.get(ProductDisplaySettings, product_id)
         policies = db.session.get(ProductPolicyAssignment, product_id)
+        shipping_policy = (
+            db.session.get(ShippingPolicy, policies.shipping_policy_id)
+            if policies and policies.shipping_policy_id else None
+        )
+        return_policy = (
+            db.session.get(ReturnPolicy, policies.return_policy_id)
+            if policies and policies.return_policy_id else None
+        )
+        warranty_policy = (
+            db.session.get(WarrantyPolicy, policies.warranty_policy_id)
+            if policies and policies.warranty_policy_id else None
+        )
         basics_ready = bool(
             (product.sku or "").strip()
             and (product.name or "").strip()
@@ -2297,6 +2313,27 @@ class CatalogService:
                 "shipping_policy_id": policies.shipping_policy_id if policies else None,
                 "return_policy_id": policies.return_policy_id if policies else None,
                 "warranty_policy_id": policies.warranty_policy_id if policies else None,
+                "shipping": {
+                    "name": shipping_policy.name,
+                    "free_shipping_enabled": bool(shipping_policy.free_shipping_enabled),
+                    "min_order_amount": str(shipping_policy.min_order_amount) if shipping_policy.min_order_amount is not None else None,
+                    "promo_text": shipping_policy.promo_text,
+                    "delivery_window": shipping_policy.delivery_window,
+                } if shipping_policy else None,
+                "return": {
+                    "name": return_policy.name,
+                    "return_window_days": return_policy.return_window_days,
+                    "conditions": return_policy.conditions,
+                    "fee_rule": return_policy.fee_rule,
+                    "refund_method": return_policy.refund_method,
+                } if return_policy else None,
+                "warranty": {
+                    "name": warranty_policy.name,
+                    "duration_days": warranty_policy.duration_days,
+                    "coverage": warranty_policy.coverage,
+                    "exclusions": warranty_policy.exclusions,
+                    "claim_method": warranty_policy.claim_method,
+                } if warranty_policy else None,
             },
             "publishable": bool(basics_ready and categories and active_variant_count and media),
             "steps": {
