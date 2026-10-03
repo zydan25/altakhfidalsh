@@ -28,11 +28,13 @@ def create_app(config_class=Config):
     from .admin import admin_bp
     from .modules import register_module_blueprints
     from .webhooks import webhooks_bp
+    from .realtime import init_realtime
 
     app.register_blueprint(api_bp, url_prefix="/api/v1")
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(webhooks_bp)
     register_module_blueprints(app)
+    init_realtime(app)
 
     @app.get("/policies")
     def policies_page():
