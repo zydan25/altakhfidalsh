@@ -7449,6 +7449,39 @@ class SxTrendDetailScreen extends StatelessWidget {
   }
 }
 
+class _CartNotice extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  final bool success;
+  const _CartNotice({
+    required this.icon,
+    required this.text,
+    this.success = false,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    decoration: BoxDecoration(
+      color: success ? const Color(0xFFEAF7F0) : Colors.white,
+      border: Border.all(color: ClientTheme.border),
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, size: 17),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(fontSize: 8.8, fontWeight: FontWeight.w700, height: 1.4),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
 class SxCartScreen extends StatefulWidget {
   const SxCartScreen({super.key});
   @override State<SxCartScreen> createState() => _SxCartScreenState();
