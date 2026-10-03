@@ -2545,6 +2545,7 @@ class CatalogService:
             "counter_color": "#ffffff",
             "counter_font_size": 12,
             "counter_bottom": 8,
+            "counter_align": "center",
             "show_counter": True,
             "timer_background_color": "#111827",
             "timer_text_color": "#ffffff",
@@ -2567,6 +2568,8 @@ class CatalogService:
             "hashtag_background_color": "#f3f4f7",
             "hashtag_active_background_color": "#f0e6ff",
             "hashtag_font_size": 11,
+            "hashtag_height": 31,
+            "hashtag_horizontal_padding": 13,
             "hashtag_radius": 0,
             "pull_enabled": True,
             "pull_text": "اسحب للتحديث",
@@ -2622,6 +2625,7 @@ class CatalogService:
             "picks_image_height": 258,
             "picks_content_height": 92,
             "picks_title_font_size": 11,
+            "picks_section_background_color": "#f3f3f3",
         }
         row = AppSetting.query.filter_by(
             group_code="trends",
@@ -2716,6 +2720,8 @@ class CatalogService:
             ("badge_radius", 0, 16, True),
             ("counter_font_size", 7, 18, True),
             ("counter_bottom", 0, 30, True),
+            ("hashtag_height", 24, 48, True),
+            ("hashtag_horizontal_padding", 4, 28, True),
             ("timer_font_size", 7, 16, False),
             ("timer_radius", 0, 16, True),
             ("logo_font_size", 14, 40, True),
