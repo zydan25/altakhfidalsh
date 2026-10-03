@@ -2834,7 +2834,7 @@ class CatalogService:
             ("brand_radius", 0, 16, True),
             ("product_badge_font_size", 6, 18, False),
             ("product_badge_radius", 0, 16, True),
-            ("product_badge_max", 1, 4, True),
+            ("product_badge_max", 1, 8, True),
             ("trend_badge_font_size", 6, 18, False),
             ("trend_badge_radius", 0, 16, True),
             ("trend_hashtag_font_size", 6, 18, False),
