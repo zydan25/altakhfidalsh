@@ -352,7 +352,7 @@ class _SxProductCardState extends State<SxProductCard> {
     final settings = _badgeSettings(badge);
     final position = sxText(
       settings['position'],
-      _cardText('product_badge_position', 'top_right'),
+      'top_right',
     );
     return position.isEmpty ? 'top_right' : position;
   }
@@ -902,9 +902,9 @@ class _SxProductCardState extends State<SxProductCard> {
       sxText(badge['name'], sxText(badge['code'])),
     );
     final decoration = sxText(settings['text_decoration'], 'none');
-    final fontSize = _numberFromMap(settings, 'font_size', _cardNumber('product_badge_font_size', 8));
+    final fontSize = _numberFromMap(settings, 'font_size', 8);
     final weight = _intFromMap(settings, 'font_weight', 900);
-    final radius = _numberFromMap(settings, 'border_radius', _cardNumber('product_badge_radius', 3));
+    final radius = _numberFromMap(settings, 'border_radius', 3);
     final horizontal = _numberFromMap(settings, 'padding_horizontal', 5);
     final vertical = _numberFromMap(settings, 'padding_vertical', 2);
 
