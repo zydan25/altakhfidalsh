@@ -41,8 +41,12 @@ class _SxProductScreenState extends State<SxProductScreen> {
 
       final variants = _maps(next['variants']);
       if (variants.isNotEmpty) {
-        final c = sxInt(variants.first['color_id']);
-        final s = sxInt(variants.first['size_id']);
+        final preferred = variants.firstWhere(
+          (variant) => sxInt(variant['available_qty']) > 0,
+          orElse: () => variants.first,
+        );
+        final c = sxInt(preferred['color_id']);
+        final s = sxInt(preferred['size_id']);
         colorId = c > 0 ? c : null;
         sizeId = s > 0 ? s : null;
       }
