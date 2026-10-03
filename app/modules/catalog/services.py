@@ -2123,10 +2123,12 @@ class CatalogService:
                 "ends_at": row.ends_at.isoformat() if row.ends_at else None,
                 "custom_text": row.custom_text,
                 "position": row.position,
+                "sort_order": int(row.sort_order or 0),
+                "settings": dict(row.settings_json or {}),
             }
             for row in ProductBadge.query
             .filter_by(product_id=product_id)
-            .order_by(ProductBadge.position, ProductBadge.id)
+            .order_by(ProductBadge.sort_order, ProductBadge.id)
             .all()
         ]
         hashtags = [

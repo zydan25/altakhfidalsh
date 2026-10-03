@@ -401,6 +401,16 @@
         <label>الأولوية<input name="priority" type="number" value="0"></label>
       </div>
       <label>النمط<select name="style"><option value="solid">Solid</option><option value="outline">Outline</option><option value="soft">Soft</option></select></label>
+      <div class="form-grid badge-visual-defaults">
+        <label>حجم النص<input name="font_size" type="number" min="6" max="32" step="0.5" value="9"></label>
+        <label>وزن النص<input name="font_weight" type="number" min="300" max="900" step="100" value="800"></label>
+      </div>
+      <div class="form-grid badge-visual-defaults">
+        <label>شفافية الخلفية<input name="background_opacity" type="number" min="0" max="1" step="0.05" value="1"></label>
+        <label>الخط على النص<select name="text_decoration"><option value="none">بدون خط</option><option value="line_through">خط فوق النص</option></select></label>
+      </div>
+      <div class="badge-quick-preview" aria-live="polite"><span id="quickBadgePreview">خصم</span></div>
+      <p class="muted badge-help">إعدادات الشارة الافتراضية يمكن تخصيصها على مستوى هذا المنتج بعد ربطها.</p>
       <div class="modal-actions">
         <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
         <button class="primary-button" type="submit">إنشاء الشارة</button>

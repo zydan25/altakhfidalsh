@@ -528,19 +528,39 @@
 
     document.getElementById("badgeSelection").innerHTML = (marketing.badges || []).map(x => {
       const selected = selectedBadgeRows.has(String(x.id));
-      const current = selectedBadgeRows.get(String(x.id));
-      const tabLabel = x.storefront_tab === "new"
-        ? "جديد"
-        : x.storefront_tab === "offers"
-          ? "العروض"
-          : "عام";
-      const days = current ? remainingDays(current) : 0;
-      return '<label class="check-row"><input type="checkbox" value="' + x.id + '" data-badge-checkbox ' +
-        (selected ? 'checked' : '') + (!x.is_active ? ' disabled' : '') + '><span><strong>' +
-        escapeHtml(x.name) + '</strong><small>' + escapeHtml(x.code) + ' · ' + tabLabel +
-        (!x.is_active ? ' · مؤرشف' : '') + '</small><small>مدة الظهور بالأيام (0 = دائم) ' +
-        '<input type="number" min="0" max="3650" step="1" value="' + days +
-        '" data-badge-days="' + x.id + '" style="width:96px;margin-inline-start:8px"></small></span></label>';
+      const current = selectedBadgeRows.get(String(x.id)) || {};
+      const saved = current.settings || {};
+      const value = (key, fallback) => saved[key] ?? fallback;
+      const bg = value("background_color", x.bg_color || "#111827");
+      const fg = value("text_color", x.text_color || "#ffffff");
+      const font = value("font_size", 9);
+      const weight = value("font_weight", 800);
+      const opacity = value("background_opacity", 1);
+      const position = value("position", "top_right");
+      const decoration = value("text_decoration", "none");
+      return '<div class="product-badge-editor" data-badge-row="' + x.id + '">' +
+        '<div class="product-badge-editor-head">' +
+          '<label class="check-row compact-check"><input type="checkbox" value="' + x.id + '" data-badge-checkbox ' +
+            (selected ? 'checked' : '') + (!x.is_active ? ' disabled' : '') + '><span><strong>' +
+            escapeHtml(x.name) + '</strong><small>' + escapeHtml(x.code) + '</small></span></label>' +
+          '<span class="badge-live-preview" style="background:' + escapeHtml(bg) + ';color:' + escapeHtml(fg) + ';opacity:' + Number(opacity) + ';text-decoration:' + (decoration === "line_through" ? "line-through" : "none") + ';font-size:' + Number(font) + 'px;font-weight:' + Number(weight) + '">' +
+            escapeHtml(current.custom_text || x.name) + '</span>' +
+        '</div>' +
+        '<div class="badge-editor-grid">' +
+          '<label>ترتيب<input type="number" min="0" max="99" value="' + (current.sort_order ?? 0) + '" data-badge-sort="' + x.id + '"></label>' +
+          '<label>الموقع<select data-badge-position="' + x.id + '">' +
+            ['top_left','top_right','above_image','before_name','after_name','right_of_image','below_price'].map(option => '<option value="' + option + '"' + (position === option ? ' selected' : '') + '>' + option + '</option>').join('') +
+          '</select></label>' +
+          '<label>النص المخصص<input value="' + escapeHtml(current.custom_text || '') + '" data-badge-text="' + x.id + '" maxlength="120"></label>' +
+          '<label>الظهور بالأيام<input type="number" min="0" max="3650" value="' + days + '" data-badge-days="' + x.id + '"></label>' +
+          '<label>حجم الخط<input type="number" min="6" max="32" step="0.5" value="' + font + '" data-badge-font="' + x.id + '"></label>' +
+          '<label>وزن الخط<input type="number" min="300" max="900" step="100" value="' + weight + '" data-badge-weight="' + x.id + '"></label>' +
+          '<label>شفافية الخلفية<input type="number" min="0" max="1" step="0.05" value="' + opacity + '" data-badge-opacity="' + x.id + '"></label>' +
+          '<label>خط فوق النص<select data-badge-decoration="' + x.id + '"><option value="none"' + (decoration !== "line_through" ? ' selected' : '') + '>بدون</option><option value="line_through"' + (decoration === "line_through" ? ' selected' : '') + '>خط فوق النص</option></select></label>' +
+          '<label>خلفية HEX<span class="color-input-row"><input type="color" value="' + bg + '" data-badge-bg="' + x.id + '"><input dir="ltr" value="' + bg + '" data-badge-bg-text="' + x.id + '" maxlength="7"></span></label>' +
+          '<label>النص HEX<span class="color-input-row"><input type="color" value="' + fg + '" data-badge-fg="' + x.id + '"><input dir="ltr" value="' + fg + '" data-badge-fg-text="' + x.id + '" maxlength="7"></span></label>' +
+        '</div>' +
+      '</div>';
     }).join("") || '<div class="empty-state compact"><strong>لا توجد شارات.</strong><span class="muted">أضف شارة جديدة من الزر.</span></div>';
 
     document.getElementById("hashtagSelection").innerHTML = (marketing.hashtags || []).map(x => (
@@ -1027,11 +1047,23 @@
   });
 
   document.getElementById("saveMarketing").addEventListener("click", async () => {
-    const badgeItems = [...document.querySelectorAll("[data-badge-checkbox]:checked")].map(input => {
-      const daysInput = document.querySelector('[data-badge-days="' + input.value + '"]');
+    const badgeItems = [...document.querySelectorAll("[data-badge-checkbox]:checked")].map((input, index) => {
+      const id = input.value;
+      const pick = (selector, fallback = "") => document.querySelector(selector + id)?.value ?? fallback;
       return {
-        badge_id: Number(input.value),
-        duration_days: Number(daysInput?.value || 0),
+        badge_id: Number(id),
+        duration_days: Number(pick('[data-badge-days="', "0") || 0),
+        sort_order: Number(pick('[data-badge-sort="', index) || index),
+        custom_text: pick('[data-badge-text="', ""),
+        settings: {
+          position: pick('[data-badge-position="', "top_right"),
+          font_size: Number(pick('[data-badge-font="', "9") || 9),
+          font_weight: Number(pick('[data-badge-weight="', "800") || 800),
+          background_opacity: Number(pick('[data-badge-opacity="', "1") || 1),
+          text_decoration: pick('[data-badge-decoration="', "none"),
+          background_color: pick('[data-badge-bg-text="', "#111827"),
+          text_color: pick('[data-badge-fg-text="', "#ffffff"),
+        },
       };
     });
     const hashtagIds = [...document.querySelectorAll("[data-hashtag-checkbox]:checked")].map(input => Number(input.value));

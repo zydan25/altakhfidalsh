@@ -1571,6 +1571,53 @@ def register_entity_views(admin_bp):
 
         product_card_groups = [
             {
+                "title": "الخلفية والهوية الأساسية",
+                "hint": "تحكم في خلفية البطاقة واسم المنتج والوصف القصير وتناسق النصوص.",
+                "fields": [
+                    ("card_radius", "تدوير البطاقة", "number", 0, 30, 1, True),
+                    ("show_name", "إظهار اسم المنتج", "checkbox"),
+                    ("name_font_size", "حجم اسم المنتج", "number", 7, 24, .5, False),
+                    ("name_font_weight", "وزن اسم المنتج", "number", 300, 900, 100, True),
+                    ("name_max_lines", "أقصى أسطر للاسم", "number", 1, 3, 1, True),
+                    ("show_short_description", "إظهار الوصف القصير", "checkbox"),
+                    ("short_description_font_size", "حجم الوصف القصير", "number", 7, 18, .5, False),
+                    ("short_description_font_weight", "وزن الوصف القصير", "number", 300, 900, 100, True),
+                    ("short_description_max_lines", "أقصى أسطر للوصف", "number", 1, 3, 1, True),
+                ],
+            },
+            {
+                "title": "السعر والعملة",
+                "hint": "تحكم مستقل في السعر الحالي والسعر قبل الخصم ورمز العملة، مع شفافية الخلفيات.",
+                "fields": [
+                    ("show_price", "إظهار السعر الحالي", "checkbox"),
+                    ("price_font_size", "حجم السعر الحالي", "number", 9, 28, .5, False),
+                    ("price_font_weight", "وزن السعر الحالي", "number", 300, 900, 100, True),
+                    ("price_background_opacity", "شفافية خلفية السعر", "number", 0, 1, .05, False),
+                    ("show_compare_price", "إظهار السعر قبل الخصم", "checkbox"),
+                    ("compare_price_font_size", "حجم السعر قبل الخصم", "number", 7, 20, .5, False),
+                    ("compare_price_font_weight", "وزن السعر قبل الخصم", "number", 300, 900, 100, True),
+                    ("compare_price_text_decoration", "خط السعر قبل الخصم", "select", ["line_through", "none"]),
+                    ("compare_price_background_opacity", "شفافية خلفية السعر السابق", "number", 0, 1, .05, False),
+                    ("show_currency", "إظهار رمز العملة", "checkbox"),
+                    ("currency_font_size", "حجم رمز العملة", "number", 7, 20, .5, False),
+                    ("currency_font_weight", "وزن رمز العملة", "number", 300, 900, 100, True),
+                    ("currency_background_opacity", "شفافية خلفية العملة", "number", 0, 1, .05, False),
+                ],
+            },
+            {
+                "title": "المقاس والهوامش الصغيرة",
+                "hint": "اختياري لإظهار المقاس أو المعلومة المختصرة على بطاقة المنتج.",
+                "fields": [
+                    ("show_size", "إظهار المقاس", "checkbox"),
+                    ("size_font_size", "حجم المقاس", "number", 7, 18, .5, False),
+                    ("size_font_weight", "وزن المقاس", "number", 300, 900, 100, True),
+                    ("meta_font_size", "حجم المعلومة العلوية", "number", 6, 18, .5, False),
+                    ("meta_radius", "تدوير المعلومة العلوية", "number", 0, 16, 1, True),
+                    ("meta_padding_horizontal", "حشو المعلومة أفقيًا", "number", 0, 12, 1, True),
+                    ("meta_padding_vertical", "حشو المعلومة رأسيًا", "number", 0, 8, 1, True),
+                ],
+            },
+            {
                 "title": "الترند والهاشتاج فوق اسم المنتج",
                 "hint": "هذه العناصر تظهر قبل اسم المنتج في البطاقة الرئيسية.",
                 "fields": [
@@ -1625,6 +1672,19 @@ def register_entity_views(admin_bp):
         ]
 
         product_card_color_fields = [
+            ("card_background_color", "خلفية البطاقة"),
+            ("name_color", "لون اسم المنتج"),
+            ("name_background_color", "خلفية اسم المنتج"),
+            ("short_description_color", "لون الوصف القصير"),
+            ("short_description_background_color", "خلفية الوصف القصير"),
+            ("price_color", "لون السعر الحالي"),
+            ("price_background_color", "خلفية السعر الحالي"),
+            ("compare_price_color", "لون السعر قبل الخصم"),
+            ("compare_price_background_color", "خلفية السعر قبل الخصم"),
+            ("currency_color", "لون رمز العملة"),
+            ("currency_background_color", "خلفية رمز العملة"),
+            ("size_color", "لون المقاس"),
+            ("size_background_color", "خلفية المقاس"),
             ("brand_background_color", "خلفية العلامة التجارية"),
             ("brand_text_color", "لون نص العلامة"),
             ("trend_badge_background_color", "خلفية شارة الترند"),
