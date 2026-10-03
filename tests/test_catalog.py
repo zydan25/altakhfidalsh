@@ -721,7 +721,7 @@ def test_product_detail_uses_customer_pricing_group_and_selected_currency(app):
         db.session.add(country)
         db.session.flush()
         region = Region(country_id=country.id, code="NORTH", name="الشمال")
-        city = City(region_id=region.id, code="IBB", name="إب")
+        city = City(region=region, code="IBB", name="إب")
         db.session.add_all([region, city])
         db.session.flush()
         area = CityArea(city_id=city.id, code="CENTER", name="الوسط", direction="north")
