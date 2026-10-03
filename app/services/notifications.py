@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timezone
 
-from sqlalchemy import text
+from sqlalchemy import or_, text
 
 from ...extensions import db
 from ...models import Customer, CustomerNotification, CustomerPreference, Notification
@@ -12,11 +12,20 @@ class NotificationService:
 
     @staticmethod
     def _emit(customer_id, notification_id):
+        payload_data = {
+            "customer_id": int(customer_id),
+            "notification_id": int(notification_id),
+        }
+        if notification is not None:
+            payload_data.update({
+                "type": notification.type,
+                "title": notification.title,
+                "body": notification.body,
+                "data": notification.data or {},
+                "sent_at": notification.sent_at.isoformat() if notification.sent_at else None,
+            })
         payload = json.dumps(
-            {
-                "customer_id": int(customer_id),
-                "notification_id": int(notification_id),
-            },
+            payload_data,
             separators=(",", ":"),
         )
         try:
@@ -53,7 +62,7 @@ class NotificationService:
                 notification_id=row.id,
             )
         )
-        NotificationService._emit(customer_id, row.id)
+        NotificationService._emit(customer_id, row.id, row)
         db.session.commit()
         return {
             "id": row.id,
@@ -75,7 +84,7 @@ class NotificationService:
             )
             .filter(
                 Customer.status == "active",
-                db.or_(
+                or_(
                     CustomerPreference.customer_id.is_(None),
                     CustomerPreference.notifications_enabled.is_(True),
                 ),
@@ -104,7 +113,11 @@ class NotificationService:
             )
             created.append((int(customer_id), int(row.id)))
         for customer_id, notification_id in created:
-            NotificationService._emit(customer_id, notification_id)
+            NotificationService._emit(
+                customer_id,
+                notification_id,
+                db.session.get(Notification, notification_id),
+            )
         db.session.commit()
         return {"count": len(created), "notification_ids": [x[1] for x in created]}
 
