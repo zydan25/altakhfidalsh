@@ -6824,27 +6824,47 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
                                   ),
                                 ),
                               )
-                            : SliverGrid(
-                                delegate: SliverChildBuilderDelegate(
-                                  (_, i) => _TrendProductTile(
-                                    product: picks[i],
-                                    hashtag: hashtagId == null
-                                        ? null
-                                        : trendTags.firstWhere(
-                                            (x) => sxInt(x['id']) == hashtagId,
-                                            orElse: () => <String, dynamic>{},
-                                          ),
-                                    ui: ui,
-                                    displaySettings: productCardSettings,
+                            : SliverToBoxAdapter(
+                                child: Container(
+                                  color: _sxTrendHex(
+                                    ui['picks_section_background_color'],
+                                    const Color(0xFFF3F3F3),
                                   ),
-                                  childCount: picks.length,
-                                ),
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  crossAxisSpacing: 4 * scale,
-                                  mainAxisSpacing: 5 * scale,
-                                  mainAxisExtent: picksExtent,
+                                  padding: EdgeInsets.only(
+                                    top: 6 * scale,
+                                    bottom: 6 * scale,
+                                  ),
+                                  child: GridView.builder(
+                                    primary: false,
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    padding: EdgeInsets.zero,
+                                    itemCount: picks.length,
+                                    gridDelegate:
+                                        SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      crossAxisSpacing: 4 * scale,
+                                      mainAxisSpacing: 5 * scale,
+                                      mainAxisExtent: picksExtent,
+                                    ),
+                                    itemBuilder: (_, i) => Container(
+                                      color: Colors.white,
+                                      child: _TrendProductTile(
+                                        product: picks[i],
+                                        hashtag: hashtagId == null
+                                            ? null
+                                            : trendTags.firstWhere(
+                                                (x) =>
+                                                    sxInt(x['id']) == hashtagId,
+                                                orElse: () =>
+                                                    <String, dynamic>{},
+                                              ),
+                                        ui: ui,
+                                        displaySettings: productCardSettings,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                   ),
@@ -7180,15 +7200,24 @@ class _TrendsHero extends StatelessWidget {
               bottom: _sxTrendNumber(ui, 'counter_bottom', 8),
               left: 0,
               right: 0,
-              child: Text(
-                (currentIndex + 1).toString() +
-                    ' / ' +
-                    trends.length.toString(),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _sxTrendHex(ui['counter_color'], Colors.white),
-                  fontSize: _sxTrendNumber(ui, 'counter_font_size', 12),
-                  fontWeight: FontWeight.w600,
+              child: Align(
+                alignment: _sxTrendAlignment(
+                  ui['counter_align'],
+                  Alignment.center,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    (currentIndex + 1).toString() +
+                        ' / ' +
+                        trends.length.toString(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _sxTrendHex(ui['counter_color'], Colors.white),
+                      fontSize: _sxTrendNumber(ui, 'counter_font_size', 12),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -7796,48 +7825,70 @@ class _TrendHashtagStrip extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-        height: 39,
-        child: Directionality(
-          textDirection: TextDirection.rtl,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-            children: [
-              _menu(),
-              const SizedBox(width: 6),
-              for (final tag in tags) ...[
-                _chip(
-                  label: tagText(tag),
-                  selected: sxInt(tag['id']) == selectedId,
-                  onTap: () => onSelect(sxInt(tag['id'])),
-                ),
-                const SizedBox(width: 6),
-              ],
+  Widget build(BuildContext context) {
+    final chipHeight = _sxTrendNumber(ui, 'hashtag_height', 31).clamp(24, 48);
+    final rowHeight = chipHeight + 8;
+
+    return SizedBox(
+      height: rowHeight,
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+          children: [
+            _menu(chipHeight),
+            const SizedBox(width: 6),
+            for (final tag in tags) ...[
               _chip(
-                label: 'لك',
-                selected: selectedId == null,
-                purple: true,
-                onTap: () => onSelect(null),
+                label: tagText(tag),
+                selected: sxInt(tag['id']) == selectedId,
+                onTap: () => onSelect(sxInt(tag['id'])),
+                height: chipHeight,
               ),
+              const SizedBox(width: 6),
             ],
+            _chip(
+              label: 'لك',
+              selected: selectedId == null,
+              purple: true,
+              onTap: () => onSelect(null),
+              height: chipHeight,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _menu(double height) => Material(
+        color: _sxTrendHex(
+          ui['hashtag_background_color'],
+          const Color(0xFFF7F7F7),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            _sxTrendNumber(ui, 'hashtag_radius', 0),
           ),
         ),
-      );
-
-  Widget _menu() => Material(
-        color: _sxTrendHex(ui['hashtag_background_color'], const Color(0xFFF7F7F7)),
         child: InkWell(
+          borderRadius: BorderRadius.circular(
+            _sxTrendNumber(ui, 'hashtag_radius', 0),
+          ),
           onTap: onMenu,
-          child: const SizedBox(
-            width: 35,
-            height: 31,
+          child: SizedBox(
+            width: height + 4,
+            height: height,
             child: Center(
               child: Icon(
                 Icons.menu,
-                size: 21,
-                color: Color(0xFF8B8B8B),
+                size: (_sxTrendNumber(ui, 'hashtag_font_size', 11.5) + 9)
+                    .clamp(17, 28),
+                color: _sxTrendHex(
+                  ui['hashtag_text_color'],
+                  const Color(0xFF8B8B8B),
+                ),
               ),
             ),
           ),
@@ -7848,26 +7899,59 @@ class _TrendHashtagStrip extends StatelessWidget {
     required String label,
     required bool selected,
     required VoidCallback onTap,
+    required double height,
     bool purple = false,
   }) =>
       Material(
-        color: selected
-            ? _sxTrendHex(ui['hashtag_active_background_color'], const Color(0xFFF0E6FF))
-            : _sxTrendHex(ui['hashtag_background_color'], const Color(0xFFF3F4F7)),
+        color: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(
+            _sxTrendNumber(ui, 'hashtag_radius', 0),
+          ),
+        ),
         child: InkWell(
+          borderRadius: BorderRadius.circular(
+            _sxTrendNumber(ui, 'hashtag_radius', 0),
+          ),
           onTap: onTap,
           child: Container(
-            height: 31,
-            padding: const EdgeInsets.symmetric(horizontal: 13),
+            height: height,
+            padding: EdgeInsets.symmetric(
+              horizontal: _sxTrendNumber(
+                ui,
+                'hashtag_horizontal_padding',
+                13,
+              ),
+            ),
             alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected
+                  ? _sxTrendHex(
+                      ui['hashtag_active_background_color'],
+                      const Color(0xFFF0E6FF),
+                    )
+                  : _sxTrendHex(
+                      ui['hashtag_background_color'],
+                      const Color(0xFFF3F4F7),
+                    ),
+              borderRadius: BorderRadius.circular(
+                _sxTrendNumber(ui, 'hashtag_radius', 0),
+              ),
+            ),
             child: Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: selected
-                    ? _sxTrendHex(ui['hashtag_active_text_color'], const Color(0xFF8355E6))
-                    : _sxTrendHex(ui['hashtag_text_color'], const Color(0xFF4C4C4C)),
+                    ? _sxTrendHex(
+                        ui['hashtag_active_text_color'],
+                        const Color(0xFF8355E6),
+                      )
+                    : _sxTrendHex(
+                        ui['hashtag_text_color'],
+                        const Color(0xFF4C4C4C),
+                      ),
                 fontSize: _sxTrendNumber(ui, 'hashtag_font_size', 11.5),
                 fontWeight:
                     selected || purple ? FontWeight.w800 : FontWeight.w600,
