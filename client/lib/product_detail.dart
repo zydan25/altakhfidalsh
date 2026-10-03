@@ -73,18 +73,36 @@ class _SxProductScreenState extends State<SxProductScreen> {
   Future<void> _loadRelated(Map<String, dynamic> productData) async {
     if (loadingRelated) return;
     final categories = _maps(productData['categories']);
-    final categoryId = categories.isNotEmpty ? sxInt(categories.first['id']) : null;
+    final recommendation = _asMap(productData['recommendation_settings']);
+    final source = sxText(recommendation['source'], 'same_category');
+    int? scopeId;
+
+    if (source == 'same_category' && categories.isNotEmpty) {
+      scopeId = sxInt(categories.first['id']);
+    } else if (source == 'parent_category' && categories.isNotEmpty) {
+      final parent = categories.first['parent_id'];
+      scopeId = parent == null ? null : sxInt(parent);
+    } else if (source == 'root_category') {
+      final roots = productData['root_category_ids'];
+      if (roots is List && roots.isNotEmpty) {
+        scopeId = sxInt(roots.first);
+      }
+    }
+
     setState(() => loadingRelated = true);
     try {
       final rows = await api.feed(
-        category: categoryId != null && categoryId > 0 ? categoryId : null,
+        category: scopeId != null && scopeId > 0 ? scopeId : null,
         currencyId: state.currencyId,
-        sort: 'popular',
+        sort: 'random',
+        discoveryTab: null,
       );
       if (!mounted) return;
       final seen = <int>{widget.id};
       setState(() {
-        related = rows.where((product) => seen.add(product.id)).take(10).toList();
+        related = rows.where((product) => seen.add(product.id))
+            .take(sxInt(recommendation['limit'], 10).clamp(2, 20))
+            .toList();
       });
     } catch (_) {
       if (mounted) setState(() => related = <ProductModel>[]);
@@ -190,34 +208,38 @@ class _SxProductScreenState extends State<SxProductScreen> {
     }
   }
 
-  Future<void> _addToCart() async {
+  Future<bool> _addToCart() async {
     final variant = _variantId();
     if (variant == null || variant <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('اختر خيارات المنتج أولًا')),
-      );
-      return;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('اختر خيارات المنتج أولًا')),
+        );
+      }
+      return false;
     }
     try {
       await api.addCart(variant);
       final cart = await api.cart(currencyId: state.currencyId);
       cartBadge.value = sxIntListLength(cart['item']?['items']);
-      if (!mounted) return;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تمت إضافة المنتج إلى الحقيبة')),
       );
+      return true;
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(sxText(error))),
         );
       }
+      return false;
     }
   }
 
   Future<void> _buyNow() async {
-    await _addToCart();
-    if (!mounted) return;
+    final added = await _addToCart();
+    if (!added || !mounted) return;
     final builder = widget.cartBuilder;
     if (builder != null) {
       Navigator.push(context, MaterialPageRoute(builder: builder));
@@ -263,9 +285,11 @@ class _SxProductScreenState extends State<SxProductScreen> {
     );
     final reviews = _maps(data['reviews_preview']);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
-      body: SafeArea(
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF7F7F7),
+        body: SafeArea(
         bottom: false,
         child: Column(
           children: [
@@ -322,7 +346,17 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       showRating: display['show_rating'] != false,
                       showReviewCount: display['show_review_count'] != false,
                       badges: _maps(data['badges']),
+                      cardSettings: _asMap(data['product_card_settings']),
                     ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: _ProductIdentityPanel(
+                      brand: sxText(brand['name']),
+                      productType: sxText(product['product_type']),
+                      material: sxText(product['material']),
+                      sku: sxText(product['sku']),
+                    ),
+                  ),
                   ),
                   if (colors.isNotEmpty || sizes.isNotEmpty)
                     SliverToBoxAdapter(
@@ -354,6 +388,11 @@ class _SxProductScreenState extends State<SxProductScreen> {
                     ),
                   ),
                   SliverToBoxAdapter(
+                    child: _DeliveryBadgePanel(
+                      badges: _maps(data['delivery_badges']),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
                     child: _DetailSection(
                       title: 'تفاصيل المنتج',
                       icon: Icons.description_outlined,
@@ -376,8 +415,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       average: average,
                       count: reviewCount,
                       reviews: reviews,
+                      onWriteReview: _openReviewComposer,
                     ),
-                  ),
                   if (related.isNotEmpty)
                     SliverToBoxAdapter(
                       child: Padding(
@@ -385,6 +424,23 @@ class _SxProductScreenState extends State<SxProductScreen> {
                         child: Column(
                           children: [
                             const _DetailSectionTitle(title: 'قد يعجبك أيضًا'),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 7),
+                              child: Align(
+                                alignment: Alignment.centerRight,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black,
+                                    borderRadius: BorderRadius.circular(5),
+                                  ),
+                                  child: const Text(
+                                    'توصية مفعّلة · الترتيب عشوائي',
+                                    style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w800),
+                                  ),
+                                ),
+                              ),
+                            ),
                             Padding(
                               padding: const EdgeInsets.fromLTRB(7, 0, 7, 20),
                               child: SxProductGrid(
@@ -416,8 +472,39 @@ class _SxProductScreenState extends State<SxProductScreen> {
             ),
           ],
         ),
+        ),
       ),
     );
+  }
+
+  Future<void> _openReviewComposer() async {
+    if (!state.loggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('سجّل الدخول لإضافة تقييم أو تعليق')),
+      );
+      return;
+    }
+    final submitted = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (_) => _ReviewComposer(
+        onSubmit: (rating, title, body) async {
+          await api.submitProductReview(
+            widget.id,
+            rating: rating,
+            title: title,
+            body: body,
+          );
+        },
+      ),
+    );
+    if (submitted == true && mounted) {
+      await _load();
+    }
   }
 
   Widget _iconButton(
@@ -604,6 +691,7 @@ class _ProductHeroInfo extends StatelessWidget {
   final bool showRating;
   final bool showReviewCount;
   final List<Map<String, dynamic>> badges;
+  final Map<String, dynamic> cardSettings;
 
   const _ProductHeroInfo({
     required this.name,
@@ -618,6 +706,7 @@ class _ProductHeroInfo extends StatelessWidget {
     required this.showRating,
     required this.showReviewCount,
     required this.badges,
+    required this.cardSettings,
   });
 
   @override
@@ -631,7 +720,7 @@ class _ProductHeroInfo extends StatelessWidget {
               Wrap(
                 spacing: 5,
                 runSpacing: 5,
-                children: badges.take(6).map((badge) {
+                children: badges.map((badge) {
                   final settings = badge['settings'] is Map
                       ? Map<String, dynamic>.from(badge['settings'] as Map)
                       : <String, dynamic>{};
@@ -691,7 +780,12 @@ class _ProductHeroInfo extends StatelessWidget {
               name,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 16, height: 1.35, fontWeight: FontWeight.w900),
+              style: TextStyle(
+                color: sxColor(sxText(cardSettings['name_color']), const Color(0xFF111111)),
+                fontSize: sxDouble(cardSettings['name_font_size'], 16),
+                fontWeight: _weight(sxInt(cardSettings['name_font_weight'], 900)),
+                height: 1.35,
+              ),
             ),
             if (sku.isNotEmpty)
               Padding(
@@ -707,12 +801,21 @@ class _ProductHeroInfo extends StatelessWidget {
               children: [
                 Text(
                   price,
-                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, height: 1),
+                  style: TextStyle(
+                    color: sxColor(sxText(cardSettings['price_color']), const Color(0xFF111111)),
+                    fontSize: sxDouble(cardSettings['price_font_size'], 22),
+                    fontWeight: _weight(sxInt(cardSettings['price_font_weight'], 900)),
+                    height: 1,
+                  ),
                 ),
                 const SizedBox(width: 5),
                 Text(
                   currency,
-                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    color: sxColor(sxText(cardSettings['currency_color']), const Color(0xFF111111)),
+                    fontSize: sxDouble(cardSettings['currency_font_size'], 10.5),
+                    fontWeight: _weight(sxInt(cardSettings['currency_font_weight'], 800)),
+                  ),
                 ),
                 if (discount > 0) ...[
                   const SizedBox(width: 8),
@@ -723,9 +826,11 @@ class _ProductHeroInfo extends StatelessWidget {
                   Text(
                     oldPrice + ' ' + currency,
                     style: const TextStyle(
-                      fontSize: 10,
-                      color: Color(0xFF9CA3AF),
-                      decoration: TextDecoration.lineThrough,
+                      fontSize: sxDouble(cardSettings['compare_price_font_size'], 10),
+                      color: sxColor(sxText(cardSettings['compare_price_color']), const Color(0xFF9CA3AF)),
+                      decoration: sxText(cardSettings['compare_price_text_decoration'], 'line_through') == 'line_through'
+                          ? TextDecoration.lineThrough
+                          : TextDecoration.none,
                     ),
                   ),
               ],
@@ -752,6 +857,96 @@ class _ProductHeroInfo extends StatelessWidget {
           ],
         ),
       );
+}
+
+class _ProductIdentityPanel extends StatelessWidget {
+  final String brand;
+  final String productType;
+  final String material;
+  final String sku;
+  const _ProductIdentityPanel({
+    required this.brand,
+    required this.productType,
+    required this.material,
+    required this.sku,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <Map<String,String>>[
+      {'label':'العلامة التجارية','value':brand},
+      {'label':'نوع المنتج','value':productType},
+      {'label':'الخامة','value':material},
+      {'label':'رمز المنتج','value':sku},
+    ].where((x) => (x['value'] ?? '').trim().isNotEmpty).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 11),
+      child: Column(
+        children: items.map((item) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Row(
+            children: [
+              Expanded(child: Text(item['label']!, style: const TextStyle(fontSize: 9, color: ClientTheme.muted))),
+              const SizedBox(width: 10),
+              Flexible(child: Text(item['value']!, textAlign: TextAlign.right, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800))),
+            ],
+          ),
+        )).toList(),
+      ),
+    );
+  }
+}
+
+class _DeliveryBadgePanel extends StatelessWidget {
+  final List<Map<String,dynamic>> badges;
+  const _DeliveryBadgePanel({required this.badges});
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = badges.where((x) => x['visible'] != false).toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('التوصيل والمزايا', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: visible.map((badge) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: sxColor(sxText(badge['background_color']), const Color(0xFFF5F5F5)),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (sxText(badge['icon']).isNotEmpty) const Icon(Icons.local_shipping_outlined, size: 13),
+                  const SizedBox(width: 4),
+                  Text(
+                    sxText(badge['text']),
+                    style: TextStyle(
+                      color: sxColor(sxText(badge['text_color']), const Color(0xFF111111)),
+                      fontSize: sxDouble(badge['font_size'], 9),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            )).toList(),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ProductOptions extends StatelessWidget {
@@ -1094,10 +1289,12 @@ class _ReviewSection extends StatelessWidget {
   final double average;
   final int count;
   final List<Map<String, dynamic>> reviews;
+  final VoidCallback onWriteReview;
   const _ReviewSection({
     required this.average,
     required this.count,
     required this.reviews,
+    required this.onWriteReview,
   });
 
   @override
@@ -1118,6 +1315,15 @@ class _ReviewSection extends StatelessWidget {
                     count.toString() + ' تقييم',
                     style: const TextStyle(fontSize: 9, color: ClientTheme.muted),
                   ),
+                const SizedBox(width: 6),
+                TextButton(
+                  onPressed: onWriteReview,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    minimumSize: Size.zero,
+                  ),
+                  child: const Text('قيّم المنتج', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800)),
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -1199,6 +1405,82 @@ class _ReviewSection extends StatelessWidget {
           ],
         ),
       );
+}
+
+class _ReviewComposer extends StatefulWidget {
+  final Future<void> Function(int rating, String? title, String? body) onSubmit;
+  const _ReviewComposer({required this.onSubmit});
+
+  @override
+  State<_ReviewComposer> createState() => _ReviewComposerState();
+}
+
+class _ReviewComposerState extends State<_ReviewComposer> {
+  int rating = 5;
+  bool saving = false;
+  final titleController = TextEditingController();
+  final bodyController = TextEditingController();
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    bodyController.dispose();
+    super.dispose();
+  }
+
+  Future<void> submit() async {
+    if (bodyController.text.trim().isEmpty && titleController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اكتب تعليقًا قبل الحفظ.')));
+      return;
+    }
+    setState(() => saving = true);
+    try {
+      await widget.onSubmit(
+        rating,
+        titleController.text.trim().isEmpty ? null : titleController.text.trim(),
+        bodyController.text.trim().isEmpty ? null : bodyController.text.trim(),
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (mounted) {
+        setState(() => saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(error))));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(14, 9, 14, MediaQuery.viewInsetsOf(context).bottom + 18),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _DetailHandle(),
+          const SizedBox(height: 9),
+          const Text('أضف تقييمك', textAlign: TextAlign.center, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(5, (index) => IconButton(
+              onPressed: saving ? null : () => setState(() => rating = index + 1),
+              icon: Icon(
+                index < rating ? Icons.star_rounded : Icons.star_border_rounded,
+                color: const Color(0xFFFFB400),
+                size: 26,
+              ),
+            )),
+          ),
+          TextField(controller: titleController, enabled: !saving, textDirection: TextDirection.rtl, decoration: const InputDecoration(labelText: 'عنوان مختصر (اختياري)')),
+          const SizedBox(height: 7),
+          TextField(controller: bodyController, enabled: !saving, maxLines: 4, textDirection: TextDirection.rtl, decoration: const InputDecoration(labelText: 'تعليقك')),
+          const SizedBox(height: 10),
+          SizedBox(height: 46, child: FilledButton(onPressed: saving ? null : submit, style: FilledButton.styleFrom(backgroundColor: Colors.black), child: Text(saving ? 'جارٍ الحفظ...' : 'إرسال التقييم'))),
+        ],
+      ),
+    ),
+  );
 }
 
 class _ProductBottomBar extends StatelessWidget {
