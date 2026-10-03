@@ -8613,6 +8613,13 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
     } catch (_) {}
     if (mounted) setState(() => loading = false);
   }
+  Future<void> _openPolicy(String path) async {
+    final uri = Uri.tryParse(api.url(path));
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override Widget build(BuildContext context) => Scaffold(
     body: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : RefreshIndicator(
       onRefresh: load,
@@ -8646,6 +8653,9 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
           _AccountTile(Icons.receipt_long_outlined, 'طلباتي', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxOrdersScreen()))),
           _AccountTile(Icons.favorite_border, 'المفضلة', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxWishlistScreen()))),
           _AccountTile(Icons.location_on_outlined, 'العناوين', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxAddressesScreen()))),
+          _AccountTile(Icons.privacy_tip_outlined, 'الخصوصية', () => _openPolicy('/policies#privacy')),
+          _AccountTile(Icons.assignment_return_outlined, 'الإرجاع', () => _openPolicy('/policies#returns')),
+
           _AccountTile(Icons.notifications_none, 'الإشعارات', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen()))),
           _AccountTile(Icons.chat_bubble_outline, 'الدعم', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxSupportScreen()))),
           _AccountTile(Icons.local_offer_outlined, 'الكوبونات', () {}),
@@ -8663,9 +8673,19 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
   );
 }
 class _AccountMini extends StatelessWidget {
-  final IconData icon; final String label;
-  const _AccountMini(this.icon, this.label);
-  @override Widget build(BuildContext context) => Column(children: [Icon(icon, size: 19, color: const Color(0xFF586574)), const SizedBox(height: 4), Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700))]);
+  final IconData icon; final String label; final VoidCallback tap;
+  const _AccountMini(this.icon, this.label, this.tap);
+  @override Widget build(BuildContext context) => InkWell(
+    onTap: tap,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(children: [
+        Icon(icon, size: 20, color: const Color(0xFF586574)),
+        const SizedBox(height: 4),
+        Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 8.4, fontWeight: FontWeight.w800)),
+      ]),
+    ),
+  );
 }
 class _AccountTile extends StatelessWidget {
   final IconData icon; final String label; final VoidCallback tap;
