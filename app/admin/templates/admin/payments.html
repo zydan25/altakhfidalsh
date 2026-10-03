@@ -5,6 +5,8 @@
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
 <section class="panel" style="margin-bottom:12px"><div class="panel-heading"><div><span class="eyebrow">الطرق</span><h3>طرق الدفع الحالية</h3></div><span class="status-pill">{{ methods|length }}</span></div><div class="entity-grid">{% for method in methods %}<article class="entity-card panel"><div class="manage-card-header"><strong>{{ method.name }}</strong><span class="status-pill">{{ method.code }}</span></div><div class="entity-field"><span class="entity-label">المزود</span><strong>{{ method.provider or "—" }}</strong></div><details><summary class="ghost-button">تعديل</summary><form method="post" class="form-stack" style="margin-top:8px"><input type="hidden" name="action" value="method_update"><input type="hidden" name="id" value="{{ method.id }}"><label>الاسم<input name="name" value="{{ method.name }}" required></label><label>Code<input name="code" value="{{ method.code }}" required dir="ltr"></label><label>المزود<input name="provider" value="{{ method.provider or '' }}"></label>
+<label>أيقونة البطاقة<input name="icon" value="{{ (method.settings_json or {}).get('icon','') }}" dir="ltr" placeholder="bank / wallet / cash"></label>
+<label>وصف البطاقة<textarea name="description" rows="2" placeholder="وصف مختصر يظهر للعميل">{{ (method.settings_json or {}).get('description','') }}</textarea></label>
 <label>نوع الطريقة<select name="method_type"><option value="manual" {% if (method.settings_json or {}).get('type','manual')=='manual' %}selected{% endif %}>تحويل/محفظة</option><option value="cod" {% if (method.settings_json or {}).get('type')=='cod' %}selected{% endif %}>الدفع عند الاستلام</option></select></label>
 <label>رقم الحساب<input name="account_number" value="{{ (method.settings_json or {}).get('account_number','') }}"></label>
 <label>اسم صاحب الحساب<input name="account_name" value="{{ (method.settings_json or {}).get('account_name','') }}"></label>
@@ -22,6 +24,8 @@
 <label>الاسم<input name="name" required placeholder="تحويل بنكي"></label>
 <label>Code<input name="code" required dir="ltr" placeholder="bank_transfer"></label>
 <label>المزود<input name="provider" placeholder="manual"></label>
+<label>أيقونة البطاقة<input name="icon" dir="ltr" placeholder="bank / wallet / cash"></label>
+<label>وصف البطاقة<textarea name="description" rows="2" placeholder="وصف مختصر يظهر للعميل"></textarea></label>
 <label>نوع الطريقة<select name="method_type"><option value="manual">تحويل/محفظة</option><option value="cod">الدفع عند الاستلام</option></select></label>
 <label>رقم الحساب<input name="account_number"></label>
 <label>اسم صاحب الحساب<input name="account_name"></label>
