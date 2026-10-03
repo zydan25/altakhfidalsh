@@ -4,7 +4,7 @@ from . import api_bp
 from ..customer.security import customer_required, current_customer
 from .services import SupportService
 from ...extensions import db
-from ...models import Conversation, Message, MessageAttachment, MediaAsset, MessageAttachment, MediaAsset
+from ...models import Conversation, Message, MessageAttachment, MediaAsset, CustomerNotification, Notification
 
 
 @api_bp.post("/conversations")
@@ -102,6 +102,20 @@ def mark_conversation_read(conversation_id):
         Message.sender_type != "customer",
         Message.read_at.is_(None),
     ).update({"read_at": db.func.now()}, synchronize_session=False)
+
+    # Keep the notification badge consistent with the opened conversation.
+    notification_rows = CustomerNotification.query.filter_by(
+        customer_id=current_customer().id,
+    ).all()
+    for notification_row in notification_rows:
+        notification = db.session.get(Notification, notification_row.notification_id)
+        data = notification.data if notification is not None and isinstance(notification.data, dict) else {}
+        if (
+            notification_row.read_at is None
+            and data.get("target") == "conversation"
+            and int(data.get("conversation_id") or 0) == conversation_id
+        ):
+            notification_row.read_at = db.func.now()
     db.session.commit()
     return {"ok": True, "unread_count": 0}
 
