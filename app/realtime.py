@@ -1,3 +1,4 @@
+import hashlib
 import json
 import queue
 import threading
@@ -107,23 +108,62 @@ def init_realtime(app):
 
 @sock.route("/api/v1/notifications/ws")
 def customer_notification_socket(ws):
-    from .modules.customer.security import current_customer
+    from datetime import datetime, timezone
+    from .extensions import db
+    from .models import AuthSession, Customer
 
-    customer = current_customer()
-    if customer is None:
-        try:
-            ws.send(json.dumps({
-                "type": "error",
-                "code": "unauthorized",
-            }))
-        except Exception:
-            pass
-        return
+    def hash_token(token):
+        return hashlib.sha256(token.encode()).hexdigest()
 
-    customer_id = int(customer.id)
-    events = hub.subscribe(customer_id)
+    def authenticate(token):
+        token = str(token or "").strip()
+        if not token:
+            return None
+        session = (
+            AuthSession.query
+            .filter_by(access_token_hash=hash_token(token))
+            .first()
+        )
+        if session is None or session.revoked_at is not None:
+            return None
+        expires_at = session.expires_at
+        if expires_at is not None and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at is not None and expires_at <= datetime.now(timezone.utc):
+            return None
+        return db.session.get(Customer, session.customer_id)
 
     try:
+        # The WebSocket handshake cannot rely on custom headers with the
+        # Flutter channel API used by the client, so authenticate once with
+        # an application-level JSON frame immediately after connecting.
+        raw_auth = ws.receive()
+        payload = json.loads(raw_auth or "{}")
+        if not isinstance(payload, dict) or payload.get("type") != "auth":
+            ws.send(json.dumps({"type": "error", "code": "auth_required"}))
+            return
+
+        customer = authenticate(payload.get("token"))
+        if customer is None:
+            ws.send(json.dumps({"type": "error", "code": "unauthorized"}))
+            return
+
+        customer_id = int(customer.id)
+        events = hub.subscribe(customer_id)
+        ws.send(json.dumps({
+            "type": "connected",
+            "customer_id": customer_id,
+        }, ensure_ascii=False))
+
+        while True:
+            try:
+                payload = events.get(timeout=20)
+                ws.send(json.dumps(payload, ensure_ascii=False))
+            except queue.Empty:
+                ws.send(json.dumps({
+                    "type": "heartbeat",
+                    "ts": int(time.time()),
+                }))
         ws.send(json.dumps({
             "type": "connected",
             "customer_id": customer_id,
@@ -141,4 +181,7 @@ def customer_notification_socket(ws):
     except Exception:
         pass
     finally:
-        hub.unsubscribe(customer_id, events)
+        try:
+            hub.unsubscribe(customer_id, events)
+        except Exception:
+            pass
