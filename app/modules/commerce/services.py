@@ -116,11 +116,10 @@ class CommerceService:
             raise ValueError("shipping address must have a city")
 
         payment_method = db.session.get(PaymentMethod, payment_method_id) if payment_method_id else None
-        if payment_method is None:
-            payment_method = PaymentMethod.query.filter(PaymentMethod.is_active.is_(True)).order_by(PaymentMethod.id).first()
-            payment_method_id = payment_method.id if payment_method else None
-        if payment_method is None or not payment_method.is_active:
-            raise ValueError("لا توجد طريقة دفع مفعلة.")
+        if payment_method is not None and not payment_method.is_active:
+            raise ValueError("طريقة الدفع المحددة غير مفعلة.")
+        if payment_method is None and payment_method_id:
+            raise ValueError("طريقة الدفع المحددة غير موجودة.")
 
         with db.session.begin_nested():
             context, _ = price_for_customer(
@@ -276,16 +275,19 @@ class CommerceService:
                             option_value=option_value,
                         ))
 
-            method_type = str((payment_method.settings_json or {}).get("type") or "manual").strip().lower()
-            order.status = "created" if method_type == "cod" else "awaiting_payment"
-            db.session.add(PaymentTransaction(
-                order_id=order.id,
-                method_id=payment_method_id,
-                amount=total,
-                currency_id=context.currency_id,
-                provider_ref="ORDER-" + order.order_no,
-                status="cod_pending" if method_type == "cod" else "pending",
-            ))
+            method_type = str((payment_method.settings_json or {}).get("type") or "manual").strip().lower() if payment_method else ""
+            order.status = "created" if (payment_method and method_type == "cod") else (
+                "awaiting_payment" if payment_method else "created"
+            )
+            if payment_method is not None:
+                db.session.add(PaymentTransaction(
+                    order_id=order.id,
+                    method_id=payment_method.id,
+                    amount=total,
+                    currency_id=context.currency_id,
+                    provider_ref="ORDER-" + order.order_no,
+                    status="cod_pending" if method_type == "cod" else "pending",
+                ))
             db.session.add(
                 OrderStatusHistory(
                     order_id=order.id,
