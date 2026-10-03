@@ -9021,7 +9021,7 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
     bool match(Map<String,dynamic> x){
       final s=sxText(x['status']); final p=sxText(x['payment_status']);
       if(filter=='payment')return s=='awaiting_payment'||p=='unpaid';
-      if(filter=='processing')return s=='created'||s=='paid'||s=='processing';
+      if(filter=='processing')return s=='paid'||s=='processing';
       if(filter=='shipped')return s=='shipped';
       if(filter=='completed')return s=='delivered'||s=='returned';
       return true;
