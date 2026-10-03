@@ -652,7 +652,7 @@ class CommerceService:
         return CommerceService.serialize_order(order)
 
     @staticmethod
-    def add_to_cart(customer_id, variant_id, qty=1):
+    def add_to_cart(customer_id, variant_id, qty=1, selected_options=None):
         customer = db.session.get(Customer, customer_id)
         variant = db.session.get(ProductVariant, variant_id)
         if customer is None or variant is None or not variant.is_active:
@@ -664,11 +664,13 @@ class CommerceService:
             cart = Cart(customer_id=customer_id)
             db.session.add(cart)
             db.session.flush()
-        item = CartItem.query.filter_by(cart_id=cart.id, variant_id=variant_id).first()
+        normalized_options = selected_options if isinstance(selected_options, dict) else {}
+        candidates = CartItem.query.filter_by(cart_id=cart.id, variant_id=variant_id).all()
+        item = next((x for x in candidates if dict(x.selected_options or {}) == dict(normalized_options)), None)
         if item:
             item.qty += qty
         else:
-            item = CartItem(cart_id=cart.id, variant_id=variant_id, qty=qty, selected_options={})
+            item = CartItem(cart_id=cart.id, variant_id=variant_id, qty=qty, selected_options=normalized_options)
             db.session.add(item)
         db.session.commit()
         return {"cart_id": cart.id, "variant_id": variant_id, "qty": item.qty}

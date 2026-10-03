@@ -88,6 +88,7 @@ def cart_item():
             int(payload["customer_id"]),
             int(payload["variant_id"]),
             int(payload.get("qty", 1)),
+            payload.get("selected_options") or payload.get("options") or {},
         )
     except (KeyError, ValueError, LookupError) as exc:
         return {"error": "cart_update_failed", "detail": str(exc)}, 400
