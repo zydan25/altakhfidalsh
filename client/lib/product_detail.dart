@@ -357,7 +357,6 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       sku: sxText(product['sku']),
                     ),
                   ),
-                  ),
                   if (colors.isNotEmpty || sizes.isNotEmpty)
                     SliverToBoxAdapter(
                       child: _ProductOptions(
@@ -825,7 +824,7 @@ class _ProductHeroInfo extends StatelessWidget {
                 if (oldPrice.isNotEmpty)
                   Text(
                     oldPrice + ' ' + currency,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: sxDouble(cardSettings['compare_price_font_size'], 10),
                       color: sxColor(sxText(cardSettings['compare_price_color']), const Color(0xFF9CA3AF)),
                       decoration: sxText(cardSettings['compare_price_text_decoration'], 'line_through') == 'line_through'
