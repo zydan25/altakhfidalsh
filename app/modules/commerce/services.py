@@ -278,7 +278,9 @@ class CommerceService:
                             option_value=option_value,
                         ))
 
-            order.status = "awaiting_payment"
+            # Customer submission creates a reviewable order.
+            # Admin confirmation moves it to awaiting_payment.
+            order.status = "created"
             order.payment_status = "unpaid"
             db.session.add(
                 OrderStatusHistory(
@@ -614,8 +616,8 @@ class CommerceService:
         order = db.session.get(Order, int(order_id))
         if order is None or order.customer_id != int(customer_id):
             raise LookupError("order not found")
-        if order.status not in {"created", "awaiting_payment"}:
-            raise ValueError("هذا الطلب لم يعد بانتظار الدفع.")
+        if order.status != "awaiting_payment":
+            raise ValueError("يجب اعتماد الطلب من المتجر أولًا قبل الدفع.")
         if not (order.shipping_rate_id or order.shipping_override is not None):
             raise ValueError("لم يتم تحديد رسوم التوصيل لهذا الطلب بعد.")
         method = db.session.get(PaymentMethod, int(method_id))
