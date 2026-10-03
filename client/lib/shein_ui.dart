@@ -9039,6 +9039,7 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
   ),
   child: const Text('تسجيل الخروج', style: TextStyle(fontWeight: FontWeight.w900)),
 ),
+        const SxDeveloperSignature(),
       ]),
     ),
   );
