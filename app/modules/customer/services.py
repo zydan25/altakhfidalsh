@@ -221,6 +221,7 @@ class CustomerService:
             "email": customer.email,
             "gender": customer.gender,
             "onboarding_completed": bool(customer.onboarding_completed),
+            "has_password": bool(customer.password_hash),
             "privacy_accepted": customer.privacy_accepted_at is not None,
             "city_id": customer.city_id,
             "city_area_id": customer.city_area_id,
