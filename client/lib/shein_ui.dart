@@ -7457,10 +7457,8 @@ class SxCartScreen extends StatefulWidget {
 class _SxCartScreenState extends State<SxCartScreen> {
   Map<String, dynamic>? cart;
   List<Map<String, dynamic>> addresses = <Map<String, dynamic>>[];
-  List<Map<String, dynamic>> shipping = <Map<String, dynamic>>[];
   Map<String, dynamic>? quote;
   int? addressId;
-  int? shippingId;
   bool loading = true;
   bool quoteLoading = false;
 
@@ -7469,52 +7467,155 @@ class _SxCartScreenState extends State<SxCartScreen> {
   Future<void> load() async {
     if (!state.loggedIn) { if (mounted) setState(() => loading = false); return; }
     try {
-      final results = await Future.wait<dynamic>([api.cart(currencyId: state.currencyId), api.addresses(), api.shippingMethods()]);
+      final results = await Future.wait<dynamic>([
+        api.cart(currencyId: state.currencyId),
+        api.addresses(),
+      ]);
       final rawCart = results[0];
       cart = rawCart is Map ? Map<String, dynamic>.from(rawCart) : null;
       addresses = (results[1] as List).whereType<Map>().map((x) => Map<String, dynamic>.from(x)).toList();
-      shipping = (results[2] as List).whereType<Map>().map((x) => Map<String, dynamic>.from(x)).toList();
-      final a = addresses.firstWhere((x) => x['is_default'] == true, orElse: () => addresses.isNotEmpty ? addresses.first : <String, dynamic>{});
+      final a = addresses.firstWhere(
+        (x) => x['is_default'] == true,
+        orElse: () => addresses.isNotEmpty ? addresses.first : <String, dynamic>{},
+      );
       addressId = sxInt(a['id']) > 0 ? sxInt(a['id']) : null;
-      shippingId = shipping.isNotEmpty ? sxInt(shipping.first['id']) : null;
-      cartBadge.value = sxMaps(cart?['item']?['items']).length;
+      cartBadge.value = sxMaps(cart?['item']?['items']).fold<int>(
+        0,
+        (total, row) => total + sxInt(row['qty'], 1),
+      );
       await refreshQuote();
-    } catch (_) {}
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(sxText(e))),
+        );
+      }
+    }
     if (mounted) setState(() => loading = false);
   }
 
   Future<void> refreshQuote() async {
     final rows = sxMaps(cart?['item']?['items']);
-    if (addressId == null || shippingId == null || rows.isEmpty) { if (mounted) setState(() => quote = null); return; }
-    final a = addresses.firstWhere((x) => sxInt(x['id']) == addressId, orElse: () => <String, dynamic>{});
-    setState(() => quoteLoading = true);
+    if (addressId == null || rows.isEmpty) {
+      if (mounted) setState(() => quote = null);
+      return;
+    }
+    final a = addresses.firstWhere(
+      (x) => sxInt(x['id']) == addressId,
+      orElse: () => <String, dynamic>{},
+    );
+    if (a.isEmpty) {
+      if (mounted) setState(() => quote = null);
+      return;
+    }
+    if (mounted) setState(() => quoteLoading = true);
     try {
       final result = await api.shippingQuote(
         cityId: sxInt(a['city_id']) > 0 ? sxInt(a['city_id']) : null,
         cityAreaId: sxInt(a['city_area_id']) > 0 ? sxInt(a['city_area_id']) : null,
         currencyId: state.currencyId,
-        shippingMethodId: shippingId,
-        subtotal: sxText(cart?['item']?['subtotal_sar'], sxText(cart?['item']?['subtotal'], '0')),
+        subtotal: sxText(
+          cart?['item']?['subtotal_sar'],
+          sxText(cart?['item']?['subtotal'], '0'),
+        ),
       );
-      if (mounted) setState(() => quote = result['item'] is Map ? Map<String, dynamic>.from(result['item']) : null);
-    } catch (_) { if (mounted) setState(() => quote = null); }
-    finally { if (mounted) setState(() => quoteLoading = false); }
+      if (mounted) {
+        setState(() => quote = result['item'] is Map
+            ? Map<String, dynamic>.from(result['item'])
+            : null);
+      }
+    } catch (_) {
+      if (mounted) setState(() => quote = null);
+    } finally {
+      if (mounted) setState(() => quoteLoading = false);
+    }
   }
 
   Widget shippingBanner() {
-    if (quoteLoading) return const _CartNotice(icon: Icons.local_shipping_outlined, text: 'جارٍ التحقق من عرض الشحن لهذا العنوان…');
-    final q = quote;
-    if (q == null) return _CartNotice(icon: Icons.location_on_outlined, text: addressId == null ? 'أضف أو اختر عنوانًا لمعرفة عرض الشحن.' : 'سيظهر احتساب الشحن النهائي عند إتمام الطلب.');
-    if (q['free'] == true) return const _CartNotice(success: true, icon: Icons.local_shipping, text: '🎉 ينطبق على طلبك شحن مجاني.');
-    final thresholdSar = double.tryParse(sxText(q['free_shipping_threshold_sar']));
-    final subtotalSar = double.tryParse(sxText(cart?['item']?['subtotal_sar']));
-    if (thresholdSar != null && subtotalSar != null && thresholdSar > subtotalSar) {
-      final fx = double.tryParse(sxText(q['fx_rate'])) ?? 1;
-      return _CartNotice(icon: Icons.local_shipping_outlined, text: 'أضف ' + sxMoney((thresholdSar - subtotalSar) * fx) + ' ' + state.currencySymbol + ' لتحصل على شحن مجاني.');
+    if (quoteLoading) {
+      return const _CartNotice(
+        icon: Icons.local_shipping_outlined,
+        text: 'جارٍ احتساب عرض الشحن من القواعد الفعلية…',
+      );
     }
+    final q = quote;
+    if (q == null) {
+      return _CartNotice(
+        icon: Icons.location_on_outlined,
+        text: addressId == null
+            ? 'اختر عنوانك لمعرفة عروض الشحن الفعلية.'
+            : 'سيتم احتساب الشحن وفق القاعدة المطابقة لعنوانك.',
+      );
+    }
+    if (q['free'] == true) {
+      return const _CartNotice(
+        success: true,
+        icon: Icons.verified_outlined,
+        text: '🎉 حصلت سلتك على شحن مجاني.',
+      );
+    }
+
+    final threshold = double.tryParse(sxText(q['next_benefit_threshold_sar']));
+    final subtotalSar = double.tryParse(
+      sxText(cart?['item']?['subtotal_sar'], '0'),
+    );
+    final fx = double.tryParse(sxText(q['fx_rate'])) ?? 1;
+    final type = sxText(q['next_benefit_type']).trim();
+    if (threshold != null && subtotalSar != null && threshold > subtotalSar) {
+      final remaining = sxMoney((threshold - subtotalSar) * fx);
+      final value = double.tryParse(sxText(q['next_benefit_value'])) ?? 0;
+      if (type == 'free_shipping') {
+        return _CartNotice(
+          icon: Icons.local_shipping_outlined,
+          text: 'باقي $remaining $\{_currencySymbol()} لتحصل على شحن مجاني.',
+        );
+      }
+      if (type == 'percent_discount') {
+        return _CartNotice(
+          icon: Icons.local_offer_outlined,
+          text: 'باقي $remaining $\{_currencySymbol()} لتحصل على خصم $\{sxMoney(value)}% على التوصيل.',
+        );
+      }
+      if (type == 'fixed_discount') {
+        final discount = sxMoney(value * fx);
+        return _CartNotice(
+          icon: Icons.local_offer_outlined,
+          text: 'باقي $remaining $\{_currencySymbol()} لتحصل على خصم $discount $\{_currencySymbol()} من التوصيل.',
+        );
+      }
+    }
+
     final adjustment = double.tryParse(sxText(q['adjustment_sar'])) ?? 0;
-    if (adjustment < 0) return const _CartNotice(success: true, icon: Icons.local_offer_outlined, text: 'تم تطبيق خصم على تكلفة التوصيل.');
-    return _CartNotice(icon: Icons.local_shipping_outlined, text: 'تكلفة التوصيل الحالية: ' + sxText(q['price_display'], '0') + ' ' + state.currencySymbol);
+    if (adjustment < 0) {
+      return const _CartNotice(
+        success: true,
+        icon: Icons.local_offer_outlined,
+        text: 'تم تطبيق خصم الشحن حسب قاعدة التوصيل المطابقة.',
+      );
+    }
+    if (adjustment > 0) {
+      return const _CartNotice(
+        icon: Icons.local_shipping_outlined,
+        text: 'تم احتساب زيادة الشحن حسب قاعدة التوصيل المطابقة.',
+      );
+    }
+
+    return _CartNotice(
+      icon: Icons.local_shipping_outlined,
+      text: 'تكلفة التوصيل الحالية $\{sxMoney(q['price_display'])} $\{_currencySymbol()}',
+    );
+  }
+
+  String _currencySymbol() {
+    final item = cart?['item'];
+    if (item is Map && sxText(item['currency_symbol']).trim().isNotEmpty) {
+      return sxText(item['currency_symbol']).trim();
+    }
+    final rows = sxMaps(item is Map ? item['items'] : null);
+    if (rows.isNotEmpty && sxText(rows.first['currency_symbol']).trim().isNotEmpty) {
+      return sxText(rows.first['currency_symbol']).trim();
+    }
+    return state.currencySymbol;
   }
 
   @override Widget build(BuildContext context) {
@@ -7527,8 +7628,6 @@ class _SxCartScreenState extends State<SxCartScreen> {
       body: rows.isEmpty ? const _EmptyCart() : RefreshIndicator(
         onRefresh: load,
         child: ListView(padding: const EdgeInsets.fromLTRB(8,8,8,16), children: [
-          shippingBanner(),
-          const SizedBox(height: 8),
           for (final row in rows) Padding(
             padding: const EdgeInsets.only(bottom:7),
             child: _CartRow(row: row, plus: () => change(row, sxInt(row['qty'],1)+1), minus: () { final q=sxInt(row['qty'],1)-1; if(q<=0){api.removeCart(sxInt(row['id'])).then((_)=>load());}else{change(row,q);} }, remove: () async { await api.removeCart(sxInt(row['id'])); await load(); }),
@@ -7542,8 +7641,10 @@ class _SxCartScreenState extends State<SxCartScreen> {
           decoration: const BoxDecoration(color:Colors.white,border:Border(top:BorderSide(color:ClientTheme.border))),
           child: Column(mainAxisSize:MainAxisSize.min,children:[
             Row(children:[const Expanded(child:Text('المجموع الفرعي',style:TextStyle(fontSize:11))),Text(subtotal+' '+state.currencySymbol,style:const TextStyle(fontSize:16,fontWeight:FontWeight.w900))]),
-            if(quote!=null) Padding(padding:const EdgeInsets.only(top:4),child:Row(children:[const Expanded(child:Text('الشحن',style:TextStyle(fontSize:10,color:ClientTheme.muted))),Text(quote!['free']==true?'مجاني':sxText(quote!['price_display'],'0')+' '+state.currencySymbol,style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800))])),
-            const SizedBox(height:8),
+            if(quote!=null) Padding(padding:const EdgeInsets.only(top:4),child:Row(children:[const Expanded(child:Text('الشحن الحالي',style:TextStyle(fontSize:10,color:ClientTheme.muted))),Text(quote!['free']==true?'مجاني':sxMoney(quote!['price_display'])+' '+_currencySymbol(),style:const TextStyle(fontSize:10,fontWeight:FontWeight.w800))])),
+            const SizedBox(height:7),
+            shippingBanner(),
+            const SizedBox(height:7),
             SizedBox(height:49,width:double.infinity,child:FilledButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxCheckoutScreen())),style:FilledButton.styleFrom(backgroundColor:Colors.black),child:const Text('متابعة وإتمام الطلب',style:TextStyle(fontWeight:FontWeight.w900)))),
           ]),
         ),
