@@ -90,4 +90,17 @@
 {% else %}<span class="muted">لا توجد محادثات.</span>{% endfor %}
 </div>
 </section>
+
+<section class="panel" style="margin-top:12px;border:1px solid #fca5a5">
+  <div class="panel-heading">
+    <div><span class="eyebrow" style="color:#b91c1c">منطقة خطرة</span><h3>حذف العميل نهائيًا</h3></div>
+  </div>
+  <p class="muted">سيتم حذف حساب العميل وطلباته وجميع البيانات التابعة لها نهائيًا من قاعدة البيانات. هذا الإجراء لا يتم أرشفته ولا يمكن التراجع عنه.</p>
+  <form method="post" action="/admin/customers/{{ customer.id }}/delete-permanently"
+        onsubmit="return confirm('تأكيد نهائي: سيتم حذف العميل وجميع طلباته وبياناته التابعة نهائيًا. هل تريد المتابعة؟');">
+    <input type="hidden" name="confirmation" value="DELETE">
+    <button type="submit" class="primary-button" style="background:#b91c1c;border-color:#b91c1c">حذف العميل وطلباته نهائيًا</button>
+  </form>
+</section>
+
 {% endblock %}
