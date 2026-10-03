@@ -1283,6 +1283,9 @@ class CatalogService:
                     settings[dim] = max(0.0, min(float(settings[dim]), 30.0))
             if settings.get("text_decoration") not in (None, "", "none", "line_through"):
                 raise ValueError("نوع خط الشارة غير صالح.")
+            if settings.get("position") not in (None, "", "top_left", "top_right", "bottom_left", "bottom_right",
+                                                "above_image", "before_name", "after_name", "right_of_image", "below_price"):
+                raise ValueError("موقع الشارة غير صالح.")
             for color_key in ("background_color", "text_color", "border_color"):
                 if color_key in settings:
                     import re
