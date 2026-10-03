@@ -424,8 +424,17 @@ class ApiService {
     if(token.isNotEmpty)await p.setString('access_token',token);
     return d;
   }
-  Future<Map<String,dynamic>> setMyPassword(String password) async =>
-      Map<String,dynamic>.from(await post('/customer/me/password', {'new_password': password}));
+  Future<Map<String,dynamic>> setMyPassword(
+    String password, {
+    String? currentPassword,
+  }) async =>
+      Map<String,dynamic>.from(
+        await post('/customer/me/password', {
+          'new_password': password,
+          if (currentPassword != null && currentPassword.trim().isNotEmpty)
+            'current_password': currentPassword.trim(),
+        }),
+      );
 
   Future<Map<String,dynamic>> passwordResetRequest(String phone) async {
     final d=Map<String,dynamic>.from(await post('/customer/auth/password/request-reset',{'phone':phone}));
@@ -503,6 +512,8 @@ class ApiService {
   }
   Future<Map<String,dynamic>> order(int id)async=>Map<String,dynamic>.from(await get('/commerce/me/orders/'+id.toString()+'/detail'));
   Future<Map<String,dynamic>> updateOrder(int id,Map<String,dynamic> body)async=>Map<String,dynamic>.from(await patch('/commerce/me/orders/'+id.toString(),body));
+  Future<Map<String,dynamic>> cancelOrder(int id) async =>
+      Map<String,dynamic>.from(await post('/commerce/me/orders/'+id.toString()+'/cancel',{}));
   Future<Map<String,dynamic>> recordOrderPayment(
     int orderId, {
     required int methodId,
@@ -657,5 +668,17 @@ class ApiService {
     return ((data['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
   }
   Future<Map<String,dynamic>> policies()async=>Map<String,dynamic>.from(await get('/system/policies'));
-  Future<void> logout()async{token='';final p=await SharedPreferences.getInstance();await p.remove('access_token');}
+  Future<void> logout() async {
+    final oldToken = token;
+    if (oldToken.isNotEmpty) {
+      try {
+        await post('/customer/auth/logout', {});
+      } catch (_) {
+        // Local sign-out must still complete if the network is unavailable.
+      }
+    }
+    token='';
+    final p=await SharedPreferences.getInstance();
+    await p.remove('access_token');
+  }
 }
