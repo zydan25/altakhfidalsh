@@ -328,7 +328,7 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
   }) =>
       InputDecoration(
         labelText: label,
-        floatingLabelBehavior: FloatingLabelBehavior.never,
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
         alignLabelWithHint: true,
         filled: true,
         fillColor: const Color(0xFFF8F8F8),
@@ -493,7 +493,15 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
     padding: const EdgeInsets.fromLTRB(14, 42, 14, 120),
     children: [
       header('مرحبًا بعودتك', 'وجدنا حسابًا بهذا الرقم. أدخل كلمة المرور أو اختر طريقة أخرى للدخول.'),
-      Text(normalizedPhone ?? phone.text.trim(), textDirection: TextDirection.ltr, style: const TextStyle(fontWeight: FontWeight.w800)),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+        decoration: BoxDecoration(color: const Color(0xFFF5F5F5), borderRadius: BorderRadius.circular(10)),
+        child: Row(children: [
+          const Icon(Icons.phone_outlined, size: 18, color: ClientTheme.muted),
+          const SizedBox(width: 8),
+          Expanded(child: Text(normalizedPhone ?? phone.text.trim(), textDirection: TextDirection.ltr, textAlign: TextAlign.left, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13))),
+        ]),
+      ),
       const SizedBox(height: 12),
       tf(password, 'كلمة المرور', obscure: true, icon: Icons.lock_outline),
       const SizedBox(height: 11),
@@ -610,12 +618,22 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
       case 'reset_password': body = resetForm(); break;
       default: body = phoneForm();
     }
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
+        resizeToAvoidBottomInset: false,
         backgroundColor: Colors.white,
-        body: SafeArea(
-          child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 520), child: body),
+        body: AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.only(bottom: keyboard),
+          child: SafeArea(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: body,
+            ),
+          ),
         ),
       ),
     );
