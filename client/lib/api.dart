@@ -464,6 +464,7 @@ class ApiService {
   }
   Future<void> cartQty(int id,int qty)async{await patch('/commerce/me/cart/items/'+id.toString(),{'qty':qty});}
   Future<void> removeCart(int id)async{await delete('/commerce/me/cart/items/'+id.toString());}
+  Future<void> clearCart() async { await delete('/commerce/me/cart'); }
   Future<List<Map<String,dynamic>>> orders()async{
     final d=await get('/commerce/me/orders');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
