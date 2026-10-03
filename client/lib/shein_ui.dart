@@ -9497,45 +9497,785 @@ class _SxAddressesScreenState extends State<SxAddressesScreen> {
   );
 }
 
+
 class SxOrdersScreen extends StatefulWidget {
   const SxOrdersScreen({super.key});
   @override State<SxOrdersScreen> createState() => _SxOrdersScreenState();
 }
+
 class _SxOrdersScreenState extends State<SxOrdersScreen> {
-  List<Map<String, dynamic>> rows = []; bool loading = true;
-  @override void initState() { super.initState(); api.orders().then((v) { if (mounted) setState(() { rows = v; loading = false; }); }).catchError((_) { if (mounted) setState(() => loading = false); }); }
-  @override Widget build(BuildContext context) => SxShellPage(title: 'طلباتي', back: true, child: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : ListView.separated(
-    padding: const EdgeInsets.all(10), itemCount: rows.length, separatorBuilder: (_, __) => const SizedBox(height: 7),
-    itemBuilder: (_, i) => InkWell(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SxOrderDetailScreen(id: sxInt(rows[i]['id'])))),
-      child: Container(padding: const EdgeInsets.all(11), decoration: BoxDecoration(border: Border.all(color: ClientTheme.border), borderRadius: BorderRadius.circular(6)), child: Row(children: [
-        const Icon(Icons.receipt_long_outlined), const SizedBox(width: 9), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Text(sxText(rows[i]['order_no'], '#'), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)), const SizedBox(height: 4), Text(sxText(rows[i]['status']), style: const TextStyle(fontSize: 9, color: ClientTheme.muted)),
-        ])), const Icon(Icons.chevron_left),
-      ])),
-    ),
-  ));
+  List<Map<String, dynamic>> rows = [];
+  bool loading = true;
+  String filter = 'all';
+
+  static const filters = <String, String>{
+    'all': 'الكل',
+    'payment': 'قيد الدفع',
+    'processing': 'قيد التجهيز',
+    'shipped': 'تم الشحن',
+    'completed': 'مكتملة',
+    'cancelled': 'ملغاة',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final next = await api.orders();
+      if (mounted) {
+        setState(() {
+          rows = next;
+          loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  bool matches(Map<String, dynamic> row, String key) {
+    final status = sxText(row['status']);
+    final payment = sxText(row['payment_status']);
+    switch (key) {
+      case 'payment':
+        return status == 'awaiting_payment' || payment == 'unpaid';
+      case 'processing':
+        return status == 'created' || status == 'paid' || status == 'processing';
+      case 'shipped':
+        return status == 'shipped';
+      case 'completed':
+        return status == 'delivered' || status == 'returned';
+      case 'cancelled':
+        return status == 'cancelled';
+      default:
+        return true;
+    }
+  }
+
+  String statusLabel(String status) {
+    const labels = <String, String>{
+      'created': 'تم إنشاء الطلب',
+      'awaiting_payment': 'بانتظار الدفع',
+      'paid': 'تم الدفع',
+      'processing': 'قيد التجهيز',
+      'shipped': 'تم الشحن',
+      'delivered': 'تم التسليم',
+      'returned': 'تمت الإعادة',
+      'cancelled': 'ملغى',
+    };
+    return labels[status] ?? status;
+  }
+
+  Color statusBg(String status) {
+    if (status == 'delivered') return const Color(0xFFEAF7F0);
+    if (status == 'cancelled') return const Color(0xFFFFEEEE);
+    if (status == 'shipped') return const Color(0xFFEFF4FF);
+    return const Color(0xFFF5F5F5);
+  }
+
+  Color statusFg(String status) {
+    if (status == 'delivered') return const Color(0xFF18794E);
+    if (status == 'cancelled') return const Color(0xFFC62828);
+    if (status == 'shipped') return const Color(0xFF315BA6);
+    return const Color(0xFF4B4B4B);
+  }
+
+  String dateText(String value) {
+    if (value.isEmpty) return '';
+    try {
+      final d = DateTime.parse(value).toLocal();
+      return d.day.toString().padLeft(2, '0') + '/' +
+          d.month.toString().padLeft(2, '0') + '/' +
+          d.year.toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = rows.where((x) => matches(x, filter)).toList();
+    return SxShellPage(
+      title: 'طلباتي',
+      back: true,
+      child: loading
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : RefreshIndicator(
+              onRefresh: load,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(9, 7, 9, 22),
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: ClientTheme.border),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      reverse: true,
+                      padding: const EdgeInsets.symmetric(horizontal: 5),
+                      child: Row(
+                        children: filters.entries.map((entry) {
+                          final active = filter == entry.key;
+                          final count = rows.where((x) => matches(x, entry.key)).length;
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 5),
+                            child: ChoiceChip(
+                              label: Text(
+                                entry.value + ' ' + count.toString(),
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: active ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              selected: active,
+                              onSelected: (_) => setState(() => filter = entry.key),
+                              selectedColor: Colors.black,
+                              backgroundColor: ClientTheme.soft,
+                              side: BorderSide.none,
+                              showCheckmark: false,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 9),
+                  if (visible.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 60),
+                      alignment: Alignment.center,
+                      child: Column(
+                        children: [
+                          const Icon(Icons.receipt_long_outlined, size: 46, color: Color(0xFF909090)),
+                          const SizedBox(height: 10),
+                          Text(
+                            filter == 'all' ? 'لا توجد طلبات بعد' : 'لا توجد طلبات في هذا القسم',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'ستظهر هنا حالة طلباتك وتفاصيلها وتحديثات الشحن.',
+                            style: TextStyle(fontSize: 9.5, color: ClientTheme.muted),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    for (final row in visible)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Material(
+                          color: Colors.white,
+                          child: InkWell(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SxOrderDetailScreen(id: sxInt(row['id'])),
+                              ),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.fromLTRB(10, 10, 10, 9),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border.all(color: ClientTheme.border),
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 34,
+                                        height: 34,
+                                        decoration: const BoxDecoration(
+                                          color: ClientTheme.soft,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.shopping_bag_outlined, size: 18),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [
+                                            Text(
+                                              'طلب ' + sxText(row['order_no'], '#'),
+                                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              dateText(sxText(row['created_at'])),
+                                              style: const TextStyle(fontSize: 8.2, color: ClientTheme.muted),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: statusBg(sxText(row['status'])),
+                                          borderRadius: BorderRadius.circular(18),
+                                        ),
+                                        child: Text(
+                                          statusLabel(sxText(row['status'])),
+                                          style: TextStyle(fontSize: 8.2, fontWeight: FontWeight.w800, color: statusFg(sxText(row['status']))),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  finalPreview(row),
+                                  const Divider(height: 16),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        sxInt(row['item_count']).toString() +
+                                            (sxInt(row['item_count']) == 1 ? ' قطعة' : ' قطع'),
+                                        style: const TextStyle(fontSize: 8.7, color: ClientTheme.muted),
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        sxText(row['total'], '0') + ' ' +
+                                            (row['currency'] is Map
+                                                ? sxText((row['currency'] as Map)['symbol'], state.currencySymbol)
+                                                : state.currencySymbol),
+                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+                                      ),
+                                      const SizedBox(width: 5),
+                                      const Icon(Icons.chevron_left, size: 19),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                ],
+              ),
+            ),
+    );
+  }
+
+  Widget finalPreview(Map<String, dynamic> row) {
+    final items = sxMaps(row['items_preview']);
+    if (items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 10),
+        child: Text('تفاصيل المنتجات داخل الطلب', style: TextStyle(fontSize: 9, color: ClientTheme.muted)),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.only(top: 9),
+      child: SizedBox(
+        height: 72,
+        child: Row(
+          children: [
+            for (int i = 0; i < items.take(4).length; i++)
+              Expanded(
+                child: Container(
+                  margin: const EdgeInsets.only(left: 5),
+                  decoration: BoxDecoration(
+                    color: ClientTheme.soft,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: SxImage(url: items[i]['image_url'], fit: BoxFit.cover),
+                ),
+              ),
+            if (items.length > 4)
+              Container(
+                width: 40,
+                height: 72,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: ClientTheme.soft,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Text(
+                  '+' + (items.length - 4).toString(),
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
 class SxOrderDetailScreen extends StatefulWidget {
-  final int id; const SxOrderDetailScreen({super.key, required this.id});
+  final int id;
+  const SxOrderDetailScreen({super.key, required this.id});
   @override State<SxOrderDetailScreen> createState() => _SxOrderDetailScreenState();
 }
+
 class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
-  Map<String, dynamic> order = {}; bool loading = true;
-  @override void initState() { super.initState(); api.order(widget.id).then((v) { if (mounted) setState(() { order = Map<String, dynamic>.from(v['item'] is Map ? v['item'] : v); loading = false; }); }).catchError((_) { if (mounted) setState(() => loading = false); }); }
-  @override Widget build(BuildContext context) => SxShellPage(title: 'تفاصيل الطلب', back: true, child: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : ListView(
-    padding: const EdgeInsets.all(10),
-    children: [
-      Container(color: ClientTheme.soft, padding: const EdgeInsets.all(11), child: Text('رقم الطلب: ' + sxText(order['order_no']) + '\\nالحالة: ' + sxText(order['status']), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, height: 1.7))),
-      const SxSectionTitle(title: 'المنتجات'),
-      for (final x in sxMaps(order['items'])) ListTile(
-        contentPadding: EdgeInsets.zero, leading: SizedBox(width: 59, height: 63, child: SxImage(url: x['image_url'])),
-        title: Text(sxText(x['product_name']), style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800)),
-        subtitle: Text('الكمية: ' + sxText(x['qty']), style: const TextStyle(fontSize: 9)),
-        trailing: Text(sxText(x['unit_price'], '0') + ' ' + state.currencySymbol, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
+  Map<String, dynamic> order = {};
+  bool loading = true;
+
+  static const stages = <String>[
+    'created',
+    'processing',
+    'shipped',
+    'delivered',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final v = await api.order(widget.id);
+      final item = v['item'] is Map ? v['item'] : v;
+      if (mounted) setState(() {
+        order = Map<String, dynamic>.from(item);
+        loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  String statusLabel(String status) {
+    const labels = <String, String>{
+      'created': 'تم إنشاء الطلب',
+      'awaiting_payment': 'بانتظار الدفع',
+      'paid': 'تم الدفع',
+      'processing': 'قيد التجهيز',
+      'shipped': 'تم الشحن',
+      'delivered': 'تم التسليم',
+      'returned': 'تمت الإعادة',
+      'cancelled': 'ملغى',
+    };
+    return labels[status] ?? status;
+  }
+
+  int progressIndex(String status) {
+    if (status == 'delivered' || status == 'returned') return 3;
+    if (status == 'shipped') return 2;
+    if (status == 'paid' || status == 'processing') return 1;
+    return 0;
+  }
+
+  Future<void> openOrderChat() async {
+    try {
+      final result = await api.newConversation(
+        type: 'order',
+        orderId: widget.id,
+        subject: 'استفسار عن الطلب ' + sxText(order['order_no'], '#'),
+      );
+      final item = result['item'] is Map ? result['item'] : result;
+      final id = sxInt(item is Map ? item['id'] : 0);
+      if (!mounted || id <= 0) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SxConversationScreen(
+            conversationId: id,
+            title: 'طلب ' + sxText(order['order_no'], '#'),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(sxText(e))),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+
+    final status = sxText(order['status']);
+    final currency = order['currency'] is Map
+        ? sxText((order['currency'] as Map)['symbol'], state.currencySymbol)
+        : state.currencySymbol;
+    final address = order['address_snapshot'] is Map
+        ? Map<String, dynamic>.from(order['address_snapshot'])
+        : <String, dynamic>{};
+    final items = sxMaps(order['items']);
+    final histories = sxMaps(order['status_history']);
+    final shipments = sxMaps(order['shipments']);
+
+    return SxShellPage(
+      title: 'تفاصيل الطلب',
+      back: true,
+      child: RefreshIndicator(
+        onRefresh: load,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(10, 7, 10, 25),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: ClientTheme.border),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'طلب ' + sxText(order['order_no'], '#'),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                      SxPill(
+                        text: statusLabel(status),
+                        background: status == 'cancelled' ? const Color(0xFFFFEEEE) : ClientTheme.soft,
+                        foreground: status == 'cancelled' ? const Color(0xFFC62828) : Colors.black,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (status == 'cancelled')
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 6),
+                      child: Text('تم إلغاء هذا الطلب.', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
+                    )
+                  else
+                    Row(
+                      children: List.generate(stages.length, (i) {
+                        final active = progressIndex(status) >= i;
+                        return Expanded(
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  if (i > 0)
+                                    Expanded(
+                                      child: Container(
+                                        height: 2,
+                                        color: progressIndex(status) >= i ? Colors.black : ClientTheme.border,
+                                      ),
+                                    ),
+                                  Container(
+                                    width: 25,
+                                    height: 25,
+                                    decoration: BoxDecoration(
+                                      color: active ? Colors.black : Colors.white,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: active ? Colors.black : ClientTheme.border),
+                                    ),
+                                    child: active
+                                        ? const Icon(Icons.check, color: Colors.white, size: 13)
+                                        : Text((i + 1).toString(), style: const TextStyle(fontSize: 8, fontWeight: FontWeight.w800)),
+                                  ),
+                                  if (i < stages.length - 1)
+                                    Expanded(
+                                      child: Container(
+                                        height: 2,
+                                        color: progressIndex(status) > i ? Colors.black : ClientTheme.border,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              const SizedBox(height: 5),
+                              Text(
+                                const ['الطلب', 'التجهيز', 'الشحن', 'التسليم'][i],
+                                style: TextStyle(fontSize: 8.2, fontWeight: active ? FontWeight.w900 : FontWeight.w500, color: active ? Colors.black : ClientTheme.muted),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    ),
+                  const SizedBox(height: 9),
+                  Text(
+                    'الدفع: ' + sxText(order['payment_status'], 'غير محدد') +
+                        '  •  الشحن: ' + sxText(order['shipping_status'], 'غير محدد'),
+                    style: const TextStyle(fontSize: 8.7, color: ClientTheme.muted),
+                  ),
+                ],
+              ),
+            ),
+            const SxSectionTitle(title: 'المنتجات'),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: ClientTheme.border),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  for (int i = 0; i < items.length; i++)
+                    Builder(builder: (_) {
+                      final item = items[i];
+                      final media = sxMaps(item['media']);
+                      final image = media.isNotEmpty ? media.first['url'] : item['image_url'];
+                      final variant = item['variant_display'] is Map
+                          ? Map<String, dynamic>.from(item['variant_display'])
+                          : <String, dynamic>{};
+                      final color = variant['color'] is Map
+                          ? Map<String, dynamic>.from(variant['color'])
+                          : null;
+                      final size = variant['size'] is Map
+                          ? Map<String, dynamic>.from(variant['size'])
+                          : null;
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(9),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  width: 78,
+                                  height: 96,
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(5),
+                                    child: SxImage(url: image),
+                                  ),
+                                ),
+                                const SizedBox(width: 9),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Text(
+                                        sxText(item['name'], 'منتج'),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 10.8, fontWeight: FontWeight.w800),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      if (color != null)
+                                        Text('اللون: ' + sxText(color['name']), style: const TextStyle(fontSize: 8.7, color: ClientTheme.muted)),
+                                      if (size != null)
+                                        Text('المقاس: ' + sxText(size['label'], sxText(size['code'])), style: const TextStyle(fontSize: 8.7, color: ClientTheme.muted)),
+                                      for (final option in sxMaps(item['options']))
+                                        Text(
+                                          sxText(option['name']) + ': ' + sxText(option['value']),
+                                          style: const TextStyle(fontSize: 8.7, color: ClientTheme.muted),
+                                        ),
+                                      const SizedBox(height: 7),
+                                      Row(
+                                        children: [
+                                          Text(
+                                            '×' + sxInt(item['qty'], 1).toString(),
+                                            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900),
+                                          ),
+                                          const Spacer(),
+                                          Text(
+                                            sxText(item['sale_price_display'], '0') + ' ' + currency,
+                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (i < items.length - 1) const Divider(height: 1),
+                        ],
+                      );
+                    }),
+                ],
+              ),
+            ),
+            const SxSectionTitle(title: 'ملخص الدفع'),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: ClientTheme.border),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                children: [
+                  _OrderAmountRow('قيمة المنتجات', sxText(order['subtotal'], '0') + ' ' + currency),
+                  _OrderAmountRow('الخصم', sxText(order['discount'], '0') + ' ' + currency),
+                  _OrderAmountRow('الشحن', sxText(order['shipping'], '0') + ' ' + currency),
+                  const Divider(height: 17),
+                  _OrderAmountRow('الإجمالي', sxText(order['total'], '0') + ' ' + currency, strong: true),
+                ],
+              ),
+            ),
+            const SxSectionTitle(title: 'عنوان التسليم'),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: ClientTheme.border),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 19),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: Text(
+                          sxText(address['recipient_name'], 'عنوان التسليم'),
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    [
+                      sxText(address['country_name']),
+                      sxText(address['region_name']),
+                      sxText(address['city_name']),
+                      sxText(address['city_area_name']),
+                      sxText(address['district']),
+                      sxText(address['street']),
+                      sxText(address['landmark']),
+                    ].where((x) => x.trim().isNotEmpty).join(' • '),
+                    style: const TextStyle(fontSize: 9, color: ClientTheme.muted, height: 1.55),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(sxText(address['phone']), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+            if (histories.isNotEmpty) ...[
+              const SxSectionTitle(title: 'تحديثات الطلب'),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: ClientTheme.border),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  children: [
+                    for (final h in histories)
+                      ListTile(
+                        dense: true,
+                        leading: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: const BoxDecoration(color: ClientTheme.soft, shape: BoxShape.circle),
+                          child: const Icon(Icons.check, size: 14),
+                        ),
+                        title: Text(statusLabel(sxText(h['to_status'])), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800)),
+                        subtitle: Text(sxText(h['note']), style: const TextStyle(fontSize: 8.5, color: ClientTheme.muted)),
+                        trailing: Text(_formatDateTime(sxText(h['created_at'])), style: const TextStyle(fontSize: 7.8, color: ClientTheme.muted)),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+            if (shipments.isNotEmpty) ...[
+              const SxSectionTitle(title: 'تتبع الشحنة'),
+              for (final shipment in shipments)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 7),
+                  padding: const EdgeInsets.all(11),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    border: Border.all(color: ClientTheme.border),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.local_shipping_outlined, size: 18),
+                          const SizedBox(width: 7),
+                          Expanded(
+                            child: Text(
+                              sxText(shipment['tracking_no'], 'الشحنة'),
+                              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+                            ),
+                          ),
+                          SxPill(
+                            text: sxText(shipment['status'], 'قيد التجهيز'),
+                            background: ClientTheme.soft,
+                            foreground: Colors.black,
+                          ),
+                        ],
+                      ),
+                      if (sxText(shipment['tracking_no']).isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 5),
+                          child: Text(
+                            'رقم التتبع: ' + sxText(shipment['tracking_no']),
+                            style: const TextStyle(fontSize: 8.5, color: ClientTheme.muted),
+                          ),
+                        ),
+                      for (final event in sxMaps(shipment['events']))
+                        ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.radio_button_checked, size: 11),
+                          title: Text(sxText(event['status']), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800)),
+                          subtitle: Text(
+                            [sxText(event['location']), sxText(event['description'])]
+                                .where((x) => x.trim().isNotEmpty)
+                                .join(' • '),
+                            style: const TextStyle(fontSize: 8, color: ClientTheme.muted),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+            ],
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 47,
+              child: OutlinedButton.icon(
+                onPressed: openOrderChat,
+                icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                label: const Text(
+                  'التواصل مع خدمة العملاء حول الطلب',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.black,
+                  side: const BorderSide(color: Colors.black),
+                  shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    ],
-  ));
+    );
+  }
+}
+
+class _OrderAmountRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool strong;
+  const _OrderAmountRow(this.label, this.value, {this.strong = false});
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 9.5, fontWeight: strong ? FontWeight.w900 : FontWeight.w500),
+          ),
+        ),
+        Text(value, style: TextStyle(fontSize: strong ? 15 : 10, fontWeight: FontWeight.w900)),
+      ],
+    ),
+  );
 }
 
 class SxWishlistScreen extends StatefulWidget {
@@ -9573,17 +10313,449 @@ class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
   ));
 }
 
+
 class SxSupportScreen extends StatefulWidget {
   const SxSupportScreen({super.key});
   @override State<SxSupportScreen> createState() => _SxSupportScreenState();
 }
+
 class _SxSupportScreenState extends State<SxSupportScreen> {
-  List<Map<String, dynamic>> rows = []; bool loading = true;
-  @override void initState() { super.initState(); api.conversations().then((v) { if (mounted) setState(() { rows = v; loading = false; }); }).catchError((_) { if (mounted) setState(() => loading = false); }); }
-  @override Widget build(BuildContext context) => SxShellPage(title: 'خدمة العملاء', back: true, child: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : rows.isEmpty ? Center(child: FilledButton(onPressed: () async { try { await api.newConversation(); final v = await api.conversations(); if (mounted) setState(() => rows = v); } catch (_) {} }, style: FilledButton.styleFrom(backgroundColor: Colors.black), child: const Text('بدء محادثة'))) : ListView.separated(
-    itemCount: rows.length, separatorBuilder: (_, __) => const Divider(height: 1),
-    itemBuilder: (_, i) => ListTile(leading: const CircleAvatar(backgroundColor: Colors.black, child: Icon(Icons.support_agent, color: Colors.white)), title: Text(sxText(rows[i]['subject'], 'خدمة العملاء'), style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900)), subtitle: Text(sxText(rows[i]['status'], 'مفتوحة'), style: const TextStyle(fontSize: 9))),
-  ));
+  List<Map<String, dynamic>> rows = [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final next = await api.conversations();
+      if (mounted) setState(() {
+        rows = next;
+        loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Map<String, dynamic>? get supportConversation {
+    for (final row in rows) {
+      if (sxText(row['type']) == 'customer_service' && row['order_id'] == null) {
+        return row;
+      }
+    }
+    return null;
+  }
+
+  Future<void> openSupport() async {
+    try {
+      var row = supportConversation;
+      if (row == null) {
+        final result = await api.newConversation();
+        row = Map<String, dynamic>.from(result['item'] is Map ? result['item'] : result);
+      }
+      final id = sxInt(row?['id']);
+      if (!mounted || id <= 0) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SxConversationScreen(
+            conversationId: id,
+            title: 'خدمة العملاء',
+          ),
+        ),
+      );
+      load();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(sxText(e))),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final support = supportConversation;
+    final others = rows.where((x) => x != support).toList();
+
+    return SxShellPage(
+      title: 'المحادثات والدعم',
+      back: true,
+      child: loading
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : RefreshIndicator(
+              onRefresh: load,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 24),
+                children: [
+                  InkWell(
+                    onTap: openSupport,
+                    child: Container(
+                      padding: const EdgeInsets.all(13),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Colors.black, Color(0xFF303030)],
+                          begin: Alignment.topRight,
+                          end: Alignment.bottomLeft,
+                        ),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.support_agent, color: Colors.white, size: 25),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text('خدمة العملاء', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w900)),
+                                SizedBox(height: 3),
+                                Text('تواصل معنا مباشرة لأي استفسار أو مساعدة', style: TextStyle(color: Colors.white70, fontSize: 9.5, height: 1.35)),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_left, color: Colors.white, size: 23),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('محادثاتي', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+                      ),
+                      Text(
+                        others.length.toString(),
+                        style: const TextStyle(fontSize: 9, color: ClientTheme.muted),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (others.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(vertical: 35),
+                      alignment: Alignment.center,
+                      child: const Text(
+                        'لا توجد محادثات إضافية.\nيمكنك بدء محادثة مرتبطة بأي طلب من تفاصيله.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 9.5, color: ClientTheme.muted, height: 1.5),
+                      ),
+                    )
+                  else
+                    for (final row in others)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 7),
+                        child: InkWell(
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => SxConversationScreen(
+                                  conversationId: sxInt(row['id']),
+                                  title: row['order_id'] == null
+                                      ? sxText(row['subject'], 'محادثة')
+                                      : 'طلب ' + sxText(row['order_id']),
+                                ),
+                              ),
+                            );
+                            load();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: ClientTheme.border),
+                              borderRadius: BorderRadius.circular(9),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: ClientTheme.soft,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(
+                                    row['order_id'] == null
+                                        ? Icons.chat_bubble_outline
+                                        : Icons.receipt_long_outlined,
+                                    size: 21,
+                                  ),
+                                ),
+                                const SizedBox(width: 9),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Text(
+                                        row['order_id'] == null
+                                            ? sxText(row['subject'], 'محادثة')
+                                            : 'استفسار عن الطلب ' + sxText(row['order_id']),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 11.2, fontWeight: FontWeight.w900),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      Text(
+                                        sxText(row['status'], 'مفتوحة'),
+                                        style: const TextStyle(fontSize: 8.8, color: ClientTheme.muted),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_left, size: 20),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                ],
+              ),
+            ),
+    );
+  }
+}
+
+class SxConversationScreen extends StatefulWidget {
+  final int conversationId;
+  final String title;
+  const SxConversationScreen({
+    super.key,
+    required this.conversationId,
+    required this.title,
+  });
+  @override State<SxConversationScreen> createState() => _SxConversationScreenState();
+}
+
+class _SxConversationScreenState extends State<SxConversationScreen> {
+  final input = TextEditingController();
+  final scroll = ScrollController();
+  List<Map<String, dynamic>> messages = [];
+  bool loading = true;
+  bool sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final next = await api.messages(widget.conversationId);
+      if (mounted) setState(() {
+        messages = next;
+        loading = false;
+      });
+      _scrollToBottom();
+    } catch (_) {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!scroll.hasClients) return;
+      scroll.jumpTo(scroll.position.maxScrollExtent);
+    });
+  }
+
+  Future<void> send() async {
+    final body = input.text.trim();
+    if (body.isEmpty || sending) return;
+    setState(() => sending = true);
+    input.clear();
+    try {
+      await api.sendMessage(widget.conversationId, body);
+      await load();
+    } catch (e) {
+      input.text = body;
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(sxText(e))),
+      );
+    } finally {
+      if (mounted) setState(() => sending = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    input.dispose();
+    scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: const Color(0xFFF6F6F6),
+    appBar: AppBar(
+      titleSpacing: 0,
+      title: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
+            child: const Icon(Icons.support_agent, color: Colors.white, size: 19),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              widget.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        IconButton(
+          onPressed: load,
+          icon: const Icon(Icons.refresh_outlined, size: 20),
+        ),
+      ],
+    ),
+    body: loading
+        ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+        : Column(
+            children: [
+              Expanded(
+                child: messages.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'ابدأ المحادثة برسالة قصيرة، وسنرد عليك هنا.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 10, color: ClientTheme.muted),
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: scroll,
+                        padding: const EdgeInsets.fromLTRB(10, 15, 10, 18),
+                        itemCount: messages.length,
+                        itemBuilder: (_, i) {
+                          final message = messages[i];
+                          final mine = sxText(message['sender_type']) == 'customer';
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Align(
+                              alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  if (!mine)
+                                    Container(
+                                      width: 29,
+                                      height: 29,
+                                      decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
+                                      child: const Icon(Icons.support_agent, color: Colors.white, size: 15),
+                                    ),
+                                  if (!mine) const SizedBox(width: 6),
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .76),
+                                    child: Container(
+                                      padding: const EdgeInsets.fromLTRB(11, 9, 11, 7),
+                                      decoration: BoxDecoration(
+                                        color: mine ? Colors.black : Colors.white,
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: const Radius.circular(14),
+                                          topRight: const Radius.circular(14),
+                                          bottomLeft: Radius.circular(mine ? 14 : 4),
+                                          bottomRight: Radius.circular(mine ? 4 : 14),
+                                        ),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Color(0x11000000),
+                                            blurRadius: 6,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        children: [
+                                          Text(
+                                            sxText(message['body'], message['message_type'] == 'attachment' ? 'مرفق' : ''),
+                                            style: TextStyle(
+                                              color: mine ? Colors.white : Colors.black,
+                                              fontSize: 10.5,
+                                              height: 1.45,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            _formatDateTime(sxText(message['created_at'])),
+                                            textAlign: TextAlign.end,
+                                            style: TextStyle(
+                                              color: mine ? Colors.white70 : ClientTheme.muted,
+                                              fontSize: 7.2,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              SafeArea(
+                top: false,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(9, 8, 9, 8),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(top: BorderSide(color: ClientTheme.border)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: input,
+                          minLines: 1,
+                          maxLines: 4,
+                          textInputAction: TextInputAction.newline,
+                          decoration: InputDecoration(
+                            hintText: 'اكتب رسالتك...',
+                            suffixIcon: sending
+                                ? const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : IconButton(
+                                    onPressed: send,
+                                    icon: const Icon(Icons.arrow_upward_rounded, size: 20),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+  );
 }
 
 class SxLooksScreen extends StatefulWidget {
