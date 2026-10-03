@@ -328,6 +328,7 @@ def register_entity_views(admin_bp):
             "admin/order_detail.html",
             title=f"الطلب {order.order_no}",
             order=detail,
+            order_items=detail.get("items", []),
             status_choices=(
                 "created", "awaiting_payment", "paid", "processing",
                 "shipped", "delivered", "returned", "cancelled",
