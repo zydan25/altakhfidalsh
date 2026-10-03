@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -63,10 +65,12 @@ class SxLaunchGate extends StatefulWidget {
 }
 
 class _SxLaunchGateState extends State<SxLaunchGate> {
+  Timer? _launchTimer;
+
   @override
   void initState() {
     super.initState();
-    Future<void>.delayed(const Duration(milliseconds: 1100), () {
+    _launchTimer = Timer(const Duration(milliseconds: 1100), () {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -74,6 +78,12 @@ class _SxLaunchGateState extends State<SxLaunchGate> {
         ),
       );
     });
+  }
+
+  @override
+  void dispose() {
+    _launchTimer?.cancel();
+    super.dispose();
   }
 
   @override
