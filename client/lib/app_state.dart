@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 
 final api = ApiService();
+final cartBadge = ValueNotifier<int>(0);
 
 class ClientState {
   Set<int> wishlist = <int>{};

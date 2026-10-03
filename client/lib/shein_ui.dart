@@ -103,7 +103,7 @@ class SxBottomBar extends StatelessWidget {
         Stack(clipBehavior: Clip.none, children: [
           Icon(i == index ? on : off, size: 23, color: i == index ? Colors.black : const Color(0xFF7D8792)),
           if (i == 3) ValueListenableBuilder<int>(
-            valueListenable: _CartBadge.value,
+            valueListenable: cartBadge,
             builder: (_, n, __) => n == 0 ? const SizedBox.shrink() : Positioned(
               right: -7, top: -5,
               child: Container(
@@ -121,9 +121,7 @@ class SxBottomBar extends StatelessWidget {
   );
 }
 
-class _CartBadge {
-  static final ValueNotifier<int> value = ValueNotifier<int>(0);
-}
+
 
 class SxAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String? title;
@@ -597,7 +595,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       );
       try {
         final c = await api.cart(currencyId: state.currencyId);
-        _CartBadge.value.value = sxMaps(c['item']?['items']).length;
+        cartBadge.value = sxMaps(c['item']?['items']).length;
       } catch (_) {}
 
       if (!mounted || requestSerial != _loadSerial) {
@@ -6919,7 +6917,7 @@ class _TrendProductTileState extends State<_TrendProductTile> {
     try {
       if (widget.product.variantId == null) return;
       await api.addCart(widget.product.variantId!);
-      _CartBadge.value.value += 1;
+      cartBadge.value += 1;
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -7452,7 +7450,7 @@ class _SxCartScreenState extends State<SxCartScreen> {
   @override void initState() { super.initState(); load(); }
   Future<void> load() async {
     if (!state.loggedIn) { setState(() => loading = false); return; }
-    try { cart = await api.cart(currencyId: state.currencyId); _CartBadge.value.value = sxMaps(cart?['item']?['items']).length; } catch (_) {}
+    try { cart = await api.cart(currencyId: state.currencyId); cartBadge.value = sxMaps(cart?['item']?['items']).length; } catch (_) {}
     if (mounted) setState(() => loading = false);
   }
   @override Widget build(BuildContext context) {

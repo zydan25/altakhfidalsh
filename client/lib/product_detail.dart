@@ -201,7 +201,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
     try {
       await api.addCart(variant);
       final cart = await api.cart(currencyId: state.currencyId);
-      _CartBadge.value.value = sxIntListLength(cart['item']?['items']);
+      cartBadge.value = sxIntListLength(cart['item']?['items']);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('تمت إضافة المنتج إلى الحقيبة')),
