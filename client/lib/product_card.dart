@@ -772,6 +772,22 @@ class _SxProductCardState extends State<SxProductCard> {
             bottomOffset: discount > 0 ? 32 : 6,
           ),
 
+        if (_cardBool('show_product_badges', true) &&
+            product.badges.any((badge) => _badgePosition(badge) == 'right_of_image'))
+          Positioned(
+            right: 6,
+            top: 50,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: product.badges
+                  .where((badge) => _badgePosition(badge) == 'right_of_image')
+                  .take(_cardNumber('product_badge_max', 4).round().clamp(1, 4).toInt())
+                  .map(_badgeChip)
+                  .toList(),
+            ),
+          ),
+
         if (gallery.length > 1)
           Positioned(
             left: 0,
