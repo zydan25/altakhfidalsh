@@ -2205,7 +2205,7 @@ class CatalogService:
         }
 
     @staticmethod
-    def publish_product(product_id):
+    def publish_product(product_id, notify_customers=True):
         product = db.session.get(Product, product_id)
         if not product:
             raise LookupError("product not found")
@@ -2228,6 +2228,20 @@ class CatalogService:
         product.status = "published"
         product.published_at = db.func.now()
         db.session.commit()
+
+        if notify_customers:
+            from ...services.notifications import NotificationService
+            NotificationService.broadcast(
+                "منتج جديد في التخفيض الصح",
+                "تمت إضافة «" + product.name + "» إلى المتجر. اضغط لعرض تفاصيل المنتج.",
+                {
+                    "type": "new_product",
+                    "screen_type": "product_details",
+                    "product_id": product.id,
+                    "target": "product",
+                },
+            )
+
         return CatalogService._serialize_product(product)
 
     @staticmethod
