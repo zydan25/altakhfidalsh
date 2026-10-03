@@ -339,6 +339,135 @@
     }
   };
 
+  const cardLabels = {
+    card_background_color:"لون خلفية البطاقة",card_background_opacity:"شفافية خلفية البطاقة",card_radius:"نصف قطر البطاقة",
+    show_name:"إظهار اسم المنتج",name_font_size:"حجم اسم المنتج",name_font_weight:"وزن اسم المنتج",name_color:"لون اسم المنتج",
+    name_background_color:"خلفية اسم المنتج",name_background_opacity:"شفافية خلفية الاسم",name_max_lines:"أقصى أسطر للاسم",
+    show_short_description:"إظهار الوصف القصير",short_description_font_size:"حجم الوصف القصير",short_description_font_weight:"وزن الوصف القصير",
+    short_description_color:"لون الوصف القصير",short_description_background_color:"خلفية الوصف القصير",short_description_background_opacity:"شفافية خلفية الوصف",short_description_max_lines:"أسطر الوصف",
+    show_price:"إظهار السعر",price_font_size:"حجم السعر",price_font_weight:"وزن السعر",price_color:"لون السعر",price_background_color:"خلفية السعر",price_background_opacity:"شفافية خلفية السعر",
+    show_compare_price:"إظهار السعر قبل الخصم",compare_price_font_size:"حجم السعر قبل الخصم",compare_price_font_weight:"وزن السعر قبل الخصم",
+    compare_price_color:"لون السعر قبل الخصم",compare_price_background_color:"خلفية السعر قبل الخصم",compare_price_background_opacity:"شفافية خلفية السعر قبل الخصم",
+    compare_price_text_decoration:"خط السعر قبل الخصم",
+    show_currency:"إظهار رمز العملة",currency_font_size:"حجم رمز العملة",currency_font_weight:"وزن رمز العملة",currency_color:"لون رمز العملة",
+    currency_background_color:"خلفية رمز العملة",currency_background_opacity:"شفافية خلفية العملة",
+    show_size:"إظهار المقاس",size_font_size:"حجم المقاس",size_font_weight:"وزن المقاس",size_color:"لون المقاس",size_background_color:"خلفية المقاس",size_background_opacity:"شفافية خلفية المقاس",
+    show_brand:"إظهار العلامة التجارية",brand_position:"موقع العلامة التجارية",brand_background_color:"خلفية العلامة",brand_text_color:"لون العلامة",brand_font_size:"حجم خط العلامة",brand_radius:"نصف قطر العلامة",
+    show_product_badges:"إظهار شارات المنتج",product_badge_position:"الموقع الافتراضي للشارات",product_badge_font_size:"حجم خط الشارات",product_badge_radius:"نصف قطر الشارات",product_badge_max:"الحد الأقصى للشارات",
+    show_trend_badge:"إظهار شارة الترند",trend_badge_text:"نص شارة الترند",trend_badge_background_color:"خلفية شارة الترند",trend_badge_text_color:"لون نص شارة الترند",trend_badge_font_size:"حجم شارة الترند",trend_badge_radius:"نصف قطر شارة الترند",
+    show_trend_hashtag:"إظهار هاشتاج الترند",trend_hashtag_text_color:"لون هاشتاج الترند",trend_hashtag_background_color:"خلفية هاشتاج الترند",trend_hashtag_use_background:"خلفية هاشتاج الترند",
+    trend_hashtag_font_size:"حجم هاشتاج الترند",trend_hashtag_font_weight:"وزن هاشتاج الترند",trend_show_arrow:"إظهار سهم الترند",trend_arrow_text:"رمز سهم الترند",trend_arrow_color:"لون سهم الترند",trend_ribbon_gap:"المسافة في شريط الترند",
+    colors_show:"إظهار الألوان",colors_position:"موقع الألوان",colors_direction:"اتجاه الألوان",colors_size:"حجم دائرة اللون",colors_gap:"المسافة بين الألوان",colors_max:"عدد الألوان",colors_container_size:"حجم حاوية اللون",colors_border_width:"سُمك حدود اللون",
+    meta_show:"إظهار المعلومة العلوية",meta_position:"موقع المعلومة العلوية",meta_font_size:"حجم المعلومة العلوية",meta_background_color:"خلفية المعلومة العلوية",meta_text_color:"لون المعلومة العلوية",meta_radius:"نصف قطر المعلومة",meta_padding_horizontal:"الحشو الأفقي للمعلومة",meta_padding_vertical:"الحشو الرأسي للمعلومة"
+  };
+  const cardGroups = [
+    ["البطاقة والاسم", ["card_","show_name","name_","show_short_description","short_description_"]],
+    ["السعر والعملات", ["show_price","price_","show_compare_price","compare_price_","show_currency","currency_"]],
+    ["المقاس والعلامة", ["show_size","size_","show_brand","brand_"]],
+    ["الشارات والترند", ["show_product_badges","product_badge_","show_trend_badge","trend_badge_","show_trend_hashtag","trend_hashtag_","trend_"]],
+    ["الألوان والمعلومات", ["colors_","meta_"]]
+  ];
+  const cardGroupFor = key => {
+    for (const [title, prefixes] of cardGroups) {
+      if (prefixes.some(prefix => prefix === key || key.startsWith(prefix))) return title;
+    }
+    return "عام";
+  };
+  const selectOptionsFor = (key) => {
+    if (key.endsWith("text_decoration")) return [["line_through","خط فوق النص"],["none","بدون"]];
+    if (key === "brand_position" || key === "colors_position" || key === "meta_position" || key === "product_badge_position") {
+      return [["top_right","أعلى اليمين"],["top_left","أعلى اليسار"],["bottom_right","أسفل اليمين"],["bottom_left","أسفل اليسار"]];
+    }
+    if (key === "colors_direction") return [["horizontal","أفقي"],["vertical","رأسي"]];
+    return null;
+  };
+  const isColorKey = key => key.endsWith("_color");
+  const renderSettingValue = (key, globalValue, currentValue) => {
+    const value = currentValue ?? globalValue;
+    const label = cardLabels[key] || key.replaceAll("_"," ");
+    if (typeof globalValue === "boolean") {
+      return '<label class="card-setting-control"><input class="setting-value" type="checkbox" data-setting-value="' + key + '" ' + (value ? "checked" : "") + '><span>مفعل</span></label>';
+    }
+    const options = selectOptionsFor(key);
+    if (options) {
+      return '<label class="card-setting-control"><select class="setting-value" data-setting-value="' + key + '">' +
+        options.map(([v,t]) => '<option value="' + v + '"' + (String(value) === v ? " selected" : "") + '>' + t + '</option>').join("") +
+        '</select></label>';
+    }
+    if (isColorKey(key) && typeof value === "string") {
+      const safe = /^#[0-9a-fA-F]{6}$/.test(value) ? value : "#ffffff";
+      return '<div class="card-color-row"><input class="setting-value" type="color" value="' + safe + '" data-setting-color="' + key + '"><input class="setting-value" dir="ltr" value="' + safe + '" data-setting-color-text="' + key + '" data-setting-value="' + key + '"></div>';
+    }
+    if (typeof globalValue === "number") {
+      const step = Number(globalValue) % 1 === 0 ? "1" : "0.1";
+      return '<label class="card-setting-control"><input class="setting-value" type="number" step="' + step + '" value="' + escapeHtml(value) + '" data-setting-value="' + key + '"></label>';
+    }
+    return '<label class="card-setting-control"><input class="setting-value" type="text" value="' + escapeHtml(value) + '" data-setting-value="' + key + '"></label>';
+  };
+  const renderProductCardEditor = () => {
+    const root = document.getElementById("productCardEditor");
+    if (!root) return;
+    const global = snapshot?.product_card_global_settings || {};
+    const overrides = snapshot?.product_card_overrides || {};
+    const keys = Object.keys(global);
+    root.innerHTML = cardGroups.map(([title]) => {
+      const groupKeys = keys.filter(key => cardGroupFor(key) === title);
+      if (!groupKeys.length) return "";
+      return '<details class="card-setting-group"><summary><span>' + title + '</span><small>' + groupKeys.length + ' إعداد</small></summary><div class="card-setting-body">' +
+        groupKeys.map(key => {
+          const inherited = !Object.prototype.hasOwnProperty.call(overrides, key);
+          return '<div class="card-setting-row ' + (inherited ? "is-inherited" : "") + '" data-setting-row="' + key + '">' +
+            '<label>' + (cardLabels[key] || key) + '</label>' +
+            '<div class="card-setting-control ' + (inherited ? "is-inherited" : "") + '">' +
+              renderSettingValue(key, global[key], inherited ? global[key] : overrides[key]) +
+              '<label class="inherit-toggle"><input type="checkbox" data-setting-customize="' + key + '"' + (inherited ? "" : " checked") + '><span>تخصيص</span></label>' +
+            '</div></div>';
+        }).join("") + '</div></details>';
+    }).join("");
+  };
+
+  const renderDeliveryBadges = () => {
+    const root = document.getElementById("deliveryBadgeEditor");
+    if (!root) return;
+    const rows = snapshot?.delivery_badges || [];
+    root.innerHTML = rows.map((row, index) => {
+      const bg = /^#[0-9a-fA-F]{6}$/.test(row.background_color || "") ? row.background_color : "#f5f5f5";
+      const fg = /^#[0-9a-fA-F]{6}$/.test(row.text_color || "") ? row.text_color : "#111111";
+      return '<article class="delivery-badge-card" data-delivery-index="' + index + '">' +
+        '<div class="delivery-badge-card-head"><div><strong>شارة التوصيل ' + (index + 1) + '</strong><small class="muted">ترتيب ' + (index + 1) + '</small></div>' +
+        '<div class="delivery-badge-actions"><button type="button" class="ghost-button compact" data-delivery-up="' + index + '">↑</button><button type="button" class="ghost-button compact" data-delivery-down="' + index + '">↓</button><button type="button" class="ghost-button compact" data-delivery-delete="' + index + '">حذف</button></div></div>' +
+        '<div class="delivery-badge-card-body">' +
+        '<label class="full">النص<input data-delivery-field="text" value="' + escapeHtml(row.text || "") + '" maxlength="120"></label>' +
+        '<label>القسم<input data-delivery-field="section" value="' + escapeHtml(row.section || "shipping") + '"></label>' +
+        '<label>الأيقونة<input data-delivery-field="icon" value="' + escapeHtml(row.icon || "local_shipping") + '"></label>' +
+        '<label>حجم الخط<input type="number" min="7" max="24" step="0.5" data-delivery-field="font_size" value="' + (row.font_size ?? 9) + '"></label>' +
+        '<label class="check-row"><input type="checkbox" data-delivery-field="visible" ' + (row.visible !== false ? "checked" : "") + '><span><strong>إظهار</strong></span></label>' +
+        '<label>لون الخلفية<span class="color-input-row"><input type="color" data-delivery-color="background_color" value="' + bg + '"><input class="color-text-input" dir="ltr" data-delivery-field="background_color" value="' + bg + '"></span></label>' +
+        '<label>لون النص<span class="color-input-row"><input type="color" data-delivery-color="text_color" value="' + fg + '"><input class="color-text-input" dir="ltr" data-delivery-field="text_color" value="' + fg + '"></span></label>' +
+        '</div></article>';
+    }).join("") || '<div class="empty-state compact"><strong>لا توجد شارات توصيل.</strong><span class="muted">أضف أول شارة لتظهر أعلى معلومات التوصيل في تفاصيل المنتج.</span></div>';
+  };
+
+  const renderRecommendationEditor = () => {
+    const root = document.getElementById("recommendationEditor");
+    if (!root) return;
+    const current = snapshot?.recommendation_settings || {};
+    const source = current.source || "same_category";
+    const choices = [
+      ["same_category","من نفس الفئة","المنتجات المرتبطة بالفئة الحالية للمنتج."],
+      ["parent_category","من الفئة الأب","المنتجات من مستوى الفئة الأب."],
+      ["root_category","من الفئة الرئيسية العليا","المنتجات من الجذر الرئيسي للفئة."],
+      ["random_all","عشوائي من كل المنتجات","منتجات عشوائية من كامل الكتالوج."]
+    ];
+    root.innerHTML = choices.map(([value,title,hint]) =>
+      '<label class="recommendation-choice ' + (source === value ? "is-selected" : "") + '">' +
+      '<input type="radio" name="recommendation-source" value="' + value + '"' + (source === value ? " checked" : "") + '>' +
+      '<span><strong>' + title + '</strong><small>' + hint + '</small></span></label>'
+    ).join("") +
+    '<div class="recommendation-limit"><label>عدد المنتجات<input id="recommendationLimit" type="number" min="2" max="20" value="' + (current.limit || 10) + '"></label>' +
+    '<label class="check-row"><input type="checkbox" checked disabled><span><strong>ترتيب عشوائي</strong><small>ثابت على أنه عشوائي من الخادم.</small></span></label></div>';
+  };
+
   const hydrate = () => {
     const categories = configRefs?.categories || [];
     const categoryParent = document.querySelector('#quickCategoryForm select[name="parent_id"]');
@@ -538,29 +667,39 @@
       const opacity = value("background_opacity", 1);
       const position = value("position", "top_right");
       const decoration = value("text_decoration", "none");
-      return '<div class="product-badge-editor" data-badge-row="' + x.id + '">' +
+      const positionLabels = {
+        top_left:"أعلى اليسار",top_right:"أعلى اليمين",bottom_left:"أسفل اليسار",
+        bottom_right:"أسفل اليمين",above_image:"أعلى الصورة",before_name:"قبل الاسم",
+        after_name:"بعد الاسم",right_of_image:"يمين الصورة",below_price:"أسفل السعر"
+      };
+      return '<article class="product-badge-editor" data-badge-row="' + x.id + '">' +
         '<div class="product-badge-editor-head">' +
           '<label class="check-row compact-check"><input type="checkbox" value="' + x.id + '" data-badge-checkbox ' +
             (selected ? 'checked' : '') + (!x.is_active ? ' disabled' : '') + '><span><strong>' +
             escapeHtml(x.name) + '</strong><small>' + escapeHtml(x.code) + '</small></span></label>' +
-          '<span class="badge-live-preview" style="background:' + escapeHtml(bg) + ';color:' + escapeHtml(fg) + ';opacity:' + Number(opacity) + ';text-decoration:' + (decoration === "line_through" ? "line-through" : "none") + ';font-size:' + Number(font) + 'px;font-weight:' + Number(weight) + '">' +
-            escapeHtml(current.custom_text || x.name) + '</span>' +
+          '<div class="delivery-badge-actions">' +
+            '<button type="button" class="ghost-button compact" data-badge-up="' + x.id + '">↑</button>' +
+            '<button type="button" class="ghost-button compact" data-badge-down="' + x.id + '">↓</button>' +
+            '<button type="button" class="ghost-button compact" data-badge-open="' + x.id + '">تعديل الشكل</button>' +
+          '</div>' +
         '</div>' +
+        '<div class="product-badge-summary"><span>الموقع: ' + (positionLabels[position] || position) + '</span><span>الترتيب: ' + (current.sort_order ?? 0) + '</span></div>' +
+        '<details class="badge-editor-details"><summary>فتح إعدادات هذه الشارة</summary>' +
         '<div class="badge-editor-grid">' +
-          '<label>ترتيب<input type="number" min="0" max="99" value="' + (current.sort_order ?? 0) + '" data-badge-sort="' + x.id + '"></label>' +
+          '<label>الترتيب<input type="number" min="0" max="99" value="' + (current.sort_order ?? 0) + '" data-badge-sort="' + x.id + '"></label>' +
           '<label>الموقع<select data-badge-position="' + x.id + '">' +
-            ['top_left','top_right','above_image','before_name','after_name','right_of_image','below_price'].map(option => '<option value="' + option + '"' + (position === option ? ' selected' : '') + '>' + option + '</option>').join('') +
+            Object.entries(positionLabels).map(([option,label]) => '<option value="' + option + '"' + (position === option ? ' selected' : '') + '>' + label + '</option>').join('') +
           '</select></label>' +
           '<label>النص المخصص<input value="' + escapeHtml(current.custom_text || '') + '" data-badge-text="' + x.id + '" maxlength="120"></label>' +
-          '<label>الظهور بالأيام<input type="number" min="0" max="3650" value="' + days + '" data-badge-days="' + x.id + '"></label>' +
+          '<label>الظهور بالأيام<input type="number" min="0" max="3650" value="' + remainingDays(current) + '" data-badge-days="' + x.id + '"></label>' +
           '<label>حجم الخط<input type="number" min="6" max="32" step="0.5" value="' + font + '" data-badge-font="' + x.id + '"></label>' +
           '<label>وزن الخط<input type="number" min="300" max="900" step="100" value="' + weight + '" data-badge-weight="' + x.id + '"></label>' +
           '<label>شفافية الخلفية<input type="number" min="0" max="1" step="0.05" value="' + opacity + '" data-badge-opacity="' + x.id + '"></label>' +
-          '<label>خط فوق النص<select data-badge-decoration="' + x.id + '"><option value="none"' + (decoration !== "line_through" ? ' selected' : '') + '>بدون</option><option value="line_through"' + (decoration === "line_through" ? ' selected' : '') + '>خط فوق النص</option></select></label>' +
-          '<label>خلفية HEX<span class="color-input-row"><input type="color" value="' + bg + '" data-badge-bg="' + x.id + '"><input dir="ltr" value="' + bg + '" data-badge-bg-text="' + x.id + '" maxlength="7"></span></label>' +
+          '<label>خط فوق النص<select data-badge-decoration="' + x.id + '"><option value="none"' + (decoration !== "line_through" ? ' selected' : '') + '>بدون خط</option><option value="line_through"' + (decoration === "line_through" ? ' selected' : '') + '>خط فوق النص</option></select></label>' +
+          '<label>الخلفية HEX<span class="color-input-row"><input type="color" value="' + bg + '" data-badge-bg="' + x.id + '"><input dir="ltr" value="' + bg + '" data-badge-bg-text="' + x.id + '" maxlength="7"></span></label>' +
           '<label>النص HEX<span class="color-input-row"><input type="color" value="' + fg + '" data-badge-fg="' + x.id + '"><input dir="ltr" value="' + fg + '" data-badge-fg-text="' + x.id + '" maxlength="7"></span></label>' +
-        '</div>' +
-      '</div>';
+        '</div></details>' +
+      '</article>';
     }).join("") || '<div class="empty-state compact"><strong>لا توجد شارات.</strong><span class="muted">أضف شارة جديدة من الزر.</span></div>';
 
     document.getElementById("hashtagSelection").innerHTML = (marketing.hashtags || []).map(x => (
@@ -581,6 +720,9 @@
       escapeHtml(x.name) + '</strong><small>' + escapeHtml(x.status || '') + (!x.is_active ? ' · مؤرشف' : '') + '</small></span></label>'
     )).join("") || '<div class="empty-state compact"><strong>لا توجد حملات.</strong><span class="muted">أضف حملة جديدة من الزر.</span></div>';
 
+    renderProductCardEditor();
+    renderDeliveryBadges();
+    renderRecommendationEditor();
     document.getElementById("publishProduct").disabled = !snapshot.publishable;
   };
 
@@ -1073,7 +1215,7 @@
       return {
         badge_id: Number(id),
         duration_days: Number(pick('[data-badge-days="', "0") || 0),
-        sort_order: Number(pick('[data-badge-sort="', index) || index),
+        sort_order: index,
         custom_text: pick('[data-badge-text="', ""),
         settings: {
           position: pick('[data-badge-position="', "top_right"),
@@ -1204,6 +1346,165 @@
       await load();
       notify("تم نشر المنتج.");
     } catch (error) { notify(error.message, "error"); }
+  });
+
+  const readCardOverrides = () => {
+    const overrides = {};
+    document.querySelectorAll("[data-setting-row]").forEach(row => {
+      const key = row.dataset.settingRow;
+      const custom = row.querySelector("[data-setting-customize]")?.checked;
+      const input = row.querySelector("[data-setting-value]");
+      const checkbox = row.querySelector('input[type="checkbox"][data-setting-value]');
+      if (!custom) return;
+      if (checkbox) {
+        overrides[key] = checkbox.checked;
+      } else if (isNaN(Number(input?.value)) || isColorKey(key) || typeof input?.value === "string") {
+        if (isColorKey(key)) {
+          const text = row.querySelector("[data-setting-color-text]")?.value?.trim() || "";
+          if (/^#[0-9a-fA-F]{6}$/.test(text)) overrides[key] = text.toLowerCase();
+        } else {
+          const globalValue = snapshot?.product_card_global_settings?.[key];
+          if (typeof globalValue === "number") overrides[key] = Number(input?.value);
+          else overrides[key] = input?.value ?? "";
+        }
+      }
+    });
+    return overrides;
+  };
+
+  const readDeliveryBadges = () => [...document.querySelectorAll(".delivery-badge-card")].map(card => {
+    const get = field => card.querySelector('[data-delivery-field="' + field + '"]');
+    const row = {
+      id: card.dataset.deliveryIndex || undefined,
+      text: get("text")?.value?.trim() || "",
+      section: get("section")?.value?.trim() || "shipping",
+      icon: get("icon")?.value?.trim() || "local_shipping",
+      font_size: Number(get("font_size")?.value || 9),
+      visible: get("visible")?.checked !== false,
+      background_color: get("background_color")?.value || "#f5f5f5",
+      text_color: get("text_color")?.value || "#111111",
+    };
+    return row;
+  }).filter(row => row.text);
+
+  document.getElementById("productCardEditor")?.addEventListener("change", event => {
+    const toggle = event.target.closest("[data-setting-customize]");
+    if (toggle) {
+      const row = toggle.closest("[data-setting-row]");
+      const control = row?.querySelector(".card-setting-control");
+      if (control) control.classList.toggle("is-inherited", !toggle.checked);
+    }
+    const color = event.target.closest("[data-setting-color]");
+    if (color) {
+      const peer = color.closest(".card-color-row")?.querySelector("[data-setting-color-text]");
+      if (peer) peer.value = color.value;
+    }
+    const select = event.target.closest("[data-setting-value]");
+    if (select) select.dataset.changed = "1";
+  });
+  document.getElementById("productCardEditor")?.addEventListener("input", event => {
+    const colorText = event.target.closest("[data-setting-color-text]");
+    if (colorText && /^#[0-9a-fA-F]{6}$/.test(colorText.value.trim())) {
+      const peer = colorText.closest(".card-color-row")?.querySelector("[data-setting-color]");
+      if (peer) peer.value = colorText.value.trim();
+    }
+  });
+
+  document.getElementById("saveProductCard")?.addEventListener("click", async () => {
+    try {
+      await requestJson("/api/v1/catalog/products/" + productId + "/display-settings", {
+        method:"POST",
+        body:JSON.stringify({card_overrides:readCardOverrides()}),
+      });
+      await load();
+      notify("تم حفظ تخصيص بطاقة هذا المنتج. القيم غير المخصصة ستبقى موروثة من الإعداد العام.");
+    } catch(error){notify(error.message,"error");}
+  });
+
+  document.getElementById("resetProductCardOverrides")?.addEventListener("click", async () => {
+    try {
+      await requestJson("/api/v1/catalog/products/" + productId + "/display-settings", {
+        method:"POST",
+        body:JSON.stringify({card_overrides:{}}),
+      });
+      await load();
+      notify("عاد المنتج بالكامل إلى إعدادات بطاقة المنتج العامة.");
+    } catch(error){notify(error.message,"error");}
+  });
+
+  const deliverySwap = (from, to) => {
+    const rows = [...document.querySelectorAll(".delivery-badge-card")];
+    if (!rows[from] || !rows[to]) return;
+    const payload = readDeliveryBadges();
+    const item = payload.splice(from, 1)[0];
+    payload.splice(to, 0, item);
+    snapshot.delivery_badges = payload;
+    renderDeliveryBadges();
+  };
+  document.getElementById("deliveryBadgeEditor")?.addEventListener("click", event => {
+    const up = event.target.closest("[data-delivery-up]");
+    const down = event.target.closest("[data-delivery-down]");
+    const del = event.target.closest("[data-delivery-delete]");
+    const index = Number((up||down||del)?.dataset.deliveryUp ?? (up||down||del)?.dataset.deliveryDown ?? (up||down||del)?.dataset.deliveryDelete);
+    if (up && index > 0) deliverySwap(index, index - 1);
+    if (down) deliverySwap(index, index + 1);
+    if (del) {
+      const rows = readDeliveryBadges();
+      rows.splice(index,1);
+      snapshot.delivery_badges = rows;
+      renderDeliveryBadges();
+    }
+  });
+  document.getElementById("addDeliveryBadge")?.addEventListener("click", () => {
+    snapshot.delivery_badges = snapshot.delivery_badges || [];
+    snapshot.delivery_badges.push({text:"شحن سريع",section:"shipping",icon:"local_shipping",font_size:9,visible:true,background_color:"#f5f5f5",text_color:"#111111"});
+    renderDeliveryBadges();
+  });
+  document.getElementById("saveDeliveryBadges")?.addEventListener("click", async () => {
+    try {
+      await requestJson("/api/v1/catalog/products/" + productId + "/display-settings", {
+        method:"POST",
+        body:JSON.stringify({delivery_badges:readDeliveryBadges()}),
+      });
+      await load();
+      notify("تم حفظ شارات التوصيل الخاصة بالمنتج.");
+    } catch(error){notify(error.message,"error");}
+  });
+
+  document.getElementById("recommendationEditor")?.addEventListener("change", event => {
+    const choice = event.target.closest('input[name="recommendation-source"]');
+    if (choice) {
+      document.querySelectorAll(".recommendation-choice").forEach(x => x.classList.toggle("is-selected", x.contains(choice)));
+    }
+  });
+  document.getElementById("saveRecommendations")?.addEventListener("click", async () => {
+    try {
+      const source = document.querySelector('input[name="recommendation-source"]:checked')?.value || "same_category";
+      const limit = Number(document.getElementById("recommendationLimit")?.value || 10);
+      await requestJson("/api/v1/catalog/products/" + productId + "/display-settings", {
+        method:"POST",
+        body:JSON.stringify({recommendation_settings:{source,limit}}),
+      });
+      await load();
+      notify("تم حفظ مصدر التوصيات وعدد المنتجات، وسيظهر الترتيب عشوائيًا.");
+    } catch(error){notify(error.message,"error");}
+  });
+
+  document.getElementById("badgeSelection")?.addEventListener("click", event => {
+    const button = event.target.closest("[data-badge-open]");
+    const up = event.target.closest("[data-badge-up]");
+    const down = event.target.closest("[data-badge-down]");
+    if (button) {
+      const details = button.closest(".product-badge-editor")?.querySelector(".badge-editor-details");
+      if (details) details.open = true;
+      return;
+    }
+    if (!up && !down) return;
+    const card = (up || down).closest(".product-badge-editor");
+    const target = up ? card?.previousElementSibling : card?.nextElementSibling;
+    if (!card || !target) return;
+    if (up) card.parentNode.insertBefore(card,target); else card.parentNode.insertBefore(target,card);
+    document.querySelectorAll("[data-badge-sort]").forEach((input,index)=>input.value=index);
   });
 
   syncColorTextInputs();
