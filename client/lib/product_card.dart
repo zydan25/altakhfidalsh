@@ -928,10 +928,7 @@ class _SxProductCardState extends State<SxProductCard> {
         style: TextStyle(
           color: fg,
           fontSize: fontSize,
-          fontWeight: FontWeight.values.firstWhere(
-            (x) => x.index == 0,
-            orElse: () => FontWeight.w900,
-          ),
+          fontWeight: _fontWeight(weight),
           fontStyle: FontStyle.normal,
           decoration: decoration == 'line_through'
               ? TextDecoration.lineThrough
