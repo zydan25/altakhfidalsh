@@ -62,7 +62,7 @@
       </div>
       <div class="admin-detail-actions">
         <a class="primary-button" href="/admin/products/{{ product.id }}/edit">تعديل المنتج</a>
-        <a class="ghost-button" href="/admin/products/{{ product.id }}/edit#marketing">الشارات والمظهر</a>
+        <a class="ghost-button" href="/admin/products/{{ product.id }}/presentation">الشارات والمظهر والتوصيات</a>
         {% if product.is_active %}
         <form method="post" action="/admin/products"><input type="hidden" name="id" value="{{ product.id }}"><input type="hidden" name="action" value="archive"><button class="ghost-button" type="submit">أرشفة المنتج</button></form>
         {% else %}
