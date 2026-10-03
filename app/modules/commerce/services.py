@@ -704,8 +704,8 @@ class CommerceService:
         order = db.session.get(Order, int(order_id))
         if order is None or order.customer_id != int(customer_id):
             raise LookupError("order not found")
-        if order.status not in {"created", "awaiting_payment"}:
-            raise ValueError("هذا الطلب لم يعد بانتظار الدفع.")
+        if order.status != "awaiting_payment":
+            raise ValueError("يجب اعتماد الطلب من المتجر أولًا قبل الدفع.")
         if not (order.shipping_rate_id or order.shipping_override is not None):
             raise ValueError("لم يتم تحديد رسوم التوصيل لهذا الطلب بعد.")
         from ...models import Currency
