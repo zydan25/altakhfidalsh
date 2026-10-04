@@ -46,10 +46,23 @@ class AfterSalesService:
             ))
 
         db.session.commit()
+        from ...services.notifications import NotificationService
+        NotificationService.create(
+            customer_id,
+            "return_request",
+            "تم استلام طلب الإرجاع",
+            "تم استلام طلب الإرجاع للطلب " + str(order.order_no) + " وسيتم مراجعته من الإدارة.",
+            {
+                "return_request_id": request_row.id,
+                "order_id": order.id,
+                "screen_type": "order_details",
+                "target": "order",
+            },
+        )
         return {
             "id": request_row.id,
             "order_id": request_row.order_id,
-            "customer_id": request_row.customer_id,
+            "customer_id": customer_id,
             "reason": request_row.reason,
             "status": request_row.status,
         }
@@ -72,6 +85,19 @@ class AfterSalesService:
         )
         db.session.add(row)
         db.session.commit()
+        from ...services.notifications import NotificationService
+        NotificationService.create(
+            order.customer_id,
+            "warranty_claim",
+            "تم استلام طلب الضمان",
+            "تم استلام طلب الضمان للطلب " + str(order.order_no) + " وسيتم مراجعته من الإدارة.",
+            {
+                "warranty_claim_id": row.id,
+                "order_id": order.id,
+                "screen_type": "order_details",
+                "target": "order",
+            },
+        )
         return {
             "id": row.id,
             "order_id": row.order_id,
