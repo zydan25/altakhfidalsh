@@ -6,6 +6,7 @@ import 'shein_ui.dart';
 import 'theme.dart';
 import 'widgets.dart';
 import 'notifications_service.dart';
+import 'notifications_service.dart';
 
 class SxWelcomeScreen extends StatefulWidget {
   const SxWelcomeScreen({super.key});
@@ -324,6 +325,7 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
   Future<void> finalizeLogin() async {
     try { await api.acceptPrivacy(); } catch (_) {}
     await state.restorePreferences();
+    await AltakhfidNotificationService.ensureStarted();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const SxAppShell()), (_) => false);
   }
