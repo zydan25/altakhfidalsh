@@ -28,12 +28,6 @@ Future<void> main() async {
 
   runApp(const AltakhfidApp());
 
-  unawaited(
-    Future<void>.delayed(
-      const Duration(milliseconds: 900),
-      AltakhfidNotificationService.handlePendingTap,
-    ),
-  );
 }
 
 Future<void> handleNotificationTap(Map<String, dynamic> payload) async {
