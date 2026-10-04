@@ -22,12 +22,19 @@ Future<void> main() async {
   await AltakhfidNotificationService.initialize(
     tapHandler: handleNotificationTap,
   );
-  if (api.token.isNotEmpty) {
-    await AltakhfidNotificationService.ensureStarted();
-  }
-
   runApp(const AltakhfidApp());
 
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_prepareNotificationService());
+  });
+}
+
+Future<void> _prepareNotificationService() async {
+  if (api.token.isEmpty) return;
+  final granted = await AltakhfidNotificationService.requestNotificationAccess();
+  if (granted) {
+    await AltakhfidNotificationService.ensureStarted();
+  }
 }
 
 Future<void> handleNotificationTap(Map<String, dynamic> payload) async {
