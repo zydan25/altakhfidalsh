@@ -116,6 +116,10 @@ class AltakhfidNotificationService {
     } catch (_) {}
   }
 
+  static Future<void> storePendingPayload(String? raw) async {
+    await _storePendingPayload(raw);
+  }
+
   static Future<Map<String, dynamic>?> takePendingPayload() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(notificationPendingPayloadKey);
