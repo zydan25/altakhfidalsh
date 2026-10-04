@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,6 +8,7 @@ import 'auth_flow.dart';
 import 'app_state.dart';
 import 'shein_ui.dart';
 import 'theme.dart';
+import 'notifications_service.dart';
 import 'notifications_service.dart';
 
 Future<void> main() async {
@@ -30,6 +32,7 @@ class AltakhfidApp extends StatelessWidget {
       title: 'التخفيض الصح',
       theme: ClientTheme.theme(),
       locale: const Locale('ar'),
+      navigatorKey: notificationNavigatorKey,
       home: const SxLaunchGate(),
     );
   }
