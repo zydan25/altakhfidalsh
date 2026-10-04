@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app_state.dart';
 import 'auth_flow.dart';
 import 'notifications_service.dart';
+import 'product_detail.dart';
 import 'shein_ui.dart';
 import 'theme.dart';
 
