@@ -11,6 +11,9 @@ import 'theme.dart';
 import 'notifications_service.dart';
 import 'notifications_service.dart';
 
+final GlobalKey<NavigatorState> notificationNavigatorKey =
+    GlobalKey<NavigatorState>();
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await api.restore();
