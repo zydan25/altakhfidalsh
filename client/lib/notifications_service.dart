@@ -120,6 +120,12 @@ class AltakhfidNotificationService {
     await _storePendingPayload(raw);
   }
 
+  static Future<void> handlePendingTap() async {
+    final payload = await takePendingPayload();
+    if (payload == null) return;
+    // The app shell polls pending payloads once Navigator is ready.
+  }
+
   static Future<Map<String, dynamic>?> takePendingPayload() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(notificationPendingPayloadKey);
