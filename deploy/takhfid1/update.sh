@@ -29,30 +29,114 @@ NGINX_AVAILABLE="/etc/nginx/sites-available/$DOMAIN.conf"
 NGINX_ENABLED="/etc/nginx/sites-enabled/$DOMAIN.conf"
 mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
 
-# Keep a backup whenever a real existing site configuration is about to be replaced.
+# IMPORTANT: never replace an existing production Nginx vhost during an app update.
+# The previous implementation could overwrite a custom/SSL vhost with the repo's
+# HTTP-only template, causing HTTPS to answer with another site's certificate.
 if [ -e "$NGINX_AVAILABLE" ] || [ -L "$NGINX_AVAILABLE" ]; then
   CURRENT_NGINX="$(readlink -f "$NGINX_AVAILABLE" 2>/dev/null || true)"
-  if [ "$CURRENT_NGINX" != "$NGINX_TEMPLATE" ]; then
-    cp -a "$NGINX_AVAILABLE" "$NGINX_AVAILABLE.bak.$(date +%Y%m%d%H%M%S)"
+
+  # If a previous update already replaced the vhost with our template, recover
+  # the newest backup created by that update before doing anything else.
+  if [ "$CURRENT_NGINX" = "$NGINX_TEMPLATE" ]; then
+    LAST_BACKUP="$(ls -1t "$NGINX_AVAILABLE".bak.* 2>/dev/null | head -n 1 || true)"
+    if [ -n "$LAST_BACKUP" ] && [ -e "$LAST_BACKUP" ]; then
+      echo "[takhfid1] restoring previous Nginx vhost: $LAST_BACKUP"
+      cp -aL "$LAST_BACKUP" "$NGINX_AVAILABLE"
+      CURRENT_NGINX="$(readlink -f "$NGINX_AVAILABLE" 2>/dev/null || true)"
+    fi
   fi
+
+  # If there is an existing real configuration, keep it intact and back it up
+  # only when it is not already the repo template.
+  if [ "$CURRENT_NGINX" != "$NGINX_TEMPLATE" ] && [ -f "$NGINX_AVAILABLE" ]; then
+    BACKUP="$NGINX_AVAILABLE.bak.$(date +%Y%m%d%H%M%S)"
+    cp -a "$NGINX_AVAILABLE" "$BACKUP"
+    echo "[takhfid1] preserved Nginx vhost backup: $BACKUP"
+  fi
+else
+  echo "[takhfid1] no existing Nginx vhost; installing repo template"
+  ln -sf "$NGINX_TEMPLATE" "$NGINX_AVAILABLE"
 fi
 
-ln -sf "$NGINX_TEMPLATE" "$NGINX_AVAILABLE"
+# Keep the chosen production vhost enabled. Do not remove Nginx's default site:
+# other applications on this server may use it.
 ln -sf "$NGINX_AVAILABLE" "$NGINX_ENABLED"
-rm -f /etc/nginx/sites-enabled/default || true
 
-# If an existing Let's Encrypt certificate is present, restore the HTTPS
-# server after installing the repo's WebSocket-capable HTTP configuration.
-SSL_EXPECTED=0
-if command -v certbot >/dev/null 2>&1 \
-  && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ] \
-  && [ -f "/etc/letsencrypt/live/$DOMAIN/privkey.pem" ]; then
-  SSL_EXPECTED=1
-  if ! certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email -d "$DOMAIN" --redirect; then
-    echo "[takhfid1] ERROR: certbot could not restore HTTPS for $DOMAIN." >&2
-    exit 1
-  fi
-fi
+# Add the WebSocket location without touching existing SSL certificates,
+# redirects, upstreams, or other application locations.
+WS_MARKER="location /api/v1/notifications/ws"
+WS_SNIPPET="$(mktemp)"
+trap 'rm -f "$WS_SNIPPET"' EXIT
+cat > "$WS_SNIPPET" <<'EOF'
+    location /api/v1/notifications/ws {
+        proxy_pass http://127.0.0.1:4008;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Sec-WebSocket-Protocol $http_sec_websocket_protocol;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 1h;
+        proxy_send_timeout 1h;
+    }
+EOF
+
+"$APP_ROOT/.venv/bin/python" - "$NGINX_AVAILABLE" "$WS_MARKER" "$WS_SNIPPET" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+marker = sys.argv[2]
+snippet = Path(sys.argv[3]).read_text(encoding="utf-8").rstrip()
+
+text = path.read_text(encoding="utf-8")
+if marker not in text:
+    # Insert the location before the closing brace of every server block that
+    # explicitly serves our domain. This preserves the existing SSL/HTTP config.
+    lines = text.splitlines()
+    out = []
+    brace_depth = 0
+    server_start = None
+    server_has_domain = False
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("server {"):
+            server_start = len(out)
+            server_has_domain = False
+            brace_depth = 1
+            out.append(line)
+            continue
+
+        if server_start is not None:
+            if "server_name" in line and "takhfidsh.alattab.site" in line:
+                server_has_domain = True
+
+            opens = line.count("{")
+            closes = line.count("}")
+
+            if closes and brace_depth + opens - closes == 0:
+                if server_has_domain:
+                    out.extend(["", snippet, ""])
+                out.append(line)
+                server_start = None
+                server_has_domain = False
+                brace_depth = 0
+                continue
+
+            brace_depth += opens - closes
+            out.append(line)
+        else:
+            out.append(line)
+
+    path.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8")
+else:
+    print("[takhfid1] WebSocket location already present")
+PY
+rm -f "$WS_SNIPPET"
+trap - EXIT
 
 nginx -t
 systemctl reload nginx
