@@ -22,7 +22,12 @@ set +a
 "$APP_ROOT/.venv/bin/flask" db upgrade
 PYTHONPATH="$APP_ROOT" "$APP_ROOT/.venv/bin/python" "$APP_ROOT/scripts/seed.py"
 
-echo "[takhfid1] Nginx..."
+echo "[takhfid1] Nginx + WebSocket..."
+DOMAIN="takhfidsh.alattab.site"
+mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+ln -sf "$APP_ROOT/deploy/takhfid1/nginx/$DOMAIN.conf" "/etc/nginx/sites-available/$DOMAIN.conf"
+ln -sf "/etc/nginx/sites-available/$DOMAIN.conf" "/etc/nginx/sites-enabled/$DOMAIN.conf"
+rm -f /etc/nginx/sites-enabled/default || true
 nginx -t
 systemctl reload nginx
 
@@ -35,6 +40,12 @@ pm2 save
 sleep 2
 curl -fsS "http://127.0.0.1:4008/health"
 echo
+# Ensure the production endpoint is reachable through the reverse proxy.
+if curl -fsS --max-time 15 "https://$DOMAIN/health" >/dev/null 2>&1; then
+  echo "[takhfid1] public HTTPS health OK"
+else
+  echo "[takhfid1] warning: public HTTPS health check failed; verify DNS/SSL separately."
+fi
 ADMIN_STATUS="$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:4008/admin/)"
 case "$ADMIN_STATUS" in
   200|302|303) echo "[takhfid1] admin route OK (HTTP $ADMIN_STATUS)" ;;
