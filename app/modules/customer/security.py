@@ -13,9 +13,17 @@ def _hash_token(token):
 
 def current_customer():
     auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
-        return None
-    token = auth[7:].strip()
+    token = auth[7:].strip() if auth.startswith("Bearer ") else ""
+
+    # WebSocket clients cannot rely on a custom HTTP Authorization header on
+    # every platform, so the notification socket also accepts a short-lived
+    # bearer token carried in the negotiated subprotocol.
+    if not token:
+        protocols = request.headers.get("Sec-WebSocket-Protocol", "")
+        parts = [part.strip() for part in protocols.split(",") if part.strip()]
+        if len(parts) >= 2 and parts[0] == "altakhfid-bearer":
+            token = parts[1]
+
     if not token:
         return None
     session = (
