@@ -11,7 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-const String notificationAlertsChannelId = 'altakhfid_alerts_v2';
+const String notificationAlertsChannelId = 'altakhfid_alerts_v3';
 const String notificationBackgroundChannelId = 'altakhfid_background_v2';
 const int notificationForegroundServiceId = 41001;
 const String notificationLastSeenKey = 'notification_last_seen_id_v1';
@@ -70,17 +70,6 @@ class AltakhfidNotificationService {
           showBadge: false,
         ),
       );
-      final enabled = await android.areNotificationsEnabled();
-      if (enabled != true) {
-        await android.requestNotificationsPermission();
-      }
-      // The alert channel uses a new ID so Android cannot retain a previously
-      // created low/default importance setting. Channel importance is immutable
-      // after creation on Android 8+.
-      final enabledAfterRequest = await android.areNotificationsEnabled();
-      if (enabledAfterRequest != true) {
-        debugPrint('Altakhfid notifications are disabled by Android.');
-      }
     }
 
     final launch = await _local.getNotificationAppLaunchDetails();
@@ -106,6 +95,32 @@ class AltakhfidNotificationService {
         onBackground: notificationIosBackground,
       ),
     );
+  }
+
+  static Future<bool> requestNotificationAccess() async {
+    if (kIsWeb) return true;
+    await initialize();
+    final android = _local.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android == null) return true;
+
+    var enabled = await android.areNotificationsEnabled();
+    if (enabled != true) {
+      enabled = await android.requestNotificationsPermission();
+    }
+    final finalEnabled = await android.areNotificationsEnabled();
+    if (finalEnabled != true) {
+      debugPrint('Altakhfid notifications are disabled by Android.');
+      return false;
+    }
+    return enabled != false || finalEnabled == true;
+  }
+
+  static Future<void> openNotificationSettings() async {
+    if (kIsWeb) return;
+    try {
+      await _local.openAppNotificationSettings();
+    } catch (_) {}
   }
 
   static Future<void> ensureStarted() async {
