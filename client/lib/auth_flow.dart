@@ -324,9 +324,46 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
   Future<void> finalizeLogin() async {
     try { await api.acceptPrivacy(); } catch (_) {}
     await state.restorePreferences();
+
+    final notificationsGranted =
+        await AltakhfidNotificationService.requestNotificationAccess();
+
+    if (!notificationsGranted && mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text(
+            'فعّل إشعارات التخفيض الصح',
+            textAlign: TextAlign.right,
+          ),
+          content: const Text(
+            'حتى تصلك رسائل الطلبات والمحادثات وتغييرات حالة الدفع والشحن فورًا، اسمح للتطبيق بالإشعارات. ولظهورها كنافذة منبثقة أعلى الشاشة، تأكد من تفعيل «إظهار كنافذة منبثقة» ضمن إعدادات إشعارات التطبيق.',
+            textAlign: TextAlign.right,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('ليس الآن'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                await AltakhfidNotificationService.openNotificationSettings();
+                if (dialogContext.mounted) Navigator.pop(dialogContext);
+              },
+              child: const Text('فتح إعدادات الإشعارات'),
+            ),
+          ],
+        ),
+      );
+    }
+
     await AltakhfidNotificationService.ensureStarted();
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const SxAppShell()), (_) => false);
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const SxAppShell()),
+      (_) => false,
+    );
   }
 
   InputDecoration deco(
