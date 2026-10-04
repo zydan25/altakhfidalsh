@@ -24,10 +24,36 @@ PYTHONPATH="$APP_ROOT" "$APP_ROOT/.venv/bin/python" "$APP_ROOT/scripts/seed.py"
 
 echo "[takhfid1] Nginx + WebSocket..."
 DOMAIN="takhfidsh.alattab.site"
+NGINX_TEMPLATE="$APP_ROOT/deploy/takhfid1/nginx/$DOMAIN.conf"
+NGINX_AVAILABLE="/etc/nginx/sites-available/$DOMAIN.conf"
+NGINX_ENABLED="/etc/nginx/sites-enabled/$DOMAIN.conf"
 mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
-ln -sf "$APP_ROOT/deploy/takhfid1/nginx/$DOMAIN.conf" "/etc/nginx/sites-available/$DOMAIN.conf"
-ln -sf "/etc/nginx/sites-available/$DOMAIN.conf" "/etc/nginx/sites-enabled/$DOMAIN.conf"
+
+# Keep a backup whenever a real existing site configuration is about to be replaced.
+if [ -e "$NGINX_AVAILABLE" ] || [ -L "$NGINX_AVAILABLE" ]; then
+  CURRENT_NGINX="$(readlink -f "$NGINX_AVAILABLE" 2>/dev/null || true)"
+  if [ "$CURRENT_NGINX" != "$NGINX_TEMPLATE" ]; then
+    cp -a "$NGINX_AVAILABLE" "$NGINX_AVAILABLE.bak.$(date +%Y%m%d%H%M%S)"
+  fi
+fi
+
+ln -sf "$NGINX_TEMPLATE" "$NGINX_AVAILABLE"
+ln -sf "$NGINX_AVAILABLE" "$NGINX_ENABLED"
 rm -f /etc/nginx/sites-enabled/default || true
+
+# If an existing Let's Encrypt certificate is present, restore the HTTPS
+# server after installing the repo's WebSocket-capable HTTP configuration.
+SSL_EXPECTED=0
+if command -v certbot >/dev/null 2>&1 \
+  && [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ] \
+  && [ -f "/etc/letsencrypt/live/$DOMAIN/privkey.pem" ]; then
+  SSL_EXPECTED=1
+  if ! certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email -d "$DOMAIN" --redirect; then
+    echo "[takhfid1] ERROR: certbot could not restore HTTPS for $DOMAIN." >&2
+    exit 1
+  fi
+fi
+
 nginx -t
 systemctl reload nginx
 
@@ -43,6 +69,9 @@ echo
 # Ensure the production endpoint is reachable through the reverse proxy.
 if curl -fsS --max-time 15 "https://$DOMAIN/health" >/dev/null 2>&1; then
   echo "[takhfid1] public HTTPS health OK"
+elif [ "$SSL_EXPECTED" -eq 1 ]; then
+  echo "[takhfid1] ERROR: HTTPS health failed although an SSL certificate is installed." >&2
+  exit 1
 else
   echo "[takhfid1] warning: public HTTPS health check failed; verify DNS/SSL separately."
 fi
