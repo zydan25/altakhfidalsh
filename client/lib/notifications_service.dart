@@ -11,8 +11,8 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-const String notificationAlertsChannelId = 'altakhfid_alerts';
-const String notificationBackgroundChannelId = 'altakhfid_background';
+const String notificationAlertsChannelId = 'altakhfid_alerts_v2';
+const String notificationBackgroundChannelId = 'altakhfid_background_v2';
 const int notificationForegroundServiceId = 41001;
 const String notificationLastSeenKey = 'notification_last_seen_id_v1';
 const String notificationPendingPayloadKey = 'notification_pending_payload_v1';
@@ -70,7 +70,17 @@ class AltakhfidNotificationService {
           showBadge: false,
         ),
       );
-      await android.requestNotificationsPermission();
+      final enabled = await android.areNotificationsEnabled();
+      if (enabled != true) {
+        await android.requestNotificationsPermission();
+      }
+      // The alert channel uses a new ID so Android cannot retain a previously
+      // created low/default importance setting. Channel importance is immutable
+      // after creation on Android 8+.
+      final enabledAfterRequest = await android.areNotificationsEnabled();
+      if (enabledAfterRequest != true) {
+        debugPrint('Altakhfid notifications are disabled by Android.');
+      }
     }
 
     final launch = await _local.getNotificationAppLaunchDetails();
@@ -300,7 +310,9 @@ Future<void> _showFromLocal(FlutterLocalNotificationsPlugin local, Map<String, d
         'تنبيهات التخفيض الصح',
         channelDescription: 'رسائل الطلبات والمحادثات والعروض الجديدة.',
         importance: Importance.max,
-        priority: Priority.high,
+        priority: Priority.max,
+        category: AndroidNotificationCategory.message,
+        visibility: NotificationVisibility.public,
         icon: 'app_icon',
         ticker: 'التخفيض الصح',
         playSound: true,
