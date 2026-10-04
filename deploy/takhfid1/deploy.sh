@@ -176,8 +176,22 @@ PYTHONPATH="$APP_ROOT" "$APP_ROOT/.venv/bin/python" "$APP_ROOT/scripts/seed.py"
 
 log "ضبط Nginx..."
 cp "$APP_ROOT/deploy/takhfid1/ecosystem.config.cjs" "$APP_ROOT/ecosystem.config.cjs"
-ln -sf "$APP_ROOT/deploy/takhfid1/nginx/$DOMAIN.conf" "/etc/nginx/sites-available/$DOMAIN.conf"
-ln -sf "/etc/nginx/sites-available/$DOMAIN.conf" "/etc/nginx/sites-enabled/$DOMAIN.conf"
+
+NGINX_TEMPLATE="$APP_ROOT/deploy/takhfid1/nginx/$DOMAIN.conf"
+NGINX_AVAILABLE="/etc/nginx/sites-available/$DOMAIN.conf"
+NGINX_ENABLED="/etc/nginx/sites-enabled/$DOMAIN.conf"
+mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+
+# Preserve any existing production config before replacing the site symlink.
+if [ -e "$NGINX_AVAILABLE" ] || [ -L "$NGINX_AVAILABLE" ]; then
+  CURRENT_NGINX="$(readlink -f "$NGINX_AVAILABLE" 2>/dev/null || true)"
+  if [ "$CURRENT_NGINX" != "$NGINX_TEMPLATE" ]; then
+    cp -a "$NGINX_AVAILABLE" "$NGINX_AVAILABLE.bak.$(date +%Y%m%d%H%M%S)"
+  fi
+fi
+
+ln -sf "$NGINX_TEMPLATE" "$NGINX_AVAILABLE"
+ln -sf "$NGINX_AVAILABLE" "$NGINX_ENABLED"
 rm -f /etc/nginx/sites-enabled/default || true
 nginx -t
 systemctl reload nginx
