@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'notifications_service.dart';
-import 'notifications_service.dart';
 
 final api = ApiService();
 final cartBadge = ValueNotifier<int>(0);
