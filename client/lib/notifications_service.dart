@@ -17,12 +17,16 @@ const int notificationForegroundServiceId = 41001;
 const String notificationLastSeenKey = 'notification_last_seen_id_v1';
 const String notificationPendingPayloadKey = 'notification_pending_payload_v1';
 
+typedef NotificationTapHandler = Future<void> Function(Map<String, dynamic> payload);
+
 class AltakhfidNotificationService {
   static final FlutterLocalNotificationsPlugin _local = FlutterLocalNotificationsPlugin();
   static final FlutterBackgroundService _background = FlutterBackgroundService();
+  static NotificationTapHandler? onTap;
   static bool _initialized = false;
 
-  static Future<void> initialize() async {
+  static Future<void> initialize({NotificationTapHandler? tapHandler}) async {
+    onTap ??= tapHandler;
     if (_initialized || kIsWeb) return;
     _initialized = true;
 
@@ -137,7 +141,18 @@ class AltakhfidNotificationService {
   }
 
   static void _onNotificationResponse(NotificationResponse response) {
-    unawaited(_storePendingPayload(response.payload));
+    final raw = response.payload;
+    if (raw == null || raw.trim().isEmpty) return;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map && onTap != null) {
+        unawaited(onTap!(Map<String, dynamic>.from(decoded)));
+      } else {
+        unawaited(_storePendingPayload(raw));
+      }
+    } catch (_) {
+      unawaited(_storePendingPayload(raw));
+    }
   }
 }
 
@@ -199,11 +214,8 @@ void notificationBackgroundEntrypoint(ServiceInstance service) async {
       final socketBase = base.replaceFirst(RegExp(r'^https?://'), socketScheme);
       final channel = WebSocketChannel.connect(
         Uri.parse(socketBase + '/notifications/ws'),
+        protocols: ['altakhfid-bearer', token],
       );
-      channel.sink.add(jsonEncode({
-        'type': 'auth',
-        'token': token,
-      }));
 
       final done = Completer<void>();
       late StreamSubscription<dynamic> subscription;
