@@ -1539,7 +1539,6 @@ class _RecommendationProductsScreenState extends State<_RecommendationProductsSc
                       MaterialPageRoute(
                         builder: (_) => SxProductScreen(
                           id: product.id,
-                          cartBuilder: (_) => const SxCartScreen(),
                         ),
                       ),
                     ),
@@ -1806,7 +1805,6 @@ class _RelatedProductsSection extends StatelessWidget {
                   MaterialPageRoute(
                     builder: (_) => SxProductScreen(
                       id: product.id,
-                      cartBuilder: (_) => const SxCartScreen(),
                     ),
                   ),
                 ),
