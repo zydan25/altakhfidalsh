@@ -198,38 +198,82 @@ class ApiService {
           q: {'_trends_ts': DateTime.now().millisecondsSinceEpoch.toString()},
         ),
       );
-      // Keep the last successful trend payload so a transient API/network
-      // failure cannot blank the whole Trends screen.
-      await _saveJson(_trendsCacheKey, d);
-      return d;
-    } catch (_) {
-      // First fall back to the last known-good payload.
+      final items = d['items'];
+      if (items is List && items.isNotEmpty) {
+        // Only replace the known-good cache with a payload that actually
+        // contains trend cards. An empty 200 response must not erase it.
+        await _saveJson(_trendsCacheKey, d);
+        return d;
+      }
+
+      // A transient/stale API response can be a successful 200 with no
+      // items. Preserve the last known-good three-product trend cards.
       final cached = await _readJson(_trendsCacheKey);
       if (cached is Map) {
         final cachedMap = Map<String, dynamic>.from(cached);
-        if (cachedMap['items'] is List && (cachedMap['items'] as List).isNotEmpty) {
+        if (cachedMap['items'] is List &&
+            (cachedMap['items'] as List).isNotEmpty) {
           return cachedMap;
         }
       }
 
-      // The home endpoint carries the same trend data. Use it as a server-side
-      // compatibility fallback when /catalog/trends is temporarily unavailable.
+      // The home endpoint carries the same trend payload. It is also useful
+      // when a proxy/cache returns an empty /catalog/trends result.
       try {
         final homePayload = await home();
-        final fallback = <String, dynamic>{
-          'items': homePayload['trends'] is List ? homePayload['trends'] : const [],
-          'hashtags': homePayload['trend_hashtags'] is List
-              ? homePayload['trend_hashtags']
-              : const [],
-          'settings': homePayload['trend_settings'] is Map
-              ? homePayload['trend_settings']
-              : <String, dynamic>{},
-          'product_card_settings': homePayload['product_card_settings'] is Map
-              ? homePayload['product_card_settings']
-              : <String, dynamic>{},
-        };
-        await _saveJson(_trendsCacheKey, fallback);
-        return fallback;
+        final homeItems = homePayload['trends'];
+        if (homeItems is List && homeItems.isNotEmpty) {
+          final fallback = <String, dynamic>{
+            'items': homeItems,
+            'hashtags': homePayload['trend_hashtags'] is List
+                ? homePayload['trend_hashtags']
+                : const [],
+            'settings': homePayload['trend_settings'] is Map
+                ? homePayload['trend_settings']
+                : <String, dynamic>{},
+            'product_card_settings':
+                homePayload['product_card_settings'] is Map
+                    ? homePayload['product_card_settings']
+                    : <String, dynamic>{},
+          };
+          await _saveJson(_trendsCacheKey, fallback);
+          return fallback;
+        }
+      } catch (_) {}
+
+      // Return the valid response even when there are genuinely no public
+      // trends. The screen will then show its normal empty state.
+      return d;
+    } catch (_) {
+      final cached = await _readJson(_trendsCacheKey);
+      if (cached is Map) {
+        final cachedMap = Map<String, dynamic>.from(cached);
+        if (cachedMap['items'] is List &&
+            (cachedMap['items'] as List).isNotEmpty) {
+          return cachedMap;
+        }
+      }
+
+      try {
+        final homePayload = await home();
+        final homeItems = homePayload['trends'];
+        if (homeItems is List && homeItems.isNotEmpty) {
+          final fallback = <String, dynamic>{
+            'items': homeItems,
+            'hashtags': homePayload['trend_hashtags'] is List
+                ? homePayload['trend_hashtags']
+                : const [],
+            'settings': homePayload['trend_settings'] is Map
+                ? homePayload['trend_settings']
+                : <String, dynamic>{},
+            'product_card_settings':
+                homePayload['product_card_settings'] is Map
+                    ? homePayload['product_card_settings']
+                    : <String, dynamic>{},
+          };
+          await _saveJson(_trendsCacheKey, fallback);
+          return fallback;
+        }
       } catch (_) {}
 
       rethrow;
