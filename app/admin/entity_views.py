@@ -121,7 +121,7 @@ def register_entity_views(admin_bp):
         )
 
         error = None
-        success = None
+        success = request.args.get("success")
         if request.method == "POST":
             action = (request.form.get("action") or "").strip()
             try:
@@ -322,6 +322,14 @@ def register_entity_views(admin_bp):
                 error = str(exc)
 
             order = db.session.get(Order, order_id)
+            if success:
+                return redirect(
+                    url_for(
+                        "admin.order_detail_page",
+                        order_id=order_id,
+                        success=success,
+                    )
+                )
 
         detail = CommerceService.serialize_order_detail(order)
         return render_template(
