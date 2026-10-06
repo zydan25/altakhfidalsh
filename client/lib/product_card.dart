@@ -1641,7 +1641,7 @@ class _SxProductCardState extends State<SxProductCard> {
           padding: const EdgeInsets.fromLTRB(8, 1, 8, 0),
           child: Text(
             product.name,
-            maxLines: _cardNumber('name_max_lines', 2).round().clamp(1, 3),
+            maxLines: _cardNumber('name_max_lines', 2).round().clamp(1, 6),
             overflow: _cardText('name_overflow', 'wrap') == 'ellipsis'
                 ? TextOverflow.ellipsis
                 : TextOverflow.clip,
@@ -1662,7 +1662,7 @@ class _SxProductCardState extends State<SxProductCard> {
           child: Text(
             product.shortDescription,
             maxLines:
-                _cardNumber('short_description_max_lines', 1).round().clamp(1, 3),
+                _cardNumber('short_description_max_lines', 1).round().clamp(1, 4),
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.right,
             style: TextStyle(
@@ -1962,11 +1962,8 @@ class _SxProductCardState extends State<SxProductCard> {
                 _cardBool('show_trend_hashtag', true))
               _trendRibbon(),
 
-            badgeRow('before_name'),
-            badgeRow('before_name_new_row'),
             if (shortDescriptionPosition == 'before_name')
               descriptionSection(),
-
             if (ratingPosition == 'before_name')
               ratingSection(),
 
@@ -1978,25 +1975,16 @@ class _SxProductCardState extends State<SxProductCard> {
 
             if (shortDescriptionPosition == 'after_name')
               descriptionSection(),
-
             if (ratingPosition == 'after_name')
               ratingSection(),
 
             if (shortDescriptionPosition == 'before_price')
               descriptionSection(),
-
-            if (ratingPosition == 'before_description')
-              ratingSection(),
-
-            if (shortDescriptionPosition == 'before_rating' && ratingPosition == 'before_price')
-              descriptionSection(),
-
-            badgeRow('before_price'),
-            badgeRow('before_price_new_row'),
-
             if (ratingPosition == 'before_price')
               ratingSection(),
 
+            badgeRow('before_price'),
+            badgeRow('before_price_new_row'),
             priceSection(),
             badgeRow('after_price'),
             badgeRow('after_price_new_row'),
@@ -2004,22 +1992,11 @@ class _SxProductCardState extends State<SxProductCard> {
 
             if (shortDescriptionPosition == 'after_price')
               descriptionSection(),
-
             if (ratingPosition == 'after_price')
-              ratingSection(),
-
-            if (shortDescriptionPosition == 'before_rating' && ratingPosition != 'before_price')
-              descriptionSection(),
-
-            if (shortDescriptionPosition == 'after_rating')
-              ratingSection(),
-
-            if (ratingPosition == 'after_description')
               ratingSection(),
 
             if (shortDescriptionPosition == 'end')
               descriptionSection(),
-
             if (ratingPosition == 'end')
               ratingSection(),
 
