@@ -65,6 +65,33 @@
   {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
   {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
+  {% set product_card_option_labels = {
+    'line_through': 'خط على النص',
+    'none': 'بدون',
+    'top_right': 'أعلى اليمين',
+    'top_left': 'أعلى اليسار',
+    'bottom_right': 'أسفل اليمين',
+    'bottom_left': 'أسفل اليسار',
+    'horizontal': 'أفقي',
+    'vertical': 'رأسي',
+    'wrap': 'التفاف طبيعي بدون نقاط',
+    'ellipsis': 'نقاط عند تجاوز الحد',
+    'before_name': 'قبل الاسم',
+    'after_name': 'بعد الاسم',
+    'before_price': 'قبل السعر',
+    'after_price': 'بعد السعر',
+    'end': 'آخر البطاقة',
+    'right': 'يمين البطاقة',
+    'left': 'يسار البطاقة',
+    'shopping_bag_outlined': 'حقيبة تسوق',
+    'shopping_cart_outlined': 'سلة تسوق',
+    'add_shopping_cart_outlined': 'إضافة إلى السلة',
+    'local_mall_outlined': 'حقيبة متجر',
+    'slide': 'انزلاق',
+    'fade': 'تلاشي',
+    'card_flip': 'تقليب ثلاثي الأبعاد'
+  } %}
+
   <section class="panel settings-section">
     <div class="settings-section-head">
       <span class="eyebrow">المفتاح الحالي</span>
@@ -191,7 +218,7 @@
                 {{ label }}
                 <select name="{{ key }}">
                   {% for option in field[3] %}
-                  <option value="{{ option }}" {% if product_card_settings[key] == option %}selected{% endif %}>{{ option }}</option>
+                  <option value="{{ option }}" {% if product_card_settings[key] == option %}selected{% endif %}>{{ product_card_option_labels.get(option, option) }}</option>
                   {% endfor %}
                 </select>
               </label>
