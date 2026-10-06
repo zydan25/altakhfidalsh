@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from flask import request
 
@@ -252,6 +253,90 @@ def _serialize_coupon_card(card):
     }
 
 
+
+def _store_locations_payload():
+    row = AppSetting.query.filter_by(
+        group_code="storefront",
+        key="store_locations_json",
+    ).first()
+    locations = []
+    if row and row.value:
+        try:
+            raw = json.loads(row.value)
+            if isinstance(raw, list):
+                locations = [dict(x) for x in raw if isinstance(x, dict)]
+        except (TypeError, ValueError):
+            locations = []
+
+    if not locations:
+        values = {}
+        for key in (
+            "store_name",
+            "store_address",
+            "store_latitude",
+            "store_longitude",
+            "store_map_url",
+        ):
+            setting = AppSetting.query.filter_by(
+                group_code="storefront",
+                key=key,
+            ).first()
+            if setting and (setting.value or "").strip():
+                values[key] = setting.value.strip()
+        if values:
+            locations = [{
+                "id": "legacy-store",
+                "name": values.get("store_name") or "موقع المتجر",
+                "region": "",
+                "city": "",
+                "address": values.get("store_address") or "",
+                "map_url": values.get("store_map_url") or "",
+                "latitude": values.get("store_latitude") or "",
+                "longitude": values.get("store_longitude") or "",
+                "images": [],
+            }]
+
+    asset_ids = {
+        int(image.get("id"))
+        for location in locations
+        for image in (location.get("images") or [])
+        if isinstance(image, dict) and str(image.get("id") or "").isdigit()
+    }
+    assets = (
+        MediaAsset.query.filter(
+            MediaAsset.id.in_(asset_ids),
+            MediaAsset.is_active.is_(True),
+        ).all()
+        if asset_ids else []
+    )
+    asset_urls = {asset.id: asset.url for asset in assets}
+
+    items = []
+    for location in locations:
+        images = []
+        for image in location.get("images") or []:
+            if not isinstance(image, dict):
+                continue
+            asset_id = int(image.get("id") or 0)
+            url = asset_urls.get(asset_id) or image.get("url")
+            if url:
+                images.append({
+                    "id": asset_id,
+                    "url": url,
+                })
+        items.append({
+            "id": str(location.get("id") or ""),
+            "name": str(location.get("name") or "").strip(),
+            "region": str(location.get("region") or "").strip(),
+            "city": str(location.get("city") or "").strip(),
+            "address": str(location.get("address") or "").strip(),
+            "map_url": str(location.get("map_url") or "").strip(),
+            "latitude": str(location.get("latitude") or "").strip(),
+            "longitude": str(location.get("longitude") or "").strip(),
+            "images": images,
+        })
+    return items
+
 def _coupon_payload():
     now = datetime.now(timezone.utc)
     defaults = _coupon_defaults()
@@ -366,6 +451,7 @@ def home():
         "ui_settings": {
             "home_header_category_gap": header_category_gap,
         },
+        "store_locations": _store_locations_payload(),
         "page": page_payload,
         "categories": CatalogService.list_categories(),
         "category_display": CatalogService.list_home_category_display(),
@@ -386,6 +472,10 @@ def home():
         "banners": banner_payload,
         "coupon_strip": _coupon_payload(),
     }
+
+@api_bp.get("/store-locations")
+def store_locations():
+    return {"items": _store_locations_payload()}
 
 @api_bp.get("/banners")
 def banners(root_category_id=None):
