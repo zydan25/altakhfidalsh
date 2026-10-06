@@ -1594,12 +1594,14 @@ class _SxProductCardState extends State<SxProductCard>
                   width: _cardNumber('quick_add_size', 32),
                   height: _cardNumber('quick_add_size', 32),
                   decoration: BoxDecoration(
-                    color: _cardColor(
-                      'quick_add_background_color',
-                      Colors.white,
-                    ).withOpacity(
-                      _cardOpacity('quick_add_opacity', .93),
-                    ),
+                    color: _cardBool('quick_add_transparent', false)
+                        ? Colors.transparent
+                        : _cardColor(
+                            'quick_add_background_color',
+                            Colors.white,
+                          ).withOpacity(
+                            _cardOpacity('quick_add_opacity', .93),
+                          ),
                     borderRadius: BorderRadius.circular(
                       _cardNumber('quick_add_radius', 16),
                     ),
