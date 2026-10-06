@@ -2782,7 +2782,7 @@ class CatalogService:
         defaults = {
             "detail_order": [
                 "badges", "gallery", "thumbs", "price", "name", "brand",
-                "colors", "sizes", "size_guide", "details", "stock",
+                "rating", "colors", "sizes", "size_guide", "details", "stock",
                 "delivery", "policies", "reviews", "related",
             ],
             "gallery_show": True,
@@ -2906,7 +2906,7 @@ class CatalogService:
 
         allowed_order = [
             "badges", "gallery", "thumbs", "price", "name", "brand",
-            "colors", "sizes", "size_guide", "details", "stock",
+            "rating", "colors", "sizes", "size_guide", "details", "stock",
             "delivery", "policies", "reviews", "related",
         ]
         raw_order = merged.get("detail_order")
