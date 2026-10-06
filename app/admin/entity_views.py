@@ -1679,6 +1679,7 @@ def register_entity_views(admin_bp):
             ("price", "السعر"),
             ("name", "اسم المنتج"),
             ("brand", "العلامة التجارية"),
+            ("rating", "التقييم المختصر"),
             ("colors", "الألوان"),
             ("sizes", "المقاسات"),
             ("size_guide", "دليل المقاسات"),
