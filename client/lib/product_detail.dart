@@ -4295,11 +4295,14 @@ class _DeliveryPolicyBox extends StatelessWidget {
     VoidCallback? onTap,
     bool arrow = true,
     bool divider = true,
+    bool policyStyle = false,
+    double? iconSize,
+    double? titleFontSize,
     Color iconColor = Colors.black,
     Color titleColor = Colors.black,
   }) {
     final height = sxDouble(
-      settings['delivery_row_height'],
+      settings[policyStyle ? 'policy_row_height' : 'delivery_row_height'],
       54,
     ).clamp(40, 76).toDouble();
 
@@ -4313,12 +4316,12 @@ class _DeliveryPolicyBox extends StatelessWidget {
             bottom: BorderSide(
               color: divider
                   ? sxColor(
-                      sxText(settings['delivery_row_divider_color']),
+                      sxText(settings[policyStyle ? 'policy_row_divider_color' : 'delivery_row_divider_color']),
                       const Color(0xFFEEEEEE),
                     )
                   : Colors.transparent,
               width: divider
-                  ? sxDouble(settings['delivery_row_divider_width'], .7)
+                  ? sxDouble(settings[policyStyle ? 'policy_row_divider_width' : 'delivery_row_divider_width'], .7)
                   : 0,
             ),
           ),
@@ -4329,7 +4332,10 @@ class _DeliveryPolicyBox extends StatelessWidget {
           children: [
             Icon(
               icon,
-              size: sxDouble(settings['delivery_row_icon_size'], 19),
+              size: iconSize ?? sxDouble(
+                settings[policyStyle ? 'policy_row_icon_size' : 'delivery_row_icon_size'],
+                19,
+              ),
               color: iconColor,
             ),
             const SizedBox(width: 9),
@@ -4345,8 +4351,8 @@ class _DeliveryPolicyBox extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: titleColor,
-                      fontSize: sxDouble(
-                        settings['delivery_row_title_font_size'],
+                      fontSize: titleFontSize ?? sxDouble(
+                        settings[policyStyle ? 'policy_row_title_font_size' : 'delivery_row_title_font_size'],
                         11,
                       ),
                       fontWeight: FontWeight.w800,
@@ -4362,7 +4368,7 @@ class _DeliveryPolicyBox extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: sxDouble(
-                            settings['delivery_row_subtitle_font_size'],
+                            settings[policyStyle ? 'policy_row_subtitle_font_size' : 'delivery_row_subtitle_font_size'],
                             9.5,
                           ),
                           color: ClientTheme.muted,
@@ -4469,6 +4475,8 @@ class _DeliveryPolicyBox extends StatelessWidget {
             'Saudi Arabia',
           ),
           arrow: true,
+          iconSize: sxDouble(settings['delivery_location_icon_size'], 18),
+          titleFontSize: sxDouble(settings['delivery_location_font_size'], 12),
           iconColor: sxColor(
             sxText(settings['delivery_location_color']),
             Colors.black,
@@ -4543,6 +4551,7 @@ class _DeliveryPolicyBox extends StatelessWidget {
           icon: item['icon'] as IconData,
           title: sxText(item['title']),
           subtitle: sxText(item['subtitle']),
+          policyStyle: true,
           onTap: () => _showDetails(
             context,
             title: sxText(item['title']),
