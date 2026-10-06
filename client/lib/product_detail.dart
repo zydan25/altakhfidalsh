@@ -5382,34 +5382,168 @@ class _SizeGuideDialogState extends State<_SizeGuideDialog> {
     return value.isEmpty ? '—' : value;
   }
 
-  String _label(String key) {
-    const labels = <String, String>{
-      'length': 'الطول',
-      'height': 'الطول',
-      'chest': 'الصدر',
-      'bust': 'الصدر',
-      'waist': 'الخصر',
-      'hip': 'الأرداف',
-      'hips': 'الأرداف',
-      'shoulder': 'الكتف',
-      'sleeve': 'طول الكم',
-      'sleeve_length': 'طول الكم',
-      'inseam': 'طول الساق الداخلي',
-      'outseam': 'طول الساق',
-      'width': 'العرض',
-    };
-    return labels[key] ?? key;
+  List<Map<String, String>> _columns(
+    String scope,
+    List<Map<String, dynamic>> rows,
+  ) {
+    final raw = widget.guide[scope];
+    if (raw is List) {
+      final result = <Map<String, String>>[];
+      for (final item in raw) {
+        if (item is! Map) continue;
+        final key = sxText(item['key']).trim();
+        if (key.isEmpty) continue;
+        result.add({
+          'key': key,
+          'label': sxText(item['label'], key),
+          'unit': sxText(item['unit']),
+        });
+      }
+      if (result.isNotEmpty) return result;
+    }
+
+    final keySet = <String>{};
+    for (final row in rows) {
+      final values = _asMap(row[scope == 'product_columns'
+          ? 'product_measurements'
+          : 'body_measurements']);
+      keySet.addAll(values.keys.map((x) => x.toString()));
+    }
+
+    return keySet.map((key) => <String, String>{
+      'key': key,
+      'label': key,
+      'unit': '',
+    }).toList();
   }
 
-  List<String> _metricKeys(List<Map<String, dynamic>> rows) {
-    final keys = <String>[];
-    for (final row in rows) {
-      for (final key in _asMap(row['product_measurements']).keys) {
-        final k = key.toString();
-        if (!keys.contains(k)) keys.add(k);
-      }
-    }
-    return keys;
+  Widget _table({
+    required String title,
+    required List<Map<String, dynamic>> rows,
+    required List<Map<String, String>> columns,
+    required String valueKey,
+  }) {
+    if (columns.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 7),
+          child: Text(
+            title,
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: ClientTheme.border, width: .7),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                Container(
+                  color: const Color(0xFFF5F5F5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    textDirection: TextDirection.rtl,
+                    children: [
+                      const SizedBox(
+                        width: 72,
+                        child: Text(
+                          'المقاس',
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      for (final column in columns)
+                        SizedBox(
+                          width: 82,
+                          child: Text(
+                            [
+                              sxText(column['label']),
+                              if (sxText(column['unit']).isNotEmpty)
+                                ' (' + sxText(column['unit']) + ')',
+                            ].join(),
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                for (var i = 0; i < rows.length; i++)
+                  InkWell(
+                    onTap: () => setState(
+                      () => selectedIndex = selectedIndex == i ? null : i,
+                    ),
+                    child: Container(
+                      color: selectedIndex == i
+                          ? const Color(0xFFF9FAFB)
+                          : Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 9,
+                      ),
+                      child: Row(
+                        textDirection: TextDirection.rtl,
+                        children: [
+                          SizedBox(
+                            width: 72,
+                            child: Text(
+                              sxText(
+                                rows[i]['size_label'],
+                                sxText(rows[i]['size_code'], '—'),
+                              ),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          for (final column in columns)
+                            SizedBox(
+                              width: 82,
+                              child: Text(
+                                _value(
+                                  _asMap(rows[i][valueKey]),
+                                  sxText(column['key']),
+                                ),
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  fontSize: 8.5,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+      ],
+    );
   }
 
   @override
@@ -5420,15 +5554,25 @@ class _SizeGuideDialogState extends State<_SizeGuideDialog> {
             .map((x) => Map<String, dynamic>.from(x))
             .toList()
         : <Map<String, dynamic>>[];
-    final metrics = _metricKeys(rows);
-    final selected = selectedIndex == null || selectedIndex! >= rows.length
-        ? null
-        : rows[selectedIndex!];
+
+    final productColumns = _columns('product_columns', rows);
+    final bodyColumns = _columns('body_columns', rows);
+
+    final selected =
+        selectedIndex == null || selectedIndex! >= rows.length
+            ? null
+            : rows[selectedIndex!];
 
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 20,
+      ),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 680),
+        constraints: const BoxConstraints(
+          maxWidth: 760,
+          maxHeight: 720,
+        ),
         child: Directionality(
           textDirection: TextDirection.rtl,
           child: Padding(
@@ -5441,8 +5585,14 @@ class _SizeGuideDialogState extends State<_SizeGuideDialog> {
                     const SizedBox(width: 7),
                     Expanded(
                       child: Text(
-                        sxText(widget.guide['name'], 'دليل المقاسات'),
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                        sxText(
+                          widget.guide['name'],
+                          'دليل المقاسات',
+                        ),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                     IconButton(
@@ -5458,108 +5608,86 @@ class _SizeGuideDialogState extends State<_SizeGuideDialog> {
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Text(
                         sxText(widget.guide['intro_text']),
-                        style: const TextStyle(fontSize: 9.5, height: 1.5, color: ClientTheme.muted),
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          height: 1.5,
+                          color: ClientTheme.muted,
+                        ),
                       ),
                     ),
                   ),
                 Expanded(
                   child: rows.isEmpty
-                      ? const Center(child: Text('لا توجد بيانات جدول المقاسات لهذا المنتج حاليًا.'))
+                      ? const Center(
+                          child: Text(
+                            'لا توجد بيانات جدول المقاسات لهذا المنتج حاليًا.',
+                          ),
+                        )
                       : SingleChildScrollView(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: ClientTheme.border, width: .7),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: Column(
-                                  children: [
-                                    Container(
-                                      color: const Color(0xFFF5F5F5),
-                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
-                                      child: Row(
-                                        textDirection: TextDirection.rtl,
-                                        children: [
-                                          const SizedBox(
-                                            width: 58,
-                                            child: Text(
-                                              'المقاس',
-                                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900),
-                                            ),
-                                          ),
-                                          for (final key in metrics)
-                                            Expanded(
-                                              child: Text(
-                                                _label(key),
-                                                textAlign: TextAlign.center,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                    for (var i = 0; i < rows.length; i++)
-                                      InkWell(
-                                        onTap: () => setState(() => selectedIndex = selectedIndex == i ? null : i),
-                                        child: Container(
-                                          color: selectedIndex == i ? const Color(0xFFF9FAFB) : Colors.white,
-                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 9),
-                                          child: Row(
-                                            textDirection: TextDirection.rtl,
-                                            children: [
-                                              SizedBox(
-                                                width: 58,
-                                                child: Text(
-                                                  sxText(rows[i]['size_label'], sxText(rows[i]['size_code'], '—')),
-                                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
-                                                ),
-                                              ),
-                                              for (final key in metrics)
-                                                Expanded(
-                                                  child: Text(
-                                                    _value(_asMap(rows[i]['product_measurements']), key),
-                                                    textAlign: TextAlign.center,
-                                                    style: const TextStyle(fontSize: 8.5, height: 1.35),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                              _table(
+                                title: 'قياسات المنتج',
+                                rows: rows,
+                                columns: productColumns,
+                                valueKey: 'product_measurements',
+                              ),
+                              _table(
+                                title: 'قياسات الجسم',
+                                rows: rows,
+                                columns: bodyColumns,
+                                valueKey: 'body_measurements',
                               ),
                               if (selected != null)
                                 Container(
-                                  margin: const EdgeInsets.only(top: 8),
-                                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 11),
+                                  margin: const EdgeInsets.only(top: 3),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    10,
+                                    10,
+                                    10,
+                                    11,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF7F7F7),
                                     borderRadius: BorderRadius.circular(7),
-                                    border: Border.all(color: ClientTheme.border, width: .7),
+                                    border: Border.all(
+                                      color: ClientTheme.border,
+                                      width: .7,
+                                    ),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
                                       Text(
-                                        'تفاصيل المقاس ' + sxText(selected['size_label'], sxText(selected['size_code'], '')),
+                                        'تفاصيل المقاس ' +
+                                            sxText(
+                                              selected['size_label'],
+                                              sxText(
+                                                selected['size_code'],
+                                                '',
+                                              ),
+                                            ),
                                         textAlign: TextAlign.right,
-                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w900,
+                                        ),
                                       ),
                                       const SizedBox(height: 8),
                                       _MeasurementPanel(
                                         title: 'قياسات المنتج',
-                                        values: _asMap(selected['product_measurements']),
+                                        values: _asMap(
+                                          selected['product_measurements'],
+                                        ),
                                       ),
                                       const SizedBox(height: 7),
                                       _MeasurementPanel(
                                         title: 'قياسات الجسم',
-                                        values: _asMap(selected['body_measurements']),
+                                        values: _asMap(
+                                          selected['body_measurements'],
+                                        ),
                                       ),
                                     ],
                                   ),
