@@ -2115,6 +2115,132 @@ class _SxProductCardState extends State<SxProductCard>
       );
     }
 
+    final contentGap = _cardNumber('content_vertical_gap', 2).clamp(0, 20).toDouble();
+    final imageContentGap = _cardNumber('image_to_content_gap', 4).clamp(0, 30).toDouble();
+
+    final afterImageChildren = <Widget>[];
+    void addAfterImage(Widget child, {bool show = true}) {
+      if (!show) return;
+      if (afterImageChildren.isNotEmpty && contentGap > 0) {
+        afterImageChildren.add(SizedBox(height: contentGap));
+      }
+      afterImageChildren.add(child);
+    }
+
+    if (_cardBool('show_trend_badge', true) ||
+        _cardBool('show_trend_hashtag', true)) {
+      addAfterImage(_trendRibbon());
+    }
+
+    if (shortDescriptionPosition == 'before_name') {
+      addAfterImage(descriptionSection());
+    }
+    if (ratingPosition == 'before_name' && hasRating) {
+      addAfterImage(ratingSection());
+    }
+
+    final beforeNameRows = at('before_name');
+    final beforeNameNewRows = at('before_name_new_row');
+    if (beforeNameRows.isNotEmpty) addAfterImage(badgeRow('before_name'));
+    if (beforeNameNewRows.isNotEmpty) addAfterImage(badgeRow('before_name_new_row'));
+    if (_cardBool('show_name', true)) addAfterImage(nameSection());
+
+    if (at('after_name').isNotEmpty) addAfterImage(badgeRow('after_name'));
+    if (at('after_name_new_row').isNotEmpty) addAfterImage(badgeRow('after_name_new_row'));
+
+    if (shortDescriptionPosition == 'after_name') {
+      addAfterImage(descriptionSection());
+    }
+    if (ratingPosition == 'after_name' && hasRating) {
+      addAfterImage(ratingSection());
+    }
+
+    if (shortDescriptionPosition == 'before_price') {
+      addAfterImage(descriptionSection());
+    }
+    if (ratingPosition == 'before_price' && hasRating) {
+      addAfterImage(ratingSection());
+    }
+
+    if (at('before_price').isNotEmpty) addAfterImage(badgeRow('before_price'));
+    if (at('before_price_new_row').isNotEmpty) addAfterImage(badgeRow('before_price_new_row'));
+    if (_cardBool('show_price', true)) addAfterImage(priceSection());
+    if (at('after_price').isNotEmpty) addAfterImage(badgeRow('after_price'));
+    if (at('after_price_new_row').isNotEmpty) addAfterImage(badgeRow('after_price_new_row'));
+    if (at('below_price').isNotEmpty) addAfterImage(badgeRow('below_price'));
+
+    if (shortDescriptionPosition == 'after_price') {
+      addAfterImage(descriptionSection());
+    }
+    if (ratingPosition == 'after_price' && hasRating) {
+      addAfterImage(ratingSection());
+    }
+
+    if (shortDescriptionPosition == 'end') {
+      addAfterImage(descriptionSection());
+    }
+    if (ratingPosition == 'end' && hasRating) {
+      addAfterImage(ratingSection());
+    }
+
+    final sizeVisible = _cardBool('show_size', false) &&
+        product.cardMeta != null &&
+        sxText(product.cardMeta!['label']).isNotEmpty;
+    if (sizeVisible) {
+      addAfterImage(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 1, 8, 5),
+          child: Text(
+            sxText(product.cardMeta!['label']),
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: _cardColor('size_color', const Color(0xFF6B7280)),
+              fontSize: _cardNumber('size_font_size', 9),
+              fontWeight:
+                  _fontWeight(_cardNumber('size_font_weight', 600).round()),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (afterDetailsNewRow.isNotEmpty) {
+      addAfterImage(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(5, 3, 5, 3),
+          child: Wrap(
+            textDirection: TextDirection.rtl,
+            spacing: 4,
+            runSpacing: 3,
+            children: afterDetailsNewRow.map(_badgeChip).toList(),
+          ),
+        ),
+      );
+    }
+
+    if (tailBadges.isNotEmpty) {
+      addAfterImage(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(5, 3, 5, 3),
+          child: Wrap(
+            textDirection: TextDirection.rtl,
+            spacing: 4,
+            runSpacing: 3,
+            children: tailBadges.map(_badgeChip).toList(),
+          ),
+        ),
+      );
+    }
+
+    if (!hasRating && !sizeVisible && tailBadges.isEmpty) {
+      addAfterImage(const SizedBox(height: 5));
+    }
+
+    final belowImage = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: afterImageChildren,
+    );
+
     return Container(
       color: surface,
       child: InkWell(
@@ -2132,94 +2258,13 @@ class _SxProductCardState extends State<SxProductCard>
               discount: discount,
               gallery: gallery,
             ),
-            if (_cardBool('show_trend_badge', true) ||
-                _cardBool('show_trend_hashtag', true))
-              _trendRibbon(),
-
-            if (shortDescriptionPosition == 'before_name')
-              descriptionSection(),
-            if (ratingPosition == 'before_name')
-              ratingSection(),
-
-            badgeRow('before_name'),
-            badgeRow('before_name_new_row'),
-            nameSection(),
-            badgeRow('after_name'),
-            badgeRow('after_name_new_row'),
-
-            if (shortDescriptionPosition == 'after_name')
-              descriptionSection(),
-            if (ratingPosition == 'after_name')
-              ratingSection(),
-
-            if (shortDescriptionPosition == 'before_price')
-              descriptionSection(),
-            if (ratingPosition == 'before_price')
-              ratingSection(),
-
-            badgeRow('before_price'),
-            badgeRow('before_price_new_row'),
-            priceSection(),
-            badgeRow('after_price'),
-            badgeRow('after_price_new_row'),
-            badgeRow('below_price'),
-
-            if (shortDescriptionPosition == 'after_price')
-              descriptionSection(),
-            if (ratingPosition == 'after_price')
-              ratingSection(),
-
-            if (shortDescriptionPosition == 'end')
-              descriptionSection(),
-            if (ratingPosition == 'end')
-              ratingSection(),
-
-            if (_cardBool('show_size', false) &&
-                product.cardMeta != null &&
-                sxText(product.cardMeta!['label']).isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 1, 8, 5),
-                child: Text(
-                  sxText(product.cardMeta!['label']),
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: _cardColor('size_color', const Color(0xFF6B7280)),
-                    fontSize: _cardNumber('size_font_size', 9),
-                    fontWeight:
-                        _fontWeight(_cardNumber('size_font_weight', 600).round()),
-                  ),
-                ),
-              ),
-
-            if (afterDetailsNewRow.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(5, 3, 5, 3),
-                child: Wrap(
-                  textDirection: TextDirection.rtl,
-                  spacing: 4,
-                  runSpacing: 3,
-                  children: afterDetailsNewRow.map(_badgeChip).toList(),
-                ),
-              ),
-
-            if (tailBadges.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(5, 3, 5, 3),
-                child: Wrap(
-                  textDirection: TextDirection.rtl,
-                  spacing: 4,
-                  runSpacing: 3,
-                  children: tailBadges.map(_badgeChip).toList(),
-                ),
-              ),
-
-            if (!hasRating &&
-                !_cardBool('show_size', false) &&
-                tailBadges.isEmpty)
-              const SizedBox(height: 5),
+            if (afterImageChildren.isNotEmpty && imageContentGap > 0)
+              SizedBox(height: imageContentGap),
+            belowImage,
           ],
         ),
       ),
     );
+
   }
 }
