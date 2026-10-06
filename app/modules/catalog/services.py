@@ -2733,12 +2733,111 @@ class CatalogService:
 
     @staticmethod
     def product_detail_settings():
-        """Global customer-facing product-detail typography settings."""
+        """Global customer-facing product-detail layout, typography and policy controls."""
         import json
         defaults = {
+            "detail_order": [
+                "badges", "gallery", "thumbs", "price", "name", "brand",
+                "colors", "sizes", "size_guide", "details", "stock",
+                "delivery", "policies", "reviews", "related",
+            ],
+            "gallery_show": True,
+            "gallery_ratio": 0.78,
+            "thumbs_show": True,
+            "thumbs_size": 62,
+            "thumbs_height": 70,
+            "thumbs_gap": 6,
+            "thumbs_radius": 4,
+            "thumbs_border_width": 1.5,
+
+            "badges_show": True,
+            "badges_gap": 5,
+
+            "name_show": True,
             "name_font_size": 20.0,
             "name_font_weight": 800,
             "name_max_lines": 4,
+            "name_color": "#111111",
+
+            "price_show": True,
+            "price_font_size": 22.0,
+            "price_font_weight": 900,
+            "price_color": "#111111",
+            "show_compare_price": True,
+            "compare_price_font_size": 10.0,
+            "compare_price_color": "#9ca3af",
+            "compare_price_text_decoration": "line_through",
+            "show_currency": True,
+            "currency_font_size": 10.5,
+            "currency_color": "#111111",
+            "price_text_show": False,
+            "price_text": "السعر الحالي",
+            "price_text_font_size": 9.0,
+            "price_text_color": "#6b7280",
+
+            "brand_show": True,
+            "brand_font_size": 10.0,
+            "brand_font_weight": 800,
+            "brand_color": "#6b7280",
+
+            "colors_show": True,
+            "colors_size": 38,
+            "colors_label_font_size": 8.5,
+            "colors_gap": 9,
+            "colors_run_gap": 8,
+            "colors_selected_border_width": 2,
+
+            "sizes_show": True,
+            "sizes_font_size": 10,
+            "sizes_padding_horizontal": 12,
+            "sizes_padding_vertical": 9,
+            "sizes_gap": 7,
+            "sizes_background_color": "#ffffff",
+            "sizes_text_color": "#000000",
+            "sizes_selected_background_color": "#000000",
+            "sizes_selected_text_color": "#ffffff",
+            "sizes_border_color": "#d8d8d8",
+
+            "size_guide_show": True,
+            "size_guide_font_size": 10,
+            "size_guide_color": "#111111",
+            "size_guide_background_color": "#ffffff",
+
+            "details_show": True,
+            "details_title_font_size": 13,
+            "details_title_color": "#111111",
+            "details_text_font_size": 10.5,
+            "details_text_color": "#4b5563",
+            "details_background_color": "#ffffff",
+
+            "stock_show": True,
+            "stock_font_size": 10,
+            "stock_text_color": "#111111",
+
+            "delivery_show": True,
+            "delivery_font_size": 9,
+            "delivery_color": "#111111",
+
+            "policies_show": True,
+            "policy_button_height": 52,
+            "policy_button_radius": 8,
+            "policy_button_gap": 6,
+            "policy_button_font_size": 9,
+            "shipping_button_color": "#111111",
+            "shipping_button_text_color": "#ffffff",
+            "returns_button_color": "#f3f4f6",
+            "returns_button_text_color": "#111111",
+            "warranty_button_color": "#f3f4f6",
+            "warranty_button_text_color": "#111111",
+            "payment_button_color": "#f3f4f6",
+            "payment_button_text_color": "#111111",
+
+            "reviews_show": True,
+            "reviews_title_font_size": 13,
+            "reviews_color": "#111111",
+
+            "related_show": True,
+            "related_title_font_size": 13,
         }
         row = AppSetting.query.filter_by(
             group_code="storefront",
@@ -2753,18 +2852,125 @@ class CatalogService:
             except (TypeError, ValueError):
                 custom = {}
         merged = {**defaults, **custom}
-        try:
-            merged["name_font_size"] = max(14.0, min(32.0, float(merged.get("name_font_size", defaults["name_font_size"]))))
-        except (TypeError, ValueError):
-            merged["name_font_size"] = defaults["name_font_size"]
-        try:
-            merged["name_font_weight"] = max(400, min(900, int(merged.get("name_font_weight", defaults["name_font_weight"]))))
-        except (TypeError, ValueError):
-            merged["name_font_weight"] = defaults["name_font_weight"]
-        try:
-            merged["name_max_lines"] = max(2, min(6, int(merged.get("name_max_lines", defaults["name_max_lines"]))))
-        except (TypeError, ValueError):
-            merged["name_max_lines"] = defaults["name_max_lines"]
+
+        allowed_order = [
+            "badges", "gallery", "thumbs", "price", "name", "brand",
+            "colors", "sizes", "size_guide", "details", "stock",
+            "delivery", "policies", "reviews", "related",
+        ]
+        raw_order = merged.get("detail_order")
+        if not isinstance(raw_order, list):
+            raw_order = list(defaults["detail_order"])
+        normalized_order = []
+        for key in raw_order:
+            key = str(key)
+            if key in allowed_order and key not in normalized_order:
+                normalized_order.append(key)
+        for key in allowed_order:
+            if key not in normalized_order:
+                normalized_order.append(key)
+        merged["detail_order"] = normalized_order
+
+        def number(key, low, high, integer=False):
+            try:
+                value = float(merged.get(key, defaults[key]))
+            except (TypeError, ValueError):
+                value = float(defaults[key])
+            value = max(low, min(high, value))
+            return int(round(value)) if integer else value
+
+        def flag(key):
+            value = merged.get(key)
+            return value if isinstance(value, bool) else bool(value)
+
+        def color(key):
+            value = str(merged.get(key) or defaults[key]).strip()
+            if not re.fullmatch(r"#[0-9a-fA-F]{6}", value):
+                value = defaults[key]
+            return value
+
+        for key, low, high, integer in (
+            ("thumbs_size", 40, 110, True),
+            ("thumbs_height", 45, 120, True),
+            ("thumbs_gap", 0, 18, True),
+            ("thumbs_radius", 0, 20, True),
+            ("thumbs_border_width", 0, 4, False),
+            ("badges_gap", 0, 20, True),
+            ("name_font_size", 14, 32, False),
+            ("name_font_weight", 400, 900, True),
+            ("name_max_lines", 2, 6, True),
+            ("price_font_size", 14, 34, False),
+            ("price_font_weight", 400, 900, True),
+            ("compare_price_font_size", 7, 20, False),
+            ("currency_font_size", 7, 20, False),
+            ("price_text_font_size", 7, 18, False),
+            ("brand_font_size", 7, 18, False),
+            ("brand_font_weight", 400, 900, True),
+            ("colors_size", 24, 64, True),
+            ("colors_label_font_size", 6, 16, False),
+            ("colors_gap", 0, 18, True),
+            ("colors_run_gap", 0, 18, True),
+            ("colors_selected_border_width", 0, 4, False),
+            ("sizes_font_size", 7, 18, False),
+            ("sizes_padding_horizontal", 4, 24, True),
+            ("sizes_padding_vertical", 3, 18, True),
+            ("sizes_gap", 0, 16, True),
+            ("size_guide_font_size", 7, 18, False),
+            ("details_title_font_size", 9, 20, False),
+            ("details_text_font_size", 8, 18, False),
+            ("stock_font_size", 7, 18, False),
+            ("delivery_font_size", 7, 18, False),
+            ("policy_button_height", 36, 76, True),
+            ("policy_button_radius", 0, 24, True),
+            ("policy_button_gap", 0, 16, True),
+            ("policy_button_font_size", 7, 18, False),
+            ("reviews_title_font_size", 9, 20, False),
+            ("related_title_font_size", 9, 20, False),
+        ):
+            merged[key] = number(key, low, high, integer)
+
+        merged["gallery_show"] = flag("gallery_show")
+        merged["thumbs_show"] = flag("thumbs_show")
+        merged["badges_show"] = flag("badges_show")
+        merged["name_show"] = flag("name_show")
+        merged["price_show"] = flag("price_show")
+        merged["show_compare_price"] = flag("show_compare_price")
+        merged["show_currency"] = flag("show_currency")
+        merged["price_text_show"] = flag("price_text_show")
+        merged["brand_show"] = flag("brand_show")
+        merged["colors_show"] = flag("colors_show")
+        merged["sizes_show"] = flag("sizes_show")
+        merged["size_guide_show"] = flag("size_guide_show")
+        merged["details_show"] = flag("details_show")
+        merged["stock_show"] = flag("stock_show")
+        merged["delivery_show"] = flag("delivery_show")
+        merged["policies_show"] = flag("policies_show")
+        merged["reviews_show"] = flag("reviews_show")
+        merged["related_show"] = flag("related_show")
+
+        merged["gallery_ratio"] = max(.56, min(1.05, float(merged.get("gallery_ratio", defaults["gallery_ratio"]))))
+        merged["compare_price_text_decoration"] = (
+            merged["compare_price_text_decoration"]
+            if merged["compare_price_text_decoration"] in {"line_through", "none"}
+            else defaults["compare_price_text_decoration"]
+        )
+        merged["price_text"] = str(merged.get("price_text") or defaults["price_text"])[:80]
+
+        for key in (
+            "name_color", "price_color", "compare_price_color", "currency_color",
+            "price_text_color", "brand_color",
+            "sizes_background_color", "sizes_text_color",
+            "sizes_selected_background_color", "sizes_selected_text_color",
+            "sizes_border_color", "size_guide_color", "size_guide_background_color",
+            "details_title_color", "details_text_color", "details_background_color",
+            "stock_text_color", "delivery_color",
+            "shipping_button_color", "shipping_button_text_color",
+            "returns_button_color", "returns_button_text_color",
+            "warranty_button_color", "warranty_button_text_color",
+            "payment_button_color", "payment_button_text_color",
+            "reviews_color",
+        ):
+            merged[key] = color(key)
         return merged
 
     @staticmethod
