@@ -4302,7 +4302,10 @@ class CatalogService:
             if CatalogService.is_trend_timer_expired(trend):
                 continue
             payload = CatalogService.serialize_public_trend(trend)
-            if payload["hashtag"] and payload["background"] and len(payload["products"]) == 3:
+            # The background image is optional at render time. A failed/missing
+            # media upload must not hide the whole three-product trend card;
+            # the Flutter client already renders a safe dark placeholder.
+            if payload["hashtag"] and len(payload["products"]) == 3:
                 items.append(payload)
         return items
 
