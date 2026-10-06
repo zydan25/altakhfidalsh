@@ -538,7 +538,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
                   badges: _maps(data['badges']),
                   positions: const {
                     'first', 'above_image',
-                    'before_name', 'before_name_same_row', 'before_name_new_row',
+                    'before_name', 'before_name_new_row',
                     'after_name', 'after_name_same_row', 'after_name_new_row',
                     'before_price', 'before_price_same_row', 'before_price_new_row',
                     'after_price', 'after_price_same_row', 'after_price_new_row',
@@ -598,6 +598,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
               : _DetailNameBlock(
                   name: sxText(product['name'], 'منتج'),
                   settings: detailSettings,
+                  badges: _maps(data['badges']),
                 );
         case 'description':
           return detailSettings['description_show'] == false || shortDescription.trim().isEmpty
@@ -1870,6 +1871,33 @@ int _detailDiscount(String current, String previous) {
   return ((1 - now / old) * 100).round();
 }
 
+class _DetailGroupBox extends StatelessWidget {
+  final List<Widget> children;
+  final String title;
+
+  const _DetailGroupBox({
+    required this.children,
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(0, 6, 0, 0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE8E8E8), width: .7),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
+  }
+}
+
 class _DetailPriceBlock extends StatelessWidget {
   final String price;
   final String oldPrice;
@@ -2128,26 +2156,93 @@ class _DetailNameRatingBlock extends StatelessWidget {
 class _DetailNameBlock extends StatelessWidget {
   final String name;
   final Map<String, dynamic> settings;
-  const _DetailNameBlock({required this.name, required this.settings});
+  final List<Map<String, dynamic>> badges;
+
+  const _DetailNameBlock({
+    required this.name,
+    required this.settings,
+    this.badges = const [],
+  });
 
   @override
-  Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(top: 6),
-        color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-        child: Text(
-          name,
-          textAlign: TextAlign.right,
-          maxLines: sxInt(settings['name_max_lines'], 4).clamp(2, 6).toInt(),
-          overflow: TextOverflow.clip,
-          style: TextStyle(
-            color: sxColor(sxText(settings['name_color']), Colors.black),
-            fontSize: sxDouble(settings['name_font_size'], 20),
-            fontWeight: _weight(sxInt(settings['name_font_weight'], 800)),
-            height: 1.3,
+  Widget build(BuildContext context) {
+    final inlineBadges = badges.where((badge) {
+      final s = badge['settings'] is Map
+          ? Map<String, dynamic>.from(badge['settings'] as Map)
+          : <String, dynamic>{};
+      return s['visible'] != false &&
+          sxText(s['position']) == 'before_name_same_row';
+    }).toList();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: Row(
+        textDirection: TextDirection.rtl,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (inlineBadges.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 7, top: 1),
+              child: Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: inlineBadges.take(3).map((badge) {
+                  final s = badge['settings'] is Map
+                      ? Map<String, dynamic>.from(badge['settings'] as Map)
+                      : <String, dynamic>{};
+                  return Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: sxDouble(s['padding_horizontal'], 7),
+                      vertical: sxDouble(s['padding_vertical'], 3),
+                    ),
+                    decoration: BoxDecoration(
+                      color: sxColor(
+                        sxText(s['background_color'], sxText(badge['bg_color'], '#111111')),
+                        Colors.black,
+                      ).withOpacity(
+                        sxDouble(s['background_opacity'], 1).clamp(0, 1).toDouble(),
+                      ),
+                      borderRadius: BorderRadius.circular(
+                        sxDouble(s['border_radius'], 4),
+                      ),
+                    ),
+                    child: Text(
+                      sxText(badge['custom_text'], sxText(badge['name'], 'جديد')),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: sxColor(
+                          sxText(s['text_color'], sxText(badge['text_color'], '#FFFFFF')),
+                          Colors.white,
+                        ),
+                        fontSize: sxDouble(s['font_size'], 8.5),
+                        fontWeight: _weight(sxInt(s['font_weight'], 800)),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          Expanded(
+            child: Text(
+              name,
+              textAlign: TextAlign.right,
+              maxLines: sxInt(settings['name_max_lines'], 4).clamp(2, 6).toInt(),
+              overflow: TextOverflow.clip,
+              style: TextStyle(
+                color: sxColor(sxText(settings['name_color']), Colors.black),
+                fontSize: sxDouble(settings['name_font_size'], 20),
+                fontWeight: _weight(sxInt(settings['name_font_weight'], 800)),
+                height: 1.3,
+              ),
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    );
+  }
 }
 
 class _DetailBrandBlock extends StatelessWidget {
@@ -2998,6 +3093,40 @@ class _DetailVariantSelectionBox extends StatelessWidget {
               radius: sxDouble(detailSettings['thumbs_radius'], 4),
               borderWidth: sxDouble(detailSettings['thumbs_border_width'], 1.5),
             ),
+          if (showColors && colors.isNotEmpty) ...[
+            if (showSizes && sizes.isNotEmpty) const SizedBox(height: 7),
+            Row(
+              textDirection: TextDirection.rtl,
+              children: const [
+                Expanded(
+                  child: Text(
+                    'اللون',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            _ProductOptions(
+              colors: colors,
+              sizes: const [],
+              selectedColorId: selectedColorId,
+              selectedSizeId: selectedSizeId,
+              onColor: onColor,
+              onSize: (_) {},
+              colorThumbUrls: colorThumbUrls,
+              settings: detailSettings,
+              showColors: true,
+              showSizes: false,
+              embedded: true,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
           if (showSizes && sizes.isNotEmpty) ...[
             const SizedBox(height: 4),
             Row(
@@ -3050,35 +3179,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
               embedded: true,
             ),
           ],
-          if (showColors && colors.isNotEmpty) ...[
-            if (showSizes && sizes.isNotEmpty) const SizedBox(height: 7),
-            Row(
-              textDirection: TextDirection.rtl,
-              children: const [
-                Expanded(
-                  child: Text(
-                    'اللون',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 7),
-            _ProductOptions(
-              colors: colors,
-              sizes: const [],
-              selectedColorId: selectedColorId,
-              selectedSizeId: selectedSizeId,
-              onColor: onColor,
-              onSize: (_) {},
-              colorThumbUrls: colorThumbUrls,
-              settings: detailSettings,
-              showColors: true,
-              showSizes: false,
-              embedded: true,
-            ),
-          ],
+
         ],
       ),
     );
