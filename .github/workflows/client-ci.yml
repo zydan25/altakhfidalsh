@@ -2,7 +2,9 @@ name: Customer Flutter CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - fix/customer-notifications-launch-icon-2026-10
     paths:
       - 'client/**'
       - '.github/workflows/client-ci.yml'
