@@ -331,7 +331,13 @@ class ApiService {
     String? discoveryTab,
     String? minRating,
   }) async {
-    final qp=<String,String>{'limit':'100','sort':sort};
+    final forceFreshRandom = sort == 'random' || sort == 'shuffle';
+    final qp=<String,String>{
+      'limit':'100',
+      'sort':sort,
+      if (forceFreshRandom)
+        '_random_ts': DateTime.now().microsecondsSinceEpoch.toString(),
+    };
     if(category!=null)qp['category_id']=category.toString();
     if(categoryIds!=null&&categoryIds.isNotEmpty)qp['category_ids']=categoryIds.join(',');
     if(circleId!=null)qp['circle_id']=circleId.toString();
