@@ -5822,27 +5822,18 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
           : <String, dynamic>{};
 
       if (!mounted) return;
-
-      // Do not erase an already visible trend carousel because a refresh
-      // briefly returned an empty list. An explicitly empty first load still
-      // remains empty as expected.
-      final replaceTrends = nextTrends.isNotEmpty || trends.isEmpty;
       setState(() {
-        if (replaceTrends) {
-          trends = nextTrends;
-          trendTags = nextTags.isNotEmpty
-              ? nextTags
-              : nextTrends
-                  .map((trend) => trend['hashtag'])
-                  .whereType<Map>()
-                  .map((tag) => Map<String, dynamic>.from(tag))
-                  .toList();
-          trendIndex = nextTrends.isEmpty ? 0 : trendIndex.clamp(0, nextTrends.length - 1);
-        } else if (nextTags.isNotEmpty) {
-          trendTags = nextTags;
-        }
+        trends = nextTrends;
+        trendTags = nextTags.isNotEmpty
+            ? nextTags
+            : nextTrends
+                .map((trend) => trend['hashtag'])
+                .whereType<Map>()
+                .map((tag) => Map<String, dynamic>.from(tag))
+                .toList();
         ui = nextUi;
         productCardSettings = nextProductCardSettings;
+        trendIndex = nextTrends.isEmpty ? 0 : 0;
         loading = false;
         _collapsedHeader = false;
         _pullExtent = 0;
@@ -5857,6 +5848,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
       });
     }
   }
+
   Future<void> _loadPicks() async {
     if (mounted) setState(() => loadingPicks = true);
     try {
@@ -6137,8 +6129,6 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
                                     ui['picks_section_background_color'],
                                     const Color(0xFFF3F3F3),
                                   ),
-                                  // Keep the existing Trends product-grid layout.
-                                  // Only the shared Home card settings are reused here.
                                   child: SxProductGrid(
                                     products: picks,
                                     masonry: true,

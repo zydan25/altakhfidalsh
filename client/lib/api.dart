@@ -6,7 +6,6 @@ import 'models.dart';
 
 class ApiService {
   static const _homeCachePrefix = 'storefront_home_v5_';
-  static const _trendsCacheKey = 'storefront_trends_v1';
   // v6 invalidates older result caches after the circle-result filtering fixes.
   // v7 includes trend/hashtag/meta payloads used by the product-card renderer.
   static const _feedCachePrefix = 'storefront_feed_v8_';
@@ -191,93 +190,13 @@ class ApiService {
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>CategoryModel.fromJson(Map<String,dynamic>.from(e))).toList();
   }
   Future<Map<String,dynamic>> trendsPage() async {
-    try {
-      final d = Map<String, dynamic>.from(
-        await get(
-          '/catalog/trends',
-          q: {'_trends_ts': DateTime.now().millisecondsSinceEpoch.toString()},
-        ),
-      );
-      final items = d['items'];
-      if (items is List && items.isNotEmpty) {
-        // Only replace the known-good cache with a payload that actually
-        // contains trend cards. An empty 200 response must not erase it.
-        await _saveJson(_trendsCacheKey, d);
-        return d;
-      }
-
-      // A transient/stale API response can be a successful 200 with no
-      // items. Preserve the last known-good three-product trend cards.
-      final cached = await _readJson(_trendsCacheKey);
-      if (cached is Map) {
-        final cachedMap = Map<String, dynamic>.from(cached);
-        if (cachedMap['items'] is List &&
-            (cachedMap['items'] as List).isNotEmpty) {
-          return cachedMap;
-        }
-      }
-
-      // The home endpoint carries the same trend payload. It is also useful
-      // when a proxy/cache returns an empty /catalog/trends result.
-      try {
-        final homePayload = await home();
-        final homeItems = homePayload['trends'];
-        if (homeItems is List && homeItems.isNotEmpty) {
-          final fallback = <String, dynamic>{
-            'items': homeItems,
-            'hashtags': homePayload['trend_hashtags'] is List
-                ? homePayload['trend_hashtags']
-                : const [],
-            'settings': homePayload['trend_settings'] is Map
-                ? homePayload['trend_settings']
-                : <String, dynamic>{},
-            'product_card_settings':
-                homePayload['product_card_settings'] is Map
-                    ? homePayload['product_card_settings']
-                    : <String, dynamic>{},
-          };
-          await _saveJson(_trendsCacheKey, fallback);
-          return fallback;
-        }
-      } catch (_) {}
-
-      // Return the valid response even when there are genuinely no public
-      // trends. The screen will then show its normal empty state.
-      return d;
-    } catch (_) {
-      final cached = await _readJson(_trendsCacheKey);
-      if (cached is Map) {
-        final cachedMap = Map<String, dynamic>.from(cached);
-        if (cachedMap['items'] is List &&
-            (cachedMap['items'] as List).isNotEmpty) {
-          return cachedMap;
-        }
-      }
-
-      try {
-        final homePayload = await home();
-        final homeItems = homePayload['trends'];
-        if (homeItems is List && homeItems.isNotEmpty) {
-          final fallback = <String, dynamic>{
-            'items': homeItems,
-            'hashtags': homePayload['trend_hashtags'] is List
-                ? homePayload['trend_hashtags']
-                : const [],
-            'settings': homePayload['trend_settings'] is Map
-                ? homePayload['trend_settings']
-                : <String, dynamic>{},
-            'product_card_settings':
-                homePayload['product_card_settings'] is Map
-                    ? homePayload['product_card_settings']
-                    : <String, dynamic>{},
-          };
-          await _saveJson(_trendsCacheKey, fallback);
-          return fallback;
-        }
-      } catch (_) {}
-
-      rethrow;
-    }
+    final d = Map<String, dynamic>.from(
+      await get(
+        '/catalog/trends',
+        q: {'_trends_ts': DateTime.now().millisecondsSinceEpoch.toString()},
+      ),
+    );
+    return d;
   }
 
   Future<Map<String,dynamic>> home({int? rootCategoryId}) async {
