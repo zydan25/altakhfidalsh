@@ -1870,6 +1870,8 @@ def register_entity_views(admin_bp):
                 "title": "الخلفية والهوية الأساسية",
                 "hint": "تحكم في خلفية البطاقة واسم المنتج والوصف القصير وتناسق النصوص.",
                 "fields": [
+                    ("image_to_content_gap", "المسافة بين نهاية الصورة وأول عنصر", "number", 0, 30, 1, True),
+                    ("content_vertical_gap", "المسافة الرأسية بين العناصر", "number", 0, 20, 1, True),
                     ("card_radius", "تدوير البطاقة", "number", 0, 30, 1, True),
                     ("card_background_opacity", "شفافية خلفية البطاقة", "number", 0, 1, .05, False),
                     ("show_name", "إظهار اسم المنتج", "checkbox"),
