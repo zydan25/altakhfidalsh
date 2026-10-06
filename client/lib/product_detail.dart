@@ -1880,7 +1880,7 @@ class _ProductIdentityPanel extends StatelessWidget {
 
 class _DeliveryBadgePanel extends StatelessWidget {
   final List<Map<String,dynamic>> badges;
-  const _DeliveryBadgePanel({required this.badges});
+  const _DeliveryBadgePanel({required this.badges, this.fontSize = 9, this.color = Colors.black});
 
   @override
   Widget build(BuildContext context) {
@@ -1931,7 +1931,7 @@ class _DeliveryBadgePanel extends StatelessWidget {
                           sxText(badge['text']),
                           style: TextStyle(
                             color: sxColor(sxText(badge['text_color']), const Color(0xFF111111)),
-                            fontSize: sxDouble(badge['font_size'], 9),
+                            fontSize: sxDouble(badge['font_size'], fontSize),
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -2660,10 +2660,12 @@ class _DetailBadgeStrip extends StatelessWidget {
   final String title;
   final List<Map<String, dynamic>> badges;
   final Set<String> positions;
+  final double gap;
   const _DetailBadgeStrip({
     required this.title,
     required this.badges,
     required this.positions,
+    this.gap = 5,
   });
 
   @override
@@ -2685,11 +2687,11 @@ class _DetailBadgeStrip extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 6),
+          SizedBox(height: gap + 1),
           Wrap(
             textDirection: TextDirection.rtl,
-            spacing: 5,
-            runSpacing: 5,
+            spacing: gap,
+            runSpacing: gap,
             children: rows.map((badge) {
               final s = badge['settings'] is Map
                   ? Map<String, dynamic>.from(badge['settings'] as Map)
@@ -2724,10 +2726,14 @@ class _DetailBadgeStrip extends StatelessWidget {
 class _StockStatusPanel extends StatelessWidget {
   final int availableQty;
   final bool hasVariant;
+  final double fontSize;
+  final Color textColor;
 
   const _StockStatusPanel({
     required this.availableQty,
     required this.hasVariant,
+    this.fontSize = 10,
+    this.textColor = Colors.black,
   });
 
   @override
