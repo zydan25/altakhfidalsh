@@ -79,6 +79,31 @@
       </div>
     </section>
 
+    <section class="pds-panel">
+      <div class="pds-head">
+        <span class="eyebrow">السياسات</span>
+        <h3>ترتيب أزرار الشحن والإرجاع والضمان والدفع</h3>
+        <p class="muted">يمكنك سحب كل زر أو استخدام السهمين لتغيير ترتيبه بشكل مستقل عن بقية الصفحة.</p>
+      </div>
+      <div class="sort-wrap">
+        <div class="sort-list" id="policyOrderList">
+          {% set policy_labels = {'shipping':'الشحن والتوصيل','returns':'الإرجاع والاسترداد','warranty':'الضمان','payment':'الدفع'} %}
+          {% for key in product_detail_settings.policy_order %}
+          <div class="sort-item" draggable="true" data-key="{{ key }}">
+            <span class="sort-handle">☷</span>
+            <span class="sort-index">{{ loop.index }}</span>
+            <span class="sort-name">{{ policy_labels.get(key,key) }}</span>
+            <span class="sort-actions">
+              <button type="button" data-policy-move="up" aria-label="أعلى">↑</button>
+              <button type="button" data-policy-move="down" aria-label="أسفل">↓</button>
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="policy_order" id="policyOrderInput" value="{{ product_detail_settings.policy_order|join(',') }}">
+      </div>
+    </section>
+
     {% for group in product_detail_groups[1:] %}
     <section class="pds-panel">
       <div class="pds-head">
@@ -180,6 +205,37 @@
     sync();
   });
   sync();
+
+  const policyList=document.getElementById('policyOrderList');
+  const policyInput=document.getElementById('policyOrderInput');
+  function syncPolicy(){
+    if(!policyList||!policyInput)return;
+    const keys=[...policyList.querySelectorAll('.sort-item')].map(x=>x.dataset.key);
+    policyInput.value=keys.join(',');
+    [...policyList.querySelectorAll('.sort-item')].forEach((x,i)=>x.querySelector('.sort-index').textContent=String(i+1));
+  }
+  let policyDragging=null;
+  if(policyList){
+    policyList.querySelectorAll('.sort-item').forEach(item=>{
+      item.addEventListener('dragstart',()=>{policyDragging=item;item.classList.add('dragging');});
+      item.addEventListener('dragend',()=>{item.classList.remove('dragging');policyDragging=null;syncPolicy();});
+      item.addEventListener('dragover',e=>{
+        e.preventDefault();
+        if(!policyDragging||policyDragging===item)return;
+        const box=item.getBoundingClientRect();
+        policyList.insertBefore(policyDragging,e.clientY<box.top+box.height/2?item:item.nextSibling);
+      });
+    });
+    policyList.addEventListener('click',e=>{
+      const btn=e.target.closest('[data-policy-move]');
+      if(!btn)return;
+      const item=btn.closest('.sort-item');
+      if(btn.dataset.policyMove==='up' && item.previousElementSibling) policyList.insertBefore(item,item.previousElementSibling);
+      if(btn.dataset.policyMove==='down' && item.nextElementSibling) policyList.insertBefore(item.nextElementSibling,item);
+      syncPolicy();
+    });
+    syncPolicy();
+  }
 
   const valid=/^#[0-9A-Fa-f]{6}$/;
   document.querySelectorAll('[data-picker]').forEach(picker=>{
