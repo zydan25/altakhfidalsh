@@ -39,25 +39,36 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y imagemagick
 
+          # The source artwork is a portrait canvas with a large black margin.
+          # Trim that margin by color similarity first, then build a square icon
+          # so the logo itself occupies the launcher mask instead of appearing tiny.
           convert 20260911_164630.jpg \
             -auto-orient \
-            -trim +repage \
-            -resize '512x512^' \
+            -colorspace sRGB \
+            -fuzz 10% -trim +repage \
+            -resize '470x470^' \
             -gravity center \
-            -extent 512x512 \
+            -background '#050505' \
+            -extent 470x470 \
+            -bordercolor '#050505' -border 21 \
             -unsharp 0x0.8+0.8+0 \
-            -strip \
-            client/android/app/src/main/res/drawable/app_icon_base.png
-
-          convert client/android/app/src/main/res/drawable/app_icon_base.png \
-            -alpha on \
-            \( -size 512x512 xc:none \
-               -fill white -draw 'circle 256,256 256,0' \) \
-            -compose CopyOpacity -composite \
             -strip \
             client/android/app/src/main/res/drawable/app_icon.png
 
-          rm -f client/android/app/src/main/res/drawable/app_icon_base.png
+          # Android status-bar/notification icons should be a simple
+          # monochrome foreground with transparency, not the full-color logo.
+          convert 20260911_164630.jpg \
+            -auto-orient \
+            -colorspace sRGB \
+            -fuzz 10% -trim +repage \
+            -resize '180x180^' \
+            -gravity center \
+            -background none \
+            -extent 180x180 \
+            -transparent '#000000' \
+            -fill white -colorize 100 \
+            -strip \
+            client/android/app/src/main/res/drawable/notification_icon.png
 
       - name: Set Android launcher icon
         working-directory: client
