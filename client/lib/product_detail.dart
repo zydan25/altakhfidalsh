@@ -702,7 +702,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
                   settings: detailSettings,
                 );
         case 'related':
-          return detailSettings['related_show'] == false || related.isEmpty
+          return detailSettings['related_show'] == false
               ? const SizedBox.shrink()
               : _RelatedProductsSection(
                   related: related,
@@ -1795,21 +1795,31 @@ class _RelatedProductsSection extends StatelessWidget {
                 ],
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(7, 0, 7, 12),
-              child: SxProductGrid(
-                products: related,
-                masonry: false,
-                onProductTap: (product) => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SxProductScreen(
-                      id: product.id,
+            if (related.isEmpty)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(12, 4, 12, 12),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'لا توجد توصيات محلية حاليًا، استخدم زر «التوصية» لعرض المزيد.',
+                    style: TextStyle(fontSize: 9, color: ClientTheme.muted),
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.fromLTRB(7, 0, 7, 12),
+                child: SxProductGrid(
+                  products: related,
+                  masonry: false,
+                  onProductTap: (product) => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SxProductScreen(id: product.id),
                     ),
                   ),
                 ),
               ),
-            ),
           ],
         ),
       );
