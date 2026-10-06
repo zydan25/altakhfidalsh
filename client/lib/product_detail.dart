@@ -774,6 +774,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
       page: page,
       colors: colors,
       sizes: sizes,
+      variants: _maps(data['variants']),
       selectedColorId: selectedColorId,
       selectedSizeId: sizeId,
       colorThumbUrls: _colorThumbUrls(colors, media),
@@ -808,7 +809,41 @@ class _SxProductScreenState extends State<SxProductScreen> {
       settings: detailSettings,
     );
 
-    // SHEIN-style: the gallery is always the first visual block.
+    Widget renderGroup(String title, List<String> keys) {
+      final children = <Widget>[];
+      var groupVariant = false;
+      var groupPolicy = false;
+      for (final key in keys) {
+        if (key == 'gallery') continue;
+        if (variantKeys.contains(key)) {
+          if (!groupVariant) {
+            groupVariant = true;
+            children.add(variantBox());
+            variantRendered = true;
+          }
+          continue;
+        }
+        if (policyKeys.contains(key)) {
+          if (!groupPolicy) {
+            groupPolicy = true;
+            children.add(policyBox());
+            policyRendered = true;
+          }
+          continue;
+        }
+        final section = detailSection(key);
+        if (section != null) children.add(section);
+      }
+      if (children.isEmpty) return const SizedBox.shrink();
+      return _DetailGroupBox(
+        title: title,
+        settings: detailSettings,
+        children: children,
+      );
+    }
+
+    // SHEIN: gallery remains the first visual block and every following group is
+    // driven by the server-side detail_groups definition.
     if (detailSettings['gallery_show'] != false) {
       orderedSections.add(
         SliverToBoxAdapter(
@@ -823,48 +858,39 @@ class _SxProductScreenState extends State<SxProductScreen> {
       );
     }
 
-    for (final key in detailOrder) {
-      if (key == 'gallery') continue;
-
-      if (variantKeys.contains(key)) {
-        if (!variantRendered) {
-          variantRendered = true;
-          orderedSections.add(
-            SliverToBoxAdapter(child: variantBox()),
-          );
+    final rawGroups = detailSettings['detail_groups'];
+    if (rawGroups is List && rawGroups.isNotEmpty) {
+      for (final rawGroup in rawGroups) {
+        if (rawGroup is! Map || rawGroup['show'] == false) continue;
+        final group = Map<String, dynamic>.from(rawGroup);
+        final rawItems = group['items'];
+        final keys = rawItems is List
+            ? rawItems.map((x) => sxText(x)).where((x) => x.isNotEmpty).toList()
+            : <String>[];
+        if (keys.isEmpty) continue;
+        final groupWidget = renderGroup(
+          sxText(group['title'], 'قسم تفاصيل'),
+          keys,
+        );
+        if (groupWidget is! SizedBox) {
+          orderedSections.add(SliverToBoxAdapter(child: groupWidget));
         }
-        continue;
-      }
-
-      if (policyKeys.contains(key)) {
-        if (!policyRendered) {
-          policyRendered = true;
-          orderedSections.add(
-            SliverToBoxAdapter(child: policyBox()),
-          );
-        }
-        continue;
-      }
-
-      final section = detailSection(key);
-      if (section != null) {
-        orderedSections.add(SliverToBoxAdapter(child: section));
       }
     }
 
-    // Safety net for old/partial saved settings.
+    // Safety net for old or incomplete saved settings.
     if (!variantRendered &&
-        (colors.isNotEmpty || sizes.isNotEmpty || (detailSettings['thumbs_show'] != false && media.length > 1))) {
-      orderedSections.add(
-        SliverToBoxAdapter(child: variantBox()),
-      );
+        (colors.isNotEmpty || sizes.isNotEmpty ||
+            (detailSettings['thumbs_show'] != false && media.length > 1))) {
+      orderedSections.add(SliverToBoxAdapter(child: variantBox()));
+      variantRendered = true;
     }
     if (!policyRendered &&
         (policies.isNotEmpty || _maps(data['delivery_badges']).isNotEmpty)) {
-      orderedSections.add(
-        SliverToBoxAdapter(child: policyBox()),
-      );
+      orderedSections.add(SliverToBoxAdapter(child: policyBox()));
+      policyRendered = true;
     }
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -1797,25 +1823,81 @@ int _detailDiscount(String current, String previous) {
 class _DetailGroupBox extends StatelessWidget {
   final List<Widget> children;
   final String title;
+  final Map<String, dynamic> settings;
 
   const _DetailGroupBox({
     required this.children,
     required this.title,
+    this.settings = const {},
   });
 
   @override
   Widget build(BuildContext context) {
+    final layout = sxText(settings['layout_mode'], 'shein');
+    final showTitle = settings['group_show_titles'] == true;
+    final dividerMode = sxText(settings['group_divider'], 'subtle');
+    final bg = sxColor(
+      sxText(settings['group_background_color']),
+      Colors.white,
+    );
+    final borderColor = sxColor(
+      sxText(settings['group_border_color']),
+      const Color(0xFFF0F0F0),
+    );
+    final dividerColor = sxColor(
+      sxText(settings['group_divider_color']),
+      const Color(0xFFEEEEEE),
+    );
+    final borderWidth = sxDouble(settings['group_border_width'], layout == 'boxed' ? .7 : 0);
+    final radius = sxDouble(settings['group_radius'], layout == 'boxed' ? 8 : 0);
+    final marginTop = sxDouble(settings['group_margin_top'], 0);
+    final horizontal = sxDouble(settings['group_padding_horizontal'], 12);
+    final vertical = sxDouble(settings['group_padding_vertical'], 10);
+
+    final wrapped = <Widget>[];
+    if (showTitle && title.trim().isNotEmpty) {
+      wrapped.add(
+        Padding(
+          padding: EdgeInsets.fromLTRB(horizontal, vertical, horizontal, 7),
+          child: Text(
+            title,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+          ),
+        ),
+      );
+    }
+    wrapped.addAll(children);
+
     return Container(
-      margin: const EdgeInsets.fromLTRB(0, 6, 0, 0),
+      margin: EdgeInsets.only(top: marginTop),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE8E8E8), width: .7),
-        borderRadius: BorderRadius.circular(7),
+        color: bg,
+        border: Border.all(color: borderColor, width: borderWidth),
+        borderRadius: BorderRadius.circular(radius),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children,
+        children: [
+          for (var i = 0; i < wrapped.length; i++) ...[
+            if (i > 0 && dividerMode != 'none')
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: horizontal),
+                height: dividerMode == 'strong'
+                    ? sxDouble(settings['group_divider_width'], 1.0)
+                    : sxDouble(settings['group_divider_width'], .7),
+                color: dividerColor,
+              ),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: showTitle && i == 0 ? 0 : horizontal,
+                vertical: showTitle && i == 0 ? 0 : vertical,
+              ),
+              child: wrapped[i],
+            ),
+          ],
+        ],
       ),
     );
   }
