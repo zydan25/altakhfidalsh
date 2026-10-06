@@ -817,6 +817,7 @@ class SxGallery extends StatefulWidget {
     required this.page,
     required this.changed,
     this.badges = const [],
+    this.aspectRatio = .78,
   });
 
   @override
