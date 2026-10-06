@@ -501,6 +501,9 @@ class _SxProductScreenState extends State<SxProductScreen> {
     final reviews = _maps(data['reviews_preview']);
     final detailSettings = _asMap(data['product_detail_settings']);
     final trendBadges = _maps(data['trend_badges']);
+    final promotionalStrips = _maps(data['promotional_strips']);
+    final campaigns = _maps(data['campaigns']);
+    final cardSettings = _asMap(data['product_card_settings']);
     final detailOrder = ((detailSettings['detail_order'] as List?) ?? const <dynamic>[])
         .map((x) => sxText(x))
         .where((x) => x.isNotEmpty)
@@ -508,6 +511,13 @@ class _SxProductScreenState extends State<SxProductScreen> {
     if (!detailOrder.contains('rating')) {
       final brandIndex = detailOrder.indexOf('brand');
       detailOrder.insert(brandIndex >= 0 ? brandIndex + 1 : detailOrder.length, 'rating');
+    }
+    if (!detailOrder.contains('trend')) {
+      detailOrder.insert(0, 'trend');
+    }
+    if (!detailOrder.contains('promotions')) {
+      final priceIndex = detailOrder.indexOf('price');
+      detailOrder.insert(priceIndex >= 0 ? priceIndex + 1 : detailOrder.length, 'promotions');
     }
 
     Widget? detailSection(String key) {
@@ -553,6 +563,10 @@ class _SxProductScreenState extends State<SxProductScreen> {
                   radius: sxDouble(detailSettings['thumbs_radius'], 4),
                   borderWidth: sxDouble(detailSettings['thumbs_border_width'], 1.5),
                 );
+        case 'trend':
+          return trendBadges.isEmpty
+              ? const SizedBox.shrink()
+              : _DetailTrendSection(trends: trendBadges);
         case 'price':
           return detailSettings['price_show'] == false
               ? const SizedBox.shrink()
@@ -561,6 +575,14 @@ class _SxProductScreenState extends State<SxProductScreen> {
                   oldPrice: formattedOldPrice,
                   currency: detailCurrency,
                   settings: detailSettings,
+                  cardSettings: cardSettings,
+                );
+        case 'promotions':
+          return (promotionalStrips.isEmpty && campaigns.isEmpty)
+              ? const SizedBox.shrink()
+              : _DetailPromotionsSection(
+                  strips: promotionalStrips,
+                  campaigns: campaigns,
                 );
         case 'name':
           return detailSettings['name_show'] == false
@@ -610,12 +632,25 @@ class _SxProductScreenState extends State<SxProductScreen> {
             showSizes: detailSettings['sizes_show'] != false,
           );
         case 'size_guide':
-          return detailSettings['size_guide_show'] == false || data['size_guide'] == null
-              ? const SizedBox.shrink()
-              : _SizeGuideButton(
-                  guide: _asMap(data['size_guide']),
-                  settings: detailSettings,
-                );
+          if (detailSettings['size_guide_show'] == false) {
+            return const SizedBox.shrink();
+          }
+          final rawGuide = _asMap(data['size_guide']);
+          final fallbackGuide = <String, dynamic>{
+            'name': 'دليل المقاسات',
+            'intro_text': 'اختر المقاس من الجدول لعرض تفاصيل قياساته.',
+            'rows': sizes.map((item) => <String, dynamic>{
+              'size_id': sxInt(item['id']),
+              'size_label': sxText(item['label'], sxText(item['code'], '—')),
+              'size_code': sxText(item['code']),
+              'product_measurements': <String, dynamic>{},
+              'body_measurements': <String, dynamic>{},
+            }).toList(),
+          };
+          return _SizeGuideButton(
+            guide: rawGuide.isEmpty ? fallbackGuide : rawGuide,
+            settings: detailSettings,
+          );
         case 'details':
           return detailSettings['details_show'] == false
               ? const SizedBox.shrink()
@@ -1257,23 +1292,297 @@ class _DetailNetworkImage extends StatelessWidget {
   }
 }
 
+
+int _discountValue(String current, String previous) {
+  final now = double.tryParse(current);
+  final old = double.tryParse(previous);
+  if (now == null || old == null || old <= now || old <= 0) return 0;
+  return ((1 - now / old) * 100).round();
+}
+
+class _DetailTrendSection extends StatelessWidget {
+  final List<Map<String, dynamic>> trends;
+  const _DetailTrendSection({required this.trends});
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = trends.where((x) {
+      final s = x['settings'];
+      return s is! Map || s['visible'] != false;
+    }).toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      child: Column(
+        children: [
+          Container(
+            color: const Color(0xFFF2E8FF),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 7),
+            child: Row(
+              textDirection: TextDirection.rtl,
+              children: [
+                const Expanded(
+                  child: Text(
+                    'ترندات',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF8B5CF6),
+                    ),
+                  ),
+                ),
+                Text(
+                  'أشهر المنتجات الآن',
+                  style: TextStyle(
+                    fontSize: 9,
+                    color: Colors.deepPurple.shade300,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          for (final trend in visible)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 6, 10, 2),
+              child: Row(
+                textDirection: TextDirection.rtl,
+                children: [
+                  Builder(
+                    builder: (_) {
+                      final s = trend['settings'] is Map
+                          ? Map<String, dynamic>.from(trend['settings'] as Map)
+                          : <String, dynamic>{};
+                      final h = trend['hashtag'] is Map
+                          ? Map<String, dynamic>.from(trend['hashtag'] as Map)
+                          : <String, dynamic>{};
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: sxColor(
+                            sxText(s['trend_badge_background_color']),
+                            const Color(0xFF8B5CF6),
+                          ),
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                        child: Text(
+                          sxText(h['display_name'], 'ترند'),
+                          style: TextStyle(
+                            color: sxColor(sxText(s['trend_badge_text_color']), Colors.white),
+                            fontSize: sxDouble(s['trend_badge_font_size'], 9),
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      sxText(trend['promo_text'], sxText(trend['text'], 'عرض ترند')),
+                      textAlign: TextAlign.right,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_left, size: 18, color: Color(0xFF777777)),
+                ],
+              ),
+            ),
+          const SizedBox(height: 5),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailPromotionsSection extends StatelessWidget {
+  final List<Map<String, dynamic>> strips;
+  final List<Map<String, dynamic>> campaigns;
+  const _DetailPromotionsSection({
+    required this.strips,
+    required this.campaigns,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (strips.isEmpty && campaigns.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final strip in strips)
+            Container(
+              margin: const EdgeInsets.only(bottom: 5),
+              color: sxColor(
+                sxText(strip['background_color']),
+                const Color(0xFFFFF1E8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              child: Row(
+                textDirection: TextDirection.rtl,
+                children: [
+                  const Icon(Icons.local_offer_outlined, size: 15),
+                  const SizedBox(width: 6),
+                  if (sxText(strip['prefix']).isNotEmpty)
+                    Text(
+                      sxText(strip['prefix']),
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                        color: sxColor(sxText(strip['text_color']), const Color(0xFF7C2D12)),
+                      ),
+                    ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      sxText(strip['text'], sxText(strip['name'], 'عرض خاص')),
+                      textAlign: TextAlign.right,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: sxColor(sxText(strip['text_color']), const Color(0xFF7C2D12)),
+                      ),
+                    ),
+                  ),
+                  const Icon(Icons.chevron_left, size: 17),
+                ],
+              ),
+            ),
+          if (campaigns.isNotEmpty)
+            Wrap(
+              textDirection: TextDirection.rtl,
+              spacing: 5,
+              runSpacing: 5,
+              children: campaigns.map((campaign) => Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFEFE6),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  sxText(campaign['name'], 'عرض'),
+                  style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900),
+                ),
+              )).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RecommendationProductsScreen extends StatefulWidget {
+  const _RecommendationProductsScreen();
+
+  @override
+  State<_RecommendationProductsScreen> createState() => _RecommendationProductsScreenState();
+}
+
+class _RecommendationProductsScreenState extends State<_RecommendationProductsScreen> {
+  List<ProductModel> products = const [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rows = await api.feed(
+        currencyId: state.currencyId,
+        sort: 'recommended',
+        discoveryTab: null,
+      );
+      if (!mounted) return;
+      setState(() => products = rows);
+    } catch (_) {
+      if (mounted) setState(() => products = const []);
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: TextDirection.rtl,
+    child: Scaffold(
+      backgroundColor: const Color(0xFFF7F7F7),
+      appBar: AppBar(
+        title: const Text(
+          'التوصية',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+        ),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      ),
+      body: loading
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : products.isEmpty
+              ? const Center(child: Text('لا توجد توصيات حاليًا.'))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(7, 8, 7, 20),
+                  child: SxProductGrid(
+                    products: products,
+                    masonry: false,
+                    onProductTap: (product) => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SxProductScreen(
+                          id: product.id,
+                          cartBuilder: (_) => const SxCartScreen(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+    ),
+  );
+}
+
 class _DetailPriceBlock extends StatelessWidget {
   final String price;
   final String oldPrice;
   final String currency;
   final Map<String, dynamic> settings;
+  final Map<String, dynamic> cardSettings;
 
   const _DetailPriceBlock({
     required this.price,
     required this.oldPrice,
     required this.currency,
     required this.settings,
+    this.cardSettings = const {},
   });
 
   @override
   Widget build(BuildContext context) {
     final showOld = settings['show_compare_price'] != false && oldPrice.trim().isNotEmpty;
     final showCurrency = settings['show_currency'] != false;
+    final discount = _discountValue(price, oldPrice);
+    final discountBg = sxColor(
+      sxText(
+        settings['discount_badge_background_color'],
+        sxText(cardSettings['discount_badge_background_color']),
+      ),
+      const Color(0xFFDC2626),
+    );
+    final discountFg = sxColor(
+      sxText(
+        settings['discount_badge_text_color'],
+        sxText(cardSettings['discount_badge_text_color']),
+      ),
+      Colors.white,
+    );
     return Container(
       margin: const EdgeInsets.only(top: 6),
       color: Colors.white,
@@ -1328,6 +1637,22 @@ class _DetailPriceBlock extends StatelessWidget {
                     decoration: sxText(settings['compare_price_text_decoration'], 'line_through') == 'line_through'
                         ? TextDecoration.lineThrough
                         : TextDecoration.none,
+                  ),
+                ),
+              if (discount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: discountBg,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '-$discount%',
+                    style: TextStyle(
+                      color: discountFg,
+                      fontSize: sxDouble(settings['discount_badge_font_size'], 9),
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
             ],
@@ -1446,23 +1771,44 @@ class _RelatedProductsSection extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 12, 10, 8),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  'قد يعجبك أيضًا',
-                  style: TextStyle(fontSize: titleFontSize, fontWeight: FontWeight.w900),
-                ),
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+              child: Row(
+                textDirection: TextDirection.rtl,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'قد يعجبك أيضًا',
+                      style: TextStyle(fontSize: titleFontSize, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const _RecommendationProductsScreen(),
+                      ),
+                    ),
+                    child: const Text(
+                      'التوصية',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(7, 0, 7, 20),
+              padding: const EdgeInsets.fromLTRB(7, 0, 7, 12),
               child: SxProductGrid(
                 products: related,
                 masonry: false,
                 onProductTap: (product) => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id)),
+                  MaterialPageRoute(
+                    builder: (_) => SxProductScreen(
+                      id: product.id,
+                      cartBuilder: (_) => const SxCartScreen(),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -2554,11 +2900,11 @@ class _PolicySections extends StatelessWidget {
                   builder: (_) => AlertDialog(
                     title: Row(
                       children: [
-                        Icon(items[i]['icon'] as IconData, size: 20),
+                        Icon(orderedItems[i]['icon'] as IconData, size: 20),
                         const SizedBox(width: 7),
                         Expanded(
                           child: Text(
-                            sxText(items[i]['title']),
+                            sxText(orderedItems[i]['title']),
                             textAlign: TextAlign.right,
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
                           ),
@@ -2567,7 +2913,7 @@ class _PolicySections extends StatelessWidget {
                     ),
                     content: SingleChildScrollView(
                       child: Text(
-                        sxText(items[i]['text']),
+                        sxText(orderedItems[i]['text']),
                         textAlign: TextAlign.right,
                         style: const TextStyle(fontSize: 10.5, height: 1.7),
                       ),
@@ -2580,10 +2926,10 @@ class _PolicySections extends StatelessWidget {
                     ],
                   ),
                 ),
-                icon: Icon(items[i]['icon'] as IconData, size: 18),
+                icon: Icon(orderedItems[i]['icon'] as IconData, size: 18),
                 style: FilledButton.styleFrom(
-                  backgroundColor: items[i]['background'] as Color,
-                  foregroundColor: items[i]['foreground'] as Color,
+                  backgroundColor: orderedItems[i]['background'] as Color,
+                  foregroundColor: orderedItems[i]['foreground'] as Color,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(
                       sxDouble(settings['policy_button_radius'], 8),
