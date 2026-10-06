@@ -2866,6 +2866,7 @@ class CatalogService:
             # Rating inside the product card.
             "rating_show": True,
             "rating_position": "after_price",
+            "rating_alignment": "right",
             "rating_font_size": 8.5,
             "rating_icon_size": 12.5,
             "rating_color": "#ffb400",
@@ -3042,6 +3043,7 @@ class CatalogService:
             "meta_position",
             "short_description_position",
             "rating_position",
+            "rating_alignment",
             "quick_add_icon",
             "quick_add_position",
             "image_flip_effect",
@@ -3082,6 +3084,8 @@ class CatalogService:
             "before_name", "after_name", "before_price", "after_price", "end",
         }:
             merged["rating_position"] = defaults["rating_position"]
+        if merged["rating_alignment"] not in {"right", "left"}:
+            merged["rating_alignment"] = defaults["rating_alignment"]
 
         if merged["quick_add_position"] not in {
             "top_left", "top_right", "bottom_left", "bottom_right",
