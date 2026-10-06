@@ -537,7 +537,7 @@
       '<div class="media-thumb">' +
       (item.url ? '<img src="' + escapeHtml(item.url) + '" alt="' + escapeHtml(item.color_name || "صورة المنتج") + '">' : '<span>صورة</span>') +
       '<div class="media-thumb-meta"><small>' + (item.color_name ? escapeHtml(item.color_name) : 'عام') + '</small><small>#' + item.id + '</small></div>' +
-      '<button type="button" class="ghost-button" data-delete-media="' + item.id + '">حذف</button></div>'
+      '<button type="button" class="danger-button media-delete-button" data-delete-media="' + item.id + '">حذف الصورة</button></div>'
     );
     document.getElementById("mediaPreview").innerHTML = mediaRows.map(mediaCard).join("");
     document.getElementById("mediaTotalCount").textContent = mediaRows.length + " صورة";
@@ -834,7 +834,7 @@
     const deleteButton = event.target.closest("[data-delete-media]");
     if (deleteButton) {
       try {
-        await requestJson("/api/v1/catalog/products/" + productId + "/media/" + deleteButton.dataset.deleteMedia, { method: "POST", body: JSON.stringify({}) });
+        await requestJson("/api/v1/catalog/products/" + productId + "/media/" + deleteButton.dataset.deleteMedia, { method: "DELETE" });
         await load();
         notify("تم حذف الصورة.");
       } catch (error) { notify(error.message, "error"); }
@@ -1189,7 +1189,7 @@
     const button = event.target.closest("[data-delete-media]");
     if (!button) return;
     try {
-      await requestJson("/api/v1/catalog/products/" + productId + "/media/" + button.dataset.deleteMedia, { method: "POST", body: JSON.stringify({}) });
+      await requestJson("/api/v1/catalog/products/" + productId + "/media/" + button.dataset.deleteMedia, { method: "DELETE" });
       await load();
       notify("تم حذف الصورة.");
     } catch (error) { notify(error.message, "error"); }
