@@ -2398,31 +2398,35 @@ class _DetailNameBlock extends StatelessWidget {
                 height: 1.3,
               ),
             ),
-            if (stockText.trim().isNotEmpty &&
-                sxText(settings['stock_inline_position'], 'name') == 'name')
-              Padding(
-                padding: const EdgeInsets.only(right: 7, top: 2),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  decoration: BoxDecoration(
+          ),
+          if (stockText.trim().isNotEmpty &&
+              sxText(settings['stock_inline_position'], 'name') == 'name')
+            Padding(
+              padding: const EdgeInsets.only(right: 7, top: 2),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  color: stockAvailable
+                      ? const Color(0xFFE9F7EF)
+                      : const Color(0xFFF7F7F7),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  stockText,
+                  style: TextStyle(
                     color: stockAvailable
-                        ? const Color(0xFFE9F7EF)
-                        : const Color(0xFFF7F7F7),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    stockText,
-                    style: TextStyle(
-                      color: stockAvailable
-                          ? sxColor(sxText(settings['stock_inline_color']), const Color(0xFF15803D))
-                          : const Color(0xFF777777),
-                      fontSize: 8.5,
-                      fontWeight: FontWeight.w900,
-                    ),
+                        ? sxColor(
+                            sxText(settings['stock_inline_color']),
+                            const Color(0xFF15803D),
+                          )
+                        : const Color(0xFF777777),
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
-          ],
+            ),
+        ],
         ),
       ),
     );
