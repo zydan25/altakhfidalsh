@@ -3087,7 +3087,12 @@ class _DetailVariantSelectionBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final guideRows = _maps(sizeGuide['rows']);
+    final guideRows = sizeGuide['rows'] is List
+        ? (sizeGuide['rows'] as List)
+            .whereType<Map>()
+            .map((row) => Map<String, dynamic>.from(row))
+            .toList()
+        : <Map<String, dynamic>>[];
     final canGuide = showSizeGuide && guideRows.isNotEmpty;
 
     return Container(
