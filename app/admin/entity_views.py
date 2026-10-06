@@ -1092,6 +1092,11 @@ def register_entity_views(admin_bp):
                     success = "تمت أرشفة جدول المقاسات."
                     selected_id = None
 
+                elif action == "restore":
+                    guide.is_active = True
+                    selected_id = guide.id
+                    success = "تمت استعادة جدول المقاسات."
+
                 elif action == "update":
                     name = (request.form.get("name") or "").strip()
                     if not name:
