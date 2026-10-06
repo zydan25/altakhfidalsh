@@ -1882,7 +1882,7 @@ def register_entity_views(admin_bp):
                     ("short_description_position", "موضع الوصف القصير", "select", ["before_name", "after_name", "before_price", "after_price", "end"]),
                     ("short_description_font_size", "حجم الوصف القصير", "number", 7, 18, .5, False),
                     ("short_description_font_weight", "وزن الوصف القصير", "number", 300, 900, 100, True),
-                    ("short_description_max_lines", "أقصى أسطر للوصف", "number", 1, 3, 1, True),
+                    ("short_description_max_lines", "أقصى أسطر للوصف", "number", 1, 4, 1, True),
                     ("short_description_background_opacity", "شفافية خلفية الوصف", "number", 0, 1, .05, False),
                 ],
             },
