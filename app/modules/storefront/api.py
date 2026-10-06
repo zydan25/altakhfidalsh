@@ -451,7 +451,6 @@ def home():
         "ui_settings": {
             "home_header_category_gap": header_category_gap,
         },
-        "store_locations": _store_locations_payload(),
         "page": page_payload,
         "categories": CatalogService.list_categories(),
         "category_display": CatalogService.list_home_category_display(),
