@@ -713,8 +713,10 @@ class SxProductCard extends StatefulWidget {
 }
 
 class _SxProductCardState extends State<SxProductCard> {
-  int page = 0;
-  int _imageTransitionRevision = 0;
+  // Logical carousel position is intentionally unbounded. The displayed
+  // image is derived with modulo, so first <-> last never reuses a logical
+  // position and the transition can continue forever.
+  int _carouselIndex = 0;
   double _dragDistance = 0;
   int _swipeDirection = 1;
   late List<String> _gallery;
@@ -725,10 +727,9 @@ class _SxProductCardState extends State<SxProductCard> {
   void didUpdateWidget(covariant SxProductCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.product.id != widget.product.id) {
-      page = 0;
-      _imageTransitionRevision++;
+      _carouselIndex = 0;
       _gallery = _uniqueImages(widget.product.images, widget.product.image);
-      _galleryLoaded = _gallery.length > 1;
+      _galleryLoaded = false;
       _galleryLoading = false;
     }
   }
@@ -737,7 +738,7 @@ class _SxProductCardState extends State<SxProductCard> {
   void initState() {
     super.initState();
     _gallery = _uniqueImages(widget.product.images, widget.product.image);
-    _galleryLoaded = _gallery.length > 1;
+    _galleryLoaded = false;
   }
 
   List<String> _uniqueImages(Iterable<String> images, String? primary) {
@@ -765,21 +766,17 @@ class _SxProductCardState extends State<SxProductCard> {
               .where((x) => x.isNotEmpty)
               .toList() ??
           <String>[];
-      final next = _uniqueImages(media, widget.product.image);
+      // Merge the complete product-detail gallery with the feed gallery.
+      // ProductMedia.color_id is deliberately not filtered here, so images
+      // attached to individual colors are part of the same carousel.
+      final next = _uniqueImages(
+        <String>[..._gallery, ...media],
+        widget.product.image,
+      );
       if (!mounted) return;
       setState(() {
-        // Never replace a complete local gallery with a shorter/incomplete
-        // API response. The image counter and swipe cycle must stay stable.
-        if (next.length > _gallery.length) {
+        if (next.isNotEmpty) {
           _gallery = next;
-          if (page >= _gallery.length) {
-            page = _gallery.length - 1;
-          }
-          _imageTransitionRevision++;
-        } else if (_gallery.length <= 1 && next.isNotEmpty) {
-          _gallery = next;
-          page = 0;
-          _imageTransitionRevision++;
         }
         _galleryLoaded = true;
         _galleryLoading = false;
@@ -802,33 +799,39 @@ class _SxProductCardState extends State<SxProductCard> {
     final distance = _dragDistance;
     _dragDistance = 0;
 
-    if (imageCount <= 1) {
+    if (distance.abs() < 18 && velocity.abs() < 100) return;
+
+    // On the first real swipe, finish loading the full detail gallery before
+    // choosing the next image. This brings in every ProductMedia row,
+    // including media assigned to specific colors.
+    if (!_galleryLoaded) {
       await _loadFullGallery();
-      if (!mounted || _gallery.length <= 1) return;
-      imageCount = _gallery.length;
+      if (!mounted) return;
     }
 
-    if (distance.abs() < 18 && velocity.abs() < 100) return;
+    imageCount = _gallery.length;
+    if (imageCount <= 1) return;
 
     final direction = velocity.abs() >= 100
         ? (velocity < 0 ? 1 : -1)
         : (distance < 0 ? 1 : -1);
 
-    var nextPage = page + direction;
-    if (nextPage < 0) {
-      nextPage = imageCount - 1;
-    } else if (nextPage >= imageCount) {
-      nextPage = 0;
-    }
+    // Do not wrap/reset this number. Keep it growing in either direction.
+    // The visible image is computed with modulo below.
+    final nextCarouselIndex = _carouselIndex + direction;
 
-    if (nextPage != page && mounted) {
+    if (mounted) {
       setState(() {
         _swipeDirection = direction;
-        page = nextPage;
-        // Fresh identity for every swipe, including last <-> first.
-        _imageTransitionRevision++;
+        _carouselIndex = nextCarouselIndex;
       });
     }
+  }
+
+  int _galleryIndex(int count) {
+    if (count <= 0) return 0;
+    final remainder = _carouselIndex % count;
+    return remainder < 0 ? remainder + count : remainder;
   }
 
   Map<String, dynamic> get _cardSettings =>
@@ -1160,13 +1163,11 @@ class _SxProductCardState extends State<SxProductCard> {
               child: KeyedSubtree(
                 key: ValueKey(
                   widget.product.id.toString() +
-                      '-' +
-                      page.toString() +
-                      '-' +
-                      _imageTransitionRevision.toString(),
+                      '-carousel-' +
+                      _carouselIndex.toString(),
                 ),
                 child: _ProductCardImage(
-                  url: gallery[page.clamp(0, gallery.length - 1).toInt()],
+                  url: gallery[_galleryIndex(gallery.length)],
                   fit: BoxFit.cover,
                 ),
               ),
@@ -1367,10 +1368,12 @@ class _SxProductCardState extends State<SxProductCard> {
                 (i) => AnimatedContainer(
                   duration: const Duration(milliseconds: 130),
                   margin: const EdgeInsets.symmetric(horizontal: 2),
-                  width: i == page ? 12 : 5,
+                  width: i == _galleryIndex(gallery.length) ? 12 : 5,
                   height: 3,
                   decoration: BoxDecoration(
-                    color: i == page ? Colors.white : Colors.white70,
+                    color: i == _galleryIndex(gallery.length)
+                        ? Colors.white
+                        : Colors.white70,
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
