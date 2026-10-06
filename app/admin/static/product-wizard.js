@@ -834,7 +834,7 @@
     const deleteButton = event.target.closest("[data-delete-media]");
     if (deleteButton) {
       try {
-        await requestJson("/api/v1/catalog/products/" + productId + "/media/" + deleteButton.dataset.deleteMedia, { method: "DELETE" });
+        await requestJson("/api/v1/catalog/products/" + productId + "/media/" + deleteButton.dataset.deleteMedia, { method: "POST", body: JSON.stringify({}) });
         await load();
         notify("تم حذف الصورة.");
       } catch (error) { notify(error.message, "error"); }
@@ -1189,7 +1189,7 @@
     const button = event.target.closest("[data-delete-media]");
     if (!button) return;
     try {
-      await requestJson("/api/v1/catalog/products/" + productId + "/media/" + button.dataset.deleteMedia, { method: "DELETE" });
+      await requestJson("/api/v1/catalog/products/" + productId + "/media/" + button.dataset.deleteMedia, { method: "POST", body: JSON.stringify({}) });
       await load();
       notify("تم حذف الصورة.");
     } catch (error) { notify(error.message, "error"); }
