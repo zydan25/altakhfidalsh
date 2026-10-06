@@ -1239,6 +1239,12 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                         : null,
                   ),
                 ),
+              if (sxMaps(home['store_locations']).isNotEmpty)
+                SliverToBoxAdapter(
+                  child: SxStoreLocations(
+                    locations: sxMaps(home['store_locations']),
+                  ),
+                ),
               ),
           ],
                 ),
@@ -2499,6 +2505,152 @@ class _SxCouponStripState extends State<SxCouponStrip> {
   }
 }
 
+class SxStoreLocations extends StatefulWidget {
+  final List<Map<String, dynamic>> locations;
+  const SxStoreLocations({super.key, required this.locations});
+
+  @override
+  State<SxStoreLocations> createState() => _SxStoreLocationsState();
+}
+
+class _SxStoreLocationsState extends State<SxStoreLocations> {
+  late final PageController _controller;
+  int _locationPage = 0;
+  final Map<int, int> _imagePages = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(viewportFraction: .92);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openLocation(Map<String, dynamic> location) async {
+    var raw = sxText(location['map_url']).trim();
+    final lat = sxText(location['latitude']).trim();
+    final lng = sxText(location['longitude']).trim();
+    if (raw.isEmpty && lat.isNotEmpty && lng.isNotEmpty) {
+      raw = 'https://www.google.com/maps/search/?api=1&query=' + lat + ',' + lng;
+    }
+    if (raw.isEmpty) {
+      final query = [
+        sxText(location['name']),
+        sxText(location['city']),
+        sxText(location['region']),
+        sxText(location['address']),
+      ].where((x) => x.trim().isNotEmpty).join(', ');
+      if (query.isNotEmpty) {
+        raw = 'https://www.google.com/maps/search/?api=1&query=' + Uri.encodeComponent(query);
+      }
+    }
+    final uri = Uri.tryParse(raw);
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.locations.isEmpty) return const SizedBox.shrink();
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(8, 10, 8, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+            child: Text('مواقعنا', textAlign: TextAlign.right, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+          ),
+          const SizedBox(height: 7),
+          SizedBox(
+            height: 310,
+            child: PageView.builder(
+              controller: _controller,
+              itemCount: widget.locations.length,
+              onPageChanged: (index) { if (mounted) setState(() => _locationPage = index); },
+              itemBuilder: (_, index) {
+                final location = widget.locations[index];
+                final images = sxMaps(location['images']);
+                final imagePage = _imagePages[index] ?? 0;
+                final titleParts = [sxText(location['city']), sxText(location['region'])].where((x) => x.isNotEmpty).join(' · ');
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Container(
+                    decoration: BoxDecoration(color: const Color(0xFFF8F8F8), borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE7E7E7))),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          height: 176,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              if (images.isEmpty)
+                                const ColoredBox(color: Color(0xFFEDEDED), child: Icon(Icons.storefront_outlined, size: 44, color: Color(0xFF8A8A8A)))
+                              else
+                                PageView.builder(
+                                  itemCount: images.length,
+                                  onPageChanged: (page) { _imagePages[index] = page; if (mounted) setState(() {}); },
+                                  itemBuilder: (_, imageIndex) => SxImage(url: images[imageIndex]['url'], fit: BoxFit.cover),
+                                ),
+                              if (images.length > 1)
+                                Positioned(
+                                  bottom: 7, left: 0, right: 0,
+                                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(images.length, (i) => AnimatedContainer(duration: const Duration(milliseconds: 140), width: i == imagePage ? 16 : 4, height: 3, margin: const EdgeInsets.symmetric(horizontal: 2), decoration: BoxDecoration(color: i == imagePage ? Colors.white : Colors.white54, borderRadius: BorderRadius.circular(10)))),
+                                ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(11, 9, 11, 10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(sxText(location['name'], 'موقع المتجر'), textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
+                                if (titleParts.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(titleParts, textAlign: TextAlign.right, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF666666))),
+                                ],
+                                if (sxText(location['address']).isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(sxText(location['address']), textAlign: TextAlign.right, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9.5, height: 1.4, color: Color(0xFF777777))),
+                                ],
+                                const Spacer(),
+                                SizedBox(
+                                  height: 38,
+                                  child: OutlinedButton.icon(
+                                    onPressed: () => _openLocation(location),
+                                    icon: const Icon(Icons.location_on_outlined, size: 16),
+                                    label: const Text('فتح الموقع', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
+                                    style: OutlinedButton.styleFrom(foregroundColor: Colors.black, side: const BorderSide(color: Colors.black), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9))),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          if (widget.locations.length > 1)
+            Padding(padding: const EdgeInsets.only(top: 7), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(widget.locations.length, (i) => AnimatedContainer(duration: const Duration(milliseconds: 140), width: i == _locationPage ? 16 : 4, height: 3, margin: const EdgeInsets.symmetric(horizontal: 2), decoration: BoxDecoration(color: i == _locationPage ? Colors.black : const Color(0xFFBDBDBD), borderRadius: BorderRadius.circular(10))))),
+        ],
+      ),
+    );
+  }
+}
 class SxHomeLookCarousel extends StatelessWidget {
   final List<Map<String, dynamic>> looks;
   final ValueChanged<Map<String, dynamic>> onTap;
