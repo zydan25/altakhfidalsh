@@ -2427,7 +2427,6 @@ class _DetailNameBlock extends StatelessWidget {
               ),
             ),
         ],
-        ),
       ),
     );
   }
