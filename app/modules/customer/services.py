@@ -193,13 +193,34 @@ class CustomerService:
 
     @staticmethod
     def serialize_address(address):
+        country = (
+            db.session.get(Country, address.country_id)
+            if address.country_id
+            else None
+        )
+        city = db.session.get(City, address.city_id) if address.city_id else None
+        area = (
+            db.session.get(CityArea, address.city_area_id)
+            if address.city_area_id
+            else None
+        )
+        region = (
+            db.session.get(Region, city.region_id)
+            if city is not None and city.region_id
+            else None
+        )
         return {
             "id": address.id,
             "recipient_name": address.recipient_name,
             "phone": address.phone,
             "country_id": address.country_id,
+            "country_name": country.name if country else None,
             "city_id": address.city_id,
+            "city_name": city.name if city else None,
             "city_area_id": address.city_area_id,
+            "city_area_name": area.name if area else None,
+            "region_id": region.id if region else None,
+            "region_name": region.name if region else None,
             "district": address.district,
             "street": address.street,
             "landmark": address.landmark,
