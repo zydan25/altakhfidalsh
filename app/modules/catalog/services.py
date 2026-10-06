@@ -2779,7 +2779,7 @@ class CatalogService:
             "name_color": "#111111",
             "name_background_color": "#ffffff",
             "name_background_opacity": 1.0,
-            "name_max_lines": 2,
+            "name_max_lines": 3,
             "name_overflow": "wrap",
             "show_short_description": False,
             "short_description_position": "after_name",
