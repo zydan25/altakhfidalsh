@@ -1496,8 +1496,12 @@ class CatalogService:
         asset = db.session.get(MediaAsset, media.asset_id)
         db.session.delete(media)
         db.session.flush()
+        # Keep the physical asset record/file safe because assets may be referenced
+        # by other storefront entities or historical records. Removing only the
+        # product-media relation makes the image disappear from the product without
+        # risking a foreign-key failure or deleting a shared asset.
         if asset is not None:
-            db.session.delete(asset)
+            asset.is_active = False
         db.session.commit()
         return {"id": media_id}
 
