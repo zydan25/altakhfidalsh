@@ -763,110 +763,52 @@ class _SxProductScreenState extends State<SxProductScreen> {
       }
     }
 
-    final fallbackGroups = <Map<String, dynamic>>[
-      {
-        'title': 'العروض وبيانات المنتج',
-        'items': ['trend', 'name', 'badges', 'price', 'promotions', 'description', 'rating', 'brand'],
-        'show': true,
-      },
-      {
-        'title': 'الصور والألوان والمقاسات',
-        'items': ['thumbs', 'colors', 'sizes', 'size_guide'],
-        'show': true,
-      },
-      {
-        'title': 'التفاصيل والمخزون',
-        'items': ['details', 'stock'],
-        'show': true,
-      },
-      {
-        'title': 'التوصيل والسياسات',
-        'items': ['delivery', 'policies'],
-        'show': true,
-      },
-      {
-        'title': 'التقييمات',
-        'items': ['reviews'],
-        'show': true,
-      },
-      {
-        'title': 'اقتراحات التسوق',
-        'items': ['related'],
-        'show': true,
-      },
-    ];
-
-    final rawGroups = detailSettings['detail_groups'];
-    final detailGroups = rawGroups is List
-        ? rawGroups
-            .whereType<Map>()
-            .map((group) => Map<String, dynamic>.from(group))
-            .where((group) => group['items'] is List && (group['items'] as List).isNotEmpty)
-            .toList()
-        : fallbackGroups;
-
     final orderedSections = <Widget>[];
-    final variantKeys = {'thumbs', 'sizes', 'colors', 'size_guide'};
-    final policyKeys = {'delivery', 'policies'};
-    var galleryRendered = false;
-    var variantBoxAdded = false;
-    var policyBoxAdded = false;
-    final renderedKeys = <String>{};
+    final variantKeys = <String>{'thumbs', 'sizes', 'colors', 'size_guide'};
+    final policyKeys = <String>{'delivery', 'policies'};
+    var variantRendered = false;
+    var policyRendered = false;
 
-    Widget? boxedGeneralGroup(String title, List<Widget> children) {
-      if (children.isEmpty) return null;
-      return _DetailGroupBox(
-        children: children,
-        title: title,
-      );
-    }
+    Widget variantBox() => _DetailVariantSelectionBox(
+      media: media,
+      page: page,
+      colors: colors,
+      sizes: sizes,
+      selectedColorId: selectedColorId,
+      selectedSizeId: sizeId,
+      colorThumbUrls: _colorThumbUrls(colors, media),
+      detailSettings: detailSettings,
+      showThumbs: detailSettings['thumbs_show'] != false,
+      showSizes: detailSettings['sizes_show'] != false,
+      showColors: detailSettings['colors_show'] != false,
+      sizeGuide: (() {
+        final guide = _asMap(data['size_guide']);
+        if (guide.isNotEmpty) return guide;
+        return <String, dynamic>{
+          'name': 'دليل المقاسات',
+          'intro_text': 'اختر المقاس من الجدول لعرض القياسات بالكامل.',
+          'rows': sizes.map((item) => <String, dynamic>{
+            'size_id': sxInt(item['id']),
+            'size_label': sxText(item['label'], sxText(item['code'], '—')),
+            'size_code': sxText(item['code']),
+            'product_measurements': <String, dynamic>{},
+            'body_measurements': <String, dynamic>{},
+          }).toList(),
+        };
+      })(),
+      showSizeGuide: detailSettings['size_guide_show'] != false,
+      onGalleryChanged: _onGalleryPageChanged,
+      onColor: _selectColor,
+      onSize: (value) => setState(() => sizeId = value),
+    );
 
-    Widget? buildVariantBoxOnce() {
-      if (variantBoxAdded) return null;
-      variantBoxAdded = true;
-      final guide = _asMap(data['size_guide']);
-      final fallbackGuide = <String, dynamic>{
-        'name': 'دليل المقاسات',
-        'intro_text': 'اختر المقاس من الجدول لعرض القياسات بالكامل.',
-        'rows': sizes.map((item) => <String, dynamic>{
-          'size_id': sxInt(item['id']),
-          'size_label': sxText(item['label'], sxText(item['code'], '—')),
-          'size_code': sxText(item['code']),
-          'product_measurements': <String, dynamic>{},
-          'body_measurements': <String, dynamic>{},
-        }).toList(),
-      };
-      return _DetailVariantSelectionBox(
-        media: media,
-        page: page,
-        colors: colors,
-        sizes: sizes,
-        selectedColorId: selectedColorId,
-        selectedSizeId: sizeId,
-        colorThumbUrls: _colorThumbUrls(colors, media),
-        detailSettings: detailSettings,
-        showThumbs: detailSettings['thumbs_show'] != false,
-        showSizes: detailSettings['sizes_show'] != false,
-        showColors: detailSettings['colors_show'] != false,
-        sizeGuide: guide.isEmpty ? fallbackGuide : guide,
-        showSizeGuide: detailSettings['size_guide_show'] != false,
-        onGalleryChanged: _onGalleryPageChanged,
-        onColor: _selectColor,
-        onSize: (value) => setState(() => sizeId = value),
-      );
-    }
+    Widget policyBox() => _DeliveryPolicyBox(
+      deliveryBadges: _maps(data['delivery_badges']),
+      policies: policies,
+      settings: detailSettings,
+    );
 
-    Widget? buildPolicyBoxOnce() {
-      if (policyBoxAdded) return null;
-      policyBoxAdded = true;
-      return _DeliveryPolicyBox(
-        deliveryBadges: _maps(data['delivery_badges']),
-        policies: policies,
-        settings: detailSettings,
-      );
-    }
-
-    // Main gallery is intentionally standalone, like the SHEIN product page.
+    // SHEIN-style: the gallery is always the first visual block.
     if (detailSettings['gallery_show'] != false) {
       orderedSections.add(
         SliverToBoxAdapter(
@@ -879,84 +821,50 @@ class _SxProductScreenState extends State<SxProductScreen> {
           ),
         ),
       );
-      galleryRendered = true;
     }
 
-    for (final group in detailGroups) {
-      if (group['show'] == false) continue;
-      final rawItems = group['items'];
-      final keys = rawItems is List
-          ? rawItems.map((x) => sxText(x)).where((x) => x.isNotEmpty).toList()
-          : <String>[];
-      if (keys.isEmpty) continue;
-
-      final generalChildren = <Widget>[];
-      final groupTitle = sxText(group['title']);
-      for (final key in keys) {
-        if (key == 'gallery') {
-          if (galleryRendered) continue;
-          if (detailSettings['gallery_show'] != false) {
-            orderedSections.add(
-              SliverToBoxAdapter(
-                child: SxGallery(
-                  rows: media,
-                  page: page,
-                  aspectRatio: sxDouble(detailSettings['gallery_ratio'], .78),
-                  changed: _onGalleryPageChanged,
-                  badges: _maps(data['badges']),
-                ),
-              ),
-            );
-            galleryRendered = true;
-          }
-          renderedKeys.add(key);
-          continue;
-        }
-        if (variantKeys.contains(key)) {
-          final variant = buildVariantBoxOnce();
-          if (variant != null) orderedSections.add(SliverToBoxAdapter(child: variant));
-          renderedKeys.add(key);
-          continue;
-        }
-        if (policyKeys.contains(key)) {
-          final policy = buildPolicyBoxOnce();
-          if (policy != null) orderedSections.add(SliverToBoxAdapter(child: policy));
-          renderedKeys.add(key);
-          continue;
-        }
-        final section = detailSection(key);
-        if (section != null && renderedKeys.add(key)) {
-          generalChildren.add(section);
-        }
-      }
-
-      if (generalChildren.isNotEmpty) {
-        orderedSections.insert(
-          orderedSections.length,
-          SliverToBoxAdapter(
-            child: boxedGeneralGroup(groupTitle, generalChildren),
-          ),
-        );
-      }
-    }
-
-    // Legacy/partial settings fallback: anything not assigned to a group still renders.
-    final legacyRemainder = <Widget>[];
     for (final key in detailOrder) {
-      if (key == 'gallery' || renderedKeys.contains(key) || variantKeys.contains(key) || policyKeys.contains(key)) {
+      if (key == 'gallery') continue;
+
+      if (variantKeys.contains(key)) {
+        if (!variantRendered) {
+          variantRendered = true;
+          orderedSections.add(
+            SliverToBoxAdapter(child: variantBox()),
+          );
+        }
         continue;
       }
+
+      if (policyKeys.contains(key)) {
+        if (!policyRendered) {
+          policyRendered = true;
+          orderedSections.add(
+            SliverToBoxAdapter(child: policyBox()),
+          );
+        }
+        continue;
+      }
+
       final section = detailSection(key);
-      if (section != null && renderedKeys.add(key)) legacyRemainder.add(section);
-    }
-    if (legacyRemainder.isNotEmpty) {
-      orderedSections.add(
-        SliverToBoxAdapter(
-          child: boxedGeneralGroup('قسم تفاصيل', legacyRemainder),
-        ),
-      );
+      if (section != null) {
+        orderedSections.add(SliverToBoxAdapter(child: section));
+      }
     }
 
+    // Safety net for old/partial saved settings.
+    if (!variantRendered &&
+        (colors.isNotEmpty || sizes.isNotEmpty || (detailSettings['thumbs_show'] != false && media.length > 1))) {
+      orderedSections.add(
+        SliverToBoxAdapter(child: variantBox()),
+      );
+    }
+    if (!policyRendered &&
+        (policies.isNotEmpty || _maps(data['delivery_badges']).isNotEmpty)) {
+      orderedSections.add(
+        SliverToBoxAdapter(child: policyBox()),
+      );
+    }
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
