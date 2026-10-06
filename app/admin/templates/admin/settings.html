@@ -5,15 +5,22 @@
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 <section class="panel" style="margin-bottom:12px">
   <div class="panel-heading"><div><span class="eyebrow">إعدادات التطبيق العميل</span><h3>بيانات التواصل والموقع</h3></div></div>
-  <p class="muted" style="line-height:1.7">
-    يقرأ التطبيق هذه القيم مباشرة من الخادم. أنشئ أو عدّل المفاتيح التالية تحت المجموعة
-    <code dir="ltr">storefront</code>:
-    <span dir="ltr">support_phone</span>، <span dir="ltr">whatsapp_phone</span>،
-    <span dir="ltr">store_name</span>، <span dir="ltr">store_address</span>،
-    <span dir="ltr">store_latitude</span>، <span dir="ltr">store_longitude</span>،
-    <span dir="ltr">store_map_url</span>، <span dir="ltr">store_image_url</span>،
-    <span dir="ltr">store_hours</span>.
-  </p>
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
+    <p class="muted" style="line-height:1.7;margin:0;flex:1;min-width:240px">
+      يقرأ التطبيق هذه القيم مباشرة من الخادم. بيانات التواصل والساعات تبقى هنا ضمن
+      <code dir="ltr">storefront</code>، أما مواقع الفروع وصورها المتعددة فأصبحت تُدار
+      من شاشة مستقلة حتى لا تضطر لتخزين موقع واحد فقط.
+    </p>
+    <a class="primary-button" href="/admin/store-locations" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;min-height:40px">
+      إدارة مواقعنا وصور الفروع
+    </a>
+  </div>
+  <div class="muted" style="margin-top:8px;font-size:10px;line-height:1.7">
+    المفاتيح القديمة مثل
+    <span dir="ltr">store_name</span> و<span dir="ltr">store_address</span> و<span dir="ltr">store_map_url</span>
+    ما زالت مدعومة للتوافق مع البيانات القديمة، لكن البيانات الجديدة للمتجر المتعدد تُحفظ في
+    <span dir="ltr">store_locations_json</span>.
+  </div>
 </section>
 <section class="two-panel">
 <article class="panel">
