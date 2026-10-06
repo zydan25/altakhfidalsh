@@ -2780,7 +2780,9 @@ class CatalogService:
             "name_background_color": "#ffffff",
             "name_background_opacity": 1.0,
             "name_max_lines": 2,
+            "name_overflow": "wrap",
             "show_short_description": False,
+            "short_description_position": "after_name",
             "short_description_font_size": 9,
             "short_description_font_weight": 500,
             "short_description_color": "#6b7280",
@@ -2860,6 +2862,29 @@ class CatalogService:
             "meta_radius": 3,
             "meta_padding_horizontal": 4,
             "meta_padding_vertical": 2,
+
+            # Rating inside the product card.
+            "rating_show": True,
+            "rating_position": "after_price",
+            "rating_font_size": 8.5,
+            "rating_icon_size": 12.5,
+            "rating_color": "#ffb400",
+            "rating_review_count_show": True,
+            "rating_review_count_font_size": 8,
+
+            # Quick-add button on the product image.
+            "quick_add_show": True,
+            "quick_add_icon": "shopping_bag_outlined",
+            "quick_add_size": 32,
+            "quick_add_position": "bottom_left",
+            "quick_add_radius": 16,
+            "quick_add_background_color": "#ffffff",
+            "quick_add_icon_color": "#111111",
+            "quick_add_opacity": 0.93,
+
+            # Product-image swipe animation.
+            "image_flip_effect": "slide",
+            "image_flip_duration_ms": 260,
         }
         row = AppSetting.query.filter_by(
             group_code="storefront",
@@ -2908,11 +2933,18 @@ class CatalogService:
             ("card_radius", 0, 30, False),
             ("name_font_size", 7, 24, False),
             ("name_font_weight", 300, 900, True),
-            ("name_max_lines", 1, 3, True),
+            ("name_max_lines", 1, 6, True),
             ("short_description_font_size", 7, 18, False),
             ("short_description_font_weight", 300, 900, True),
-            ("short_description_max_lines", 1, 3, True),
+            ("short_description_max_lines", 1, 4, True),
             ("short_description_background_opacity", 0, 1, False),
+            ("rating_font_size", 6, 18, False),
+            ("rating_icon_size", 7, 24, False),
+            ("rating_review_count_font_size", 6, 18, False),
+            ("quick_add_size", 22, 64, False),
+            ("quick_add_radius", 0, 32, True),
+            ("quick_add_opacity", 0, 1, False),
+            ("image_flip_duration_ms", 80, 1200, True),
             ("price_font_size", 9, 28, False),
             ("price_font_weight", 300, 900, True),
             ("price_background_opacity", 0, 1, False),
@@ -2965,6 +2997,9 @@ class CatalogService:
             "trend_show_arrow",
             "colors_show",
             "meta_show",
+            "rating_show",
+            "rating_review_count_show",
+            "quick_add_show",
         ):
             merged[key] = _bool(key)
 
@@ -2993,6 +3028,9 @@ class CatalogService:
             "trend_arrow_color",
             "meta_background_color",
             "meta_text_color",
+            "rating_color",
+            "quick_add_background_color",
+            "quick_add_icon_color",
         ):
             merged[key] = _color(key)
 
@@ -3002,6 +3040,12 @@ class CatalogService:
             "colors_position",
             "colors_direction",
             "meta_position",
+            "short_description_position",
+            "rating_position",
+            "quick_add_icon",
+            "quick_add_position",
+            "image_flip_effect",
+            "name_overflow",
         ):
             merged[key] = str(merged.get(key) or defaults[key]).strip().lower()
 
@@ -3028,6 +3072,35 @@ class CatalogService:
             merged["colors_direction"] = defaults["colors_direction"]
         if merged["meta_position"] not in {"top_left", "top_right", "bottom_left", "bottom_right"}:
             merged["meta_position"] = defaults["meta_position"]
+
+        if merged["short_description_position"] not in {
+            "before_name", "after_name", "before_price", "after_price",
+            "before_rating", "after_rating", "end",
+        }:
+            merged["short_description_position"] = defaults["short_description_position"]
+
+        if merged["rating_position"] not in {
+            "before_name", "after_name", "before_description", "after_description",
+            "before_price", "after_price", "end",
+        }:
+            merged["rating_position"] = defaults["rating_position"]
+
+        if merged["quick_add_position"] not in {
+            "top_left", "top_right", "bottom_left", "bottom_right",
+        }:
+            merged["quick_add_position"] = defaults["quick_add_position"]
+
+        if merged["quick_add_icon"] not in {
+            "shopping_bag_outlined", "shopping_cart_outlined",
+            "add_shopping_cart_outlined", "local_mall_outlined",
+        }:
+            merged["quick_add_icon"] = defaults["quick_add_icon"]
+
+        if merged["image_flip_effect"] not in {"slide", "fade", "card_flip"}:
+            merged["image_flip_effect"] = defaults["image_flip_effect"]
+
+        if merged["name_overflow"] not in {"wrap", "ellipsis"}:
+            merged["name_overflow"] = defaults["name_overflow"]
 
         for key, limit in (
             ("trend_badge_text", 40),
