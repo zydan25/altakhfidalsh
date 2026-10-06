@@ -49,6 +49,7 @@ NAVIGATION = [
         NavItem("إعدادات بطاقة المنتج", "/admin/trends/display-settings", "⚙"),
         NavItem("إعدادات تفاصيل الصنف", "/admin/product-detail-settings", "▣"),
         NavItem("الإطلالات", "/admin/looks", "◇"),
+        NavItem("مواقعنا", "/admin/store-locations", "⌖"),
         NavItem("الحملات", "/admin/campaigns", "✦"),
         NavItem("جديدنا والعروض", "/admin/storefront/collections", "★"),
     ]),
