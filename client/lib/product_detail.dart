@@ -4653,18 +4653,37 @@ class _DeliveryPolicyBox extends StatelessWidget {
     final rows = <Widget>[];
 
     if (settings['delivery_location_show'] != false) {
+      final mode = sxText(
+        settings['delivery_location_mode'],
+        'fixed',
+      );
+      final fixedParts = <String>[
+        sxText(settings['delivery_location_city']),
+        sxText(settings['delivery_location_region']),
+        sxText(settings['delivery_location_country'], 'Saudi Arabia'),
+      ].where((x) => x.trim().isNotEmpty).toList();
+      final customerCity = state.cityName?.trim() ?? '';
+      final locationText = mode == 'customer_city' && customerCity.isNotEmpty
+          ? customerCity
+          : fixedParts.join(' · ');
       rows.add(
         row(
           context,
           icon: Icons.location_on_outlined,
-          title: sxText(settings['delivery_location_title'], 'الشحن إلى'),
-          subtitle: sxText(
-            settings['delivery_location_country'],
-            'Saudi Arabia',
+          title: sxText(
+            settings['delivery_location_title'],
+            'الشحن إلى',
           ),
+          subtitle: locationText.isEmpty ? 'Saudi Arabia' : locationText,
           arrow: true,
-          iconSize: sxDouble(settings['delivery_location_icon_size'], 18),
-          titleFontSize: sxDouble(settings['delivery_location_font_size'], 12),
+          iconSize: sxDouble(
+            settings['delivery_location_icon_size'],
+            18,
+          ),
+          titleFontSize: sxDouble(
+            settings['delivery_location_font_size'],
+            12,
+          ),
           iconColor: sxColor(
             sxText(settings['delivery_location_color']),
             Colors.black,
