@@ -29,11 +29,11 @@
   .sort-actions{display:flex;gap:4px}
   .sort-actions button{width:29px;height:29px;padding:0;border:1px solid #ddd;background:#fff;border-radius:7px;cursor:pointer;font-weight:900}
   .box-designer{padding:12px;display:grid;gap:10px}
-  .detail-box{border:1px solid #e1e1e1;border-radius:13px;background:#fbfbfb;overflow:hidden}
+  .detail-box{border:1px solid #e1e1e1;border-radius:10px;background:#fafafa;overflow:hidden}
   .detail-box-head{display:flex;align-items:center;gap:8px;padding:10px;border-bottom:1px solid #e8e8e8}
   .detail-box-head input[type=text]{flex:1;min-width:0}
   .detail-box-items{padding:10px;display:grid;gap:7px}
-  .detail-box-item{display:flex;align-items:center;gap:7px;padding:8px;background:#fff;border:1px solid #e6e6e6;border-radius:9px}
+  .detail-box-item{display:flex;align-items:center;gap:7px;padding:8px;background:#fff;border:1px solid #e6e6e6;border-radius:6px}
   .detail-box-item select{flex:1;min-width:0}
   .detail-box-empty{font-size:9px;color:#888;padding:4px}
   .detail-box-add{display:flex;gap:7px;padding:0 10px 10px}
@@ -107,8 +107,8 @@
     <section class="pds-panel">
       <div class="pds-head">
         <span class="eyebrow">التقسيم المتقدم</span>
-        <h3>مربعات تفاصيل الصنف</h3>
-        <p class="muted">كل مجموعة تصبح مستطيلًا واحدًا للعميل. يمكنك إضافة المستطيلات وحذفها وتغيير ترتيب العناصر داخل كل مستطيل.</p>
+        <h3>مستطيلات تفاصيل الصنف · تخطيط SHEIN</h3>
+        <p class="muted">هذه المجموعات هي وحدات العرض الفعلية في تطبيق العميل. النمط الافتراضي مسطح مثل SHEIN: أبيض كامل العرض وفواصل خفيفة، مع إمكانية تخصيص كل مجموعة وترتيب عناصرها.</p>
       </div>
       <div class="box-designer" id="detailBoxDesigner">
         {% for group in product_detail_settings.detail_groups %}
@@ -156,7 +156,7 @@
       </div>
       <div class="designer-toolbar" style="padding:0 12px 12px;">
         <button type="button" id="addDetailBox">+ إضافة مستطيل</button>
-        <button type="button" id="resetDetailBoxes">تطبيق تخطيط SHEIN المقترح</button>
+        <button type="button" id="resetDetailBoxes">تطبيق تخطيط SHEIN الحرفي</button>
       </div>
       <input type="hidden" name="detail_groups_json" id="detailGroupsInput">
     </section>
@@ -446,9 +446,11 @@
 
   document.getElementById('resetDetailBoxes')?.addEventListener('click', () => {
     while (designer.firstChild) designer.firstChild.remove();
-    addGroup('العروض وبيانات المنتج', ['trend','name','badges','price','promotions','description','rating','brand']);
-    addGroup('الصور والألوان والمقاسات', ['thumbs','colors','sizes','size_guide']);
-    addGroup('التفاصيل والخدمات', ['details','stock','delivery','policies','reviews']);
+    addGroup('هوية المنتج والسعر', ['trend','name','rating','brand','price','promotions','description','badges']);
+    addGroup('الألوان والمقاسات', ['thumbs','colors','sizes','size_guide']);
+    addGroup('التوصيل والسياسات', ['delivery','policies']);
+    addGroup('تفاصيل المنتج والتوفر', ['details','stock']);
+    addGroup('التقييمات والمراجعات', ['reviews']);
     addGroup('اقتراحات التسوق', ['related']);
     syncGroups();
   });
