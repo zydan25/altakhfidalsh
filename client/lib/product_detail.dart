@@ -95,18 +95,40 @@ class _SxProductScreenState extends State<SxProductScreen> {
 
     setState(() => loadingRelated = true);
     try {
-      final rows = await api.feed(
+      final limit = sxInt(recommendation['limit'], 10).clamp(2, 20);
+      var rows = await api.feed(
         category: scopeId != null && scopeId > 0 ? scopeId : null,
         currencyId: state.currencyId,
         sort: 'random',
         discoveryTab: null,
       );
-      if (!mounted) return;
+
+      // A product-detail opened from another recommendation can arrive with a
+      // category scope that has no remaining candidates after excluding itself.
+      // Fall back to the general storefront feed so "قد يعجبك أيضًا" never
+      // becomes permanently empty just because its local category is exhausted.
+      final filtered = <ProductModel>[];
       final seen = <int>{widget.id};
+      for (final product in rows) {
+        if (seen.add(product.id)) filtered.add(product);
+        if (filtered.length >= limit) break;
+      }
+      if (filtered.isEmpty && scopeId != null) {
+        rows = await api.feed(
+          currencyId: state.currencyId,
+          sort: 'random',
+          discoveryTab: null,
+        );
+        filtered
+          ..clear()
+          ..addAll(
+            rows.where((product) => seen.add(product.id)).take(limit),
+          );
+      }
+
+      if (!mounted) return;
       setState(() {
-        related = rows.where((product) => seen.add(product.id))
-            .take(sxInt(recommendation['limit'], 10).clamp(2, 20))
-            .toList();
+        related = filtered.take(limit).toList();
       });
     } catch (_) {
       if (mounted) setState(() => related = <ProductModel>[]);
