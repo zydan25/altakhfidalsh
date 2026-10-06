@@ -1323,85 +1323,151 @@ class _ProductHeroInfo extends StatelessWidget {
       );
     }).toList();
 
-    Widget priceBox() => Row(
-      textDirection: TextDirection.rtl,
-      crossAxisAlignment: CrossAxisAlignment.end,
+    Widget priceBox() => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          price,
-          style: TextStyle(
-            color: sxColor(sxText(cardSettings['price_color']), const Color(0xFF111111)),
-            fontSize: sxDouble(cardSettings['price_font_size'], 22),
-            fontWeight: _weight(sxInt(cardSettings['price_font_weight'], 900)),
-            height: 1,
-          ),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          currency,
-          style: TextStyle(
-            color: sxColor(sxText(cardSettings['currency_color']), const Color(0xFF111111)),
-            fontSize: sxDouble(cardSettings['currency_font_size'], 10.5),
-            fontWeight: _weight(sxInt(cardSettings['currency_font_weight'], 800)),
-          ),
-        ),
-        if (oldPrice.isNotEmpty) ...[
-          const SizedBox(width: 8),
-          Text(
-            oldPrice + ' ' + currency,
-            style: TextStyle(
-              fontSize: sxDouble(cardSettings['compare_price_font_size'], 10),
-              color: sxColor(sxText(cardSettings['compare_price_color']), const Color(0xFF9CA3AF)),
-              decoration: sxText(cardSettings['compare_price_text_decoration'], 'line_through') == 'line_through'
-                  ? TextDecoration.lineThrough
-                  : TextDecoration.none,
-            ),
-          ),
-        ],
-        if (discount > 0) ...[
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: sxColor(sxText(cardSettings['discount_badge_background_color']), const Color(0xFFDC2626)),
-              borderRadius: BorderRadius.circular(sxDouble(cardSettings['discount_badge_radius'], 5)),
-            ),
+        if (sxText(detailSettings['price_text_show'], 'false') == 'true' ||
+            detailSettings['price_text_show'] == true)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5),
             child: Text(
-              'خصم $discount%',
+              sxText(detailSettings['price_text'], 'السعر الحالي'),
+              textAlign: TextAlign.right,
               style: TextStyle(
-                color: sxColor(sxText(cardSettings['discount_badge_text_color']), Colors.white),
-                fontSize: sxDouble(cardSettings['discount_badge_font_size'], 9),
-                fontWeight: _weight(sxInt(cardSettings['discount_badge_font_weight'], 900)),
+                color: sxColor(
+                  sxText(detailSettings['price_text_color']),
+                  const Color(0xFF6B7280),
+                ),
+                fontSize: sxDouble(detailSettings['price_text_font_size'], 9),
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-        ],
+        Wrap(
+          textDirection: TextDirection.rtl,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 7,
+          runSpacing: 4,
+          children: [
+            Text(
+              price,
+              style: TextStyle(
+                color: sxColor(
+                  sxText(detailSettings['price_color'], sxText(cardSettings['price_color'])),
+                  const Color(0xFF111111),
+                ),
+                fontSize: sxDouble(
+                  detailSettings['price_font_size'],
+                  sxDouble(cardSettings['price_font_size'], 22),
+                ),
+                fontWeight: _weight(
+                  sxInt(
+                    detailSettings['price_font_weight'],
+                    sxInt(cardSettings['price_font_weight'], 900),
+                  ),
+                ),
+              ),
+            ),
+            if (detailSettings['show_currency'] != false)
+              Text(
+                currency,
+                style: TextStyle(
+                  color: sxColor(
+                    sxText(detailSettings['currency_color'], sxText(cardSettings['currency_color'])),
+                    const Color(0xFF111111),
+                  ),
+                  fontSize: sxDouble(
+                    detailSettings['currency_font_size'],
+                    sxDouble(cardSettings['currency_font_size'], 10.5),
+                  ),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            if (oldPrice.isNotEmpty && detailSettings['show_compare_price'] != false)
+              Text(
+                oldPrice + ' ' + currency,
+                style: TextStyle(
+                  fontSize: sxDouble(
+                    detailSettings['compare_price_font_size'],
+                    sxDouble(cardSettings['compare_price_font_size'], 10),
+                  ),
+                  color: sxColor(
+                    sxText(detailSettings['compare_price_color'], sxText(cardSettings['compare_price_color'])),
+                    const Color(0xFF9CA3AF),
+                  ),
+                  decoration: sxText(
+                    detailSettings['compare_price_text_decoration'],
+                    'line_through',
+                  ) == 'line_through'
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none,
+                ),
+              ),
+            if (discount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: sxColor(
+                    sxText(cardSettings['discount_badge_background_color']),
+                    const Color(0xFFDC2626),
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    sxDouble(cardSettings['discount_badge_radius'], 5),
+                  ),
+                ),
+                child: Text(
+                  'خصم $discount%',
+                  style: TextStyle(
+                    color: sxColor(
+                      sxText(cardSettings['discount_badge_text_color']),
+                      Colors.white,
+                    ),
+                    fontSize: sxDouble(cardSettings['discount_badge_font_size'], 9),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ],
     );
 
-    Widget nameRow() => Row(
-      textDirection: TextDirection.rtl,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Text(
-            name,
-            maxLines: sxInt(detailSettings['name_max_lines'], 4).clamp(2, 6).toInt(),
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              color: sxColor(sxText(detailSettings['name_color']), const Color(0xFF111111)),
-              fontSize: sxDouble(detailSettings['name_font_size'], 20),
-              fontWeight: _weight(sxInt(detailSettings['name_font_weight'], 800)),
-              height: 1.3,
+    Widget nameRow() => Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        textDirection: TextDirection.rtl,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              name,
+              maxLines: sxInt(detailSettings['name_max_lines'], 4).clamp(2, 6).toInt(),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: sxColor(
+                  sxText(detailSettings['name_color']),
+                  const Color(0xFF111111),
+                ),
+                fontSize: sxDouble(detailSettings['name_font_size'], 20),
+                fontWeight: _weight(sxInt(detailSettings['name_font_weight'], 800)),
+                height: 1.3,
+              ),
             ),
           ),
-        ),
-        if (afterNameSame.isNotEmpty) ...[
-          const SizedBox(width: 7),
-          Flexible(child: Wrap(textDirection: TextDirection.rtl, spacing: 4, runSpacing: 4, children: afterNameSame.map(chip).toList())),
+          if (afterNameSame.isNotEmpty) ...[
+            const SizedBox(width: 7),
+            Flexible(
+              child: Wrap(
+                textDirection: TextDirection.rtl,
+                spacing: 4,
+                runSpacing: 4,
+                children: afterNameSame.map(chip).toList(),
+              ),
+            ),
+          ],
         ],
-      ],
+      ),
     );
 
     Widget beforeSameRow() {
@@ -1486,40 +1552,61 @@ class _ProductHeroInfo extends StatelessWidget {
     final nameChildren = <Widget>[
       strip(beforeNameRow, compact: true),
       beforeSameRow(),
+    ];
+
+    final brandChildren = <Widget>[
       if (brand.isNotEmpty)
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
+        Align(
+          alignment: Alignment.centerRight,
           child: Text(
             brand,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              fontSize: 10,
-              color: ClientTheme.muted,
-              fontWeight: FontWeight.w800,
+            style: TextStyle(
+              color: sxColor(
+                sxText(detailSettings['brand_color']),
+                ClientTheme.muted,
+              ),
+              fontSize: sxDouble(detailSettings['brand_font_size'], 10),
+              fontWeight: _weight(sxInt(detailSettings['brand_font_weight'], 800)),
             ),
           ),
         ),
-      if (afterNameRow.isNotEmpty) ...[
-        const SizedBox(height: 4),
-        strip(afterNameRow, compact: true),
-      ],
       if (sku.isNotEmpty)
-        Text(
-          sku,
-          textAlign: TextAlign.right,
-          style: const TextStyle(fontSize: 8, color: Color(0xFF9CA3AF)),
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            sku,
+            style: const TextStyle(fontSize: 8, color: Color(0xFF9CA3AF)),
+          ),
         ),
+    ];
+
+    final ratingChildren = <Widget>[
       if (showRating)
-        Padding(
-          padding: const EdgeInsets.only(top: 7),
+        Align(
+          alignment: Alignment.centerRight,
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             textDirection: TextDirection.rtl,
             children: [
-              const Icon(Icons.star_rounded, size: 16, color: Color(0xFFFFB400)),
-              const SizedBox(width: 2),
+              Icon(
+                Icons.star_rounded,
+                size: sxDouble(detailSettings['rating_icon_size'], 16),
+                color: sxColor(
+                  sxText(detailSettings['rating_color']),
+                  const Color(0xFFFFB400),
+                ),
+              ),
+              const SizedBox(width: 3),
               Text(
                 average > 0 ? average.toStringAsFixed(1) : '—',
-                style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+                style: TextStyle(
+                  fontSize: sxDouble(detailSettings['rating_font_size'], 10.5),
+                  fontWeight: FontWeight.w900,
+                  color: sxColor(
+                    sxText(detailSettings['rating_color']),
+                    const Color(0xFF111111),
+                  ),
+                ),
               ),
               if (showReviewCount)
                 Text(
@@ -1531,7 +1618,13 @@ class _ProductHeroInfo extends StatelessWidget {
         ),
     ];
 
-    final children = mode == 'price' ? priceChildren : nameChildren;
+    final children = mode == 'price'
+        ? (detailSettings['price_show'] == false ? <Widget>[] : priceChildren)
+        : mode == 'name'
+            ? (detailSettings['name_show'] == false ? <Widget>[] : nameChildren)
+            : mode == 'brand'
+                ? (detailSettings['brand_show'] == false ? <Widget>[] : brandChildren)
+                : ratingChildren;
 
     return Container(
       color: Colors.white,
