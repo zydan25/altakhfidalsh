@@ -155,31 +155,100 @@
   </article>
 </section>
 
-<section class="panel" style="margin-top:12px">
+<style>
+.order-chat{display:grid;gap:12px;background:#f7f7f8;border:1px solid #e8e8ea;border-radius:14px;padding:12px;max-height:65vh;overflow:auto}
+.order-chat-conversation{display:grid;gap:10px}
+.order-chat-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#fff;border:1px solid #e9e9ea;border-radius:10px;font-size:11px}
+.order-chat-stream{display:flex;flex-direction:column;gap:9px}
+.order-chat-row{display:flex;width:100%}
+.order-chat-row.customer{justify-content:flex-start}
+.order-chat-row.admin{justify-content:flex-end}
+.order-chat-row.system{justify-content:center}
+.order-chat-bubble{max-width:min(88%,640px);padding:9px 11px;border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.04);display:grid;gap:5px}
+.order-chat-row.customer .order-chat-bubble{background:#fff;border:1px solid #e5e7eb;border-top-right-radius:4px}
+.order-chat-row.admin .order-chat-bubble{background:#111827;color:#fff;border-top-left-radius:4px}
+.order-chat-row.system .order-chat-bubble{background:#eef2ff;color:#3730a3;border:1px solid #e0e7ff;max-width:94%;font-size:11px}
+.order-chat-meta{font-size:9px;opacity:.65}
+.order-chat-body{font-size:12px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.order-chat-attachments{display:grid;gap:7px;margin-top:3px}
+.order-chat-image{display:block;max-width:240px;border-radius:10px;border:1px solid rgba(0,0,0,.08)}
+.order-chat-file{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 8px;background:rgba(0,0,0,.04);border-radius:9px}
+.order-chat-row.admin .order-chat-file{background:rgba(255,255,255,.1)}
+.order-chat-file-actions{display:flex;gap:5px;flex-wrap:wrap}
+.order-chat-file-actions a{font-size:10px;text-decoration:none}
+.order-chat-compose{margin-top:10px;padding-top:10px;border-top:1px solid #e5e7eb}
+@media(max-width:650px){
+ .order-chat{padding:8px;max-height:none}
+ .order-chat-bubble{max-width:94%;padding:8px 9px}
+ .order-chat-image{max-width:190px}
+}
+</style><section class="panel" style="margin-top:12px">
   <div class="panel-heading"><div><span class="eyebrow">المحادثة</span><h3>محادثة الطلب</h3></div></div>
+  <div class="order-chat">
   {% for conversation in order.conversations %}
-    <div class="stack-list">
-      <div class="mini-callout"><strong>{{ conversation.subject or "محادثة الطلب" }}</strong><span>{{ conversation.status }}</span></div>
+    <div class="order-chat-conversation">
+      <div class="order-chat-head">
+        <strong>{{ conversation.subject or "محادثة الطلب" }}</strong>
+        <span>{{ conversation.status }}</span>
+      </div>
+      <div class="order-chat-stream">
       {% for message in conversation.messages %}
-      <article class="stack-row" style="align-items:flex-start;flex-direction:column">
-        <strong>{{ message.sender_type }} · {{ message.created_at }}</strong>
-        <span>{{ message.body or "ملف مرفق" }}</span>
-        {% for attachment in message.attachments %}{% if attachment.url %}<a class="inline-link" href="{{ attachment.url }}" target="_blank">فتح المرفق</a>{% endif %}{% endfor %}
-      </article>
+        {% set bubble_class = "customer" if message.sender_type == "customer" else ("admin" if message.sender_type == "admin" else "system") %}
+        <div class="order-chat-row {{ bubble_class }}">
+          <article class="order-chat-bubble" dir="rtl">
+            <span class="order-chat-meta">
+              {% if message.sender_type == "customer" %}العميل{% elif message.sender_type == "admin" %}الإدارة{% else %}النظام{% endif %}
+              · {{ message.created_at }}
+            </span>
+            {% if message.body %}
+              <div class="order-chat-body">{{ message.body }}</div>
+            {% elif message.attachments %}
+              <div class="order-chat-body">مرفق</div>
+            {% endif %}
+            {% if message.attachments %}
+              <div class="order-chat-attachments">
+              {% for attachment in message.attachments if attachment.url %}
+                {% if attachment.mime_type and attachment.mime_type.startswith("image/") %}
+                  <a href="{{ attachment.url }}" target="_blank" rel="noreferrer">
+                    <img class="order-chat-image" src="{{ attachment.url }}" alt="{{ attachment.source_name or 'صورة مرفقة' }}">
+                  </a>
+                  <div class="order-chat-file-actions">
+                    <a href="{{ attachment.url }}" target="_blank" rel="noreferrer">فتح الصورة</a>
+                    <a href="{{ attachment.url }}" download="{{ attachment.source_name or 'attachment' }}">تنزيل</a>
+                  </div>
+                {% else %}
+                  <div class="order-chat-file">
+                    <span>{{ attachment.source_name or ("ملف #" ~ attachment.id) }}</span>
+                    <span class="order-chat-file-actions">
+                      <a href="{{ attachment.url }}" target="_blank" rel="noreferrer">فتح</a>
+                      <a href="{{ attachment.url }}" download="{{ attachment.source_name or 'attachment' }}">تنزيل</a>
+                    </span>
+                  </div>
+                {% endif %}
+              {% endfor %}
+              </div>
+            {% endif %}
+          </article>
+        </div>
       {% endfor %}
-      <form method="post" class="form-stack">
-        <input type="hidden" name="action" value="message">
-        <label>رد الإدارة<textarea name="body" rows="3" required placeholder="اكتب ردًا للعميل"></textarea></label>
-        <button class="primary-button" type="submit">إرسال الرسالة</button>
-      </form>
+      </div>
+      <div class="order-chat-compose">
+        <form method="post" class="form-stack">
+          <input type="hidden" name="action" value="message">
+          <label>رد الإدارة<textarea name="body" rows="3" required placeholder="اكتب ردًا للعميل"></textarea></label>
+          <button class="primary-button" type="submit">إرسال الرسالة</button>
+        </form>
+      </div>
     </div>
   {% else %}
     <div class="mini-callout"><strong>لا توجد محادثة مرتبطة بعد.</strong><span>أرسل أول رسالة لإنشاء محادثة مرتبطة بهذا الطلب.</span></div>
-    <form method="post" class="form-stack">
-      <input type="hidden" name="action" value="message">
-      <label>رسالة للعميل<textarea name="body" rows="3" required placeholder="مرحبًا، بخصوص طلبك..."></textarea></label>
-      <button class="primary-button" type="submit">إنشاء محادثة وإرسال</button>
-    </form>
+    <div class="order-chat-compose">
+      <form method="post" class="form-stack">
+        <input type="hidden" name="action" value="message">
+        <label>رسالة للعميل<textarea name="body" rows="3" required placeholder="مرحبًا، بخصوص طلبك..."></textarea></label>
+        <button class="primary-button" type="submit">إنشاء محادثة وإرسال</button>
+      </form>
+    </div>
   {% endfor %}
-</section>
+  </div>
 {% endblock %}
