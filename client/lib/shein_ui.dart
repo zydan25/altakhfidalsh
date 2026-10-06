@@ -759,7 +759,8 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       });
     }
     try {
-      // Load the complete storefront payload once. Navigation is local.
+      // Load the storefront shell first. Do not blank existing content
+      // while refreshing; commit the new shell as soon as it is ready.
       final h = await api.home();
       unawaited(_saveBannerColorCache(-1, sxMaps(h['banners'])));
       final nextLooks = sxMaps(h['looks']);
@@ -769,8 +770,17 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         ..sort((a, b) => a.sortOrder == b.sortOrder
             ? a.id.compareTo(b.id)
             : a.sortOrder.compareTo(b.sortOrder));
-      // Load the complete storefront product set once. Category and
-      // discovery filtering happen locally.
+
+      if (!mounted || requestSerial != _loadSerial) return;
+      setState(() {
+        home = h;
+        looks = nextLooks;
+        allCategories = nextAllCategories;
+        roots = nextRoots;
+      });
+
+      // Products are intentionally loaded after the shell. If this request is
+      // slow, the banner/categories/old product grid remain visible.
       final nextProducts = await api.feed(
         sort: 'random',
         currencyId: state.currencyId,
@@ -1005,6 +1015,14 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   }
 
   @override Widget build(BuildContext context) {
+    if (loading && home.isEmpty) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
     final banners = _homeBanners();
     final safeBannerIndex = banners.isEmpty
         ? 0
@@ -1240,12 +1258,6 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                   ),
                 ),
               ),
-              if (sxMaps(home['store_locations']).isNotEmpty)
-                SliverToBoxAdapter(
-                  child: SxStoreLocations(
-                    locations: sxMaps(home['store_locations']),
-                  ),
-                ),
           ],
                 ),
               ),
