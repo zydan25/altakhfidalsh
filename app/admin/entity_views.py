@@ -1801,6 +1801,17 @@ def register_entity_views(admin_bp):
                 ],
             },
             {
+                "title": "التقييم المختصر في بيانات الصنف",
+                "hint": "تحكم في النجمة والتقييم وعدد المراجعات بشكل مستقل.",
+                "fields": [
+                    ("rating_show", "إظهار التقييم المختصر", "checkbox"),
+                    ("rating_icon_size", "حجم نجمة التقييم", "number", 7, 28, .5, False),
+                    ("rating_font_size", "حجم رقم التقييم", "number", 7, 20, .5, False),
+                    ("rating_review_count_show", "إظهار عدد المراجعات", "checkbox"),
+                    ("rating_review_count_font_size", "حجم عدد المراجعات", "number", 6, 18, .5, False),
+                ],
+            },
+            {
                 "title": "التقييمات والمراجعات",
                 "hint": "إظهار القسم ومقاس عنوانه.",
                 "fields": [
@@ -1844,6 +1855,7 @@ def register_entity_views(admin_bp):
             ("warranty_button_text_color", "لون نص زر الضمان"),
             ("payment_button_color", "خلفية زر الدفع"),
             ("payment_button_text_color", "لون نص زر الدفع"),
+            ("rating_color", "لون نجمة التقييم"),
             ("reviews_color", "لون عنوان التقييمات"),
         ]
 
