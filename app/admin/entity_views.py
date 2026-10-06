@@ -1075,8 +1075,16 @@ def register_entity_views(admin_bp):
                         guide_type=(request.form.get("guide_type") or "product").strip()[:40],
                         fit_type=(request.form.get("fit_type") or "").strip()[:40] or None,
                         intro_text=(request.form.get("intro_text") or "").strip() or None,
-                        product_columns_json=[],
-                        body_columns_json=[],
+                        product_columns_json=[
+                            {"key": "length", "label": "الطول", "unit": "سم"},
+                            {"key": "width", "label": "العرض", "unit": "سم"},
+                            {"key": "chest", "label": "الصدر", "unit": "سم"},
+                        ],
+                        body_columns_json=[
+                            {"key": "chest", "label": "الصدر", "unit": "سم"},
+                            {"key": "waist", "label": "الخصر", "unit": "سم"},
+                            {"key": "hip", "label": "الأرداف", "unit": "سم"},
+                        ],
                         is_active=True,
                     )
                     db.session.add(guide)
