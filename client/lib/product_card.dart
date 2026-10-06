@@ -722,6 +722,7 @@ class _SxProductCardState extends State<SxProductCard> {
   late List<String> _gallery;
   bool _galleryLoading = false;
   bool _galleryLoaded = false;
+  Future<void>? _galleryLoadFuture;
 
   @override
   void didUpdateWidget(covariant SxProductCard oldWidget) {
@@ -749,9 +750,22 @@ class _SxProductCardState extends State<SxProductCard> {
     return merged.toSet().toList();
   }
 
-  Future<void> _loadFullGallery() async {
-    if (_galleryLoaded || _galleryLoading || !mounted) return;
+  Future<void> _loadFullGallery() {
+    if (_galleryLoaded || !mounted) return Future.value();
+    final active = _galleryLoadFuture;
+    if (active != null) return active;
+
     _galleryLoading = true;
+    final future = _loadFullGalleryImpl();
+    _galleryLoadFuture = future.whenComplete(() {
+      if (identical(_galleryLoadFuture, future)) {
+        _galleryLoadFuture = null;
+      }
+    });
+    return _galleryLoadFuture!;
+  }
+
+  Future<void> _loadFullGalleryImpl() async {
     try {
       final data = await api.product(
         widget.product.id,
@@ -1147,9 +1161,6 @@ class _SxProductCardState extends State<SxProductCard> {
             behavior: HitTestBehavior.opaque,
             onHorizontalDragStart: (_) {
               _dragDistance = 0;
-              if (_gallery.length <= 1) {
-                unawaited(_loadFullGallery());
-              }
             },
             onHorizontalDragUpdate: (details) {
               _dragDistance += details.delta.dx;
