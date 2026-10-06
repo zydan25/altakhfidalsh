@@ -2549,6 +2549,8 @@ class CatalogService:
                 "guide_type": best_guide.guide_type,
                 "fit_type": best_guide.fit_type,
                 "intro_text": best_guide.intro_text,
+                "product_columns": best_guide.product_columns_json or [],
+                "body_columns": best_guide.body_columns_json or [],
                 "rows": [
                     {
                         "size_id": row.size_id,
@@ -2887,6 +2889,10 @@ class CatalogService:
             "color_label_font_size": 9,
             "color_show_label": True,
             "color_show_hot": True,
+            "color_show_quantity": False,
+            "color_quantity_text": "{qty} متوفر",
+            "color_quantity_only_when_low": True,
+            "color_quantity_threshold": 7,
             "color_selected_border_width": 2,
             "color_selected_border_color": "#111111",
             "color_border_color": "#DDDDDD",
@@ -2898,6 +2904,9 @@ class CatalogService:
             "size_inventory_badge_font_size": 8,
             "size_inventory_badge_background": "#FF5A3D",
             "size_inventory_badge_text": "#FFFFFF",
+            "size_inventory_badge_text_template": "{qty} left",
+            "size_inventory_badge_show_out_of_stock": False,
+            "size_inventory_badge_out_of_stock_text": "نفد",
             "size_inventory_only_when_low": True,
             "size_inventory_threshold": 7,
             "size_label_alignment": "center",
@@ -2913,8 +2922,11 @@ class CatalogService:
             "size_tools_color": "#111111",
             "size_tools_gap": 12,
             "delivery_location_show": True,
+            "delivery_location_mode": "fixed",
             "delivery_location_title": "الشحن إلى",
             "delivery_location_country": "Saudi Arabia",
+            "delivery_location_region": "الرياض",
+            "delivery_location_city": "الرياض",
             "delivery_location_font_size": 12,
             "delivery_location_icon_size": 18,
             "delivery_location_color": "#111111",
@@ -3013,9 +3025,14 @@ class CatalogService:
             "details_text_color": "#4b5563",
             "details_background_color": "#ffffff",
 
-            "stock_show": True,
+            "stock_show": False,
             "stock_font_size": 10,
-            "stock_text_color": "#111111",
+            "stock_text_color": "#15803D",
+            "stock_inline_show": True,
+            "stock_inline_position": "name",
+            "stock_inline_text": "متوفر",
+            "stock_inline_out_text": "غير متوفر",
+            "stock_inline_color": "#15803D",
 
             "delivery_show": True,
             "delivery_font_size": 9,
@@ -3189,6 +3206,7 @@ class CatalogService:
             ("color_swatches_size", 18, 64, True),
             ("color_gap", 0, 18, True),
             ("color_label_font_size", 6, 16, False),
+            ("color_quantity_threshold", 1, 30, True),
             ("color_selected_border_width", 0, 5, False),
             ("size_height", 34, 68, True),
             ("size_min_width", 38, 110, True),
@@ -3258,6 +3276,10 @@ class CatalogService:
             merged[key] = number(key, low, high, integer)
 
         merged["group_show_titles"] = flag("group_show_titles")
+        merged["color_show_quantity"] = flag("color_show_quantity")
+        merged["color_quantity_only_when_low"] = flag("color_quantity_only_when_low")
+        merged["size_inventory_badge_show_out_of_stock"] = flag("size_inventory_badge_show_out_of_stock")
+        merged["stock_inline_show"] = flag("stock_inline_show")
         merged["trend_show"] = flag("trend_show")
         merged["trend_show_hashtag"] = flag("trend_show_hashtag")
         merged["trend_show_promo"] = flag("trend_show_promo")
@@ -3308,6 +3330,17 @@ class CatalogService:
         merged["color_presentation"] = merged.get("color_presentation") if merged.get("color_presentation") in {"image", "circle", "image_circle"} else "image_circle"
         merged["color_shape"] = merged.get("color_shape") if merged.get("color_shape") in {"circle", "square"} else "circle"
         merged["size_label_alignment"] = merged.get("size_label_alignment") if merged.get("size_label_alignment") in {"left", "center", "right"} else "center"
+        merged["stock_inline_position"] = merged.get("stock_inline_position") if merged.get("stock_inline_position") in {"name", "color", "none"} else "name"
+        merged["delivery_location_mode"] = merged.get("delivery_location_mode") if merged.get("delivery_location_mode") in {"fixed", "customer_city"} else "fixed"
+        merged["color_quantity_text"] = str(merged.get("color_quantity_text") or defaults["color_quantity_text"])[:80]
+        merged["size_inventory_badge_text_template"] = str(merged.get("size_inventory_badge_text_template") or defaults["size_inventory_badge_text_template"])[:80]
+        merged["size_inventory_badge_out_of_stock_text"] = str(merged.get("size_inventory_badge_out_of_stock_text") or defaults["size_inventory_badge_out_of_stock_text"])[:40]
+        merged["stock_inline_text"] = str(merged.get("stock_inline_text") or defaults["stock_inline_text"])[:40]
+        merged["stock_inline_out_text"] = str(merged.get("stock_inline_out_text") or defaults["stock_inline_out_text"])[:40]
+        merged["delivery_location_title"] = str(merged.get("delivery_location_title") or defaults["delivery_location_title"])[:80]
+        merged["delivery_location_country"] = str(merged.get("delivery_location_country") or defaults["delivery_location_country"])[:100]
+        merged["delivery_location_region"] = str(merged.get("delivery_location_region") or defaults["delivery_location_region"])[:100]
+        merged["delivery_location_city"] = str(merged.get("delivery_location_city") or defaults["delivery_location_city"])[:100]
         merged["price_text"] = str(merged.get("price_text") or defaults["price_text"])[:80]
 
         for key in (
