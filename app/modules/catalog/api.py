@@ -2208,7 +2208,10 @@ def garment_size_settings(product_id):
     return {"item": {"product_id": row.product_id, "model_asset_id": row.model_asset_id, "displayed_sizes": row.displayed_sizes, "measurements_mode": row.measurements_mode, "image_zoom": str(row.image_zoom)}}
 
 
-@api_bp.delete("/products/<int:product_id>/media/<int:media_id>")
+@api_bp.route(
+    "/products/<int:product_id>/media/<int:media_id>",
+    methods=["DELETE", "POST"],
+)
 @admin_api_required("product.edit")
 def delete_product_media(product_id, media_id):
     try:
