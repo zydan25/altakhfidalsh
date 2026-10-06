@@ -10,7 +10,7 @@ from flask import current_app
 from sqlalchemy import or_
 
 from ...extensions import db
-from ...services.pricing import price_for_customer
+from ...services.pricing import calculate_customer_price, price_for_customer
 from ...models import (
     Category,
     CategoryHomeDisplaySetting,
@@ -1109,10 +1109,20 @@ class CatalogService:
             )
             currency = db.session.get(Currency, ctx.currency_id)
             snapshot["product"]["display_price"] = str(price.final)
-            snapshot["product"]["display_compare_price"] = (
-                str(Decimal(product.compare_at_price) * price.fx_rate)
-                if product.compare_at_price is not None else None
-            )
+            if product.compare_at_price is not None:
+                compare_priced = calculate_customer_price(
+                    Decimal(product.compare_at_price),
+                    price.fx_rate,
+                    ctx.rule,
+                    override_percent=ctx.override_percent,
+                    override_fixed=ctx.override_fixed,
+                    location_percent=ctx.location_percent,
+                    location_fixed_sar=ctx.location_fixed_sar,
+                )
+                snapshot["product"]["display_compare_price"] = str(compare_priced.final)
+                snapshot["product"]["base_compare_at_price_sar"] = str(product.compare_at_price)
+            else:
+                snapshot["product"]["display_compare_price"] = None
             snapshot["product"]["display_currency"] = {
                 "id": ctx.currency_id, "code": ctx.currency_code,
                 "symbol": currency.symbol if currency else ctx.currency_code,
