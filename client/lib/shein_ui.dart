@@ -772,7 +772,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       // Load the complete storefront product set once. Category and
       // discovery filtering happen locally.
       final nextProducts = await api.feed(
-        sort: 'recommended',
+        sort: 'random',
         currencyId: state.currencyId,
       );
       try {
@@ -1156,8 +1156,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                   coupons: coupons,
                 ),
               ),
-            if (!loading &&
-                categoryDisplay['show_looks_strip'] == true &&
+            if (categoryDisplay['show_looks_strip'] == true &&
                 _homeLooks().isNotEmpty)
               SliverToBoxAdapter(
                 child: SxHomeLookCarousel(
@@ -1165,8 +1164,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                   onTap: (look) => _openHomeLook(context, look),
                 ),
               ),
-            if (!loading)
-              SliverToBoxAdapter(
+            SliverToBoxAdapter(
                 child: SxHomeCategoryGrid(
                   rootCategories: roots,
                   allCategories: allCategories,
@@ -1225,10 +1223,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                 },
               ),
             ),
-            if (loading)
-              const SliverFillRemaining(hasScrollBody: false, child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
-            else
-              SliverToBoxAdapter(
+            SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(6, 3, 6, 18),
                   child: SxProductGrid(
@@ -1250,6 +1245,16 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
               ),
             ),
           ),
+          if (loading && home.isNotEmpty)
+            Positioned(
+              top: MediaQuery.of(context).padding.top,
+              left: 0,
+              right: 0,
+              child: const LinearProgressIndicator(
+                minHeight: 2,
+                backgroundColor: Colors.transparent,
+              ),
+            ),
           _HomeFixedHeader(
             roots: roots,
             selected: selected,
