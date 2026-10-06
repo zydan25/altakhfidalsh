@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -80,6 +81,480 @@ class _ProductCardImage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _QuickAddDialog extends StatefulWidget {
+  final ProductModel product;
+
+  const _QuickAddDialog({required this.product});
+
+  @override
+  State<_QuickAddDialog> createState() => _QuickAddDialogState();
+}
+
+class _QuickAddDialogState extends State<_QuickAddDialog> {
+  Map<String, dynamic> data = <String, dynamic>{};
+  List<Map<String, dynamic>> colors = <Map<String, dynamic>>[];
+  List<Map<String, dynamic>> sizes = <Map<String, dynamic>>[];
+  List<Map<String, dynamic>> variants = <Map<String, dynamic>>[];
+  int? selectedColorId;
+  int? selectedSizeId;
+  int quantity = 1;
+  bool loading = true;
+  bool saving = false;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  List<Map<String, dynamic>> _maps(dynamic value) {
+    if (value is! List) return <Map<String, dynamic>>[];
+    return value
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  Future<void> _load() async {
+    try {
+      final response = await api.product(
+        widget.product.id,
+        currencyId: state.currencyId,
+      );
+      final item = Map<String, dynamic>.from(
+        response['item'] is Map ? response['item'] : response,
+      );
+      variants = _maps(item['variants']);
+      colors = _maps(item['reference_colors']);
+      sizes = _maps(item['reference_sizes']);
+
+      if (colors.isEmpty) {
+        final found = <int, Map<String, dynamic>>{};
+        for (final option in _maps(item['options'])) {
+          for (final value in _maps(option['values'])) {
+            final id = sxInt(value['color_id']);
+            if (id > 0 && !found.containsKey(id)) {
+              found[id] = <String, dynamic>{
+                'id': id,
+                'name': sxText(value['label']),
+                'hex_code': '#d1d5db',
+              };
+            }
+          }
+        }
+        colors = found.values.toList();
+      }
+      if (sizes.isEmpty) {
+        final found = <int, Map<String, dynamic>>{};
+        for (final option in _maps(item['options'])) {
+          for (final value in _maps(option['values'])) {
+            final id = sxInt(value['size_id']);
+            if (id > 0 && !found.containsKey(id)) {
+              found[id] = <String, dynamic>{
+                'id': id,
+                'label': sxText(value['label'], sxText(value['code'])),
+              };
+            }
+          }
+        }
+        sizes = found.values.toList();
+      }
+
+      // Prefer the first in-stock variant as the initial combination.
+      final firstAvailable = variants.firstWhere(
+        (v) => sxInt(v['available_qty']) > 0,
+        orElse: () => variants.isEmpty ? <String, dynamic>{} : variants.first,
+      );
+      final initialColor = sxInt(firstAvailable['color_id']);
+      final initialSize = sxInt(firstAvailable['size_id']);
+      if (initialColor > 0) selectedColorId = initialColor;
+      if (initialSize > 0) selectedSizeId = initialSize;
+
+      if (!mounted) return;
+      setState(() {
+        data = item;
+        loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        error = sxText(e, 'تعذر تحميل خيارات المنتج');
+      });
+    }
+  }
+
+  Map<String, dynamic>? _selectedVariant() {
+    if (variants.isEmpty) return null;
+    final requiresColor = colors.isNotEmpty;
+    final requiresSize = sizes.isNotEmpty;
+
+    for (final variant in variants) {
+      if (sxInt(variant['available_qty']) <= 0) continue;
+      final colorOk =
+          !requiresColor || (selectedColorId != null && sxInt(variant['color_id']) == selectedColorId);
+      final sizeOk =
+          !requiresSize || (selectedSizeId != null && sxInt(variant['size_id']) == selectedSizeId);
+      if (colorOk && sizeOk) return variant;
+    }
+    return null;
+  }
+
+  String _colorName() {
+    final row = colors.where((x) => sxInt(x['id']) == selectedColorId);
+    return row.isEmpty ? '' : sxText(row.first['name'], sxText(row.first['label']));
+  }
+
+  String _sizeName() {
+    final row = sizes.where((x) => sxInt(x['id']) == selectedSizeId);
+    return row.isEmpty ? '' : sxText(row.first['label'], sxText(row.first['name']));
+  }
+
+  Future<void> _add() async {
+    final variant = _selectedVariant();
+    if (variant == null) {
+      setState(() => error = 'اختر اللون والمقاس المتوفرين أولًا.');
+      return;
+    }
+
+    final available = sxInt(variant['available_qty']);
+    if (available <= 0) {
+      setState(() => error = 'هذا الاختيار غير متوفر حاليًا.');
+      return;
+    }
+
+    final qty = quantity.clamp(1, available).toInt();
+    setState(() {
+      saving = true;
+      error = null;
+    });
+
+    try {
+      await api.addCart(
+        sxInt(variant['id']),
+        qty,
+        <String, dynamic>{
+          if (_colorName().isNotEmpty) 'اللون': _colorName(),
+          if (_sizeName().isNotEmpty) 'المقاس': _sizeName(),
+        },
+      );
+      try {
+        final cart = await api.cart(currencyId: state.currencyId);
+        cartBadge.value = sxMapsLength(cart['item']?['items']);
+      } catch (_) {
+        cartBadge.value += 1;
+      }
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          saving = false;
+          error = sxText(e, 'تعذر إضافة المنتج إلى السلة');
+        });
+      }
+    }
+  }
+
+  Widget _colorOption(Map<String, dynamic> color) {
+    final id = sxInt(color['id']);
+    final selected = id > 0 && id == selectedColorId;
+    final hex = sxText(color['hex_code'], '#e5e7eb');
+    final swatchUrl = sxText(color['swatch_url']);
+
+    return InkWell(
+      onTap: () => setState(() {
+        selectedColorId = id > 0 ? id : null;
+        error = null;
+      }),
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        width: 46,
+        padding: const EdgeInsets.only(bottom: 3),
+        child: Column(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected ? Colors.black : const Color(0xFFD9D9D9),
+                  width: selected ? 2 : 1,
+                ),
+              ),
+              child: ClipOval(
+                child: swatchUrl.isNotEmpty
+                    ? Image.network(
+                        api.url(swatchUrl),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: sxColor(hex, const Color(0xFFE5E7EB)),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      )
+                    : DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: sxColor(hex, const Color(0xFFE5E7EB)),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              sxText(color['name'], sxText(color['label'])),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 7.5,
+                fontWeight: selected ? FontWeight.w900 : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sizeOption(Map<String, dynamic> size) {
+    final id = sxInt(size['id']);
+    final selected = id > 0 && id == selectedSizeId;
+    final label = sxText(size['label'], sxText(size['name'], sxText(size['code'])));
+    return InkWell(
+      onTap: () => setState(() {
+        selectedSizeId = id > 0 ? id : null;
+        error = null;
+      }),
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 130),
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 36),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: selected ? Colors.black : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected ? Colors.black : const Color(0xFFD9D9D9),
+          ),
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: selected ? Colors.white : Colors.black,
+            fontSize: 9,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _quantityControl(int available) {
+    return Container(
+      height: 38,
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFE1E1E1)),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            onPressed: saving || quantity <= 1
+                ? null
+                : () => setState(() => quantity--),
+            icon: const Icon(Icons.remove, size: 16),
+            visualDensity: VisualDensity.compact,
+          ),
+          SizedBox(
+            width: 28,
+            child: Text(
+              quantity.toString(),
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+            ),
+          ),
+          IconButton(
+            onPressed: saving || quantity >= available
+                ? null
+                : () => setState(() => quantity++),
+            icon: const Icon(Icons.add, size: 16),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final productName =
+        sxText((data['product'] as Map?)?['name'], widget.product.name);
+    final variant = _selectedVariant();
+    final available = variant == null ? 0 : sxInt(variant['available_qty']);
+    final requiresColor = colors.isNotEmpty;
+    final requiresSize = sizes.isNotEmpty;
+
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        titlePadding: const EdgeInsets.fromLTRB(16, 14, 10, 0),
+        contentPadding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                productName,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+              ),
+            ),
+            IconButton(
+              onPressed: saving ? null : () => Navigator.pop(context),
+              icon: const Icon(Icons.close, size: 19),
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
+        ),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 355, maxHeight: 470),
+          child: loading
+              ? const SizedBox(
+                  height: 150,
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : error != null && variants.isEmpty
+                  ? SizedBox(
+                      height: 150,
+                      child: Center(
+                        child: Text(
+                          error!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Color(0xFFC62828),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (requiresColor) ...[
+                            const Text(
+                              'اللون',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                            ),
+                            const SizedBox(height: 7),
+                            Wrap(
+                              spacing: 7,
+                              runSpacing: 6,
+                              alignment: WrapAlignment.start,
+                              children: colors.map(_colorOption).toList(),
+                            ),
+                            const SizedBox(height: 13),
+                          ],
+                          if (requiresSize) ...[
+                            const Text(
+                              'المقاس',
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                            ),
+                            const SizedBox(height: 7),
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 6,
+                              children: sizes.map(_sizeOption).toList(),
+                            ),
+                            const SizedBox(height: 13),
+                          ],
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'الكمية',
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                              ),
+                              if (available > 0)
+                                _quantityControl(available)
+                              else
+                                const Text(
+                                  'غير متوفر',
+                                  style: TextStyle(
+                                    color: Color(0xFFC62828),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (error != null) ...[
+                            const SizedBox(height: 9),
+                            Text(
+                              error!,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                color: Color(0xFFC62828),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            height: 42,
+                            child: FilledButton(
+                              onPressed: saving || variant == null ? null : _add,
+                              style: FilledButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                disabledBackgroundColor: const Color(0xFFE5E5E5),
+                              ),
+                              child: saving
+                                  ? const SizedBox(
+                                      width: 18,
+                                      height: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'أضف إلى عربة التسوق',
+                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+        ),
+      ),
+    );
+  }
+}
+
+int sxMapsLength(dynamic value) => value is List ? value.length : 0;
+
+Future<void> _openQuickAddDialog(BuildContext context, ProductModel product) async {
+  await showDialog<bool>(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (_) => _QuickAddDialog(product: product),
+  );
 }
 
 class SxProductGrid extends StatelessWidget {
@@ -581,6 +1056,63 @@ class _SxProductCardState extends State<SxProductCard> {
     );
   }
 
+  Widget _imageTransition({
+    required Widget child,
+  }) {
+    final duration = Duration(
+      milliseconds: _cardNumber('image_flip_duration_ms', 260).round().clamp(80, 1200),
+    );
+    final effect = _cardText('image_flip_effect', 'slide');
+
+    return AnimatedSwitcher(
+      duration: duration,
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        if (effect == 'fade') {
+          return FadeTransition(opacity: animation, child: child);
+        }
+        if (effect == 'card_flip') {
+          final rotation = Tween<double>(
+            begin: math.pi / 2,
+            end: 0,
+          ).animate(
+            CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            ),
+          );
+          return AnimatedBuilder(
+            animation: rotation,
+            child: child,
+            builder: (_, child) => Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.0012)
+                ..rotateY(rotation.value),
+              child: child,
+            ),
+          );
+        }
+
+        final begin = Offset(
+          _swipeDirection > 0 ? 1.0 : -1.0,
+          0,
+        );
+        final slide = Tween<Offset>(begin: begin, end: Offset.zero)
+            .chain(
+              CurveTween(curve: Curves.easeOutCubic),
+            )
+            .animate(animation);
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: slide, child: child),
+        );
+      },
+      child: child,
+    );
+  }
+
   Widget _imageStack({
     required double ratio,
     required bool masonry,
@@ -608,20 +1140,7 @@ class _SxProductCardState extends State<SxProductCard> {
                 _handleImageSwipeEnd(details, _gallery.length),
               );
             },
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 260),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, animation) {
-                final begin = Offset(_swipeDirection > 0 ? 1.0 : -1.0, 0);
-                final slide = Tween<Offset>(begin: begin, end: Offset.zero)
-                    .chain(CurveTween(curve: Curves.easeOutCubic))
-                    .animate(animation);
-                return FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(position: slide, child: child),
-                );
-              },
+            child: _imageTransition(
               child: KeyedSubtree(
                 key: ValueKey(
                   widget.product.id.toString() + '-' + page.toString(),
@@ -913,25 +1432,67 @@ class _SxProductCardState extends State<SxProductCard> {
             ),
           ),
 
-        Positioned(
-          left: 7,
-          bottom: discount > 0 ? 27 : 7,
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(.93),
-              shape: BoxShape.circle,
+        if (_cardBool('quick_add_show', true))
+          _cornerPositioned(
+            _cardText('quick_add_position', 'bottom_left'),
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => _openQuickAddDialog(context, product),
+                customBorder: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    _cardNumber('quick_add_radius', 16),
+                  ),
+                ),
+                child: Container(
+                  width: _cardNumber('quick_add_size', 32),
+                  height: _cardNumber('quick_add_size', 32),
+                  decoration: BoxDecoration(
+                    color: _cardColor(
+                      'quick_add_background_color',
+                      Colors.white,
+                    ).withOpacity(
+                      _cardOpacity('quick_add_opacity', .93),
+                    ),
+                    borderRadius: BorderRadius.circular(
+                      _cardNumber('quick_add_radius', 16),
+                    ),
+                  ),
+                  child: Icon(
+                    _quickAddIcon(
+                      _cardText('quick_add_icon', 'shopping_bag_outlined'),
+                    ),
+                    size: _cardNumber('quick_add_size', 32) * .53,
+                    color: _cardColor(
+                      'quick_add_icon_color',
+                      const Color(0xFF111111),
+                    ),
+                  ),
+                ),
+              ),
             ),
-            child: const Icon(Icons.shopping_bag_outlined, size: 17),
+            offset: 7,
+            bottomOffset: discount > 0 ? 27 : 7,
           ),
-        ),
       ],
     );
     if (!masonry) {
       return Expanded(child: body);
     }
     return body;
+  }
+
+  IconData _quickAddIcon(String value) {
+    switch (value) {
+      case 'shopping_cart_outlined':
+        return Icons.shopping_cart_outlined;
+      case 'add_shopping_cart_outlined':
+        return Icons.add_shopping_cart_outlined;
+      case 'local_mall_outlined':
+        return Icons.local_mall_outlined;
+      default:
+        return Icons.shopping_bag_outlined;
+    }
   }
 
   Widget _badgeChip(Map<String, dynamic> badge) {
@@ -1081,7 +1642,9 @@ class _SxProductCardState extends State<SxProductCard> {
           child: Text(
             product.name,
             maxLines: _cardNumber('name_max_lines', 2).round().clamp(1, 3),
-            overflow: TextOverflow.ellipsis,
+            overflow: _cardText('name_overflow', 'wrap') == 'ellipsis'
+                ? TextOverflow.ellipsis
+                : TextOverflow.clip,
             textAlign: TextAlign.right,
             style: TextStyle(
               color: _cardColor('name_color', const Color(0xFF111111)),
@@ -1195,6 +1758,48 @@ class _SxProductCardState extends State<SxProductCard> {
     final showDescription =
         _cardBool('show_short_description', false) &&
             product.shortDescription.trim().isNotEmpty;
+
+    final shortDescriptionPosition =
+        _cardText('short_description_position', 'after_name');
+
+    final ratingPosition = _cardText('rating_position', 'after_price');
+
+    Widget ratingSection() {
+      if (!_cardBool('rating_show', true) || !hasRating) {
+        return const SizedBox.shrink();
+      }
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(8, 4, 8, 2),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.star,
+              size: _cardNumber('rating_icon_size', 12.5),
+              color: _cardColor('rating_color', const Color(0xFFFFB400)),
+            ),
+            const SizedBox(width: 2),
+            Text(
+              rating!.toStringAsFixed(1),
+              style: TextStyle(
+                fontSize: _cardNumber('rating_font_size', 8.5),
+                fontWeight: FontWeight.w700,
+                color: _cardColor('rating_color', const Color(0xFFFFB400)),
+              ),
+            ),
+            if (_cardBool('rating_review_count_show', true) && product.reviewCount > 0)
+              Text(
+                ' (' + product.reviewCount.toString() + ')',
+                style: TextStyle(
+                  fontSize: _cardNumber('rating_review_count_font_size', 8),
+                  color: ClientTheme.muted,
+                ),
+              ),
+          ],
+        ),
+      );
+    }
     final beforeNameSame = at('before_name_same_row');
     final afterNameSame = at('after_name_same_row');
     final beforePriceSame = at('before_price_same_row');
@@ -1359,48 +1964,64 @@ class _SxProductCardState extends State<SxProductCard> {
 
             badgeRow('before_name'),
             badgeRow('before_name_new_row'),
+            if (shortDescriptionPosition == 'before_name')
+              descriptionSection(),
+
+            if (ratingPosition == 'before_name')
+              ratingSection(),
+
+            badgeRow('before_name'),
+            badgeRow('before_name_new_row'),
             nameSection(),
             badgeRow('after_name'),
             badgeRow('after_name_new_row'),
 
-            descriptionSection(),
+            if (shortDescriptionPosition == 'after_name')
+              descriptionSection(),
+
+            if (ratingPosition == 'after_name')
+              ratingSection(),
+
+            if (shortDescriptionPosition == 'before_price')
+              descriptionSection(),
+
+            if (ratingPosition == 'before_description')
+              ratingSection(),
+
+            if (shortDescriptionPosition == 'before_rating' && ratingPosition == 'before_price')
+              descriptionSection(),
 
             badgeRow('before_price'),
             badgeRow('before_price_new_row'),
+
+            if (ratingPosition == 'before_price')
+              ratingSection(),
+
             priceSection(),
             badgeRow('after_price'),
             badgeRow('after_price_new_row'),
             badgeRow('below_price'),
 
-            if (hasRating)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 8, 2),
-                child: Row(
-                  textDirection: TextDirection.rtl,
-                  children: [
-                    const Icon(
-                      Icons.star,
-                      size: 12.5,
-                      color: Color(0xFFFFB400),
-                    ),
-                    Text(
-                      ' ' + rating!.toStringAsFixed(1),
-                      style: const TextStyle(
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    if (product.reviewCount > 0)
-                      Text(
-                        ' (' + product.reviewCount.toString() + ')',
-                        style: const TextStyle(
-                          fontSize: 8,
-                          color: ClientTheme.muted,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+            if (shortDescriptionPosition == 'after_price')
+              descriptionSection(),
+
+            if (ratingPosition == 'after_price')
+              ratingSection(),
+
+            if (shortDescriptionPosition == 'before_rating' && ratingPosition != 'before_price')
+              descriptionSection(),
+
+            if (shortDescriptionPosition == 'after_rating')
+              ratingSection(),
+
+            if (ratingPosition == 'after_description')
+              ratingSection(),
+
+            if (shortDescriptionPosition == 'end')
+              descriptionSection(),
+
+            if (ratingPosition == 'end')
+              ratingSection(),
 
             if (_cardBool('show_size', false) &&
                 product.cardMeta != null &&
