@@ -1729,64 +1729,125 @@ class _DeliveryPolicyBox extends StatelessWidget {
   Map<String, dynamic> _map(dynamic value) =>
       value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 
-  Widget _row(
+  Future<void> _showDetails(
+    BuildContext context, {
+    required String title,
+    required String text,
+  }) async {
+    if (settings['policy_show_dialog'] == false) return;
+    if (text.trim().isEmpty) return;
+    await showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(
+          title,
+          textAlign: TextAlign.right,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+        ),
+        content: SingleChildScrollView(
+          child: Text(
+            text,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 10.5, height: 1.7),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إغلاق'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget row(
     BuildContext context, {
     required IconData icon,
     required String title,
-    required String subtitle,
-    required Color color,
-    required VoidCallback onTap,
+    String subtitle = '',
+    VoidCallback? onTap,
+    bool arrow = true,
     bool divider = true,
+    Color iconColor = Colors.black,
+    Color titleColor = Colors.black,
   }) {
+    final height = sxDouble(settings['delivery_row_height'], 54).clamp(40, 76).toDouble();
     return InkWell(
       onTap: onTap,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-            child: Row(
-              textDirection: TextDirection.rtl,
-              children: [
-                Icon(icon, size: 20, color: color),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        title,
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                          fontSize: sxDouble(settings['delivery_font_size'], 10),
-                          fontWeight: FontWeight.w900,
-                          color: color,
-                        ),
-                      ),
-                      if (subtitle.trim().isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            subtitle,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.right,
-                            style: const TextStyle(
-                              fontSize: 8.5,
-                              color: ClientTheme.muted,
-                              height: 1.35,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_left, size: 18, color: Color(0xFF777777)),
-              ],
+      child: Container(
+        constraints: BoxConstraints(minHeight: height),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 7),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: divider
+                  ? sxColor(
+                      sxText(settings['delivery_row_divider_color']),
+                      const Color(0xFFEEEEEE),
+                    )
+                  : Colors.transparent,
+              width: divider
+                  ? sxDouble(settings['delivery_row_divider_width'], .7)
+                  : 0,
             ),
           ),
-          if (divider)
-            const Divider(height: 1, thickness: .6, indent: 8, endIndent: 8),
-        ],
+        ),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: sxDouble(settings['delivery_row_icon_size'], 19),
+              color: iconColor,
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    title,
+                    textAlign: TextAlign.right,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: titleColor,
+                      fontSize: sxDouble(settings['delivery_row_title_font_size'], 11),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (subtitle.trim().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        subtitle,
+                        textAlign: TextAlign.right,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: sxDouble(settings['delivery_row_subtitle_font_size'], 9.5),
+                          color: ClientTheme.muted,
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            if (arrow && settings['policy_show_arrows'] != false)
+              const Padding(
+                padding: EdgeInsets.only(left: 1),
+                child: Icon(
+                  Icons.chevron_left,
+                  size: 19,
+                  color: Color(0xFF555555),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1796,185 +1857,157 @@ class _DeliveryPolicyBox extends StatelessWidget {
     final shipping = _map(policies['shipping']);
     final returning = _map(policies['return']);
     final warranty = _map(policies['warranty']);
+
+    final returnDays = sxInt(returning['return_window_days']);
+    final warrantyDays = sxInt(warranty['duration_days']);
+
+    final policyItems = <String, Map<String, dynamic>>{
+      'shipping': {
+        'title': 'الشحن والتوصيل',
+        'icon': Icons.local_shipping_outlined,
+        'subtitle': <String>[
+          sxText(shipping['promo_text']),
+          if (sxText(shipping['delivery_window']).isNotEmpty)
+            'التوصيل المتوقع: ' + sxText(shipping['delivery_window']),
+          if (shipping['free_shipping_enabled'] == true &&
+              sxText(shipping['min_order_amount']).isNotEmpty)
+            'شحن مجاني عند ' + sxText(shipping['min_order_amount']),
+        ].where((x) => x.trim().isNotEmpty).join(' · '),
+        'dialog': <String>[
+          sxText(shipping['name']),
+          sxText(shipping['promo_text']),
+          if (sxText(shipping['delivery_window']).isNotEmpty)
+            'مدة التوصيل: ' + sxText(shipping['delivery_window']),
+          if (shipping['free_shipping_enabled'] == true &&
+              sxText(shipping['min_order_amount']).isNotEmpty)
+            'شحن مجاني عند بلوغ ' + sxText(shipping['min_order_amount']),
+        ].where((x) => x.trim().isNotEmpty).join('\n\n'),
+      },
+      'returns': {
+        'title': 'إرجاع مجاني',
+        'icon': Icons.assignment_return_outlined,
+        'subtitle': returnDays > 0
+            ? 'إرجاع مجاني خلال ' + returnDays.toString() + ' يومًا'
+            : 'اضغط لعرض سياسة الإرجاع والاسترداد',
+        'dialog': <String>[
+          sxText(returning['name']),
+          if (returnDays > 0)
+            'مدة الإرجاع: ' + returnDays.toString() + ' يومًا',
+          sxText(returning['conditions']),
+          sxText(returning['fee_rule']),
+          sxText(returning['refund_method']),
+        ].where((x) => x.trim().isNotEmpty).join('\n\n'),
+      },
+      'warranty': {
+        'title': 'الضمان',
+        'icon': Icons.verified_user_outlined,
+        'subtitle': warrantyDays > 0
+            ? 'ضمان لمدة ' + warrantyDays.toString() + ' يومًا'
+            : sxText(warranty['coverage'], 'اضغط لعرض تفاصيل الضمان'),
+        'dialog': <String>[
+          sxText(warranty['name']),
+          if (warrantyDays > 0)
+            'المدة: ' + warrantyDays.toString() + ' يومًا',
+          sxText(warranty['coverage']),
+          sxText(warranty['exclusions']),
+          sxText(warranty['claim_method']),
+        ].where((x) => x.trim().isNotEmpty).join('\n\n'),
+      },
+      'payment': {
+        'title': 'الدفع عند الاستلام · مدفوعات آمنة · حماية الخصوصية',
+        'icon': Icons.shield_outlined,
+        'subtitle': 'طرق الدفع المتاحة تظهر عند إتمام الطلب',
+        'dialog': 'الدفع يتم وفق طرق الدفع المتاحة عند إتمام الطلب.',
+      },
+    };
+
     final rows = <Widget>[];
 
-    final visibleDelivery = deliveryBadges.where((x) => x['visible'] != false).toList();
-    for (var i = 0; i < visibleDelivery.length; i++) {
-      final badge = visibleDelivery[i];
+    if (settings['delivery_location_show'] != false) {
       rows.add(
-        _row(
+        row(
           context,
-          icon: Icons.local_shipping_outlined,
-          title: sxText(badge['text'], 'التوصيل'),
-          subtitle: sxText(
-            badge['subtitle'],
-            sxText(badge['details']),
-          ),
-          color: sxColor(
-            sxText(badge['text_color']),
+          icon: Icons.location_on_outlined,
+          title: sxText(settings['delivery_location_title'], 'الشحن إلى'),
+          subtitle: sxText(settings['delivery_location_country'], 'Saudi Arabia'),
+          arrow: true,
+          iconColor: sxColor(
+            sxText(settings['delivery_location_color']),
             Colors.black,
           ),
-          onTap: () => showDialog<void>(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: Text(
-                sxText(badge['text'], 'التوصيل'),
-                textAlign: TextAlign.right,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-              ),
-              content: Text(
-                sxText(badge['details'], sxText(badge['text'], 'تفاصيل التوصيل')),
-                textAlign: TextAlign.right,
-                style: const TextStyle(fontSize: 10.5, height: 1.7),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('إغلاق'),
-                ),
-              ],
-            ),
+          titleColor: sxColor(
+            sxText(settings['delivery_location_color']),
+            Colors.black,
           ),
-          divider: true,
         ),
       );
     }
 
-    if (shipping.isNotEmpty) {
+    final visibleDelivery = deliveryBadges.where((x) => x['visible'] != false).toList();
+    for (final badge in visibleDelivery) {
+      final title = sxText(badge['text'], 'التوصيل');
+      final subtitle = sxText(
+        badge['subtitle'],
+        sxText(badge['details']),
+      );
       rows.add(
-        _row(
+        row(
           context,
           icon: Icons.local_shipping_outlined,
-          title: 'الشحن والتوصيل',
-          subtitle: <String>[
-            sxText(shipping['promo_text']),
-            if (sxText(shipping['delivery_window']).isNotEmpty)
-              'مدة التوصيل: ' + sxText(shipping['delivery_window']),
-          ].where((x) => x.trim().isNotEmpty).join(' · '),
-          color: sxColor(sxText(settings['shipping_button_text_color']), Colors.black),
-          onTap: () => showDialog<void>(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('الشحن والتوصيل'),
-              content: SingleChildScrollView(
-                child: Text(
-                  <String>[
-                    sxText(shipping['name']),
-                    sxText(shipping['promo_text']),
-                    sxText(shipping['delivery_window']),
-                  ].where((x) => x.trim().isNotEmpty).join('\n\n'),
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: 10.5, height: 1.7),
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
-              ],
-            ),
+          title: title,
+          subtitle: subtitle,
+          onTap: () => _showDetails(
+            context,
+            title: title,
+            text: sxText(badge['details'], subtitle),
           ),
-          divider: true,
+          iconColor: sxColor(sxText(badge['text_color']), Colors.black),
         ),
       );
     }
 
-    if (returning.isNotEmpty) {
+    final order = <String>[];
+    final rawOrder = settings['policy_order'];
+    if (rawOrder is List) {
+      for (final key in rawOrder) {
+        final k = sxText(key);
+        if (policyItems.containsKey(k) && !order.contains(k)) order.add(k);
+      }
+    }
+    for (final key in policyItems.keys) {
+      if (!order.contains(key)) order.add(key);
+    }
+
+    for (final key in order) {
+      final item = policyItems[key];
+      if (item == null) continue;
+      final hasContent = key == 'payment' ||
+          (key == 'shipping' && (shipping.isNotEmpty || sxText(item['subtitle']).isNotEmpty)) ||
+          (key == 'returns' && returning.isNotEmpty) ||
+          (key == 'warranty' && warranty.isNotEmpty);
+      if (!hasContent) continue;
+
       rows.add(
-        _row(
+        row(
           context,
-          icon: Icons.assignment_return_outlined,
-          title: 'سياسة الإرجاع',
-          subtitle: sxText(returning['conditions'], 'اضغط لعرض سياسة الإرجاع'),
-          color: sxColor(sxText(settings['returns_button_text_color']), Colors.black),
-          onTap: () => showDialog<void>(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('سياسة الإرجاع والاسترداد'),
-              content: SingleChildScrollView(
-                child: Text(
-                  <String>[
-                    sxText(returning['name']),
-                    if (sxInt(returning['return_window_days']) > 0)
-                      'مدة الإرجاع: ' + sxInt(returning['return_window_days']).toString() + ' يومًا',
-                    sxText(returning['conditions']),
-                    sxText(returning['fee_rule']),
-                    sxText(returning['refund_method']),
-                  ].where((x) => x.trim().isNotEmpty).join('\n\n'),
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: 10.5, height: 1.7),
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
-              ],
-            ),
+          icon: item['icon'] as IconData,
+          title: sxText(item['title']),
+          subtitle: sxText(item['subtitle']),
+          onTap: () => _showDetails(
+            context,
+            title: sxText(item['title']),
+            text: sxText(item['dialog']),
           ),
           divider: true,
         ),
       );
     }
-
-    if (warranty.isNotEmpty) {
-      rows.add(
-        _row(
-          context,
-          icon: Icons.verified_user_outlined,
-          title: 'الضمان',
-          subtitle: sxText(warranty['coverage'], 'اضغط لعرض الضمان'),
-          color: sxColor(sxText(settings['warranty_button_text_color']), Colors.black),
-          onTap: () => showDialog<void>(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text('الضمان'),
-              content: SingleChildScrollView(
-                child: Text(
-                  <String>[
-                    sxText(warranty['name']),
-                    if (sxInt(warranty['duration_days']) > 0)
-                      'المدة: ' + sxInt(warranty['duration_days']).toString() + ' يومًا',
-                    sxText(warranty['coverage']),
-                    sxText(warranty['exclusions']),
-                    sxText(warranty['claim_method']),
-                  ].where((x) => x.trim().isNotEmpty).join('\n\n'),
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: 10.5, height: 1.7),
-                ),
-              ),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
-              ],
-            ),
-          ),
-          divider: true,
-        ),
-      );
-    }
-
-    rows.add(
-      _row(
-        context,
-        icon: Icons.lock_outline,
-        title: 'الدفع',
-        subtitle: 'طرق الدفع المتاحة تظهر عند إتمام الطلب',
-        color: sxColor(sxText(settings['payment_button_text_color']), Colors.black),
-        onTap: () => showDialog<void>(
-          context: context,
-          builder: (_) => const AlertDialog(
-            title: Text('الدفع الآمن'),
-            content: Text(
-              'الدفع يتم وفق طرق الدفع المتاحة عند إتمام الطلب.',
-              textAlign: TextAlign.right,
-            ),
-          ),
-        ),
-        divider: false,
-      ),
-    );
 
     if (rows.isEmpty) return const SizedBox.shrink();
+
     return Container(
-      margin: const EdgeInsets.only(top: 6),
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(9, 2, 9, 2),
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 2),
       child: Column(children: rows),
     );
   }
