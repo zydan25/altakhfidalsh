@@ -2937,7 +2937,7 @@ class _PolicySections extends StatelessWidget {
                   ),
                 ),
                 label: Text(
-                  sxText(items[i]['title']),
+                  sxText(orderedItems[i]['title']),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -2947,7 +2947,7 @@ class _PolicySections extends StatelessWidget {
                 ),
               ),
             ),
-            if (i < items.length - 1)
+            if (i < orderedItems.length - 1)
               SizedBox(height: sxDouble(settings['policy_button_gap'], 6)),
           ],
         ],
