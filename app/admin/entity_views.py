@@ -1734,7 +1734,7 @@ def register_entity_views(admin_bp):
             },
             {
                 "title": "السعر والعملة",
-                "hint": "يشمل السعر الحالي والسعر قبل الخصم والعرض النصي ورمز العملة.",
+                "hint": "يشمل السعر الحالي والسعر قبل الخصم، وإظهار السعر كتابةً وحجم النص ولونه.",
                 "fields": [
                     ("price_show", "إظهار السعر", "checkbox"),
                     ("price_font_size", "حجم السعر", "number", 14, 34, .5, False),
@@ -1744,9 +1744,8 @@ def register_entity_views(admin_bp):
                     ("compare_price_text_decoration", "تنسيق السعر قبل الخصم", "select", ["line_through", "none"]),
                     ("show_currency", "إظهار العملة", "checkbox"),
                     ("currency_font_size", "حجم رمز العملة", "number", 7, 20, .5, False),
-                    ("price_text_show", "إظهار الوصف النصي للسعر", "checkbox"),
-                    ("price_text", "نص السعر", "text", 80),
-                    ("price_text_font_size", "حجم نص السعر", "number", 7, 18, .5, False),
+                    ("price_text_show", "إظهار السعر كتابةً", "checkbox"),
+                    ("price_text_font_size", "حجم السعر كتابةً", "number", 7, 18, .5, False),
                 ],
             },
             {
