@@ -2863,6 +2863,7 @@ class CatalogService:
             "delivery_color": "#111111",
 
             "policies_show": True,
+            "policy_order": ["shipping", "returns", "warranty", "payment"],
             "policy_button_height": 52,
             "policy_button_radius": 8,
             "policy_button_gap": 6,
@@ -2921,6 +2922,20 @@ class CatalogService:
             if key not in normalized_order:
                 normalized_order.append(key)
         merged["detail_order"] = normalized_order
+
+        allowed_policy_order = ["shipping", "returns", "warranty", "payment"]
+        raw_policy_order = merged.get("policy_order")
+        if not isinstance(raw_policy_order, list):
+            raw_policy_order = list(defaults["policy_order"])
+        normalized_policy_order = []
+        for key in raw_policy_order:
+            key = str(key)
+            if key in allowed_policy_order and key not in normalized_policy_order:
+                normalized_policy_order.append(key)
+        for key in allowed_policy_order:
+            if key not in normalized_policy_order:
+                normalized_policy_order.append(key)
+        merged["policy_order"] = normalized_policy_order
 
         def number(key, low, high, integer=False):
             try:
