@@ -5724,9 +5724,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
             .clamp(210.0, width - 22.0)
             .toDouble();
     final contentRadius = _sxTrendNumber(ui, 'content_top_radius', 14);
-    final picksExtent =
-        (_sxTrendNumber(ui, 'picks_card_extent', 350) * scale)
-            .clamp(300.0, 520.0);
+
     final compactHeaderHeight =
         _sxTrendNumber(ui, 'compact_header_height', 58) * scale;
 
