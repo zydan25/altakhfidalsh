@@ -1900,6 +1900,42 @@ def register_entity_views(admin_bp):
                                 raise ValueError(f"القيمة {key} غير صالحة.")
                             settings[key] = value
 
+                raw_group_json = (request.form.get("detail_groups_json") or "").strip()
+                flattened = []
+                if raw_group_json:
+                    parsed_groups = json.loads(raw_group_json)
+                    if not isinstance(parsed_groups, list):
+                        raise ValueError("ترتيب مربعات تفاصيل الصنف غير صالح.")
+                    allowed_group_keys = {key for key, _label in detail_order_options}
+                    normalized_groups = []
+                    seen_group_keys = set()
+                    for raw_group in parsed_groups:
+                        if not isinstance(raw_group, dict):
+                            continue
+                        title = str(raw_group.get("title") or "").strip()[:80] or "قسم تفاصيل"
+                        raw_items = raw_group.get("items")
+                        if not isinstance(raw_items, list):
+                            raw_items = []
+                        group_items = []
+                        for raw_key in raw_items:
+                            key = str(raw_key).strip()
+                            if key in allowed_group_keys and key not in group_items and key not in seen_group_keys:
+                                group_items.append(key)
+                                seen_group_keys.add(key)
+                        if group_items:
+                            normalized_groups.append({
+                                "title": title,
+                                "items": group_items,
+                                "show": bool(raw_group.get("show", True)),
+                            })
+                    settings["detail_groups"] = normalized_groups
+                    flattened = [
+                        key
+                        for group in normalized_groups
+                        if group.get("show") is not False
+                        for key in group["items"]
+                    ]
+
                 raw_order = (request.form.get("detail_order") or "").split(",")
                 allowed = {key for key, _label in detail_order_options}
                 order = []
@@ -1910,6 +1946,14 @@ def register_entity_views(admin_bp):
                 for key, _label in detail_order_options:
                     if key not in order:
                         order.append(key)
+                if flattened:
+                    order = []
+                    for key in flattened:
+                        if key in allowed and key not in order:
+                            order.append(key)
+                    for key, _label in detail_order_options:
+                        if key not in order:
+                            order.append(key)
                 settings["detail_order"] = order
 
                 raw_policy_order = (request.form.get("policy_order") or "").split(",")
@@ -1960,6 +2004,7 @@ def register_entity_views(admin_bp):
             product_detail_settings=settings,
             product_detail_groups=detail_groups,
             detail_order_options=detail_order_options,
+            detail_group_options=detail_order_options,
             product_detail_color_fields=color_fields,
             error=error,
             success=success,
