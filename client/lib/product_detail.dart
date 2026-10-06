@@ -198,9 +198,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
     setState(() {
       page = safeIndex;
       galleryColorId = mediaColor > 0 ? mediaColor : null;
-      // Once the user reaches a color's images, that color becomes the active
-      // purchasable variant too. Main product images keep the current variant.
-      if (mediaColor > 0) selectedColorId = mediaColor;
+      // Main images clear the color indicator; colored media select that color.
+      selectedColorId = mediaColor > 0 ? mediaColor : null;
     });
   }
 
@@ -2473,8 +2472,15 @@ class _ReviewSection extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Expanded(
-                  child: Text('المراجعات', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
+                Expanded(
+                  child: Text(
+                    'المراجعات',
+                    style: TextStyle(
+                      fontSize: sxDouble(settings['reviews_title_font_size'], 13),
+                      fontWeight: FontWeight.w900,
+                      color: sxColor(sxText(settings['reviews_color']), Colors.black),
+                    ),
+                  ),
                 ),
                 if (count > 0)
                   Text(
