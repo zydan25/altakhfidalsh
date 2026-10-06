@@ -768,7 +768,19 @@ class _SxProductCardState extends State<SxProductCard> {
       final next = _uniqueImages(media, widget.product.image);
       if (!mounted) return;
       setState(() {
-        if (next.isNotEmpty) _gallery = next;
+        // Never replace a complete local gallery with a shorter/incomplete
+        // API response. The image counter and swipe cycle must stay stable.
+        if (next.length > _gallery.length) {
+          _gallery = next;
+          if (page >= _gallery.length) {
+            page = _gallery.length - 1;
+          }
+          _imageTransitionRevision++;
+        } else if (_gallery.length <= 1 && next.isNotEmpty) {
+          _gallery = next;
+          page = 0;
+          _imageTransitionRevision++;
+        }
         _galleryLoaded = true;
         _galleryLoading = false;
       });
@@ -1154,7 +1166,7 @@ class _SxProductCardState extends State<SxProductCard> {
                       _imageTransitionRevision.toString(),
                 ),
                 child: _ProductCardImage(
-                  url: gallery[page],
+                  url: gallery[page.clamp(0, gallery.length - 1)],
                   fit: BoxFit.cover,
                 ),
               ),
