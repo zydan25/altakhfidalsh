@@ -66,6 +66,7 @@
     const rows = snapshot?.media || [];
     const mediaCard = (item) => (
       '<div class="media-thumb">' +
+      '<button type="button" class="media-delete-overlay" aria-label="حذف الصورة" title="حذف الصورة" data-delete-media="' + item.id + '">×</button>' +
       (item.url
         ? '<img src="' + escapeHtml(item.url) + '" alt="' +
           escapeHtml(item.color_name || "صورة المنتج") + '">'
