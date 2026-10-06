@@ -756,19 +756,21 @@ class _SxProductCardState extends State<SxProductCard> {
     if (active != null) return active;
 
     _galleryLoading = true;
-    final future = _loadFullGalleryImpl();
-    _galleryLoadFuture = future.whenComplete(() {
-      if (identical(_galleryLoadFuture, future)) {
+    late Future<void> tracked;
+    tracked = _loadFullGalleryImpl().whenComplete(() {
+      if (identical(_galleryLoadFuture, tracked)) {
         _galleryLoadFuture = null;
       }
     });
-    return _galleryLoadFuture!;
+    _galleryLoadFuture = tracked;
+    return tracked;
   }
 
   Future<void> _loadFullGalleryImpl() async {
+    final requestedProductId = widget.product.id;
     try {
       final data = await api.product(
-        widget.product.id,
+        requestedProductId,
         currencyId: state.currencyId,
       );
       final item = data['item'] is Map
@@ -787,7 +789,7 @@ class _SxProductCardState extends State<SxProductCard> {
         <String>[..._gallery, ...media],
         widget.product.image,
       );
-      if (!mounted) return;
+      if (!mounted || widget.product.id != requestedProductId) return;
       setState(() {
         if (next.isNotEmpty) {
           _gallery = next;
@@ -796,7 +798,7 @@ class _SxProductCardState extends State<SxProductCard> {
         _galleryLoading = false;
       });
     } catch (_) {
-      if (mounted) {
+      if (mounted && widget.product.id == requestedProductId) {
         setState(() {
           _galleryLoaded = true;
           _galleryLoading = false;
