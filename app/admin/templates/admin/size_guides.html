@@ -2,7 +2,7 @@
 {% block content %}
 <style>
 .sg-wrap{display:grid;gap:14px}
-.sg-panel{background:#fff;border:1px solid #e7e7e7;border-radius:14px;padding:14px}
+.sg-panel{background:#fff;border:1px solid #e7e7e7;border-radius:14px;padding:14px;min-width:0;overflow:hidden}
 .sg-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .sg-title{font-size:16px;font-weight:900;margin:0}
 .sg-muted{color:#777;font-size:12px;line-height:1.7}
@@ -26,19 +26,37 @@
 .sg-col{display:grid;grid-template-columns:1fr .7fr .55fr auto;gap:7px;align-items:end;padding:9px;background:#fafafa;border:1px solid #e7e7e7;border-radius:10px}
 .sg-col label{font-size:10px;font-weight:800;color:#666;display:grid;gap:4px}
 .sg-col input{border:1px solid #ddd;border-radius:8px;padding:8px;background:#fff}
-.sg-table-wrap{overflow:auto;border:1px solid #e3e3e3;border-radius:11px}
-.sg-table{border-collapse:collapse;min-width:920px;width:max-content}
-.sg-table th,.sg-table td{border-bottom:1px solid #ededed;border-left:1px solid #ededed;padding:7px;vertical-align:middle}
-.sg-table th{position:sticky;top:0;background:#f7f7f7;font-size:10px;white-space:nowrap}
+.sg-table-wrap{display:block;width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;border:1px solid #e3e3e3;border-radius:11px;-webkit-overflow-scrolling:touch;touch-action:pan-x;overscroll-behavior-x:contain;scrollbar-width:thin;direction:rtl}
+.sg-table{border-collapse:separate;border-spacing:0;min-width:760px;width:max-content;table-layout:auto;direction:rtl}
+.sg-table th,.sg-table td{border-bottom:1px solid #ededed;border-left:1px solid #ededed;padding:7px;vertical-align:middle;white-space:nowrap;background:#fff}
+.sg-table th{position:sticky;top:0;z-index:3;background:#f7f7f7;font-size:10px;white-space:nowrap}
 .sg-table td input,.sg-table td select{width:110px;min-width:110px;border:1px solid #ddd;border-radius:7px;padding:7px 6px;box-sizing:border-box}
+.sg-table .size-cell{position:sticky;right:0;z-index:2;background:#fff;box-shadow:-4px 0 8px rgba(0,0,0,.04)}
+.sg-table th:first-child{position:sticky;right:0;z-index:4;background:#f3f3f3}
 .sg-table .size-cell select{width:145px;min-width:145px;font-weight:800}
 .sg-section-title{font-size:12px;font-weight:900;margin:14px 0 8px}
 .sg-note{padding:9px 10px;border-radius:9px;background:#f7f7f7;color:#555;font-size:10.5px;line-height:1.7}
+.sg-scroll-hint{display:flex;align-items:center;gap:6px;margin:7px 0 8px;padding:7px 9px;border-radius:8px;background:#f8fafc;border:1px solid #e5e7eb;color:#64748b;font-size:10px}
+.sg-table-wrap:after{content:"";display:block;position:sticky;inset-inline-end:0;width:1px;height:0}
 @media(max-width:760px){
+  .sg-wrap{gap:10px}
+  .sg-panel{padding:10px;border-radius:12px}
   .sg-grid{grid-template-columns:1fr}
-  .sg-col{grid-template-columns:1fr 1fr}
-  .sg-col label:last-of-type{grid-column:1/2}
-  .sg-col .sg-btn{grid-column:2}
+  .sg-col{grid-template-columns:1fr}
+  .sg-col label:last-of-type{grid-column:auto}
+  .sg-col .sg-btn{grid-column:auto;width:100%}
+  .sg-actions{display:grid;grid-template-columns:1fr}
+  .sg-actions .sg-btn{width:100%}
+  .sg-table-wrap{margin-inline:0;border-radius:9px;min-height:180px}
+  .sg-table{min-width:700px}
+  .sg-table th,.sg-table td{padding:6px;font-size:9.5px}
+  .sg-table td input,.sg-table td select{width:102px;min-width:102px;min-height:38px;font-size:13px}
+  .sg-table .size-cell select{width:128px;min-width:128px}
+}
+@media(max-width:420px){
+  .sg-table{min-width:660px}
+  .sg-title{font-size:14px}
+  .sg-muted{font-size:10.5px}
 }
 </style>
 
@@ -154,6 +172,7 @@
     </div>
 
     <div class="sg-section-title">شبكة المقاسات والقيم</div>
+    <div class="sg-scroll-hint">↔ اسحب الجدول يمينًا ويسارًا لعرض بقية أعمدة القياسات</div>
     <div class="sg-table-wrap">
       <table class="sg-table">
         <thead id="sizeTableHead"></thead>
