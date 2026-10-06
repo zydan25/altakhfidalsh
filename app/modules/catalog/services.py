@@ -3349,6 +3349,7 @@ class CatalogService:
             "variant_background_color", "variant_divider_color",
             "color_selected_border_color", "color_border_color",
             "size_inventory_badge_background", "size_inventory_badge_text",
+            "stock_inline_color",
             "size_divider_color", "size_tools_color",
             "delivery_location_color", "delivery_row_divider_color",
             "policy_row_divider_color",
