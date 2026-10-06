@@ -249,7 +249,16 @@ void notificationBackgroundEntrypoint(ServiceInstance service) async {
       final socketBase = base.replaceFirst(RegExp(r'^https?://'), socketScheme);
       final channel = WebSocketChannel.connect(
         Uri.parse(socketBase + '/notifications/ws'),
-        protocols: ['altakhfid-bearer', token],
+      );
+
+      // The server intentionally authenticates with an application-level
+      // handshake frame because this is supported consistently by Flutter's
+      // WebSocket implementations on Android and Web.
+      channel.sink.add(
+        jsonEncode(<String, dynamic>{
+          'type': 'auth',
+          'token': token,
+        }),
       );
 
       final done = Completer<void>();
