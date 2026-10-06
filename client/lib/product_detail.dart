@@ -834,6 +834,7 @@ class SxGallery extends StatefulWidget {
   final int page;
   final ValueChanged<int> changed;
   final List<Map<String, dynamic>> badges;
+  final double aspectRatio;
 
   const SxGallery({
     super.key,
@@ -888,7 +889,7 @@ class _SxGalleryState extends State<SxGallery> {
     return Container(
       color: Colors.white,
       child: AspectRatio(
-        aspectRatio: .78,
+        aspectRatio: aspectRatio,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -923,12 +924,22 @@ class SxGalleryThumbs extends StatelessWidget {
   final List<Map<String, dynamic>> rows;
   final int page;
   final ValueChanged<int> changed;
+  final double itemWidth;
+  final double itemHeight;
+  final double gap;
+  final double radius;
+  final double borderWidth;
 
   const SxGalleryThumbs({
     super.key,
     required this.rows,
     required this.page,
     required this.changed,
+    this.itemWidth = 62,
+    this.itemHeight = 70,
+    this.gap = 6,
+    this.radius = 4,
+    this.borderWidth = 1.5,
   });
 
   @override
@@ -938,7 +949,7 @@ class SxGalleryThumbs extends StatelessWidget {
       color: Colors.white,
       padding: const EdgeInsets.fromLTRB(9, 7, 9, 8),
       child: SizedBox(
-        height: 76,
+        height: itemHeight + 6,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           reverse: false,
@@ -949,20 +960,20 @@ class SxGalleryThumbs extends StatelessWidget {
               children: [
                 for (int index = 0; index < rows.length; index++)
                   Padding(
-                    padding: EdgeInsets.only(left: index == rows.length - 1 ? 0 : 6),
+                    padding: EdgeInsets.only(left: index == rows.length - 1 ? 0 : gap),
                     child: InkWell(
                       onTap: () => changed(index),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 130),
-                        width: 62,
-                        height: 70,
+                        width: itemWidth,
+                        height: itemHeight,
                         decoration: BoxDecoration(
                           color: Colors.white,
                           border: Border.all(
                             color: index == page ? Colors.black : ClientTheme.border,
-                            width: index == page ? 1.5 : .7,
+                            width: index == page ? borderWidth : .7,
                           ),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(radius),
                         ),
                         clipBehavior: Clip.antiAlias,
                         child: _DetailNetworkImage(url: sxText(rows[index]['url'])),
@@ -1799,22 +1810,22 @@ class _ProductOptions extends StatelessWidget {
     final sizesVisible = showSizes && sizes.isNotEmpty;
     if (!colorsVisible && !sizesVisible) return const SizedBox.shrink();
 
-    final colorSize = sxDouble(settings['colors_size'], 38).clamp(24, 64);
-    final colorGap = sxDouble(settings['colors_gap'], 9).clamp(0, 18);
-    final colorRunGap = sxDouble(settings['colors_run_gap'], 8).clamp(0, 18);
+    final colorSize = sxDouble(settings['colors_size'], 38).clamp(24, 64).toDouble();
+    final colorGap = sxDouble(settings['colors_gap'], 9).clamp(0, 18).toDouble();
+    final colorRunGap = sxDouble(settings['colors_run_gap'], 8).clamp(0, 18).toDouble();
     final selectedBorder = sxDouble(
       settings['colors_selected_border_width'],
       2,
-    ).clamp(0, 4);
-    final labelSize = sxDouble(settings['colors_label_font_size'], 8.5).clamp(6, 16);
+    ).clamp(0, 4).toDouble();
+    final labelSize = sxDouble(settings['colors_label_font_size'], 8.5).clamp(6, 16).toDouble();
 
-    final sizeFont = sxDouble(settings['sizes_font_size'], 10).clamp(7, 18);
+    final sizeFont = sxDouble(settings['sizes_font_size'], 10).clamp(7, 18).toDouble();
     final sizeHorizontal = sxDouble(
       settings['sizes_padding_horizontal'],
       12,
-    ).clamp(4, 24);
-    final sizeVertical = sxDouble(settings['sizes_padding_vertical'], 9).clamp(3, 18);
-    final sizeGap = sxDouble(settings['sizes_gap'], 7).clamp(0, 16);
+    ).clamp(4, 24).toDouble();
+    final sizeVertical = sxDouble(settings['sizes_padding_vertical'], 9).clamp(3, 18).toDouble();
+    final sizeGap = sxDouble(settings['sizes_gap'], 7).clamp(0, 16).toDouble();
 
     return Container(
       margin: const EdgeInsets.only(top: 6),
