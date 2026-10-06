@@ -3317,6 +3317,162 @@ def register_entity_views(admin_bp):
         return _render("التقارير", ["المجال", "المؤشر", "القيمة"], rows, "الترويج والمالية")
 
 
+    @admin_bp.route("/store-locations", methods=["GET", "POST"])
+    def store_locations():
+        from ..models import AppSetting, MediaAsset
+        error = None
+
+        def read_locations():
+            row = AppSetting.query.filter_by(
+                group_code="storefront",
+                key="store_locations_json",
+            ).first()
+            if row and row.value:
+                try:
+                    raw = json.loads(row.value)
+                    if isinstance(raw, list):
+                        return [dict(x) for x in raw if isinstance(x, dict)]
+                except (TypeError, ValueError):
+                    pass
+
+            values = {}
+            for key in (
+                "store_name",
+                "store_address",
+                "store_latitude",
+                "store_longitude",
+                "store_map_url",
+            ):
+                setting = AppSetting.query.filter_by(
+                    group_code="storefront",
+                    key=key,
+                ).first()
+                if setting and (setting.value or "").strip():
+                    values[key] = setting.value.strip()
+            if not values:
+                return []
+            return [{
+                "id": "legacy-store",
+                "name": values.get("store_name") or "موقع المتجر",
+                "region": "",
+                "city": "",
+                "address": values.get("store_address") or "",
+                "map_url": values.get("store_map_url") or "",
+                "latitude": values.get("store_latitude") or "",
+                "longitude": values.get("store_longitude") or "",
+                "images": [],
+            }]
+
+        def write_locations(rows):
+            row = AppSetting.query.filter_by(
+                group_code="storefront",
+                key="store_locations_json",
+            ).first()
+            payload = json.dumps(rows, ensure_ascii=False, separators=(",", ":"))
+            if row is None:
+                row = AppSetting(
+                    group_code="storefront",
+                    key="store_locations_json",
+                    value=payload,
+                    value_type="json",
+                )
+                db.session.add(row)
+            else:
+                row.value = payload
+                row.value_type = "json"
+
+        rows = read_locations()
+        if request.method == "POST":
+            action = (request.form.get("action") or "save").strip()
+            try:
+                if action == "delete":
+                    location_id = (request.form.get("location_id") or "").strip()
+                    rows = [x for x in rows if str(x.get("id")) != location_id]
+                    write_locations(rows)
+                    db.session.commit()
+                    return __import__("flask").redirect(
+                        "/admin/store-locations?success=تم+حذف+الموقع"
+                    )
+
+                location_id = (request.form.get("location_id") or "").strip() or uuid.uuid4().hex[:12]
+                location = next(
+                    (x for x in rows if str(x.get("id")) == location_id),
+                    None,
+                )
+                if location is None:
+                    location = {"id": location_id, "images": []}
+                    rows.append(location)
+
+                location["name"] = (request.form.get("name") or "").strip()
+                location["region"] = (request.form.get("region") or "").strip()
+                location["city"] = (request.form.get("city") or "").strip()
+                location["address"] = (request.form.get("address") or "").strip()
+                location["map_url"] = (request.form.get("map_url") or "").strip()
+                location["latitude"] = (request.form.get("latitude") or "").strip()
+                location["longitude"] = (request.form.get("longitude") or "").strip()
+                if not location["name"]:
+                    raise ValueError("اسم الموقع مطلوب.")
+
+                remove_ids = {
+                    int(value)
+                    for value in request.form.getlist("remove_asset_ids")
+                    if str(value).isdigit()
+                }
+                if remove_ids:
+                    MediaAsset.query.filter(MediaAsset.id.in_(remove_ids)).update(
+                        {"is_active": False},
+                        synchronize_session=False,
+                    )
+                    location["images"] = [
+                        x for x in (location.get("images") or [])
+                        if int(x.get("id") or 0) not in remove_ids
+                    ]
+
+                uploads = request.files.getlist("images")
+                if any(file and file.filename for file in uploads):
+                    uploaded = MediaService.save_generic_files(
+                        uploads,
+                        f"store-locations/{location_id}",
+                    )
+                    location.setdefault("images", [])
+                    location["images"].extend(
+                        {"id": item["id"], "url": item["url"]}
+                        for item in uploaded
+                    )
+
+                seen = set()
+                cleaned_images = []
+                for image in location.get("images") or []:
+                    asset_id = int(image.get("id") or 0)
+                    if asset_id <= 0 or asset_id in seen:
+                        continue
+                    seen.add(asset_id)
+                    cleaned_images.append({
+                        "id": asset_id,
+                        "url": image.get("url") or "",
+                    })
+                location["images"] = cleaned_images
+
+                write_locations(rows)
+                db.session.commit()
+                return __import__("flask").redirect(
+                    "/admin/store-locations?success=تم+حفظ+الموقع"
+                )
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
+                rows = read_locations()
+
+        return render_template(
+            "admin/store_locations.html",
+            title="مواقعنا",
+            section="المحتوى والمتجر",
+            locations=rows,
+            success=request.args.get("success"),
+            error=error,
+            **build_admin_context(),
+        )
+
     @admin_bp.route("/system/settings", methods=["GET", "POST"])
     def settings():
         from ..models import AppSetting
