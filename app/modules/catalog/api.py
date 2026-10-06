@@ -532,7 +532,10 @@ def public_product_feed():
 
     # Keep the database candidate set predictable; final pricing/sorting is done after
     # customer/city/currency pricing has been resolved.
-    rows = query.order_by(Product.id.desc()).limit(100).all()
+    if sort in {"random", "shuffle"}:
+        rows = query.order_by(func.random()).limit(100).all()
+    else:
+        rows = query.order_by(Product.id.desc()).limit(100).all()
 
     media_by_product = {}
     product_ids = [row.id for row in rows]
