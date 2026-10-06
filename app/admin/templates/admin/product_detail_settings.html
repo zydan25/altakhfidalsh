@@ -105,6 +105,7 @@
     </section>
 
     {% for group in product_detail_groups[1:] %}
+    {% if group.fields %}
     <section class="pds-panel">
       <div class="pds-head">
         <span class="eyebrow">{{ loop.index + 1 }} · إعداد</span>
@@ -145,6 +146,7 @@
         {% endfor %}
       </div>
     </section>
+    {% endif %}
     {% endfor %}
 
     <section class="pds-panel">
