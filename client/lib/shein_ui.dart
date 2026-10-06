@@ -5901,7 +5901,7 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) {
+    if (loading && trends.isEmpty) {
       return const Scaffold(
         backgroundColor: Colors.white,
         body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
@@ -8042,7 +8042,11 @@ class _SxCartScreenState extends State<SxCartScreen> {
 
   @override Widget build(BuildContext context) {
     if (!state.loggedIn) return const Scaffold(body: Center(child: Text('سجل الدخول أولًا')));
-    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+    if (loading && cart == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
     final rows = sxMaps(cart?['item']?['items']);
     final subtotal = sxText(cart?['item']?['subtotal'], '0');
     return Scaffold(
@@ -8388,7 +8392,11 @@ class _SxCheckoutScreenState extends State<SxCheckoutScreen> {
 
   @override
   Widget build(BuildContext context){
-    if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator(strokeWidth:2)));
+    if (loading && cart == null && addresses.isEmpty) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
     final rows=sxMaps(cart?['item']?['items']);
     return Scaffold(
       appBar:const SxAppBar(title:'إتمام الطلب'),
@@ -8774,7 +8782,11 @@ class _SxPaymentScreenState extends State<SxPaymentScreen> {
 
   @override
   Widget build(BuildContext context){
-    if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator(strokeWidth:2)));
+    if (loading && order == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
     final totalText=sxText(order?['total'],widget.total);
     final currencyText=sxText(
       order?['currency'] is Map
@@ -8916,7 +8928,11 @@ class _SxPoliciesScreenState extends State<SxPoliciesScreen> {
   @override void initState(){super.initState();load();}
   Future<void> load() async { try{data=await api.policies();}catch(_){} if(mounted)setState(()=>loading=false); }
   @override Widget build(BuildContext context){
-    if(loading)return const Scaffold(body:Center(child:CircularProgressIndicator(strokeWidth:2)));
+    if (loading && data.isEmpty) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
     Widget section(String title,IconData icon,String body)=>body.trim().isEmpty?const SizedBox.shrink():Container(
       margin:const EdgeInsets.only(bottom:8),padding:const EdgeInsets.all(13),
       decoration:BoxDecoration(color:Colors.white,border:Border.all(color:ClientTheme.border),borderRadius:BorderRadius.circular(9)),
@@ -11097,7 +11113,11 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const Scaffold(body: Center(child: CircularProgressIndicator(strokeWidth: 2)));
+    if (loading && order.isEmpty) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
 
     final status = sxText(order['status']);
     final currency = order['currency'] is Map
