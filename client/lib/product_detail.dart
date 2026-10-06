@@ -193,7 +193,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
   void _onGalleryPageChanged(int index) {
     final rows = _media();
     if (rows.isEmpty) return;
-    final safeIndex = index.clamp(0, rows.length - 1);
+    final safeIndex = index.clamp(0, rows.length - 1).toInt();
     final mediaColor = sxInt(rows[safeIndex]['color_id']);
     setState(() {
       page = safeIndex;
@@ -847,24 +847,52 @@ class SxGallery extends StatefulWidget {
 
 class _SxGalleryState extends State<SxGallery> {
   late final PageController _controller;
+  static const int _virtualBase = 500000;
+
+  int _initialVirtualPage() {
+    final length = widget.rows.length;
+    if (length <= 1) return 0;
+    final logical = widget.page.clamp(0, length - 1).toInt();
+    final base = (_virtualBase ~/ length) * length;
+    return base + logical;
+  }
+
+  int _logicalIndex(int virtualIndex) {
+    final length = widget.rows.length;
+    if (length <= 1) return 0;
+    return virtualIndex % length;
+  }
 
   @override
   void initState() {
     super.initState();
-    _controller = PageController(initialPage: widget.page);
+    _controller = PageController(initialPage: _initialVirtualPage());
   }
 
   @override
   void didUpdateWidget(covariant SxGallery oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.rows.length != widget.rows.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_controller.hasClients) return;
+        _controller.jumpToPage(_initialVirtualPage());
+      });
+      return;
+    }
     if (widget.page != oldWidget.page &&
         _controller.hasClients &&
-        widget.page >= 0 &&
-        widget.page < widget.rows.length) {
+        widget.rows.length > 1) {
+      final current = (_controller.page ?? _initialVirtualPage()).round();
+      final length = widget.rows.length;
+      final currentBase = (current ~/ length) * length;
+      var target = currentBase + widget.page.clamp(0, length - 1).toInt();
+      if ((target - current).abs() > length ~/ 2) {
+        target += target < current ? length : -length;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_controller.hasClients) return;
         _controller.animateToPage(
-          widget.page,
+          target,
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
         );
@@ -883,6 +911,8 @@ class _SxGalleryState extends State<SxGallery> {
     final data = widget.rows.isEmpty
         ? <Map<String, dynamic>>[<String, dynamic>{}]
         : widget.rows;
+    final virtualCount = data.length > 1 ? 1000000 : data.length;
+
     return Container(
       color: Colors.white,
       child: AspectRatio(
@@ -894,11 +924,25 @@ class _SxGalleryState extends State<SxGallery> {
               textDirection: TextDirection.rtl,
               child: PageView.builder(
                 controller: _controller,
-                itemCount: data.length,
-                onPageChanged: widget.changed,
-                itemBuilder: (_, index) => _DetailNetworkImage(
-                  url: sxText(data[index]['url']),
-                ),
+                itemCount: virtualCount,
+                onPageChanged: (virtualIndex) {
+                  final logical = _logicalIndex(virtualIndex);
+                  widget.changed(logical);
+                  // Keep a large safety margin from either end of the virtual
+                  // range so swiping remains circular for normal use.
+                  if (virtualIndex < 1000 || virtualIndex > virtualCount - 1000) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted || !_controller.hasClients || data.length <= 1) return;
+                      _controller.jumpToPage(_initialVirtualPage() + logical);
+                    });
+                  }
+                },
+                itemBuilder: (_, virtualIndex) {
+                  final logical = _logicalIndex(virtualIndex);
+                  return _DetailNetworkImage(
+                    url: sxText(data[logical]['url']),
+                  );
+                },
               ),
             ),
             ..._galleryBadgeWidgets(widget.badges),
@@ -916,65 +960,6 @@ class _SxGalleryState extends State<SxGallery> {
     );
   }
 }
-
-List<Widget> _galleryBadgeWidgets(List<Map<String, dynamic>> badges) {
-  final selected = badges.where((badge) {
-    final s = badge['settings'] is Map
-        ? Map<String, dynamic>.from(badge['settings'] as Map)
-        : <String, dynamic>{};
-    return s['visible'] != false &&
-        {'top_right', 'top_left', 'bottom_right', 'bottom_left', 'right_of_image'}
-            .contains(sxText(s['position']));
-  }).toList();
-
-  return selected.take(8).map((badge) {
-    final s = badge['settings'] is Map
-        ? Map<String, dynamic>.from(badge['settings'] as Map)
-        : <String, dynamic>{};
-    final label = sxText(badge['custom_text'], sxText(badge['name'], 'شارة'));
-    final bg = sxColor(
-      sxText(s['background_color'], sxText(badge['bg_color'], '#111827')),
-      Colors.black,
-    ).withOpacity(sxDouble(s['background_opacity'], 1).clamp(0, 1).toDouble());
-    final fg = sxColor(
-      sxText(s['text_color'], sxText(badge['text_color'], '#ffffff')),
-      Colors.white,
-    );
-    final chip = Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: sxDouble(s['padding_horizontal'], 7),
-        vertical: sxDouble(s['padding_vertical'], 3),
-      ),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(sxDouble(s['border_radius'], 5)),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: fg,
-          fontSize: sxDouble(s['font_size'], 9),
-          fontWeight: _weight(sxInt(s['font_weight'], 800)),
-        ),
-      ),
-    );
-    switch (sxText(s['position'])) {
-      case 'top_left':
-        return Positioned(top: 8, left: 8, child: chip);
-      case 'bottom_left':
-        return Positioned(bottom: 8, left: 8, child: chip);
-      case 'bottom_right':
-        return Positioned(bottom: 8, right: 8, child: chip);
-      case 'right_of_image':
-        return Positioned(top: 0, right: 0, bottom: 0, child: Center(child: chip));
-      default:
-        return Positioned(top: 48, right: 8, child: chip);
-    }
-  }).toList();
-}
-
 class SxGalleryThumbs extends StatelessWidget {
   final List<Map<String, dynamic>> rows;
   final int page;
@@ -2461,6 +2446,21 @@ class _PolicySections extends StatelessWidget {
     ];
     if (items.isEmpty) return const SizedBox.shrink();
 
+    final byKey = <String, Map<String, dynamic>>{
+      'shipping': items.firstWhere((x) => x['title'] == 'الشحن والتوصيل', orElse: () => <String, dynamic>{}),
+      'returns': items.firstWhere((x) => x['title'] == 'الإرجاع والاسترداد', orElse: () => <String, dynamic>{}),
+      'warranty': items.firstWhere((x) => x['title'] == 'الضمان', orElse: () => <String, dynamic>{}),
+      'payment': items.firstWhere((x) => x['title'] == 'الدفع', orElse: () => <String, dynamic>{}),
+    };
+    final rawOrder = settings['policy_order'];
+    final keys = rawOrder is List
+        ? rawOrder.map((x) => sxText(x)).where((x) => byKey[x]?.isNotEmpty == true).toList()
+        : <String>[];
+    for (final key in byKey.keys) {
+      if (!keys.contains(key) && byKey[key]!.isNotEmpty) keys.add(key);
+    }
+    final orderedItems = keys.map((key) => byKey[key]!).where((x) => x.isNotEmpty).toList();
+
     return Container(
       margin: const EdgeInsets.only(top: 6),
       color: Colors.white,
@@ -2470,7 +2470,7 @@ class _PolicySections extends StatelessWidget {
         children: [
           const Text('السياسات والخدمات', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
           const SizedBox(height: 8),
-          for (var i = 0; i < items.length; i++) ...[
+          for (var i = 0; i < orderedItems.length; i++) ...[
             SizedBox(
               height: sxDouble(settings['policy_button_height'], 52),
               child: FilledButton.icon(
