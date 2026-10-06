@@ -2253,7 +2253,7 @@ class _RelatedProductsSection extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
               child: Row(
                 textDirection: TextDirection.rtl,
                 children: [
@@ -2293,7 +2293,7 @@ class _RelatedProductsSection extends StatelessWidget {
               )
             else
               Padding(
-                padding: const EdgeInsets.fromLTRB(7, 0, 7, 12),
+                padding: const EdgeInsets.fromLTRB(6, 3, 6, 18),
                 child: SxProductGrid(
                   products: related,
                   masonry: true,
