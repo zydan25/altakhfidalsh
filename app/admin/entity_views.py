@@ -1668,6 +1668,263 @@ def register_entity_views(admin_bp):
             db.session.rollback()
             return redirect(url_for("admin.trends", trend_settings_error=str(exc)))
 
+    @admin_bp.route("/product-detail-settings", methods=["GET", "POST"])
+    def product_detail_settings_page():
+        import json
+
+        detail_order_options = [
+            ("badges", "الشارات"),
+            ("gallery", "الصورة الرئيسية"),
+            ("thumbs", "الصور المصغرة"),
+            ("price", "السعر"),
+            ("name", "اسم المنتج"),
+            ("brand", "العلامة التجارية"),
+            ("colors", "الألوان"),
+            ("sizes", "المقاسات"),
+            ("size_guide", "دليل المقاسات"),
+            ("details", "تفاصيل المنتج"),
+            ("stock", "المخزون والتوفر"),
+            ("delivery", "معلومات التوصيل"),
+            ("policies", "الشحن والإرجاع والضمان والدفع"),
+            ("reviews", "التقييمات والمراجعات"),
+            ("related", "قد يعجبك أيضًا"),
+        ]
+        detail_groups = [
+            {
+                "title": "ترتيب محتوى صفحة تفاصيل الصنف",
+                "hint": "اسحب العناصر لتحديد الترتيب الذي تظهر به للعميل.",
+                "fields": [],
+            },
+            {
+                "title": "الصور والصور المصغرة",
+                "hint": "تحكم في إظهار الصور وحجم الصور المصغرة وحدودها.",
+                "fields": [
+                    ("gallery_show", "إظهار معرض الصور", "checkbox"),
+                    ("gallery_ratio", "نسبة مساحة الصورة", "number", .56, 1.05, .01, False),
+                    ("thumbs_show", "إظهار الصور المصغرة", "checkbox"),
+                    ("thumbs_size", "عرض الصورة المصغرة", "number", 40, 110, 1, True),
+                    ("thumbs_height", "ارتفاع الصورة المصغرة", "number", 45, 120, 1, True),
+                    ("thumbs_gap", "المسافة بين الصور المصغرة", "number", 0, 18, 1, True),
+                    ("thumbs_radius", "تدوير الصورة المصغرة", "number", 0, 20, 1, True),
+                    ("thumbs_border_width", "سُمك إطار الصورة المصغرة", "number", 0, 4, .5, False),
+                ],
+            },
+            {
+                "title": "اسم المنتج",
+                "hint": "تنسيق اسم الصنف مستقل عن بطاقة المنتجات.",
+                "fields": [
+                    ("name_show", "إظهار اسم المنتج", "checkbox"),
+                    ("name_font_size", "حجم الاسم", "number", 14, 32, .5, False),
+                    ("name_font_weight", "وزن الاسم", "number", 400, 900, 100, True),
+                    ("name_max_lines", "أقصى أسطر للاسم", "number", 2, 6, 1, True),
+                ],
+            },
+            {
+                "title": "السعر والعملة",
+                "hint": "يشمل السعر الحالي والسعر قبل الخصم والعرض النصي ورمز العملة.",
+                "fields": [
+                    ("price_show", "إظهار السعر", "checkbox"),
+                    ("price_font_size", "حجم السعر", "number", 14, 34, .5, False),
+                    ("price_font_weight", "وزن السعر", "number", 400, 900, 100, True),
+                    ("show_compare_price", "إظهار السعر قبل الخصم", "checkbox"),
+                    ("compare_price_font_size", "حجم السعر قبل الخصم", "number", 7, 20, .5, False),
+                    ("compare_price_text_decoration", "تنسيق السعر قبل الخصم", "select", ["line_through", "none"]),
+                    ("show_currency", "إظهار العملة", "checkbox"),
+                    ("currency_font_size", "حجم رمز العملة", "number", 7, 20, .5, False),
+                    ("price_text_show", "إظهار الوصف النصي للسعر", "checkbox"),
+                    ("price_text", "نص السعر", "text", 80),
+                    ("price_text_font_size", "حجم نص السعر", "number", 7, 18, .5, False),
+                ],
+            },
+            {
+                "title": "العلامة التجارية",
+                "hint": "إظهار العلامة ومظهرها أسفل/حول بيانات الصنف.",
+                "fields": [
+                    ("brand_show", "إظهار العلامة التجارية", "checkbox"),
+                    ("brand_font_size", "حجم اسم العلامة", "number", 7, 18, .5, False),
+                    ("brand_font_weight", "وزن اسم العلامة", "number", 400, 900, 100, True),
+                ],
+            },
+            {
+                "title": "الألوان",
+                "hint": "حجم دوائر اللون والمسافات وإبراز اللون المحدد.",
+                "fields": [
+                    ("colors_show", "إظهار الألوان", "checkbox"),
+                    ("colors_size", "حجم صورة/دائرة اللون", "number", 24, 64, 1, True),
+                    ("colors_label_font_size", "حجم اسم اللون", "number", 6, 16, .5, False),
+                    ("colors_gap", "المسافة بين الألوان أفقيًا", "number", 0, 18, 1, True),
+                    ("colors_run_gap", "المسافة بين صفوف الألوان", "number", 0, 18, 1, True),
+                    ("colors_selected_border_width", "سُمك إطار اللون المحدد", "number", 0, 4, .5, False),
+                ],
+            },
+            {
+                "title": "المقاسات ودليل المقاسات",
+                "hint": "مقاسات واضحة بشكل قريب من تجربة شي إن، مع زر دليل المقاسات.",
+                "fields": [
+                    ("sizes_show", "إظهار المقاسات", "checkbox"),
+                    ("sizes_font_size", "حجم نص المقاس", "number", 7, 18, .5, False),
+                    ("sizes_padding_horizontal", "حشو المقاس أفقيًا", "number", 4, 24, 1, True),
+                    ("sizes_padding_vertical", "حشو المقاس رأسيًا", "number", 3, 18, 1, True),
+                    ("sizes_gap", "المسافة بين المقاسات", "number", 0, 16, 1, True),
+                    ("size_guide_show", "إظهار دليل المقاسات", "checkbox"),
+                    ("size_guide_font_size", "حجم زر دليل المقاسات", "number", 7, 18, .5, False),
+                ],
+            },
+            {
+                "title": "تفاصيل المنتج",
+                "hint": "يظهر المحتوى مفتوحًا داخل الصفحة بدون سحب أو ExpansionTile.",
+                "fields": [
+                    ("details_show", "إظهار تفاصيل المنتج", "checkbox"),
+                    ("details_title_font_size", "حجم عنوان التفاصيل", "number", 9, 20, .5, False),
+                    ("details_text_font_size", "حجم نص التفاصيل", "number", 8, 18, .5, False),
+                ],
+            },
+            {
+                "title": "المخزون والتوصيل",
+                "hint": "الكمية المتاحة ومعلومات التوصيل الخاصة بالمنتج.",
+                "fields": [
+                    ("stock_show", "إظهار المخزون والتوفر", "checkbox"),
+                    ("stock_font_size", "حجم نص المخزون", "number", 7, 18, .5, False),
+                    ("delivery_show", "إظهار معلومات التوصيل", "checkbox"),
+                    ("delivery_font_size", "حجم نص التوصيل", "number", 7, 18, .5, False),
+                ],
+            },
+            {
+                "title": "أزرار الشحن والإرجاع والضمان والدفع",
+                "hint": "كل زر مستقل في اللون والنص مع التحكم في المقاس العام والترتيب.",
+                "fields": [
+                    ("policies_show", "إظهار أزرار السياسات", "checkbox"),
+                    ("policy_button_height", "ارتفاع زر السياسة", "number", 36, 76, 1, True),
+                    ("policy_button_radius", "تدوير زر السياسة", "number", 0, 24, 1, True),
+                    ("policy_button_gap", "المسافة بين الأزرار", "number", 0, 16, 1, True),
+                    ("policy_button_font_size", "حجم نص الأزرار", "number", 7, 18, .5, False),
+                ],
+            },
+            {
+                "title": "التقييمات والمراجعات",
+                "hint": "إظهار القسم ومقاس عنوانه.",
+                "fields": [
+                    ("reviews_show", "إظهار التقييمات", "checkbox"),
+                    ("reviews_title_font_size", "حجم عنوان التقييمات", "number", 9, 20, .5, False),
+                ],
+            },
+            {
+                "title": "قد يعجبك أيضًا",
+                "hint": "المنتجات المقترحة في أسفل تفاصيل الصنف.",
+                "fields": [
+                    ("related_show", "إظهار المنتجات المقترحة", "checkbox"),
+                    ("related_title_font_size", "حجم عنوان الاقتراحات", "number", 9, 20, .5, False),
+                ],
+            },
+        ]
+        color_fields = [
+            ("name_color", "لون اسم المنتج"),
+            ("price_color", "لون السعر الحالي"),
+            ("compare_price_color", "لون السعر قبل الخصم"),
+            ("currency_color", "لون العملة"),
+            ("price_text_color", "لون النص الوصفي للسعر"),
+            ("brand_color", "لون العلامة التجارية"),
+            ("sizes_background_color", "خلفية المقاس"),
+            ("sizes_text_color", "لون نص المقاس"),
+            ("sizes_selected_background_color", "خلفية المقاس المحدد"),
+            ("sizes_selected_text_color", "لون المقاس المحدد"),
+            ("sizes_border_color", "إطار المقاس"),
+            ("size_guide_color", "لون زر دليل المقاسات"),
+            ("size_guide_background_color", "خلفية زر دليل المقاسات"),
+            ("details_title_color", "لون عنوان تفاصيل المنتج"),
+            ("details_text_color", "لون نص تفاصيل المنتج"),
+            ("details_background_color", "خلفية تفاصيل المنتج"),
+            ("stock_text_color", "لون نص المخزون"),
+            ("delivery_color", "لون معلومات التوصيل"),
+            ("shipping_button_color", "خلفية زر الشحن"),
+            ("shipping_button_text_color", "لون نص زر الشحن"),
+            ("returns_button_color", "خلفية زر الإرجاع"),
+            ("returns_button_text_color", "لون نص زر الإرجاع"),
+            ("warranty_button_color", "خلفية زر الضمان"),
+            ("warranty_button_text_color", "لون نص زر الضمان"),
+            ("payment_button_color", "خلفية زر الدفع"),
+            ("payment_button_text_color", "لون نص زر الدفع"),
+            ("reviews_color", "لون عنوان التقييمات"),
+        ]
+
+        error = None
+        success = None
+        settings = CatalogService.product_detail_settings()
+        if request.method == "POST":
+            try:
+                settings = dict(settings)
+                for group in detail_groups:
+                    for field in group["fields"]:
+                        key, _label, kind = field[:3]
+                        if kind == "checkbox":
+                            settings[key] = request.form.get(key) == "on"
+                        elif kind == "number":
+                            raw = request.form.get(key)
+                            value = float(raw) if raw not in (None, "") else float(settings[key])
+                            value = max(float(field[3]), min(float(field[4]), value))
+                            settings[key] = int(round(value)) if field[6] else value
+                        elif kind == "text":
+                            settings[key] = (request.form.get(key) or settings.get(key) or "")[:int(field[3])]
+                        elif kind == "select":
+                            value = (request.form.get(key) or settings.get(key) or "").strip()
+                            if value not in field[3]:
+                                raise ValueError(f"القيمة {key} غير صالحة.")
+                            settings[key] = value
+
+                raw_order = (request.form.get("detail_order") or "").split(",")
+                allowed = {key for key, _label in detail_order_options}
+                order = []
+                for key in raw_order:
+                    key = key.strip()
+                    if key in allowed and key not in order:
+                        order.append(key)
+                for key, _label in detail_order_options:
+                    if key not in order:
+                        order.append(key)
+                settings["detail_order"] = order
+
+                color_re = re.compile(r"^#[0-9a-fA-F]{6}$")
+                for key, _label in color_fields:
+                    value = (request.form.get(key) or settings.get(key) or "").strip()
+                    if not color_re.fullmatch(value):
+                        raise ValueError(f"لون {_label} غير صالح. استخدم صيغة مثل #111827.")
+                    settings[key] = value
+
+                row = AppSetting.query.filter_by(
+                    group_code="storefront",
+                    key="product_detail_settings",
+                ).first()
+                payload = json.dumps(settings, ensure_ascii=False, separators=(",", ":"))
+                if row is None:
+                    row = AppSetting(
+                        group_code="storefront",
+                        key="product_detail_settings",
+                        value=payload,
+                        value_type="json",
+                    )
+                    db.session.add(row)
+                else:
+                    row.value = payload
+                    row.value_type = "json"
+                db.session.commit()
+                success = "تم حفظ إعدادات تفاصيل الصنف."
+            except (ValueError, TypeError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+        return render_template(
+            "admin/product_detail_settings.html",
+            title="إعدادات تفاصيل الصنف",
+            section="المحتوى والمتجر",
+            product_detail_settings=settings,
+            product_detail_groups=detail_groups,
+            detail_order_options=detail_order_options,
+            product_detail_color_fields=color_fields,
+            error=error,
+            success=success,
+            **_ctx(),
+        )
+
     @admin_bp.route("/trends/display-settings", methods=["GET", "POST"])
     def trends_display_settings():
         import json
