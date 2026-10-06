@@ -195,7 +195,7 @@
     colors_gap:'المسافة بين الألوان', colors_max:'عدد الألوان', colors_container_size:'حجم حاوية اللون', colors_border_width:'سُمك حدود اللون',
     meta_show:'إظهار المعلومة العلوية', meta_position:'موقع المعلومة', meta_font_size:'حجم المعلومة',
     meta_background_color:'خلفية المعلومة', meta_text_color:'لون المعلومة', meta_radius:'تدوير المعلومة',
-    rating_show:'إظهار التقييم', rating_position:'موضع التقييم', rating_font_size:'حجم نص التقييم', rating_icon_size:'حجم النجمة', rating_review_count_show:'إظهار عدد المراجعات', rating_review_count_font_size:'حجم عدد المراجعات', rating_color:'لون التقييم',
+    rating_show:'إظهار التقييم', rating_position:'موضع التقييم', rating_alignment:'محاذاة التقييم', rating_font_size:'حجم نص التقييم', rating_icon_size:'حجم النجمة', rating_review_count_show:'إظهار عدد المراجعات', rating_review_count_font_size:'حجم عدد المراجعات', rating_color:'لون التقييم',
     quick_add_show:'إظهار زر الإضافة', quick_add_icon:'أيقونة زر الإضافة', quick_add_size:'حجم زر الإضافة', quick_add_position:'موقع زر الإضافة', quick_add_radius:'تدوير زر الإضافة', quick_add_opacity:'شفافية زر الإضافة', quick_add_background_color:'خلفية زر الإضافة', quick_add_icon_color:'لون أيقونة زر الإضافة',
     image_flip_effect:'حركة تقليب الصور', image_flip_duration_ms:'مدة تقليب الصور',
     meta_padding_horizontal:'الحشو الأفقي للمعلومة', meta_padding_vertical:'الحشو الرأسي للمعلومة',
@@ -229,6 +229,9 @@
     if (key==='rating_position') return [
       ['before_name','قبل الاسم'],['after_name','بعد الاسم'],['before_price','قبل السعر'],
       ['after_price','بعد السعر'],['end','آخر البطاقة']
+    ];
+    if (key==='rating_alignment') return [
+      ['right','يمين البطاقة'],['left','يسار البطاقة']
     ];
     if (key==='quick_add_icon') return [
       ['shopping_bag_outlined','حقيبة تسوق'],['shopping_cart_outlined','سلة تسوق'],
