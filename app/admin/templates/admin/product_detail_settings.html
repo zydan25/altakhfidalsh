@@ -63,10 +63,23 @@
       <div class="sort-wrap">
         <div class="sort-note">الترتيب لا يغيّر البيانات نفسها؛ يغيّر فقط مكان عرضها. يمكن وضع الشارات قبل الصورة أو السعر قبل الاسم أو الألوان والمقاسات في أي مكان من العناصر المدرجة.</div>
         <div class="sort-list" id="detailOrderList">
-          {% for key, label in detail_order_options %}
+          {% set detail_labels = dict(detail_order_options) %}
+          {% set current_order = product_detail_settings.detail_order %}
+          {% for key in current_order %}
           <div class="sort-item" draggable="true" data-key="{{ key }}">
             <span class="sort-handle">☷</span>
             <span class="sort-index">{{ loop.index }}</span>
+            <span class="sort-name">{{ detail_labels.get(key, key) }}</span>
+            <span class="sort-actions">
+              <button type="button" data-move="up" aria-label="أعلى">↑</button>
+              <button type="button" data-move="down" aria-label="أسفل">↓</button>
+            </span>
+          </div>
+          {% endfor %}
+          {% for key, label in detail_order_options if key not in current_order %}
+          <div class="sort-item" draggable="true" data-key="{{ key }}">
+            <span class="sort-handle">☷</span>
+            <span class="sort-index">{{ current_order|length + loop.index }}</span>
             <span class="sort-name">{{ label }}</span>
             <span class="sort-actions">
               <button type="button" data-move="up" aria-label="أعلى">↑</button>
