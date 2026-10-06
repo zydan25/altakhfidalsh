@@ -164,9 +164,9 @@ class _SxProductScreenState extends State<SxProductScreen> {
     }
 
     // Then it walks color by color in the exact reference-color order.
-    final colorIds = _colors().map((color) => sxInt(color['id'])).where((id) => id > 0);
+    final selectedColorIds = _colors().map((color) => sxInt(color['id'])).where((id) => id > 0);
     final includedColorIds = <int>{};
-    for (final id in colorIds) {
+    for (final id in selectedColorIds) {
       includedColorIds.add(id);
       for (final row in rows.where((row) => sxInt(row['color_id']) == id)) {
         addRow(row);
@@ -257,11 +257,11 @@ class _SxProductScreenState extends State<SxProductScreen> {
     final requiresColor = colors.isNotEmpty;
     final requiresSize = sizes.isNotEmpty;
 
-    if (requiresColor && colorId == null) return null;
+    if (requiresColor && selectedColorId == null) return null;
     if (requiresSize && sizeId == null) return null;
 
     for (final variant in variants) {
-      final colorOk = !requiresColor || sxInt(variant['color_id']) == sxInt(colorId);
+      final colorOk = !requiresColor || sxInt(variant['color_id']) == sxInt(selectedColorId);
       final sizeOk = !requiresSize || sxInt(variant['size_id']) == sxInt(sizeId);
       if (colorOk && sizeOk && sxInt(variant['id']) > 0) {
         return variant;
@@ -315,8 +315,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
     final result = <String, dynamic>{};
     final colors = _colors();
     final sizes = _sizes();
-    if (colorId != null) {
-      final matching = colors.where((x) => sxInt(x['id']) == colorId);
+    if (selectedColorId != null) {
+      final matching = colors.where((x) => sxInt(x['id']) == selectedColorId);
       if (matching.isNotEmpty) result['اللون'] = sxText(matching.first['name']);
     }
     if (sizeId != null) {
@@ -332,8 +332,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
     final sizes = _sizes();
     String selectedColor = '';
     String selectedSize = '';
-    if (colorId != null) {
-      final matching = colors.where((x) => sxInt(x['id']) == colorId);
+    if (selectedColorId != null) {
+      final matching = colors.where((x) => sxInt(x['id']) == selectedColorId);
       if (matching.isNotEmpty) selectedColor = sxText(matching.first['name']);
     }
     if (sizeId != null) {
@@ -646,10 +646,10 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       child: _ProductOptions(
                         colors: colors,
                         sizes: sizes,
-                        selectedColorId: colorId,
+                        selectedColorId: selectedColorId,
                         selectedSizeId: sizeId,
                         onColor: (value) => setState(() {
-                          colorId = value;
+                          selectedColorId = value;
                           page = 0;
                         }),
                         onSize: (value) => setState(() => sizeId = value),
@@ -829,7 +829,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
   }
 }
 
-class SxGallery extends StatelessWidget {
+class SxGallery extends StatefulWidget {
   final List<Map<String, dynamic>> rows;
   final int page;
   final ValueChanged<int> changed;
@@ -844,10 +844,47 @@ class SxGallery extends StatelessWidget {
   });
 
   @override
+  State<SxGallery> createState() => _SxGalleryState();
+}
+
+class _SxGalleryState extends State<SxGallery> {
+  late final PageController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(initialPage: widget.page);
+  }
+
+  @override
+  void didUpdateWidget(covariant SxGallery oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.page != oldWidget.page &&
+        _controller.hasClients &&
+        widget.page >= 0 &&
+        widget.page < widget.rows.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_controller.hasClients) return;
+        _controller.animateToPage(
+          widget.page,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final data = rows.isEmpty
+    final data = widget.rows.isEmpty
         ? <Map<String, dynamic>>[<String, dynamic>{}]
-        : rows;
+        : widget.rows;
     return Container(
       color: Colors.white,
       child: AspectRatio(
@@ -858,66 +895,27 @@ class SxGallery extends StatelessWidget {
             Directionality(
               textDirection: TextDirection.rtl,
               child: PageView.builder(
+                controller: _controller,
                 itemCount: data.length,
-                onPageChanged: changed,
+                onPageChanged: widget.changed,
                 itemBuilder: (_, index) => _DetailNetworkImage(
                   url: sxText(data[index]['url']),
                 ),
               ),
             ),
-            ..._galleryBadgeWidgets(badges),
+            ..._galleryBadgeWidgets(widget.badges),
             if (data.length > 1)
               Positioned(
                 left: 10,
                 bottom: 10,
                 child: _DetailCounter(
-                  text: (page + 1).toString() + '/' + data.length.toString(),
+                  text: (widget.page + 1).toString() + '/' + data.length.toString(),
                 ),
               ),
           ],
         ),
       ),
     );
-  }
-}
-
-List<Widget> _galleryBadgeWidgets(List<Map<String, dynamic>> badges) {
-  final selected = badges.where((badge) {
-    final s = badge['settings'] is Map ? Map<String, dynamic>.from(badge['settings'] as Map) : <String, dynamic>{};
-    return s['visible'] != false && {'top_right','top_left','bottom_right','bottom_left','right_of_image'}.contains(sxText(s['position']));
-  }).toList();
-  return selected.take(8).map((badge) {
-    final s = badge['settings'] is Map ? Map<String, dynamic>.from(badge['settings'] as Map) : <String, dynamic>{};
-    final label = sxText(badge['custom_text'], sxText(badge['name'], 'شارة'));
-    final bg = sxColor(sxText(s['background_color'], sxText(badge['bg_color'], '#111827')), Colors.black)
-      .withOpacity(sxDouble(s['background_opacity'], 1).clamp(0, 1));
-    final fg = sxColor(sxText(s['text_color'], sxText(badge['text_color'], '#ffffff')), Colors.white);
-    final chip = Container(
-      padding: EdgeInsets.symmetric(horizontal: sxDouble(s['padding_horizontal'], 7), vertical: sxDouble(s['padding_vertical'], 3)),
-      decoration: BoxDecoration(color:bg,borderRadius:BorderRadius.circular(sxDouble(s['border_radius'],5))),
-      child: Text(label,maxLines:1,overflow:TextOverflow.ellipsis,style:TextStyle(color:fg,fontSize:sxDouble(s['font_size'],9),fontWeight:_weight(sxInt(s['font_weight'],800)))),
-    );
-    final pos=sxText(s['position']);
-    return _galleryBadgePosition(pos, chip);
-  }).toList();
-}
-Widget _galleryBadgePosition(String position, Widget child) {
-  switch (position) {
-    case 'top_left':
-      return Positioned(top: 8, left: 8, child: child);
-    case 'bottom_left':
-      return Positioned(bottom: 8, left: 8, child: child);
-    case 'bottom_right':
-      return Positioned(bottom: 8, right: 8, child: child);
-    case 'right_of_image':
-      return Positioned(
-        top: 0,
-        right: 0,
-        bottom: 0,
-        child: Center(child: child),
-      );
-    default:
-      return Positioned(top: 48, right: 8, child: child);
   }
 }
 
