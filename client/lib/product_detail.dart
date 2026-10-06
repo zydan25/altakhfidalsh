@@ -757,11 +757,55 @@ class _SxProductScreenState extends State<SxProductScreen> {
       }
     }
 
+    final fallbackGroups = <Map<String, dynamic>>[
+      {
+        'title': 'العروض وبيانات المنتج',
+        'items': ['trend', 'name', 'badges', 'price', 'promotions', 'description', 'rating', 'brand'],
+        'show': true,
+      },
+      {
+        'title': 'الصور والألوان والمقاسات',
+        'items': ['thumbs', 'colors', 'sizes', 'size_guide'],
+        'show': true,
+      },
+      {
+        'title': 'التفاصيل والخدمات',
+        'items': ['details', 'stock', 'delivery', 'policies', 'reviews'],
+        'show': true,
+      },
+      {
+        'title': 'اقتراحات التسوق',
+        'items': ['related'],
+        'show': true,
+      },
+    ];
+
+    final rawGroups = detailSettings['detail_groups'];
+    final detailGroups = rawGroups is List
+        ? rawGroups
+            .whereType<Map>()
+            .map((group) => Map<String, dynamic>.from(group))
+            .where((group) => _maps(group['items']).isNotEmpty || group['items'] is List)
+            .toList()
+        : fallbackGroups;
+
     final orderedSections = <Widget>[];
+    final variantKeys = {'thumbs', 'sizes', 'colors', 'size_guide'};
+    final policyKeys = {'delivery', 'policies'};
+    var galleryRendered = false;
     var variantBoxAdded = false;
     var policyBoxAdded = false;
+    final renderedKeys = <String>{};
 
-    Widget? buildVariantBox() {
+    Widget? boxedGeneralGroup(String title, List<Widget> children) {
+      if (children.isEmpty) return null;
+      return _DetailGroupBox(
+        children: children,
+        title: title,
+      );
+    }
+
+    Widget? buildVariantBoxOnce() {
       if (variantBoxAdded) return null;
       variantBoxAdded = true;
       final guide = _asMap(data['size_guide']);
@@ -776,7 +820,6 @@ class _SxProductScreenState extends State<SxProductScreen> {
           'body_measurements': <String, dynamic>{},
         }).toList(),
       };
-      final effectiveGuide = guide.isEmpty ? fallbackGuide : guide;
       return _DetailVariantSelectionBox(
         media: media,
         page: page,
@@ -789,7 +832,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
         showThumbs: detailSettings['thumbs_show'] != false,
         showSizes: detailSettings['sizes_show'] != false,
         showColors: detailSettings['colors_show'] != false,
-        sizeGuide: effectiveGuide,
+        sizeGuide: guide.isEmpty ? fallbackGuide : guide,
         showSizeGuide: detailSettings['size_guide_show'] != false,
         onGalleryChanged: _onGalleryPageChanged,
         onColor: _selectColor,
@@ -797,7 +840,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
       );
     }
 
-    Widget? buildPolicyBox() {
+    Widget? buildPolicyBoxOnce() {
       if (policyBoxAdded) return null;
       policyBoxAdded = true;
       return _DeliveryPolicyBox(
@@ -807,44 +850,97 @@ class _SxProductScreenState extends State<SxProductScreen> {
       );
     }
 
-    final variantKeys = {'thumbs', 'sizes', 'colors', 'size_guide'};
-    final policyKeys = {'delivery', 'policies'};
-    for (var i = 0; i < detailOrder.length; i++) {
-      final key = detailOrder[i];
-      if (variantKeys.contains(key)) {
-        final section = buildVariantBox();
-        if (section != null) {
-          orderedSections.add(SliverToBoxAdapter(child: section));
+    // Main gallery is intentionally standalone, like the SHEIN product page.
+    if (detailSettings['gallery_show'] != false) {
+      orderedSections.add(
+        SliverToBoxAdapter(
+          child: SxGallery(
+            rows: media,
+            page: page,
+            aspectRatio: sxDouble(detailSettings['gallery_ratio'], .78),
+            changed: _onGalleryPageChanged,
+            badges: _maps(data['badges']),
+          ),
+        ),
+      );
+      galleryRendered = true;
+    }
+
+    for (final group in detailGroups) {
+      if (group['show'] == false) continue;
+      final rawItems = group['items'];
+      final keys = rawItems is List
+          ? rawItems.map((x) => sxText(x)).where((x) => x.isNotEmpty).toList()
+          : <String>[];
+      if (keys.isEmpty) continue;
+
+      final generalChildren = <Widget>[];
+      final groupTitle = sxText(group['title']);
+      for (final key in keys) {
+        if (key == 'gallery') {
+          if (galleryRendered) continue;
+          if (detailSettings['gallery_show'] != false) {
+            orderedSections.add(
+              SliverToBoxAdapter(
+                child: SxGallery(
+                  rows: media,
+                  page: page,
+                  aspectRatio: sxDouble(detailSettings['gallery_ratio'], .78),
+                  changed: _onGalleryPageChanged,
+                  badges: _maps(data['badges']),
+                ),
+              ),
+            );
+            galleryRendered = true;
+          }
+          renderedKeys.add(key);
+          continue;
         }
-        continue;
-      }
-      if (policyKeys.contains(key)) {
-        final section = buildPolicyBox();
-        if (section != null) {
-          orderedSections.add(SliverToBoxAdapter(child: section));
+        if (variantKeys.contains(key)) {
+          final variant = buildVariantBoxOnce();
+          if (variant != null) orderedSections.add(SliverToBoxAdapter(child: variant));
+          renderedKeys.add(key);
+          continue;
         }
-        continue;
+        if (policyKeys.contains(key)) {
+          final policy = buildPolicyBoxOnce();
+          if (policy != null) orderedSections.add(SliverToBoxAdapter(child: policy));
+          renderedKeys.add(key);
+          continue;
+        }
+        final section = detailSection(key);
+        if (section != null && renderedKeys.add(key)) {
+          generalChildren.add(section);
+        }
       }
-      if (key == 'name' &&
-          i + 2 < detailOrder.length &&
-          detailOrder[i + 1] == 'description' &&
-          detailOrder[i + 2] == 'rating') {
-        final merged = _DetailNameRatingBlock(
-          name: sxText(product['name'], 'منتج'),
-          description: shortDescription,
-          average: average,
-          reviewCount: reviewCount,
-          settings: detailSettings,
+
+      if (generalChildren.isNotEmpty) {
+        orderedSections.insert(
+          orderedSections.length,
+          SliverToBoxAdapter(
+            child: boxedGeneralGroup(groupTitle, generalChildren),
+          ),
         );
-        orderedSections.add(SliverToBoxAdapter(child: merged));
-        i += 2;
+      }
+    }
+
+    // Legacy/partial settings fallback: anything not assigned to a group still renders.
+    final legacyRemainder = <Widget>[];
+    for (final key in detailOrder) {
+      if (key == 'gallery' || renderedKeys.contains(key) || variantKeys.contains(key) || policyKeys.contains(key)) {
         continue;
       }
       final section = detailSection(key);
-      if (section != null) {
-        orderedSections.add(SliverToBoxAdapter(child: section));
-      }
+      if (section != null && renderedKeys.add(key)) legacyRemainder.add(section);
     }
+    if (legacyRemainder.isNotEmpty) {
+      orderedSections.add(
+        SliverToBoxAdapter(
+          child: boxedGeneralGroup('قسم تفاصيل', legacyRemainder),
+        ),
+      );
+    }
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -2154,7 +2250,7 @@ class _RelatedProductsSection extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (_) => _RecommendationProductsScreen(
-                          displaySettings: cardSettings,
+                          displaySettings: displaySettings,
                         ),
                       ),
                     ),
