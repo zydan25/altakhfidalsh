@@ -1,0 +1,349 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<style>
+.sg-wrap{display:grid;gap:14px}
+.sg-panel{background:#fff;border:1px solid #e7e7e7;border-radius:14px;padding:14px}
+.sg-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.sg-title{font-size:16px;font-weight:900;margin:0}
+.sg-muted{color:#777;font-size:12px;line-height:1.7}
+.sg-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sg-field{display:grid;gap:5px}
+.sg-field.full{grid-column:1/-1}
+.sg-field label{font-size:11px;font-weight:800;color:#555}
+.sg-field input,.sg-field select,.sg-field textarea{width:100%;border:1px solid #ddd;border-radius:9px;padding:9px 10px;background:#fff;box-sizing:border-box}
+.sg-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}
+.sg-btn{border:0;border-radius:9px;padding:9px 12px;font-weight:800;cursor:pointer;background:#111;color:#fff}
+.sg-btn.light{background:#f4f4f5;color:#222}
+.sg-btn.danger{background:#fee2e2;color:#991b1b}
+.sg-btn.small{padding:6px 8px;font-size:11px}
+.sg-list{display:grid;gap:7px}
+.sg-guide-card{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;border:1px solid #e7e7e7;border-radius:10px;background:#fafafa}
+.sg-guide-card.is-selected{border-color:#111;background:#f7f7f7}
+.sg-guide-main{display:grid;gap:2px;min-width:0}
+.sg-guide-main strong{font-size:12px}
+.sg-guide-main small{font-size:10px;color:#777}
+.sg-col-list{display:grid;gap:7px}
+.sg-col{display:grid;grid-template-columns:1fr .7fr .55fr auto;gap:7px;align-items:end;padding:9px;background:#fafafa;border:1px solid #e7e7e7;border-radius:10px}
+.sg-col label{font-size:10px;font-weight:800;color:#666;display:grid;gap:4px}
+.sg-col input{border:1px solid #ddd;border-radius:8px;padding:8px;background:#fff}
+.sg-table-wrap{overflow:auto;border:1px solid #e3e3e3;border-radius:11px}
+.sg-table{border-collapse:collapse;min-width:920px;width:max-content}
+.sg-table th,.sg-table td{border-bottom:1px solid #ededed;border-left:1px solid #ededed;padding:7px;vertical-align:middle}
+.sg-table th{position:sticky;top:0;background:#f7f7f7;font-size:10px;white-space:nowrap}
+.sg-table td input,.sg-table td select{width:110px;min-width:110px;border:1px solid #ddd;border-radius:7px;padding:7px 6px;box-sizing:border-box}
+.sg-table .size-cell select{width:145px;min-width:145px;font-weight:800}
+.sg-section-title{font-size:12px;font-weight:900;margin:14px 0 8px}
+.sg-note{padding:9px 10px;border-radius:9px;background:#f7f7f7;color:#555;font-size:10.5px;line-height:1.7}
+@media(max-width:760px){
+  .sg-grid{grid-template-columns:1fr}
+  .sg-col{grid-template-columns:1fr 1fr}
+  .sg-col label:last-of-type{grid-column:1/2}
+  .sg-col .sg-btn{grid-column:2}
+}
+</style>
+
+<div class="sg-wrap">
+  <section class="sg-panel">
+    <div class="sg-head">
+      <div>
+        <h2 class="sg-title">إدارة جداول المقاسات</h2>
+        <div class="sg-muted">أنشئ جدولًا مستقلًا، ثم عرّف أعمدة قياسات المنتج وقياسات الجسم. لكل مقاس صف مستقل وقيم مستقلة.</div>
+      </div>
+    </div>
+
+    {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+    {% if success %}<div class="alert alert-success">{{ success }}</div>{% endif %}
+
+    <div class="sg-section-title">الجداول الحالية</div>
+    <div class="sg-list">
+      {% for guide in guides %}
+      <a class="sg-guide-card {% if selected_guide and selected_guide.id == guide.id %}is-selected{% endif %}" href="{{ url_for('admin.size_guides_page', id=guide.id) }}" style="text-decoration:none;color:inherit;">
+        <div class="sg-guide-main">
+          <strong>{{ guide.name }}</strong>
+          <small>{{ guide.guide_type }}{% if guide.fit_type %} · {{ guide.fit_type }}{% endif %}</small>
+        </div>
+        <span class="status-pill">#{{ guide.id }}</span>
+      </a>
+      {% endfor %}
+      {% if not guides %}<div class="sg-note">لا يوجد جدول مقاسات فعال. أنشئ أول جدول من النموذج أدناه.</div>{% endif %}
+    </div>
+
+    <div class="sg-section-title">إنشاء جدول جديد</div>
+    <form method="post" class="sg-grid">
+      <input type="hidden" name="action" value="create">
+      <div class="sg-field">
+        <label>اسم الجدول</label>
+        <input name="name" required placeholder="ملابس نسائية - سم">
+      </div>
+      <div class="sg-field">
+        <label>نوع الجدول</label>
+        <select name="guide_type">
+          <option value="product">قياسات المنتج</option>
+          <option value="body">قياسات الجسم</option>
+          <option value="mixed">منتج + جسم</option>
+        </select>
+      </div>
+      <div class="sg-field">
+        <label>نوع القوام</label>
+        <input name="fit_type" placeholder="نسائي / عادي / Oversized">
+      </div>
+      <div class="sg-field full">
+        <label>النص التعريفي</label>
+        <textarea name="intro_text" rows="2" placeholder="اختر المقاس وفق قياسات المنتج والجسم."></textarea>
+      </div>
+      <div class="sg-actions full"><button class="sg-btn" type="submit">+ إنشاء جدول</button></div>
+    </form>
+  </section>
+
+  {% if selected_guide %}
+  <section class="sg-panel">
+    <div class="sg-head">
+      <div>
+        <h2 class="sg-title">الجدول: {{ selected_guide.name }}</h2>
+        <div class="sg-muted">يمكن تعديل الاسم والنوع، ثم حفظ شبكة القياسات والأعمدة في الأسفل.</div>
+      </div>
+      <form method="post" onsubmit="return confirm('أرشفة جدول المقاسات؟')">
+        <input type="hidden" name="action" value="archive">
+        <input type="hidden" name="id" value="{{ selected_guide.id }}">
+        <button class="sg-btn danger small" type="submit">أرشفة الجدول</button>
+      </form>
+    </div>
+
+    <form method="post" class="sg-grid" style="margin-top:12px">
+      <input type="hidden" name="action" value="update">
+      <input type="hidden" name="id" value="{{ selected_guide.id }}">
+      <div class="sg-field">
+        <label>اسم الجدول</label>
+        <input name="name" value="{{ selected_guide.name }}" required>
+      </div>
+      <div class="sg-field">
+        <label>نوع الجدول</label>
+        <select name="guide_type">
+          {% for option in ['product','body','mixed'] %}
+          <option value="{{ option }}" {% if selected_guide.guide_type == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="sg-field">
+        <label>نوع القوام</label>
+        <input name="fit_type" value="{{ selected_guide.fit_type or '' }}">
+      </div>
+      <div class="sg-field full">
+        <label>النص التعريفي</label>
+        <textarea name="intro_text" rows="2">{{ selected_guide.intro_text or '' }}</textarea>
+      </div>
+      <div class="sg-actions full"><button class="sg-btn light" type="submit">حفظ بيانات الجدول</button></div>
+    </form>
+
+    <div class="sg-note" style="margin-top:12px">
+      <strong>طريقة العمل:</strong>
+      أضف الأعمدة التي تريد ظهورها في الشبكة مثل الطول والعرض والصدر وطول الكم.
+      الأعمدة ليست مرتبطة بمقاس محدد؛ عند إضافة L أو كبير تحدد القيمة في خلية ذلك الصف.
+    </div>
+
+    <div class="sg-section-title">أعمدة قياسات المنتج</div>
+    <div id="productColumns" class="sg-col-list"></div>
+    <div class="sg-actions">
+      <button class="sg-btn light small" type="button" data-add-column="product">+ عمود قياس منتج</button>
+    </div>
+
+    <div class="sg-section-title">أعمدة قياسات الجسم</div>
+    <div id="bodyColumns" class="sg-col-list"></div>
+    <div class="sg-actions">
+      <button class="sg-btn light small" type="button" data-add-column="body">+ عمود قياس جسم</button>
+    </div>
+
+    <div class="sg-section-title">شبكة المقاسات والقيم</div>
+    <div class="sg-table-wrap">
+      <table class="sg-table">
+        <thead id="sizeTableHead"></thead>
+        <tbody id="sizeTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="sg-actions">
+      <button class="sg-btn light small" type="button" id="addSizeRow">+ إضافة مقاس إلى الجدول</button>
+    </div>
+
+    <form id="gridForm" method="post" style="margin-top:12px">
+      <input type="hidden" name="action" value="save_grid">
+      <input type="hidden" name="id" value="{{ selected_guide.id }}">
+      <input type="hidden" name="product_columns_json" id="productColumnsJson">
+      <input type="hidden" name="body_columns_json" id="bodyColumnsJson">
+      <input type="hidden" name="rows_json" id="rowsJson">
+      <button class="sg-btn" type="submit">حفظ شبكة المقاسات بالكامل</button>
+    </form>
+
+    {% if archived_guides %}
+    <div class="sg-section-title">الأرشيف</div>
+    <div class="sg-list">
+      {% for guide in archived_guides %}
+      <div class="sg-guide-card">
+        <div class="sg-guide-main"><strong>{{ guide.name }}</strong><small>#{{ guide.id }}</small></div>
+        <form method="post">
+          <input type="hidden" name="action" value="restore">
+          <input type="hidden" name="id" value="{{ guide.id }}">
+          <button class="sg-btn light small" type="submit">استعادة</button>
+        </form>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+
+<script>
+(() => {
+  const initialProductColumns = {{ (selected_guide.product_columns_json if selected_guide else [])|tojson }};
+  const initialBodyColumns = {{ (selected_guide.body_columns_json if selected_guide else [])|tojson }};
+  const initialRows = {{ guide_rows|tojson }};
+  const sizes = {{ sizes|tojson }};
+  let productColumns = Array.isArray(initialProductColumns) ? initialProductColumns.map(x => ({...x})) : [];
+  let bodyColumns = Array.isArray(initialBodyColumns) ? initialBodyColumns.map(x => ({...x})) : [];
+  let rows = Array.isArray(initialRows) ? initialRows.map(x => ({
+    ...x,
+    product_measurements: {...(x.product_measurements || {})},
+    body_measurements: {...(x.body_measurements || {})},
+  })) : [];
+
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[ch]));
+  const slug = value => String(value || '')
+    .trim().toLowerCase()
+    .replace(/[^a-zA-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'') || 'metric';
+
+  const renderColumns = (kind) => {
+    const target = kind === 'product' ? productColumns : bodyColumns;
+    const root = document.getElementById(kind === 'product' ? 'productColumns' : 'bodyColumns');
+    root.innerHTML = target.map((col,index) =>
+      '<div class="sg-col" data-column-kind="'+kind+'" data-column-index="'+index+'">'+
+        '<label>المسمى<input data-col="label" value="'+esc(col.label||'')+'" placeholder="الطول"></label>'+
+        '<label>المفتاح<input data-col="key" dir="ltr" value="'+esc(col.key||'')+'" placeholder="length"></label>'+
+        '<label>الوحدة<input data-col="unit" value="'+esc(col.unit||'')+'" placeholder="سم"></label>'+
+        '<button type="button" class="sg-btn danger small" data-remove-column>حذف</button>'+
+      '</div>'
+    ).join('') || '<div class="sg-note">لا توجد أعمدة. أضف أول عمود لبدء الشبكة.</div>';
+  };
+
+  const sizeOptions = selected => '<option value="">اختر المقاس</option>' +
+    sizes.map(s => '<option value="'+s.id+'" '+(Number(s.id)===Number(selected)?'selected':'')+'>'+
+      esc(s.label)+' · '+esc(s.code)+' · '+esc(s.group)+'</option>').join('');
+
+  const renderTable = () => {
+    const head = document.getElementById('sizeTableHead');
+    const body = document.getElementById('sizeTableBody');
+    const cols = [
+      ...productColumns.map(c => ({...c, scope:'product'})),
+      ...bodyColumns.map(c => ({...c, scope:'body'})),
+    ];
+    head.innerHTML =
+      '<tr><th>المقاس</th>'+
+      productColumns.map(c => '<th>منتج · '+esc(c.label)+(c.unit?' ('+esc(c.unit)+')':'')+'</th>').join('')+
+      bodyColumns.map(c => '<th>جسم · '+esc(c.label)+(c.unit?' ('+esc(c.unit)+')':'')+'</th>').join('')+
+      '<th>إجراء</th></tr>';
+
+    body.innerHTML = rows.map((row,index) => {
+      const productCells = productColumns.map(c =>
+        '<td><input data-row-scope="product" data-row-column="'+esc(c.key)+'" data-row-index="'+index+'" value="'+esc((row.product_measurements||{})[c.key]||'')+'" placeholder="—"></td>'
+      ).join('');
+      const bodyCells = bodyColumns.map(c =>
+        '<td><input data-row-scope="body" data-row-column="'+esc(c.key)+'" data-row-index="'+index+'" value="'+esc((row.body_measurements||{})[c.key]||'')+'" placeholder="—"></td>'
+      ).join('');
+      return '<tr data-row-index="'+index+'">'+
+        '<td class="size-cell"><select data-size-row="'+index+'">'+sizeOptions(row.size_id)+'</select></td>'+
+        productCells+bodyCells+
+        '<td><button class="sg-btn danger small" type="button" data-remove-row="'+index+'">حذف</button></td>'+
+      '</tr>';
+    }).join('') || '<tr><td colspan="'+(cols.length+2)+'"><div class="sg-note">أضف مقاسًا إلى الجدول.</div></td></tr>';
+  };
+
+  const syncEditors = () => {
+    document.querySelectorAll('[data-column-kind]').forEach(card => {
+      const kind = card.dataset.columnKind;
+      const index = Number(card.dataset.columnIndex);
+      const target = kind === 'product' ? productColumns : bodyColumns;
+      const get = field => card.querySelector('[data-col="'+field+'"]');
+      if (!target[index]) return;
+      target[index].label = (get('label')?.value || '').trim();
+      target[index].key = (get('key')?.value || '').trim();
+      target[index].unit = (get('unit')?.value || '').trim();
+    });
+  };
+
+  document.querySelectorAll('[data-add-column]').forEach(btn => btn.addEventListener('click', () => {
+    syncEditors();
+    const kind = btn.dataset.addColumn;
+    const target = kind === 'product' ? productColumns : bodyColumns;
+    const nextIndex = target.length + 1;
+    target.push({
+      key: 'metric_' + nextIndex,
+      label: kind === 'product' ? 'قياس منتج '+nextIndex : 'قياس جسم '+nextIndex,
+      unit: 'سم'
+    });
+    renderColumns('product'); renderColumns('body'); renderTable();
+  }));
+
+  document.addEventListener('click', e => {
+    const column = e.target.closest('[data-remove-column]');
+    if(column){
+      syncEditors();
+      const kind = column.dataset.columnKind;
+      const index = Number(column.dataset.columnIndex);
+      const target = kind === 'product' ? productColumns : bodyColumns;
+      target.splice(index,1);
+      renderColumns('product'); renderColumns('body'); renderTable();
+      return;
+    }
+    const removeRow = e.target.closest('[data-remove-row]');
+    if(removeRow){
+      rows.splice(Number(removeRow.dataset.removeRow),1);
+      renderTable();
+    }
+  });
+
+  document.addEventListener('input', e => {
+    const cell = e.target.closest('[data-row-scope]');
+    if(!cell) return;
+    const index = Number(cell.dataset.rowIndex);
+    const key = cell.dataset.rowColumn;
+    const scope = cell.dataset.rowScope === 'product' ? 'product_measurements' : 'body_measurements';
+    rows[index][scope] = rows[index][scope] || {};
+    rows[index][scope][key] = cell.value;
+  });
+
+  document.addEventListener('change', e => {
+    const size = e.target.closest('[data-size-row]');
+    if(size){
+      const index = Number(size.dataset.sizeRow);
+      rows[index].size_id = Number(size.value || 0);
+    }
+  });
+
+  document.getElementById('addSizeRow')?.addEventListener('click', () => {
+    const free = sizes.find(s => !rows.some(r => Number(r.size_id) === Number(s.id)));
+    if(!free){ alert('تمت إضافة جميع المقاسات المتاحة إلى الجدول.'); return; }
+    rows.push({
+      size_id: Number(free.id),
+      product_measurements: {},
+      body_measurements: {}
+    });
+    renderTable();
+  });
+
+  document.getElementById('gridForm')?.addEventListener('submit', () => {
+    syncEditors();
+    productColumns = productColumns.filter(x => String(x.label||'').trim());
+    bodyColumns = bodyColumns.filter(x => String(x.label||'').trim());
+    document.getElementById('productColumnsJson').value = JSON.stringify(productColumns);
+    document.getElementById('bodyColumnsJson').value = JSON.stringify(bodyColumns);
+    document.getElementById('rowsJson').value = JSON.stringify(rows);
+  });
+
+  renderColumns('product');
+  renderColumns('body');
+  renderTable();
+})();
+</script>
+{% endblock %}
