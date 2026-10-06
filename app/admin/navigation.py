@@ -32,6 +32,7 @@ NAVIGATION = [
         NavItem("شريط الأقسام", "/admin/category-strip", "≡"),
         NavItem("العلامات التجارية", "/admin/brands", "T"),
         NavItem("الألوان والمقاسات", "/admin/options", "●"),
+        NavItem("جداول المقاسات", "/admin/size-guides", "▦"),
         NavItem("المتغيرات والمخزون", "/admin/inventory", "L"),
         NavItem("مكتبة الوسائط", "/admin/media", "▧"),
         NavItem("الشارات العامة", "/admin/badges", "◇"),
