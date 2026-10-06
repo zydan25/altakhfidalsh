@@ -2431,6 +2431,11 @@ class CatalogService:
                 "name": color.name,
                 "hex_code": color.hex_code,
                 "swatch_asset_id": color.swatch_asset_id,
+                "swatch_asset_url": (
+                    db.session.get(MediaAsset, color.swatch_asset_id).url
+                    if color.swatch_asset_id and db.session.get(MediaAsset, color.swatch_asset_id)
+                    else None
+                ),
             }
             for row, color in color_reference_rows
         ]
