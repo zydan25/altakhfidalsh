@@ -2816,7 +2816,7 @@ class CatalogService:
         defaults = {
             "detail_order": [
                 "badges", "gallery", "thumbs", "trend", "price", "promotions",
-                "name", "rating", "brand", "colors", "sizes", "size_guide",
+                "name", "description", "rating", "brand", "colors", "sizes", "size_guide",
                 "details", "stock", "delivery", "policies", "reviews", "related",
             ],
             "gallery_show": True,
@@ -2836,6 +2836,11 @@ class CatalogService:
             "name_font_weight": 800,
             "name_max_lines": 4,
             "name_color": "#111111",
+
+            "description_show": True,
+            "description_font_size": 10.5,
+            "description_max_lines": 3,
+            "description_color": "#6b7280",
 
             "price_show": True,
             "price_font_size": 22.0,
@@ -2941,7 +2946,7 @@ class CatalogService:
 
         allowed_order = [
             "badges", "gallery", "thumbs", "trend", "price", "promotions",
-            "name", "rating", "brand", "colors", "sizes", "size_guide",
+            "name", "description", "rating", "brand", "colors", "sizes", "size_guide",
             "details", "stock", "delivery", "policies", "reviews", "related",
         ]
         raw_order = merged.get("detail_order")
@@ -2999,6 +3004,8 @@ class CatalogService:
             ("name_font_size", 14, 32, False),
             ("name_font_weight", 400, 900, True),
             ("name_max_lines", 2, 6, True),
+            ("description_font_size", 7, 18, False),
+            ("description_max_lines", 1, 5, True),
             ("price_font_size", 14, 34, False),
             ("price_font_weight", 400, 900, True),
             ("compare_price_font_size", 7, 20, False),
@@ -3036,6 +3043,7 @@ class CatalogService:
         merged["thumbs_show"] = flag("thumbs_show")
         merged["badges_show"] = flag("badges_show")
         merged["name_show"] = flag("name_show")
+        merged["description_show"] = flag("description_show")
         merged["price_show"] = flag("price_show")
         merged["show_compare_price"] = flag("show_compare_price")
         merged["show_currency"] = flag("show_currency")
@@ -3062,7 +3070,7 @@ class CatalogService:
         merged["price_text"] = str(merged.get("price_text") or defaults["price_text"])[:80]
 
         for key in (
-            "name_color", "price_color", "compare_price_color", "currency_color",
+            "name_color", "description_color", "price_color", "compare_price_color", "currency_color",
             "price_text_color", "brand_color",
             "sizes_background_color", "sizes_text_color",
             "sizes_selected_background_color", "sizes_selected_text_color",
