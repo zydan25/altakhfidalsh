@@ -2989,6 +2989,8 @@ class CatalogService:
             "card_background_color": "#ffffff",
             "card_background_opacity": 1.0,
             "card_radius": 4,
+            "image_to_content_gap": 4,
+            "content_vertical_gap": 2,
             "show_name": True,
             "name_font_size": 11,
             "name_font_weight": 600,
