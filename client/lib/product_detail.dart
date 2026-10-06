@@ -1654,69 +1654,67 @@ class _DetailPromotionsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (strips.isEmpty && campaigns.isEmpty) return const SizedBox.shrink();
+
     return Container(
       color: Colors.white,
       child: Column(
         children: [
           for (final strip in strips)
-            InkWell(
-              onTap: () {},
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 42),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                decoration: const BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: Color(0xFFF0F0F0), width: .7),
+            Container(
+              constraints: const BoxConstraints(minHeight: 42),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Color(0xFFF0F0F0), width: .7),
+                ),
+              ),
+              child: Row(
+                textDirection: TextDirection.rtl,
+                children: [
+                  Icon(
+                    _iconFor(strip),
+                    size: 16,
+                    color: sxColor(
+                      sxText(strip['text_color']),
+                      const Color(0xFF7C2D12),
+                    ),
                   ),
-                ),
-                child: Row(
-                  textDirection: TextDirection.rtl,
-                  children: [
-                    Icon(
-                      _iconFor(strip),
-                      size: 16,
-                      color: sxColor(
-                        sxText(strip['text_color']),
-                        const Color(0xFF7C2D12),
-                      ),
-                    ),
-                    const SizedBox(width: 7),
-                    if (sxText(strip['prefix']).isNotEmpty)
-                      Text(
-                        sxText(strip['prefix']),
-                        style: TextStyle(
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w900,
-                          color: sxColor(
-                            sxText(strip['text_color']),
-                            const Color(0xFF7C2D12),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        sxText(strip['text'], sxText(strip['name'], 'عرض خاص')),
-                        textAlign: TextAlign.right,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          color: sxColor(
-                            sxText(strip['text_color']),
-                            const Color(0xFF7C2D12),
-                          ),
+                  const SizedBox(width: 7),
+                  if (sxText(strip['prefix']).isNotEmpty)
+                    Text(
+                      sxText(strip['prefix']),
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w900,
+                        color: sxColor(
+                          sxText(strip['text_color']),
+                          const Color(0xFF7C2D12),
                         ),
                       ),
                     ),
-                    const Icon(
-                      Icons.chevron_left,
-                      size: 17,
-                      color: Color(0xFF777777),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      sxText(strip['text'], sxText(strip['name'], 'عرض خاص')),
+                      textAlign: TextAlign.right,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                        color: sxColor(
+                          sxText(strip['text_color']),
+                          const Color(0xFF7C2D12),
+                        ),
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                  const Icon(
+                    Icons.chevron_left,
+                    size: 17,
+                    color: Color(0xFF777777),
+                  ),
+                ],
               ),
             ),
           for (final campaign in campaigns)
@@ -1752,6 +1750,750 @@ class _DetailPromotionsSection extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RecommendationProductsScreen extends StatefulWidget {
+  final Map<String, dynamic> displaySettings;
+
+  const _RecommendationProductsScreen({
+    this.displaySettings = const {},
+  });
+
+  @override
+  State<_RecommendationProductsScreen> createState() => _RecommendationProductsScreenState();
+}
+
+class _RecommendationProductsScreenState extends State<_RecommendationProductsScreen> {
+  List<ProductModel> products = const [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rows = await api.feed(
+        currencyId: state.currencyId,
+        sort: 'recommended',
+        discoveryTab: null,
+      );
+      if (!mounted) return;
+      setState(() => products = rows);
+    } catch (_) {
+      if (mounted) setState(() => products = const []);
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Directionality(
+    textDirection: TextDirection.rtl,
+    child: Scaffold(
+      backgroundColor: const Color(0xFFF7F7F7),
+      appBar: AppBar(
+        title: const Text(
+          'التوصية',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+        ),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      ),
+      body: loading
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : products.isEmpty
+              ? const Center(child: Text('لا توجد توصيات حاليًا.'))
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(6, 3, 6, 18),
+                  child: SxProductGrid(
+                    products: products,
+                    masonry: true,
+                    displaySettings: widget.displaySettings,
+                    onProductTap: (product) => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SxProductScreen(
+                          id: product.id,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+    ),
+  );
+}
+
+
+String _priceInArabicWords(String price, String currency) {
+  final value = double.tryParse(price.replaceAll(',', '').trim());
+  if (value == null) return price;
+  final whole = value.floor();
+  final minor = ((value - whole) * 100).round().clamp(0, 99);
+  final major = _arabicCurrencyMajor(currency);
+  final minorName = _arabicCurrencyMinor(currency);
+  if (minor == 0) return _arabicIntegerWords(whole) + ' ' + major;
+  return _arabicIntegerWords(whole) + ' ' + major + ' و' +
+      _arabicIntegerWords(minor) + ' ' + minorName;
+}
+
+String _arabicCurrencyMajor(String currency) {
+  final c = currency.trim().toUpperCase();
+  if (c.contains('SAR') || c == 'ر.س' || c.contains('ريال')) return 'ريال سعودي';
+  if (c.contains('AED') || c.contains('د.إ') || c.contains('درهم')) return 'درهم إماراتي';
+  if (c.contains('KWD') || c.contains('د.ك') || c.contains('دينار')) return 'دينار كويتي';
+  if (c.contains('BHD') || c.contains('د.ب')) return 'دينار بحريني';
+  if (c.contains('QAR') || c.contains('ر.ق')) return 'ريال قطري';
+  if (c.contains('OMR') || c.contains('ر.ع')) return 'ريال عماني';
+  if (c.contains('EGP') || c.contains('ج.م') || c.contains('جنيه')) return 'جنيه مصري';
+  if (c == '€' || c.contains('EUR') || c.contains('يورو')) return 'يورو';
+  if (c == r'$' || c.contains('USD') || c.contains('دولار')) return 'دولار أمريكي';
+  return currency.isEmpty ? 'وحدة' : currency;
+}
+
+String _arabicCurrencyMinor(String currency) {
+  final c = currency.trim().toUpperCase();
+  if (c.contains('SAR') || c == 'ر.س' || c.contains('ريال')) return 'هللة';
+  if (c.contains('AED') || c.contains('د.إ') || c.contains('درهم')) return 'فلس';
+  if (c.contains('KWD') || c.contains('د.ك') || c.contains('دينار')) return 'فلس';
+  if (c.contains('EGP') || c.contains('ج.م') || c.contains('جنيه')) return 'قرش';
+  if (c == '€' || c.contains('EUR') || c.contains('يورو')) return 'سنت';
+  if (c == r'$' || c.contains('USD') || c.contains('دولار')) return 'سنت';
+  return 'جزء';
+}
+
+String _arabicIntegerWords(int number) {
+  if (number == 0) return 'صفر';
+  const ones = <String>[
+    '', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة',
+    'ثمانية', 'تسعة', 'عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر',
+    'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر',
+    'تسعة عشر',
+  ];
+  const tens = <String>[
+    '', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون',
+    'سبعون', 'ثمانون', 'تسعون',
+  ];
+  if (number < 20) return ones[number];
+  if (number < 100) {
+    final t = number ~/ 10;
+    final o = number % 10;
+    return o == 0 ? tens[t] : ones[o] + ' و' + tens[t];
+  }
+  if (number < 1000) {
+    final h = number ~/ 100;
+    final r = number % 100;
+    const hundreds = <String>[
+      '', 'مائة', 'مائتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة',
+      'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة',
+    ];
+    return r == 0 ? hundreds[h] : hundreds[h] + ' و' + _arabicIntegerWords(r);
+  }
+  if (number < 1000000) {
+    final k = number ~/ 1000;
+    final r = number % 1000;
+    final kWord = k == 1
+        ? 'ألف'
+        : k == 2
+            ? 'ألفان'
+            : k < 11
+                ? _arabicIntegerWords(k) + ' آلاف'
+                : _arabicIntegerWords(k) + ' ألف';
+    return r == 0 ? kWord : kWord + ' و' + _arabicIntegerWords(r);
+  }
+  if (number < 1000000000) {
+    final m = number ~/ 1000000;
+    final r = number % 1000000;
+    final mWord = m == 1
+        ? 'مليون'
+        : m == 2
+            ? 'مليونان'
+            : _arabicIntegerWords(m) + ' مليون';
+    return r == 0 ? mWord : mWord + ' و' + _arabicIntegerWords(r);
+  }
+  return number.toString();
+}
+
+int _detailDiscount(String current, String previous) {
+  final now = double.tryParse(current.replaceAll(',', '').trim());
+  final old = double.tryParse(previous.replaceAll(',', '').trim());
+  if (now == null || old == null || old <= now || old <= 0) return 0;
+  return ((1 - now / old) * 100).round();
+}
+
+class _DetailGroupBox extends StatelessWidget {
+  final List<Widget> children;
+  final String title;
+  final Map<String, dynamic> settings;
+
+  const _DetailGroupBox({
+    required this.children,
+    required this.title,
+    this.settings = const {},
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final layout = sxText(settings['layout_mode'], 'shein');
+    final showTitle = settings['group_show_titles'] == true;
+    final dividerMode = sxText(settings['group_divider'], 'subtle');
+    final bg = sxColor(
+      sxText(settings['group_background_color']),
+      Colors.white,
+    );
+    final borderColor = sxColor(
+      sxText(settings['group_border_color']),
+      const Color(0xFFF0F0F0),
+    );
+    final dividerColor = sxColor(
+      sxText(settings['group_divider_color']),
+      const Color(0xFFEEEEEE),
+    );
+    final borderWidth = sxDouble(settings['group_border_width'], layout == 'boxed' ? .7 : 0);
+    final radius = sxDouble(settings['group_radius'], layout == 'boxed' ? 8 : 0);
+    final marginTop = sxDouble(settings['group_margin_top'], 0);
+    final horizontal = sxDouble(settings['group_padding_horizontal'], 12);
+    final vertical = sxDouble(settings['group_padding_vertical'], 10);
+
+    final wrapped = <Widget>[];
+    if (showTitle && title.trim().isNotEmpty) {
+      wrapped.add(
+        Padding(
+          padding: EdgeInsets.fromLTRB(horizontal, vertical, horizontal, 7),
+          child: Text(
+            title,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+          ),
+        ),
+      );
+    }
+    wrapped.addAll(children);
+
+    return Container(
+      margin: EdgeInsets.only(top: marginTop),
+      decoration: BoxDecoration(
+        color: bg,
+        border: Border.all(color: borderColor, width: borderWidth),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < wrapped.length; i++) ...[
+            if (i > 0 && dividerMode != 'none')
+              Container(
+                margin: EdgeInsets.symmetric(horizontal: horizontal),
+                height: dividerMode == 'strong'
+                    ? sxDouble(settings['group_divider_width'], 1.0)
+                    : sxDouble(settings['group_divider_width'], .7),
+                color: dividerColor,
+              ),
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: showTitle && i == 0 ? 0 : horizontal,
+                vertical: showTitle && i == 0 ? 0 : vertical,
+              ),
+              child: wrapped[i],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailPriceBlock extends StatelessWidget {
+  final String price;
+  final String oldPrice;
+  final String currency;
+  final Map<String, dynamic> settings;
+  final Map<String, dynamic> cardSettings;
+
+  const _DetailPriceBlock({
+    required this.price,
+    required this.oldPrice,
+    required this.currency,
+    required this.settings,
+    this.cardSettings = const {},
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final showOld =
+        settings['show_compare_price'] != false && oldPrice.trim().isNotEmpty;
+    final showCurrency = settings['show_currency'] != false;
+    final discount = _detailDiscount(price, oldPrice);
+    final discountBg = sxColor(
+      sxText(
+        settings['discount_badge_background_color'],
+        sxText(cardSettings['discount_badge_background_color']),
+      ),
+      const Color(0xFFDC2626),
+    );
+    final discountFg = sxColor(
+      sxText(
+        settings['discount_badge_text_color'],
+        sxText(cardSettings['discount_badge_text_color']),
+      ),
+      Colors.white,
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.start,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            textDirection: TextDirection.rtl,
+            spacing: 7,
+            runSpacing: 5,
+            children: [
+              Text(
+                price,
+                style: TextStyle(
+                  color: sxColor(sxText(settings['price_color']), Colors.black),
+                  fontSize: sxDouble(settings['price_font_size'], 22),
+                  fontWeight: _weight(sxInt(settings['price_font_weight'], 900)),
+                  height: 1,
+                ),
+              ),
+              if (showCurrency)
+                Text(
+                  currency,
+                  style: TextStyle(
+                    color: sxColor(sxText(settings['currency_color']), Colors.black),
+                    fontSize: sxDouble(settings['currency_font_size'], 10.5),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              if (showOld)
+                Text(
+                  oldPrice + (showCurrency ? ' ' + currency : ''),
+                  style: TextStyle(
+                    color: sxColor(
+                      sxText(settings['compare_price_color']),
+                      const Color(0xFF9CA3AF),
+                    ),
+                    fontSize: sxDouble(settings['compare_price_font_size'], 10),
+                    decoration: sxText(
+                              settings['compare_price_text_decoration'],
+                              'line_through',
+                            ) == 'line_through'
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                  ),
+                ),
+              if (discount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: discountBg,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '-$discount%',
+                    style: TextStyle(
+                      color: discountFg,
+                      fontSize: sxDouble(settings['discount_badge_font_size'], 9),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          if (settings['price_text_show'] == true)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                _priceInArabicWords(price, currency),
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: sxColor(
+                    sxText(settings['price_text_color']),
+                    const Color(0xFF6B7280),
+                  ),
+                  fontSize: sxDouble(settings['price_text_font_size'], 9),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _DetailDescriptionBlock extends StatelessWidget {
+  final String description;
+  final Map<String, dynamic> settings;
+  const _DetailDescriptionBlock({
+    required this.description,
+    required this.settings,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(top: 6),
+    color: Colors.white,
+    padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
+    child: Text(
+      description,
+      maxLines: sxInt(settings['description_max_lines'], 3).clamp(1, 5).toInt(),
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        color: sxColor(sxText(settings['description_color']), const Color(0xFF6B7280)),
+        fontSize: sxDouble(settings['description_font_size'], 10.5),
+        height: 1.45,
+      ),
+    ),
+  );
+}
+
+class _DetailNameRatingBlock extends StatelessWidget {
+  final String name;
+  final String description;
+  final double average;
+  final int reviewCount;
+  final Map<String, dynamic> settings;
+
+  const _DetailNameRatingBlock({
+    required this.name,
+    required this.description,
+    required this.average,
+    required this.reviewCount,
+    required this.settings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final showRating = settings['rating_show'] != false;
+    final showCount = settings['rating_review_count_show'] != false;
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            textDirection: TextDirection.rtl,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: sxInt(settings['name_max_lines'], 4).clamp(2, 6).toInt(),
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: sxColor(sxText(settings['name_color']), Colors.black),
+                    fontSize: sxDouble(settings['name_font_size'], 20),
+                    fontWeight: _weight(sxInt(settings['name_font_weight'], 800)),
+                    height: 1.28,
+                  ),
+                ),
+              ),
+              if (showRating) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    textDirection: TextDirection.rtl,
+                    children: [
+                      Icon(
+                        Icons.star_rounded,
+                        size: sxDouble(settings['rating_icon_size'], 16),
+                        color: sxColor(
+                          sxText(settings['rating_color']),
+                          const Color(0xFFFFB400),
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        average > 0 ? average.toStringAsFixed(1) : '—',
+                        style: TextStyle(
+                          fontSize: sxDouble(settings['rating_font_size'], 10.5),
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      if (showCount)
+                        Text(
+                          ' (' + reviewCount.toString() + ')',
+                          style: TextStyle(
+                            fontSize: sxDouble(settings['rating_review_count_font_size'], 8),
+                            color: ClientTheme.muted,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (settings['description_show'] != false && description.trim().isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(
+              description,
+              maxLines: sxInt(settings['description_max_lines'], 3).clamp(1, 5).toInt(),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: sxColor(sxText(settings['description_color']), const Color(0xFF6B7280)),
+                fontSize: sxDouble(settings['description_font_size'], 10.5),
+                height: 1.45,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailNameBlock extends StatelessWidget {
+  final String name;
+  final Map<String, dynamic> settings;
+  final List<Map<String, dynamic>> badges;
+
+  const _DetailNameBlock({
+    required this.name,
+    required this.settings,
+    this.badges = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final inlineBadges = badges.where((badge) {
+      final s = badge['settings'] is Map
+          ? Map<String, dynamic>.from(badge['settings'] as Map)
+          : <String, dynamic>{};
+      return s['visible'] != false &&
+          sxText(s['position']) == 'before_name_same_row';
+    }).toList();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: Row(
+        textDirection: TextDirection.rtl,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (inlineBadges.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 7, top: 1),
+              child: Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: inlineBadges.take(3).map((badge) {
+                  final s = badge['settings'] is Map
+                      ? Map<String, dynamic>.from(badge['settings'] as Map)
+                      : <String, dynamic>{};
+                  return Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: sxDouble(s['padding_horizontal'], 7),
+                      vertical: sxDouble(s['padding_vertical'], 3),
+                    ),
+                    decoration: BoxDecoration(
+                      color: sxColor(
+                        sxText(s['background_color'], sxText(badge['bg_color'], '#111111')),
+                        Colors.black,
+                      ).withOpacity(
+                        sxDouble(s['background_opacity'], 1).clamp(0, 1).toDouble(),
+                      ),
+                      borderRadius: BorderRadius.circular(
+                        sxDouble(s['border_radius'], 4),
+                      ),
+                    ),
+                    child: Text(
+                      sxText(badge['custom_text'], sxText(badge['name'], 'جديد')),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: sxColor(
+                          sxText(s['text_color'], sxText(badge['text_color'], '#FFFFFF')),
+                          Colors.white,
+                        ),
+                        fontSize: sxDouble(s['font_size'], 8.5),
+                        fontWeight: _weight(sxInt(s['font_weight'], 800)),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          Expanded(
+            child: Text(
+              name,
+              textAlign: TextAlign.right,
+              maxLines: sxInt(settings['name_max_lines'], 4).clamp(2, 6).toInt(),
+              overflow: TextOverflow.clip,
+              style: TextStyle(
+                color: sxColor(sxText(settings['name_color']), Colors.black),
+                fontSize: sxDouble(settings['name_font_size'], 20),
+                fontWeight: _weight(sxInt(settings['name_font_weight'], 800)),
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailBrandBlock extends StatelessWidget {
+  final String brand;
+  final Map<String, dynamic> settings;
+  const _DetailBrandBlock({required this.brand, required this.settings});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(top: 6),
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Text(
+          brand,
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            color: sxColor(sxText(settings['brand_color']), ClientTheme.muted),
+            fontSize: sxDouble(settings['brand_font_size'], 10),
+            fontWeight: _weight(sxInt(settings['brand_font_weight'], 800)),
+          ),
+        ),
+      );
+}
+
+class _DetailRatingBlock extends StatelessWidget {
+  final double average;
+  final int reviewCount;
+  final Map<String, dynamic> settings;
+  const _DetailRatingBlock({
+    required this.average,
+    required this.reviewCount,
+    required this.settings,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(top: 6),
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            Icon(
+              Icons.star_rounded,
+              size: sxDouble(settings['rating_icon_size'], 14),
+              color: sxColor(sxText(settings['rating_color']), const Color(0xFFFFB400)),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              average > 0 ? average.toStringAsFixed(1) : '—',
+              style: TextStyle(
+                fontSize: sxDouble(settings['rating_font_size'], 10),
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            if (settings['rating_review_count_show'] != false) ...[
+              const SizedBox(width: 5),
+              Text(
+                '· $reviewCount تقييم',
+                style: TextStyle(
+                  fontSize: sxDouble(settings['rating_review_count_font_size'], 8),
+                  color: ClientTheme.muted,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+}
+
+class _RelatedProductsSection extends StatelessWidget {
+  final List<ProductModel> related;
+  final double titleFontSize;
+  final Map<String, dynamic> displaySettings;
+
+  const _RelatedProductsSection({
+    required this.related,
+    required this.titleFontSize,
+    this.displaySettings = const {},
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
+              child: Row(
+                textDirection: TextDirection.rtl,
+                children: [
+                  Expanded(
+                    child: Text(
+                      'قد يعجبك أيضًا',
+                      style: TextStyle(fontSize: titleFontSize, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => _RecommendationProductsScreen(
+                          displaySettings: displaySettings,
+                        ),
+                      ),
+                    ),
+                    child: const Text(
+                      'التوصية',
+                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (related.isEmpty)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(12, 4, 12, 12),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'لا توجد توصيات محلية حاليًا، استخدم زر «التوصية» لعرض المزيد.',
+                    style: TextStyle(fontSize: 9, color: ClientTheme.muted),
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.fromLTRB(6, 3, 6, 18),
+                child: SxProductGrid(
+                  products: related,
+                  masonry: true,
+                  displaySettings: displaySettings,
+                  onProductTap: (product) => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SxProductScreen(id: product.id),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
 }
 
 class _ProductHeroInfo extends StatelessWidget {
@@ -3519,8 +4261,7 @@ class _DeliveryPolicyBox extends StatelessWidget {
     required String title,
     required String text,
   }) async {
-    if (settings['policy_show_dialog'] == false) return;
-    if (text.trim().isEmpty) return;
+    if (settings['policy_show_dialog'] == false || text.trim().isEmpty) return;
     await showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(
@@ -3697,10 +4438,7 @@ class _DeliveryPolicyBox extends StatelessWidget {
         'icon': Icons.verified_user_outlined,
         'subtitle': warrantyDays > 0
             ? 'ضمان لمدة ' + warrantyDays.toString() + ' يومًا'
-            : sxText(
-                warranty['coverage'],
-                'اضغط لعرض تفاصيل الضمان',
-              ),
+            : sxText(warranty['coverage'], 'اضغط لعرض تفاصيل الضمان'),
         'dialog': <String>[
           sxText(warranty['name']),
           if (warrantyDays > 0)
@@ -3753,7 +4491,6 @@ class _DeliveryPolicyBox extends StatelessWidget {
         badge['subtitle'],
         sxText(badge['details']),
       );
-
       rows.add(
         row(
           context,
@@ -3784,7 +4521,6 @@ class _DeliveryPolicyBox extends StatelessWidget {
         }
       }
     }
-
     for (final key in policyItems.keys) {
       if (!order.contains(key)) order.add(key);
     }
@@ -3792,7 +4528,6 @@ class _DeliveryPolicyBox extends StatelessWidget {
     for (final key in order) {
       final item = policyItems[key];
       if (item == null) continue;
-
       final hasContent =
           key == 'payment' ||
           (key == 'shipping' &&
@@ -3800,7 +4535,6 @@ class _DeliveryPolicyBox extends StatelessWidget {
                   sxText(item['subtitle']).isNotEmpty)) ||
           (key == 'returns' && returning.isNotEmpty) ||
           (key == 'warranty' && warranty.isNotEmpty);
-
       if (!hasContent) continue;
 
       rows.add(
