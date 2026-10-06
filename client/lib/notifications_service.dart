@@ -335,7 +335,7 @@ Future<void> _showFromLocal(FlutterLocalNotificationsPlugin local, Map<String, d
         priority: Priority.max,
         category: AndroidNotificationCategory.message,
         visibility: NotificationVisibility.public,
-        icon: 'app_icon',
+        icon: 'notification_icon',
         ticker: 'التخفيض الصح',
         playSound: true,
         enableVibration: true,
