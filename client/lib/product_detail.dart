@@ -3231,6 +3231,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
   final int? selectedSizeId;
   final Map<int, String> colorThumbUrls;
   final Map<String, dynamic> detailSettings;
+  final List<String> itemOrder;
   final bool showThumbs;
   final bool showSizes;
   final bool showColors;
@@ -3250,6 +3251,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
     required this.selectedSizeId,
     required this.colorThumbUrls,
     required this.detailSettings,
+    this.itemOrder = const <String>['thumbs', 'colors', 'sizes', 'size_guide'],
     required this.showThumbs,
     required this.showSizes,
     required this.showColors,
@@ -3268,15 +3270,31 @@ class _DetailVariantSelectionBox extends StatelessWidget {
     return match.isEmpty ? '' : sxText(match.first['name']);
   }
 
+  int _qtyForColor(int colorId) {
+    return variants
+        .where((row) => sxInt(row['color_id']) == colorId)
+        .fold<int>(0, (sum, row) => sum + sxInt(row['available_qty']));
+  }
+
   int _qtyForSize(int sizeId) {
-    for (final variant in variants) {
-      final colorOk = selectedColorId == null ||
-          sxInt(variant['color_id']) == selectedColorId;
-      if (colorOk && sxInt(variant['size_id']) == sizeId) {
-        return sxInt(variant['available_qty']);
-      }
+    return variants
+        .where((row) {
+          final colorOk = selectedColorId == null ||
+              sxInt(row['color_id']) == selectedColorId;
+          return colorOk && sxInt(row['size_id']) == sizeId;
+        })
+        .fold<int>(0, (sum, row) => sum + sxInt(row['available_qty']));
+  }
+
+  String _colorStockText() {
+    if (detailSettings['stock_inline_show'] == false ||
+        sxText(detailSettings['stock_inline_position'], 'name') != 'color') {
+      return '';
     }
-    return 0;
+    final qty = selectedColorId == null ? 0 : _qtyForColor(selectedColorId!);
+    return qty > 0
+        ? sxText(detailSettings['stock_inline_text'], 'متوفر')
+        : sxText(detailSettings['stock_inline_out_text'], 'غير متوفر');
   }
 
   Widget _colorItem(
@@ -3295,6 +3313,12 @@ class _DetailVariantSelectionBox extends StatelessWidget {
     final useSwatch = mode == 'circle' || (mode == 'image_circle' && url.isEmpty);
     final label = sxText(item['name']);
     final showLabel = detailSettings['color_show_label'] != false;
+    final quantity = _qtyForColor(id);
+    final showQuantity =
+        detailSettings['color_show_quantity'] == true &&
+        quantity > 0 &&
+        (detailSettings['color_quantity_only_when_low'] != true ||
+            quantity <= sxInt(detailSettings['color_quantity_threshold'], 7));
     final borderColor = selected
         ? _color(detailSettings['color_selected_border_color'], Colors.black)
         : _color(detailSettings['color_border_color'], const Color(0xFFDCDCDC));
@@ -3369,6 +3393,29 @@ class _DetailVariantSelectionBox extends StatelessWidget {
                 ],
               ],
             ),
+            if (showQuantity)
+              Positioned(
+                top: -4,
+                left: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF5A3D),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Text(
+                    sxText(
+                      detailSettings['color_quantity_text'],
+                      '{qty} متوفر',
+                    ).replaceAll('{qty}', quantity.toString()),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 7,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
             if (detailSettings['color_show_hot'] != false &&
                 item['hot'] == true)
               Positioned(
