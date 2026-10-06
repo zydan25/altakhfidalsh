@@ -46,7 +46,9 @@
 .wizard-panel .primary-button{min-height:42px}
 .selection-toolbar,.media-global-upload,.dimension-save-bar{border-radius:12px!important}
 .media-grid,.media-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:8px}
-.media-thumb{min-width:0;background:#fff;border:1px solid #e7e7e7;border-radius:12px;padding:7px;display:grid;gap:6px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.media-thumb{position:relative;min-width:0;background:#fff;border:1px solid #e7e7e7;border-radius:12px;padding:7px;display:grid;gap:6px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+ .media-delete-overlay{position:absolute;top:10px;right:10px;z-index:3;width:30px!important;height:30px!important;min-height:30px!important;padding:0!important;display:flex!important;align-items:center;justify-content:center;border:1px solid #d92d20!important;border-radius:50%!important;background:#fff!important;color:#b42318!important;font-size:20px!important;line-height:1!important;font-weight:900!important;cursor:pointer;box-shadow:0 2px 7px rgba(0,0,0,.18)!important}
+ .media-delete-overlay:hover{background:#fff1f0!important;color:#8e1f16!important;transform:scale(1.04)}
 .media-thumb img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:9px;background:#f6f6f6;display:block}
 .media-thumb-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:8px;color:#777;min-width:0}
 .media-thumb-meta small:first-child{font-weight:800;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -660,5 +662,5 @@
     </form>
   </section>
 </div>
-<script src="{{ url_for('admin.static', filename='product-wizard.js') }}?v=20261007-5" defer></script>
+<script src="{{ url_for('admin.static', filename='product-wizard.js') }}?v=20261007-6" defer></script>
 {% endblock %}
