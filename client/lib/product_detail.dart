@@ -3095,6 +3095,30 @@ class _DetailVariantSelectionBox extends StatelessWidget {
         : <Map<String, dynamic>>[];
     final canGuide = showSizeGuide && guideRows.isNotEmpty;
 
+    // When a color is selected, put its linked images first in the thumbnail
+    // rail. The callback still maps back to the original gallery index, so the
+    // main carousel and color selection remain unchanged.
+    final thumbnailRows = <Map<String, dynamic>>[];
+    if (selectedColorId != null) {
+      thumbnailRows.addAll(
+        media.where((row) => sxInt(row['color_id']) == selectedColorId),
+      );
+      thumbnailRows.addAll(
+        media.where((row) => sxInt(row['color_id']) != selectedColorId),
+      );
+    } else {
+      thumbnailRows.addAll(media);
+    }
+
+    final selectedThumbnailIndex = page >= 0 && page < media.length
+        ? thumbnailRows.indexWhere((row) {
+            final rowId = sxInt(row['id']);
+            final pageId = sxInt(media[page]['id']);
+            if (rowId > 0 && pageId > 0) return rowId == pageId;
+            return sxText(row['url']) == sxText(media[page]['url']);
+          })
+        : -1;
+
     return Container(
       margin: const EdgeInsets.only(top: 6),
       color: Colors.white,
@@ -3103,11 +3127,27 @@ class _DetailVariantSelectionBox extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // SHEIN-like second rectangle: thumbnails -> colors -> sizes + size reference.
-          if (showThumbs && media.length > 1)
+          if (showThumbs && thumbnailRows.length > 1)
             SxGalleryThumbs(
-              rows: media,
-              page: page,
-              changed: onGalleryChanged,
+              rows: thumbnailRows,
+              page: selectedThumbnailIndex >= 0 ? selectedThumbnailIndex : 0,
+              changed: (thumbnailIndex) {
+                if (thumbnailIndex < 0 || thumbnailIndex >= thumbnailRows.length) return;
+                final target = thumbnailRows[thumbnailIndex];
+                final targetId = sxInt(target['id']);
+                var globalIndex = -1;
+                if (targetId > 0) {
+                  globalIndex = media.indexWhere(
+                    (row) => sxInt(row['id']) == targetId,
+                  );
+                }
+                if (globalIndex < 0) {
+                  globalIndex = media.indexWhere(
+                    (row) => sxText(row['url']) == sxText(target['url']),
+                  );
+                }
+                if (globalIndex >= 0) onGalleryChanged(globalIndex);
+              },
               itemWidth: sxDouble(detailSettings['thumbs_size'], 62),
               itemHeight: sxDouble(detailSettings['thumbs_height'], 70),
               gap: sxDouble(detailSettings['thumbs_gap'], 6),
