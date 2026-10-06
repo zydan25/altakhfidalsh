@@ -6137,13 +6137,11 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
                                     ui['picks_section_background_color'],
                                     const Color(0xFFF3F3F3),
                                   ),
-                                  // Keep the working two-column trend grid, but
-                                  // use exactly the same product-card settings as Home.
-                                  // Masonry here caused the dedicated trend cards to
-                                  // disappear after the card unification change.
+                                  // Keep the existing Trends product-grid layout.
+                                  // Only the shared Home card settings are reused here.
                                   child: SxProductGrid(
                                     products: picks,
-                                    masonry: false,
+                                    masonry: true,
                                     displaySettings: productCardSettings,
                                     onProductTap: (product) => Navigator.push(
                                       context,
