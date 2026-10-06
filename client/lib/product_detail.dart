@@ -693,25 +693,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
             ],
           );
         case 'size_guide':
-          if (detailSettings['size_guide_show'] == false) {
-            return const SizedBox.shrink();
-          }
-          final rawGuide = _asMap(data['size_guide']);
-          final fallbackGuide = <String, dynamic>{
-            'name': 'دليل المقاسات',
-            'intro_text': 'اختر المقاس من الجدول لعرض تفاصيل قياساته.',
-            'rows': sizes.map((item) => <String, dynamic>{
-              'size_id': sxInt(item['id']),
-              'size_label': sxText(item['label'], sxText(item['code'], '—')),
-              'size_code': sxText(item['code']),
-              'product_measurements': <String, dynamic>{},
-              'body_measurements': <String, dynamic>{},
-            }).toList(),
-          };
-          return _SizeGuideButton(
-            guide: rawGuide.isEmpty ? fallbackGuide : rawGuide,
-            settings: detailSettings,
-          );
+          return const SizedBox.shrink();
         case 'details':
           return detailSettings['details_show'] == false
               ? const SizedBox.shrink()
@@ -768,6 +750,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
               : _RelatedProductsSection(
                   related: related,
                   titleFontSize: sxDouble(detailSettings['related_title_font_size'], 13),
+                  displaySettings: cardSettings,
                 );
         default:
           return null;
@@ -775,8 +758,73 @@ class _SxProductScreenState extends State<SxProductScreen> {
     }
 
     final orderedSections = <Widget>[];
+    var variantBoxAdded = false;
+    var policyBoxAdded = false;
+
+    Widget? buildVariantBox() {
+      if (variantBoxAdded) return null;
+      variantBoxAdded = true;
+      final guide = _asMap(data['size_guide']);
+      final fallbackGuide = <String, dynamic>{
+        'name': 'دليل المقاسات',
+        'intro_text': 'اختر المقاس من الجدول لعرض القياسات بالكامل.',
+        'rows': sizes.map((item) => <String, dynamic>{
+          'size_id': sxInt(item['id']),
+          'size_label': sxText(item['label'], sxText(item['code'], '—')),
+          'size_code': sxText(item['code']),
+          'product_measurements': <String, dynamic>{},
+          'body_measurements': <String, dynamic>{},
+        }).toList(),
+      };
+      final effectiveGuide = guide.isEmpty ? fallbackGuide : guide;
+      return _DetailVariantSelectionBox(
+        media: media,
+        page: page,
+        colors: colors,
+        sizes: sizes,
+        selectedColorId: selectedColorId,
+        selectedSizeId: sizeId,
+        colorThumbUrls: _colorThumbUrls(colors, media),
+        detailSettings: detailSettings,
+        showThumbs: detailSettings['thumbs_show'] != false,
+        showSizes: detailSettings['sizes_show'] != false,
+        showColors: detailSettings['colors_show'] != false,
+        sizeGuide: effectiveGuide,
+        showSizeGuide: detailSettings['size_guide_show'] != false,
+        onGalleryChanged: _onGalleryPageChanged,
+        onColor: _selectColor,
+        onSize: (value) => setState(() => sizeId = value),
+      );
+    }
+
+    Widget? buildPolicyBox() {
+      if (policyBoxAdded) return null;
+      policyBoxAdded = true;
+      return _DeliveryPolicyBox(
+        deliveryBadges: _maps(data['delivery_badges']),
+        policies: policies,
+        settings: detailSettings,
+      );
+    }
+
+    final variantKeys = {'thumbs', 'sizes', 'colors', 'size_guide'};
+    final policyKeys = {'delivery', 'policies'};
     for (var i = 0; i < detailOrder.length; i++) {
       final key = detailOrder[i];
+      if (variantKeys.contains(key)) {
+        final section = buildVariantBox();
+        if (section != null) {
+          orderedSections.add(SliverToBoxAdapter(child: section));
+        }
+        continue;
+      }
+      if (policyKeys.contains(key)) {
+        final section = buildPolicyBox();
+        if (section != null) {
+          orderedSections.add(SliverToBoxAdapter(child: section));
+        }
+        continue;
+      }
       if (key == 'name' &&
           i + 2 < detailOrder.length &&
           detailOrder[i + 1] == 'description' &&
@@ -797,7 +845,6 @@ class _SxProductScreenState extends State<SxProductScreen> {
         orderedSections.add(SliverToBoxAdapter(child: section));
       }
     }
-
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
@@ -2073,10 +2120,12 @@ class _DetailRatingBlock extends StatelessWidget {
 class _RelatedProductsSection extends StatelessWidget {
   final List<ProductModel> related;
   final double titleFontSize;
+  final Map<String, dynamic> displaySettings;
 
   const _RelatedProductsSection({
     required this.related,
     required this.titleFontSize,
+    this.displaySettings = const {},
   });
 
   @override
@@ -2126,7 +2175,8 @@ class _RelatedProductsSection extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(7, 0, 7, 12),
                 child: SxProductGrid(
                   products: related,
-                  masonry: false,
+                  masonry: true,
+                  displaySettings: displaySettings,
                   onProductTap: (product) => Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -2785,6 +2835,153 @@ class _DeliveryBadgePanel extends StatelessWidget {
   }
 }
 
+class _DetailVariantSelectionBox extends StatelessWidget {
+  final List<Map<String, dynamic>> media;
+  final int page;
+  final List<Map<String, dynamic>> colors;
+  final List<Map<String, dynamic>> sizes;
+  final int? selectedColorId;
+  final int? selectedSizeId;
+  final Map<int, String> colorThumbUrls;
+  final Map<String, dynamic> detailSettings;
+  final bool showThumbs;
+  final bool showSizes;
+  final bool showColors;
+  final Map<String, dynamic> sizeGuide;
+  final bool showSizeGuide;
+  final ValueChanged<int> onGalleryChanged;
+  final ValueChanged<int> onColor;
+  final ValueChanged<int> onSize;
+
+  const _DetailVariantSelectionBox({
+    required this.media,
+    required this.page,
+    required this.colors,
+    required this.sizes,
+    required this.selectedColorId,
+    required this.selectedSizeId,
+    required this.colorThumbUrls,
+    required this.detailSettings,
+    required this.showThumbs,
+    required this.showSizes,
+    required this.showColors,
+    required this.sizeGuide,
+    required this.showSizeGuide,
+    required this.onGalleryChanged,
+    required this.onColor,
+    required this.onSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final guideRows = _maps(sizeGuide['rows']);
+    final canGuide = showSizeGuide && guideRows.isNotEmpty;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(10, 7, 10, 11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (showThumbs && media.length > 1)
+            SxGalleryThumbs(
+              rows: media,
+              page: page,
+              changed: onGalleryChanged,
+              itemWidth: sxDouble(detailSettings['thumbs_size'], 62),
+              itemHeight: sxDouble(detailSettings['thumbs_height'], 70),
+              gap: sxDouble(detailSettings['thumbs_gap'], 6),
+              radius: sxDouble(detailSettings['thumbs_radius'], 4),
+              borderWidth: sxDouble(detailSettings['thumbs_border_width'], 1.5),
+            ),
+          if (showSizes && sizes.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              textDirection: TextDirection.rtl,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Expanded(
+                  child: Text(
+                    'المقاسات',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+                  ),
+                ),
+                if (canGuide)
+                  InkWell(
+                    onTap: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => _SizeGuideDialog(
+                        guide: sizeGuide,
+                        initialSizeId: selectedSizeId,
+                      ),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+                      child: Text(
+                        'مرجع المقاسات ›',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          decoration: TextDecoration.underline,
+                          decorationThickness: 1.1,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            _ProductOptions(
+              colors: const [],
+              sizes: sizes,
+              selectedColorId: selectedColorId,
+              selectedSizeId: selectedSizeId,
+              onColor: (_) {},
+              onSize: onSize,
+              colorThumbUrls: const {},
+              settings: detailSettings,
+              showColors: false,
+              showSizes: true,
+              embedded: true,
+            ),
+          ],
+          if (showColors && colors.isNotEmpty) ...[
+            if (showSizes && sizes.isNotEmpty) const SizedBox(height: 7),
+            Row(
+              textDirection: TextDirection.rtl,
+              children: const [
+                Expanded(
+                  child: Text(
+                    'اللون',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
+            _ProductOptions(
+              colors: colors,
+              sizes: const [],
+              selectedColorId: selectedColorId,
+              selectedSizeId: selectedSizeId,
+              onColor: onColor,
+              onSize: (_) {},
+              colorThumbUrls: colorThumbUrls,
+              settings: detailSettings,
+              showColors: true,
+              showSizes: false,
+              embedded: true,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _ProductOptions extends StatelessWidget {
   final List<Map<String, dynamic>> colors;
   final List<Map<String, dynamic>> sizes;
@@ -2796,6 +2993,7 @@ class _ProductOptions extends StatelessWidget {
   final Map<String, dynamic> settings;
   final bool showColors;
   final bool showSizes;
+  final bool embedded;
 
   const _ProductOptions({
     required this.colors,
@@ -2808,6 +3006,7 @@ class _ProductOptions extends StatelessWidget {
     this.settings = const {},
     this.showColors = true,
     this.showSizes = true,
+    this.embedded = false,
   });
 
   Color _color(String key, Color fallback) => sxColor(
@@ -2839,13 +3038,13 @@ class _ProductOptions extends StatelessWidget {
     final sizeGap = sxDouble(settings['sizes_gap'], 7).clamp(0, 16).toDouble();
 
     return Container(
-      margin: const EdgeInsets.only(top: 6),
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      margin: embedded ? EdgeInsets.zero : const EdgeInsets.only(top: 6),
+      color: embedded ? Colors.transparent : Colors.white,
+      padding: embedded ? EdgeInsets.zero : const EdgeInsets.fromLTRB(12, 12, 12, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (colorsVisible) ...[
+          if (colorsVisible && !embedded) ...[
             const Text(
               'اللون',
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
@@ -2921,8 +3120,8 @@ class _ProductOptions extends StatelessWidget {
               ),
             ),
           ],
-          if (colorsVisible && sizesVisible) const Divider(height: 24),
-          if (sizesVisible) ...[
+          if (colorsVisible && sizesVisible && !embedded) const Divider(height: 24),
+          if (sizesVisible && !embedded) ...[
             Text(
               'المقاس',
               style: TextStyle(
@@ -3312,6 +3511,271 @@ class _PolicySections extends StatelessWidget {
           );
         }).toList(),
       ),
+    );
+  }
+}
+
+class _DeliveryPolicyBox extends StatelessWidget {
+  final List<Map<String, dynamic>> deliveryBadges;
+  final Map<String, dynamic> policies;
+  final Map<String, dynamic> settings;
+
+  const _DeliveryPolicyBox({
+    required this.deliveryBadges,
+    required this.policies,
+    required this.settings,
+  });
+
+  Map<String, dynamic> _map(dynamic value) =>
+      value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
+
+  Widget _row(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+    bool divider = true,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+            child: Row(
+              textDirection: TextDirection.rtl,
+              children: [
+                Icon(icon, size: 20, color: color),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        title,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: sxDouble(settings['delivery_font_size'], 10),
+                          fontWeight: FontWeight.w900,
+                          color: color,
+                        ),
+                      ),
+                      if (subtitle.trim().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            subtitle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              fontSize: 8.5,
+                              color: ClientTheme.muted,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_left, size: 18, color: Color(0xFF777777)),
+              ],
+            ),
+          ),
+          if (divider)
+            const Divider(height: 1, thickness: .6, indent: 8, endIndent: 8),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shipping = _map(policies['shipping']);
+    final returning = _map(policies['return']);
+    final warranty = _map(policies['warranty']);
+    final rows = <Widget>[];
+
+    final visibleDelivery = deliveryBadges.where((x) => x['visible'] != false).toList();
+    for (var i = 0; i < visibleDelivery.length; i++) {
+      final badge = visibleDelivery[i];
+      rows.add(
+        _row(
+          context,
+          icon: Icons.local_shipping_outlined,
+          title: sxText(badge['text'], 'التوصيل'),
+          subtitle: sxText(
+            badge['subtitle'],
+            sxText(badge['details']),
+          ),
+          color: sxColor(
+            sxText(badge['text_color']),
+            Colors.black,
+          ),
+          onTap: () => showDialog<void>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: Text(
+                sxText(badge['text'], 'التوصيل'),
+                textAlign: TextAlign.right,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+              ),
+              content: Text(
+                sxText(badge['details'], sxText(badge['text'], 'تفاصيل التوصيل')),
+                textAlign: TextAlign.right,
+                style: const TextStyle(fontSize: 10.5, height: 1.7),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إغلاق'),
+                ),
+              ],
+            ),
+          ),
+          divider: true,
+        ),
+      );
+    }
+
+    if (shipping.isNotEmpty) {
+      rows.add(
+        _row(
+          context,
+          icon: Icons.local_shipping_outlined,
+          title: 'الشحن والتوصيل',
+          subtitle: <String>[
+            sxText(shipping['promo_text']),
+            if (sxText(shipping['delivery_window']).isNotEmpty)
+              'مدة التوصيل: ' + sxText(shipping['delivery_window']),
+          ].where((x) => x.trim().isNotEmpty).join(' · '),
+          color: sxColor(sxText(settings['shipping_button_text_color']), Colors.black),
+          onTap: () => showDialog<void>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('الشحن والتوصيل'),
+              content: SingleChildScrollView(
+                child: Text(
+                  <String>[
+                    sxText(shipping['name']),
+                    sxText(shipping['promo_text']),
+                    sxText(shipping['delivery_window']),
+                  ].where((x) => x.trim().isNotEmpty).join('\n\n'),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontSize: 10.5, height: 1.7),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+              ],
+            ),
+          ),
+          divider: true,
+        ),
+      );
+    }
+
+    if (returning.isNotEmpty) {
+      rows.add(
+        _row(
+          context,
+          icon: Icons.assignment_return_outlined,
+          title: 'سياسة الإرجاع',
+          subtitle: sxText(returning['conditions'], 'اضغط لعرض سياسة الإرجاع'),
+          color: sxColor(sxText(settings['returns_button_text_color']), Colors.black),
+          onTap: () => showDialog<void>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('سياسة الإرجاع والاسترداد'),
+              content: SingleChildScrollView(
+                child: Text(
+                  <String>[
+                    sxText(returning['name']),
+                    if (sxInt(returning['return_window_days']) > 0)
+                      'مدة الإرجاع: ' + sxInt(returning['return_window_days']).toString() + ' يومًا',
+                    sxText(returning['conditions']),
+                    sxText(returning['fee_rule']),
+                    sxText(returning['refund_method']),
+                  ].where((x) => x.trim().isNotEmpty).join('\n\n'),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontSize: 10.5, height: 1.7),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+              ],
+            ),
+          ),
+          divider: true,
+        ),
+      );
+    }
+
+    if (warranty.isNotEmpty) {
+      rows.add(
+        _row(
+          context,
+          icon: Icons.verified_user_outlined,
+          title: 'الضمان',
+          subtitle: sxText(warranty['coverage'], 'اضغط لعرض الضمان'),
+          color: sxColor(sxText(settings['warranty_button_text_color']), Colors.black),
+          onTap: () => showDialog<void>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text('الضمان'),
+              content: SingleChildScrollView(
+                child: Text(
+                  <String>[
+                    sxText(warranty['name']),
+                    if (sxInt(warranty['duration_days']) > 0)
+                      'المدة: ' + sxInt(warranty['duration_days']).toString() + ' يومًا',
+                    sxText(warranty['coverage']),
+                    sxText(warranty['exclusions']),
+                    sxText(warranty['claim_method']),
+                  ].where((x) => x.trim().isNotEmpty).join('\n\n'),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontSize: 10.5, height: 1.7),
+                ),
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+              ],
+            ),
+          ),
+          divider: true,
+        ),
+      );
+    }
+
+    rows.add(
+      _row(
+        context,
+        icon: Icons.lock_outline,
+        title: 'الدفع',
+        subtitle: 'طرق الدفع المتاحة تظهر عند إتمام الطلب',
+        color: sxColor(sxText(settings['payment_button_text_color']), Colors.black),
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => const AlertDialog(
+            title: Text('الدفع الآمن'),
+            content: Text(
+              'الدفع يتم وفق طرق الدفع المتاحة عند إتمام الطلب.',
+              textAlign: TextAlign.right,
+            ),
+          ),
+        ),
+        divider: false,
+      ),
+    );
+
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(9, 2, 9, 2),
+      child: Column(children: rows),
     );
   }
 }
