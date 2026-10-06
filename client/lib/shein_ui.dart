@@ -2610,8 +2610,27 @@ class _SxStoreLocationsState extends State<SxStoreLocations> {
                                 ),
                               if (images.length > 1)
                                 Positioned(
-                                  bottom: 7, left: 0, right: 0,
-                                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(images.length, (i) => AnimatedContainer(duration: const Duration(milliseconds: 140), width: i == imagePage ? 16 : 4, height: 3, margin: const EdgeInsets.symmetric(horizontal: 2), decoration: BoxDecoration(color: i == imagePage ? Colors.white : Colors.white54, borderRadius: BorderRadius.circular(10)))),
+                                  bottom: 7,
+                                  left: 0,
+                                  right: 0,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: List.generate(
+                                      images.length,
+                                      (i) => AnimatedContainer(
+                                        duration: const Duration(milliseconds: 140),
+                                        width: i == imagePage ? 16 : 4,
+                                        height: 3,
+                                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                                        decoration: BoxDecoration(
+                                          color: i == imagePage
+                                              ? Colors.white
+                                              : Colors.white54,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                             ],
                           ),
