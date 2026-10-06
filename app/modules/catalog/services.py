@@ -2826,8 +2826,18 @@ class CatalogService:
                     "show": True,
                 },
                 {
-                    "title": "التفاصيل والخدمات",
-                    "items": ["details", "stock", "delivery", "policies", "reviews"],
+                    "title": "التفاصيل والمخزون",
+                    "items": ["details", "stock"],
+                    "show": True,
+                },
+                {
+                    "title": "التوصيل والسياسات",
+                    "items": ["delivery", "policies"],
+                    "show": True,
+                },
+                {
+                    "title": "التقييمات",
+                    "items": ["reviews"],
                     "show": True,
                 },
                 {
