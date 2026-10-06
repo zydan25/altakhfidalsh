@@ -40,7 +40,26 @@
  .admin-detail-gallery{grid-template-columns:repeat(4,1fr)}
  .admin-detail-actions>*{flex:1}
 }
-</style>
+.inventory-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.inventory-toolbar .muted{font-size:9px}
+.inventory-grid{display:grid;gap:8px;overflow-x:auto}
+.inventory-row{display:grid;grid-template-columns:minmax(150px,1.4fr) 120px 90px 90px 90px 90px 86px;gap:6px;align-items:end;min-width:820px;padding:9px;border:1px solid #ededed;border-radius:11px;background:#fff}
+.inventory-head{font-size:8px;color:#777;font-weight:800}
+.inventory-variant{display:grid;gap:4px}
+.inventory-variant strong{font-size:10px}
+.inventory-variant small{font-size:8px;color:#777}
+.inventory-cell{display:grid;gap:3px}
+.inventory-cell label{font-size:8px;color:#777;font-weight:700}
+.inventory-cell input,.inventory-cell select{width:100%;height:38px;border:1px solid #dedede;border-radius:8px;padding:6px 7px;font:inherit;font-size:10px;box-sizing:border-box}
+.inventory-available{font-size:11px;font-weight:900;text-align:center;padding:10px 5px;border-radius:8px;background:#f5f5f5}
+.inventory-save{height:38px}
+.inventory-status{font-size:8px;min-height:12px;color:#56835b}
+.inventory-status.error{color:#a12d2d}
+.inventory-empty{padding:14px;text-align:center;color:#777;font-size:9px}
+@media(max-width:650px){
+ .inventory-row{grid-template-columns:150px 118px 86px 86px 86px 86px 82px;min-width:790px}
+ .inventory-toolbar{align-items:flex-start}
+}</style>
 
 <section class="module-header panel admin-product-detail">
   <div class="admin-product-detail-hero">
@@ -76,6 +95,8 @@
 <section class="admin-detail-stat-grid">
   <article class="admin-detail-stat"><b>{{ stats.variants }}</b><span>إجمالي المتغيرات</span></article>
   <article class="admin-detail-stat"><b>{{ stats.stock }}</b><span>المتاح في المخزون</span></article>
+  <article class="admin-detail-stat"><b>{{ stats.on_hand }}</b><span>إجمالي الكمية</span></article>
+  <article class="admin-detail-stat"><b>{{ stats.reserved }}</b><span>المحجوز</span></article>
   <article class="admin-detail-stat"><b>{{ stats.badges }}</b><span>الشارات</span></article>
   <article class="admin-detail-stat"><b>{{ stats.reviews }}</b><span>التقييمات المنشورة</span></article>
 </section>
@@ -89,6 +110,70 @@
       <div class="admin-detail-row"><strong>نوع المنتج</strong><span dir="rtl">{{ product.product_type or "—" }}</span></div>
       <div class="admin-detail-row"><strong>الخامة</strong><span dir="rtl">{{ product.material or "—" }}</span></div>
     </div>
+  </article>
+
+  <article class="panel admin-detail-panel" style="grid-column:1/-1">
+    <div class="inventory-toolbar">
+      <div>
+        <h3 style="margin-bottom:3px">إدارة مخزون المتغيرات</h3>
+        <span class="muted">حدّد المخزن والكمية والمحجوز وحد إعادة الطلب لكل لون/مقاس ثم احفظ مباشرة.</span>
+      </div>
+      <span class="status-pill">{{ (snapshot.locations or [])|length }} موقع مخزون</span>
+    </div>
+    {% if snapshot.variants %}
+    <div class="inventory-grid" dir="rtl">
+      <div class="inventory-row" style="background:#f8f8f8;border-color:#e5e5e5">
+        <div class="inventory-head">المتغير</div>
+        <div class="inventory-head">المخزن</div>
+        <div class="inventory-head">الكمية</div>
+        <div class="inventory-head">المحجوز</div>
+        <div class="inventory-head">حد الطلب</div>
+        <div class="inventory-head">المتاح</div>
+        <div class="inventory-head">الحفظ</div>
+      </div>
+      {% for variant in snapshot.variants %}
+      <div class="inventory-row" data-variant-row data-variant-id="{{ variant.id }}">
+        <div class="inventory-variant">
+          <strong>{{ variant.sku or ("متغير #" ~ variant.id) }}</strong>
+          <small>
+            {% set color = (snapshot.reference_colors | selectattr("id","equalto",variant.color_id) | list | first) %}
+            {% set size = (snapshot.reference_sizes | selectattr("id","equalto",variant.size_id) | list | first) %}
+            اللون: {{ color.name if color else "—" }} · المقاس: {{ size.label if size else "—" }}
+          </small>
+          <small>Barcode: {{ variant.barcode or "—" }}</small>
+        </div>
+        <div class="inventory-cell">
+          <label>الموقع</label>
+          <select data-location>
+            {% for location in snapshot.locations %}
+            <option value="{{ location.id }}">{{ location.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="inventory-cell">
+          <label>On hand</label>
+          <input data-on-hand type="number" min="0" step="1" inputmode="numeric" value="{{ variant.on_hand_qty }}">
+        </div>
+        <div class="inventory-cell">
+          <label>Reserved</label>
+          <input data-reserved type="number" min="0" step="1" inputmode="numeric" value="{{ variant.reserved_qty }}">
+        </div>
+        <div class="inventory-cell">
+          <label>Reorder</label>
+          <input data-reorder type="number" min="0" step="1" inputmode="numeric" value="0">
+        </div>
+        <div class="inventory-available" data-available>{{ variant.available_qty }}</div>
+        <button type="button" class="primary-button inventory-save" data-save-variant>حفظ</button>
+        <div class="inventory-status" data-status></div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="inventory-empty">لا توجد متغيرات بعد. أنشئ الألوان والمقاسات ثم أنشئ المتغيرات من محرر المنتج.</div>
+    {% endif %}
+    {% if not snapshot.locations %}
+    <div class="inventory-empty" style="margin-top:8px;background:#fff8e1">لا توجد مواقع مخزون. أضف موقعًا من «المتغيرات والمخزون» قبل الحفظ.</div>
+    {% endif %}
   </article>
 
   <article class="panel admin-detail-panel">
@@ -138,4 +223,102 @@
     </div>
   </article>
 </section>
+<script>
+(function(){
+  const root = document.querySelector('[data-variant-row]')?.closest('.admin-detail-panel');
+  if (!root) return;
+  const productId = {{ product.id|tojson }};
+  const inventory = {{ (snapshot.inventory or [])|tojson }};
+  const locations = {{ (snapshot.locations or [])|tojson }};
+
+  function recordsForVariant(variantId) {
+    return inventory.filter(function(row){
+      return Number(row.variant_id) === Number(variantId);
+    });
+  }
+  function syncRow(row) {
+    const onHand = Math.max(0, Number(row.querySelector('[data-on-hand]')?.value || 0));
+    const reserved = Math.max(0, Number(row.querySelector('[data-reserved]')?.value || 0));
+    const available = Math.max(0, onHand - reserved);
+    const target = row.querySelector('[data-available]');
+    if (target) target.textContent = String(available);
+  }
+  document.querySelectorAll('[data-variant-row]').forEach(function(row){
+    const variantId = Number(row.dataset.variantId);
+    const locationSelect = row.querySelector('[data-location]');
+    const saved = recordsForVariant(variantId);
+    if (locationSelect && saved.length) {
+      locationSelect.value = String(saved[0].location_id);
+    }
+    function loadLocation(){
+      const locationId = Number(locationSelect?.value || 0);
+      const current = saved.find(function(item){ return Number(item.location_id) === locationId; });
+      row.querySelector('[data-on-hand]').value = current ? current.on_hand : 0;
+      row.querySelector('[data-reserved]').value = current ? current.reserved : 0;
+      row.querySelector('[data-reorder]').value = current ? current.reorder_level : 0;
+      syncRow(row);
+      const status = row.querySelector('[data-status]');
+      if (status) status.textContent = current ? 'محفوظ' : 'لا يوجد سجل لهذا الموقع';
+    }
+    locationSelect?.addEventListener('change', loadLocation);
+    row.querySelector('[data-on-hand]')?.addEventListener('input', function(){ syncRow(row); });
+    row.querySelector('[data-reserved]')?.addEventListener('input', function(){ syncRow(row); });
+    row.querySelector('[data-save-variant]')?.addEventListener('click', async function(){
+      const button = this;
+      const status = row.querySelector('[data-status]');
+      const locationId = Number(locationSelect?.value || 0);
+      const onHand = Math.max(0, Number(row.querySelector('[data-on-hand]')?.value || 0));
+      const reserved = Math.max(0, Number(row.querySelector('[data-reserved]')?.value || 0));
+      const reorder = Math.max(0, Number(row.querySelector('[data-reorder]')?.value || 0));
+      if (!locationId) {
+        if (status) { status.textContent = 'اختر موقع مخزون أولًا'; status.classList.add('error'); }
+        return;
+      }
+      if (reserved > onHand) {
+        if (status) { status.textContent = 'المحجوز لا يمكن أن يتجاوز الكمية'; status.classList.add('error'); }
+        return;
+      }
+      button.disabled = true;
+      if (status) { status.textContent = 'جارٍ الحفظ…'; status.classList.remove('error'); }
+      try {
+        const response = await fetch('/api/v1/catalog/products/' + productId + '/inventory', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json', 'Accept':'application/json'},
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            variant_id: variantId,
+            location_id: locationId,
+            on_hand: onHand,
+            reserved: reserved,
+            reorder_level: reorder,
+          }),
+        });
+        const data = await response.json().catch(function(){ return {}; });
+        if (!response.ok) throw new Error(data.detail || data.error || 'تعذر حفظ المخزون');
+        const item = data.item || {};
+        const record = {
+          id: item.id,
+          variant_id: variantId,
+          location_id: locationId,
+          on_hand: onHand,
+          reserved: reserved,
+          available: Math.max(0, onHand - reserved),
+          reorder_level: reorder,
+        };
+        const index = inventory.findIndex(function(x){
+          return Number(x.variant_id) === variantId && Number(x.location_id) === locationId;
+        });
+        if (index >= 0) inventory[index] = record; else inventory.push(record);
+        syncRow(row);
+        if (status) { status.textContent = 'تم الحفظ'; status.classList.remove('error'); }
+      } catch (error) {
+        if (status) { status.textContent = error.message || 'تعذر الحفظ'; status.classList.add('error'); }
+      } finally {
+        button.disabled = false;
+      }
+    });
+    if (locationSelect) loadLocation();
+  });
+})();
+</script>
 {% endblock %}
