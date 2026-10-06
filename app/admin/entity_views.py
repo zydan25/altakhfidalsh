@@ -1229,12 +1229,21 @@ def register_entity_views(admin_bp):
         if selected_id is None and guides:
             selected_id = guides[0].id
         selected = db.session.get(SizeGuide, selected_id) if selected_id else None
-        sizes = (
+        size_rows = (
             Size.query.filter_by(is_active=True)
             .order_by(Size.group, Size.sort_order, Size.label)
             .limit(500)
             .all()
         )
+        sizes = [
+            {
+                "id": row.id,
+                "group": row.group,
+                "code": row.code,
+                "label": row.label,
+            }
+            for row in size_rows
+        ]
         guide_rows = []
         if selected is not None:
             joined = (
