@@ -1802,6 +1802,11 @@ def register_entity_views(admin_bp):
                 ],
             },
             {
+                "title": "ترتيب أزرار السياسات",
+                "hint": "حدد ترتيب الشحن والإرجاع والضمان والدفع كما يظهر للعميل.",
+                "fields": [],
+            },
+            {
                 "title": "التقييم المختصر في بيانات الصنف",
                 "hint": "تحكم في النجمة والتقييم وعدد المراجعات بشكل مستقل.",
                 "fields": [
@@ -1895,6 +1900,18 @@ def register_entity_views(admin_bp):
                     if key not in order:
                         order.append(key)
                 settings["detail_order"] = order
+
+                raw_policy_order = (request.form.get("policy_order") or "").split(",")
+                allowed_policy = {"shipping", "returns", "warranty", "payment"}
+                policy_order = []
+                for key in raw_policy_order:
+                    key = key.strip()
+                    if key in allowed_policy and key not in policy_order:
+                        policy_order.append(key)
+                for key in ("shipping", "returns", "warranty", "payment"):
+                    if key not in policy_order:
+                        policy_order.append(key)
+                settings["policy_order"] = policy_order
 
                 color_re = re.compile(r"^#[0-9a-fA-F]{6}$")
                 for key, _label in color_fields:
