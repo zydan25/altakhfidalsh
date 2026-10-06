@@ -1239,13 +1239,13 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
                         : null,
                   ),
                 ),
+              ),
               if (sxMaps(home['store_locations']).isNotEmpty)
                 SliverToBoxAdapter(
                   child: SxStoreLocations(
                     locations: sxMaps(home['store_locations']),
                   ),
                 ),
-              ),
           ],
                 ),
               ),
@@ -1320,6 +1320,14 @@ class _HomeFixedHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (loading && home.isEmpty) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
     final tabs = <CategoryModel>[
       const CategoryModel(id: -1, name: 'الكل'),
       ...roots,
