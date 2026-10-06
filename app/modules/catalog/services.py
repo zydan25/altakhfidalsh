@@ -2814,6 +2814,28 @@ class CatalogService:
         """Global customer-facing product-detail layout, typography and policy controls."""
         import json
         defaults = {
+            "detail_groups": [
+                {
+                    "title": "العروض وبيانات المنتج",
+                    "items": ["trend", "name", "badges", "price", "promotions", "description", "rating", "brand"],
+                    "show": True,
+                },
+                {
+                    "title": "الصور والألوان والمقاسات",
+                    "items": ["thumbs", "colors", "sizes", "size_guide"],
+                    "show": True,
+                },
+                {
+                    "title": "التفاصيل والخدمات",
+                    "items": ["details", "stock", "delivery", "policies", "reviews"],
+                    "show": True,
+                },
+                {
+                    "title": "اقتراحات التسوق",
+                    "items": ["related"],
+                    "show": True,
+                },
+            ],
             "detail_order": [
                 "badges", "gallery", "thumbs", "trend", "price", "promotions",
                 "name", "description", "rating", "brand", "colors", "sizes", "size_guide",
@@ -2944,6 +2966,59 @@ class CatalogService:
                 custom = {}
         merged = {**defaults, **custom}
 
+        allowed_detail_groups = {
+            "badges", "gallery", "thumbs", "trend", "price", "promotions",
+            "name", "description", "rating", "brand", "colors", "sizes",
+            "size_guide", "details", "stock", "delivery", "policies",
+            "reviews", "related",
+        }
+
+        raw_groups = merged.get("detail_groups")
+        normalized_groups = []
+        if isinstance(raw_groups, list):
+            for raw_group in raw_groups:
+                if not isinstance(raw_group, dict):
+                    continue
+                title = str(raw_group.get("title") or "").strip()[:80] or "قسم تفاصيل"
+                raw_items = raw_group.get("items")
+                if not isinstance(raw_items, list):
+                    raw_items = []
+                items = []
+                for key in raw_items:
+                    key = str(key)
+                    if key in allowed_detail_groups and key not in items:
+                        items.append(key)
+                if items:
+                    normalized_groups.append({
+                        "title": title,
+                        "items": items,
+                        "show": raw_group.get("show") is not False,
+                    })
+
+        seen = set()
+        for group in normalized_groups:
+            clean_items = []
+            for key in group["items"]:
+                if key not in seen:
+                    clean_items.append(key)
+                    seen.add(key)
+            group["items"] = clean_items
+        normalized_groups = [g for g in normalized_groups if g["items"]]
+
+        for key in defaults["detail_order"]:
+            if key not in seen:
+                normalized_groups.append({
+                    "title": "قسم تفاصيل",
+                    "items": [key],
+                    "show": True,
+                })
+                seen.add(key)
+
+        if not normalized_groups:
+            normalized_groups = [dict(g) for g in defaults["detail_groups"]]
+
+        merged["detail_groups"] = normalized_groups
+
         allowed_order = [
             "badges", "gallery", "thumbs", "trend", "price", "promotions",
             "name", "description", "rating", "brand", "colors", "sizes", "size_guide",
@@ -2961,6 +3036,18 @@ class CatalogService:
             if key not in normalized_order:
                 normalized_order.append(key)
         merged["detail_order"] = normalized_order
+
+        flattened_group_order = []
+        for group in merged["detail_groups"]:
+            if group.get("show") is False:
+                continue
+            for key in group.get("items", []):
+                if key not in flattened_group_order:
+                    flattened_group_order.append(key)
+        for key in allowed_order:
+            if key not in flattened_group_order:
+                flattened_group_order.append(key)
+        merged["detail_order"] = flattened_group_order
 
         allowed_policy_order = ["shipping", "returns", "warranty", "payment"]
         raw_policy_order = merged.get("policy_order")
