@@ -1677,6 +1677,10 @@ class _ProductOptions extends StatelessWidget {
   final int? selectedSizeId;
   final ValueChanged<int> onColor;
   final ValueChanged<int> onSize;
+  final Map<int, String> colorThumbUrls;
+  final Map<String, dynamic> settings;
+  final bool showColors;
+  final bool showSizes;
 
   const _ProductOptions({
     required this.colors,
@@ -1685,119 +1689,165 @@ class _ProductOptions extends StatelessWidget {
     required this.selectedSizeId,
     required this.onColor,
     required this.onSize,
+    this.colorThumbUrls = const {},
+    this.settings = const {},
+    this.showColors = true,
+    this.showSizes = true,
   });
 
+  Color _color(String key, Color fallback) => sxColor(
+    sxText(settings[key]),
+    fallback,
+  );
+
   @override
-  Widget build(BuildContext context) => Container(
-        margin: const EdgeInsets.only(top: 6),
-        color: Colors.white,
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (colors.isNotEmpty) ...[
-              const Text('اللون', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 9),
-              Wrap(
-                spacing: 9,
-                runSpacing: 8,
-                children: colors.map((item) {
-                  final id = sxInt(item['id']);
-                  final selected = id == selectedColorId;
-                  return InkWell(
-                    onTap: () => onColor(id),
-                    borderRadius: BorderRadius.circular(30),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: sxColor(
-                              sxText(item['hex_code'], '#D1D5DB'),
-                              const Color(0xFFD1D5DB),
-                            ),
-                            border: Border.all(
-                              color: selected ? Colors.black : Colors.white,
-                              width: selected ? 2 : 1,
-                            ),
+  Widget build(BuildContext context) {
+    final colorsVisible = showColors && colors.isNotEmpty;
+    final sizesVisible = showSizes && sizes.isNotEmpty;
+    if (!colorsVisible && !sizesVisible) return const SizedBox.shrink();
+
+    final colorSize = sxDouble(settings['colors_size'], 38).clamp(24, 64);
+    final colorGap = sxDouble(settings['colors_gap'], 9).clamp(0, 18);
+    final colorRunGap = sxDouble(settings['colors_run_gap'], 8).clamp(0, 18);
+    final selectedBorder = sxDouble(
+      settings['colors_selected_border_width'],
+      2,
+    ).clamp(0, 4);
+    final labelSize = sxDouble(settings['colors_label_font_size'], 8.5).clamp(6, 16);
+
+    final sizeFont = sxDouble(settings['sizes_font_size'], 10).clamp(7, 18);
+    final sizeHorizontal = sxDouble(
+      settings['sizes_padding_horizontal'],
+      12,
+    ).clamp(4, 24);
+    final sizeVertical = sxDouble(settings['sizes_padding_vertical'], 9).clamp(3, 18);
+    final sizeGap = sxDouble(settings['sizes_gap'], 7).clamp(0, 16);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (colorsVisible) ...[
+            const Text(
+              'اللون',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 9),
+            Wrap(
+              spacing: colorGap,
+              runSpacing: colorRunGap,
+              children: colors.map((item) {
+                final id = sxInt(item['id']);
+                final selected = id == selectedColorId;
+                final thumb = colorThumbUrls[id];
+                final hasThumb = thumb != null && thumb.trim().isNotEmpty;
+                return InkWell(
+                  onTap: () => onColor(id),
+                  borderRadius: BorderRadius.circular(colorSize / 2),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: colorSize,
+                        height: colorSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: sxColor(
+                            sxText(item['hex_code'], '#D1D5DB'),
+                            const Color(0xFFD1D5DB),
                           ),
-                          child: selected
-                              ? const Icon(Icons.check, size: 17, color: Colors.white)
-                              : null,
+                          border: Border.all(
+                            color: selected ? Colors.black : const Color(0xFFE5E7EB),
+                            width: selected ? selectedBorder : 1,
+                          ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          sxText(item['name']),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-            if (colors.isNotEmpty && sizes.isNotEmpty) const Divider(height: 24),
-            if (sizes.isNotEmpty) ...[
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text('المقاس', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
-                  ),
-                  TextButton(
-                    onPressed: () => showModalBottomSheet<void>(
-                      context: context,
-                      backgroundColor: Colors.white,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+                        clipBehavior: Clip.antiAlias,
+                        child: hasThumb
+                            ? _DetailNetworkImage(url: thumb)
+                            : selected
+                                ? Icon(
+                                    Icons.check,
+                                    size: colorSize * .43,
+                                    color: Colors.white,
+                                  )
+                                : null,
                       ),
-                      builder: (_) => const _SizeGuide(),
-                    ),
-                    child: const Text(
-                      'دليل المقاسات',
-                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                ],
-              ),
-              Wrap(
-                spacing: 7,
-                runSpacing: 7,
-                children: sizes.map((item) {
-                  final id = sxInt(item['id']);
-                  final selected = id == selectedSizeId;
-                  return InkWell(
-                    onTap: () => onSize(id),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 130),
-                      constraints: const BoxConstraints(minWidth: 55),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-                      decoration: BoxDecoration(
-                        color: selected ? Colors.black : Colors.white,
-                        border: Border.all(color: selected ? Colors.black : const Color(0xFFD8D8D8)),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Text(
-                        sxText(item['label'], sxText(item['code'])),
-                        textAlign: TextAlign.center,
+                      const SizedBox(height: 4),
+                      Text(
+                        sxText(item['name']),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: selected ? Colors.white : Colors.black,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
+                          fontSize: labelSize,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
           ],
-        ),
-      );
+          if (colorsVisible && sizesVisible) const Divider(height: 24),
+          if (sizesVisible) ...[
+            Text(
+              'المقاس',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 9),
+            Wrap(
+              spacing: sizeGap,
+              runSpacing: sizeGap,
+              children: sizes.map((item) {
+                final id = sxInt(item['id']);
+                final selected = id == selectedSizeId;
+                return InkWell(
+                  onTap: () => onSize(id),
+                  borderRadius: BorderRadius.circular(5),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 130),
+                    constraints: const BoxConstraints(minWidth: 55),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: sizeHorizontal,
+                      vertical: sizeVertical,
+                    ),
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? _color('sizes_selected_background_color', Colors.black)
+                          : _color('sizes_background_color', Colors.white),
+                      border: Border.all(
+                        color: selected
+                            ? _color('sizes_selected_background_color', Colors.black)
+                            : _color('sizes_border_color', const Color(0xFFD8D8D8)),
+                      ),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      sxText(item['label'], sxText(item['code'])),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: selected
+                            ? _color('sizes_selected_text_color', Colors.white)
+                            : _color('sizes_text_color', Colors.black),
+                        fontSize: sizeFont,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _ProductSavings extends StatelessWidget {
