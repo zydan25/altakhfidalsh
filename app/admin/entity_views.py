@@ -1053,6 +1053,208 @@ def register_entity_views(admin_bp):
             **build_admin_context(),
         )
 
+    @admin_bp.route("/size-guides", methods=["GET", "POST"])
+    def size_guides_page():
+        from ..models import Size, SizeGuide, SizeGuideRow
+
+        error = None
+        success = None
+        selected_id = request.args.get("id", type=int)
+        try:
+            if request.method == "POST":
+                action = (request.form.get("action") or "").strip()
+                guide_id = request.form.get("id", type=int)
+                guide = db.session.get(SizeGuide, guide_id) if guide_id else None
+
+                if action == "create":
+                    name = (request.form.get("name") or "").strip()
+                    if not name:
+                        raise ValueError("اسم جدول المقاسات مطلوب.")
+                    guide = SizeGuide(
+                        name=name,
+                        guide_type=(request.form.get("guide_type") or "product").strip()[:40],
+                        fit_type=(request.form.get("fit_type") or "").strip()[:40] or None,
+                        intro_text=(request.form.get("intro_text") or "").strip() or None,
+                        product_columns_json=[],
+                        body_columns_json=[],
+                        is_active=True,
+                    )
+                    db.session.add(guide)
+                    db.session.flush()
+                    selected_id = guide.id
+                    success = "تم إنشاء جدول المقاسات."
+
+                elif guide is None:
+                    raise ValueError("جدول المقاسات غير موجود.")
+
+                elif action == "archive":
+                    guide.is_active = False
+                    success = "تمت أرشفة جدول المقاسات."
+                    selected_id = None
+
+                elif action == "update":
+                    name = (request.form.get("name") or "").strip()
+                    if not name:
+                        raise ValueError("اسم جدول المقاسات مطلوب.")
+                    guide.name = name
+                    guide.guide_type = (request.form.get("guide_type") or guide.guide_type or "product").strip()[:40]
+                    guide.fit_type = (request.form.get("fit_type") or "").strip()[:40] or None
+                    guide.intro_text = (request.form.get("intro_text") or "").strip() or None
+                    success = "تم تحديث بيانات الجدول."
+
+                elif action == "save_grid":
+                    import json
+
+                    def normalize_columns(raw):
+                        if not isinstance(raw, list):
+                            return []
+                        result = []
+                        seen = set()
+                        for item in raw[:30]:
+                            if not isinstance(item, dict):
+                                continue
+                            key = _slugify(str(item.get("key") or item.get("label") or ""), fallback="metric")
+                            base = key
+                            index = 2
+                            while key in seen:
+                                key = f"{base}-{index}"
+                                index += 1
+                            label = str(item.get("label") or "").strip()[:100]
+                            if not label:
+                                continue
+                            unit = str(item.get("unit") or "").strip()[:20]
+                            seen.add(key)
+                            result.append({"key": key, "label": label, "unit": unit})
+                        return result
+
+                    def normalize_rows(raw, product_columns, body_columns):
+                        if not isinstance(raw, list):
+                            return []
+                        allowed_sizes = {
+                            row.id: row for row in Size.query.filter_by(is_active=True).all()
+                        }
+                        rows = []
+                        seen_sizes = set()
+                        for item in raw[:200]:
+                            if not isinstance(item, dict):
+                                continue
+                            try:
+                                size_id = int(item.get("size_id") or 0)
+                            except (TypeError, ValueError):
+                                size_id = 0
+                            if size_id not in allowed_sizes or size_id in seen_sizes:
+                                continue
+
+                            def values_for(name):
+                                raw_values = item.get(name)
+                                if not isinstance(raw_values, dict):
+                                    raw_values = {}
+                                return {
+                                    col["key"]: str(raw_values.get(col["key"]) or "").strip()[:80]
+                                    for col in (product_columns if name == "product_measurements" else body_columns)
+                                    if raw_values.get(col["key"]) is not None
+                                }
+
+                            rows.append({
+                                "size_id": size_id,
+                                "product_measurements": values_for("product_measurements"),
+                                "body_measurements": values_for("body_measurements"),
+                            })
+                            seen_sizes.add(size_id)
+                        return rows
+
+                    try:
+                        product_columns = normalize_columns(
+                            json.loads(request.form.get("product_columns_json") or "[]")
+                        )
+                        body_columns = normalize_columns(
+                            json.loads(request.form.get("body_columns_json") or "[]")
+                        )
+                        grid_rows = normalize_rows(
+                            json.loads(request.form.get("rows_json") or "[]"),
+                            product_columns,
+                            body_columns,
+                        )
+                    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                        raise ValueError("بيانات شبكة المقاسات غير صالحة: " + str(exc))
+
+                    guide.product_columns_json = product_columns
+                    guide.body_columns_json = body_columns
+                    SizeGuideRow.query.filter_by(guide_id=guide.id).delete(synchronize_session=False)
+                    for row_data in grid_rows:
+                        db.session.add(
+                            SizeGuideRow(
+                                guide_id=guide.id,
+                                size_id=row_data["size_id"],
+                                product_measurements=row_data["product_measurements"],
+                                body_measurements=row_data["body_measurements"],
+                            )
+                        )
+                    success = "تم حفظ الأعمدة وقيم شبكة المقاسات."
+
+                else:
+                    raise ValueError("إجراء جدول المقاسات غير معروف.")
+
+                db.session.commit()
+
+        except (ValueError, TypeError) as exc:
+            db.session.rollback()
+            error = str(exc)
+
+        guides = (
+            SizeGuide.query.filter_by(is_active=True)
+            .order_by(SizeGuide.id.desc())
+            .limit(100)
+            .all()
+        )
+        archived = (
+            SizeGuide.query.filter_by(is_active=False)
+            .order_by(SizeGuide.id.desc())
+            .limit(100)
+            .all()
+        )
+        if selected_id is None and guides:
+            selected_id = guides[0].id
+        selected = db.session.get(SizeGuide, selected_id) if selected_id else None
+        sizes = (
+            Size.query.filter_by(is_active=True)
+            .order_by(Size.group, Size.sort_order, Size.label)
+            .limit(500)
+            .all()
+        )
+        guide_rows = []
+        if selected is not None:
+            joined = (
+                db.session.query(SizeGuideRow, Size)
+                .join(Size, Size.id == SizeGuideRow.size_id)
+                .filter(SizeGuideRow.guide_id == selected.id)
+                .order_by(SizeGuideRow.id)
+                .all()
+            )
+            for row, size in joined:
+                guide_rows.append({
+                    "id": row.id,
+                    "size_id": row.size_id,
+                    "size_label": size.label,
+                    "size_code": size.code,
+                    "product_measurements": row.product_measurements or {},
+                    "body_measurements": row.body_measurements or {},
+                })
+
+        return render_template(
+            "admin/size_guides.html",
+            title="جداول المقاسات",
+            section="الكتالوج",
+            guides=guides,
+            archived_guides=archived,
+            selected_guide=selected,
+            guide_rows=guide_rows,
+            sizes=sizes,
+            error=error,
+            success=success,
+            **_ctx(),
+        )
+
     @admin_bp.route("/category-strip", methods=["GET", "POST"])
     def category_strip():
         from ..models import CategoryNavigationItem, Category
