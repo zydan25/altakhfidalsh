@@ -4729,9 +4729,24 @@ class _DeliveryPolicyBox extends StatelessWidget {
         sxText(settings['delivery_location_region']),
         sxText(settings['delivery_location_country'], 'Saudi Arabia'),
       ].where((x) => x.trim().isNotEmpty).toList();
-      final customerCity = state.cityName?.trim() ?? '';
-      final locationText = mode == 'customer_city' && customerCity.isNotEmpty
-          ? customerCity
+      final address = customerAddress ?? const <String, dynamic>{};
+      final customerCity = sxText(address['city_name'], state.cityName ?? '').trim();
+      final customerRegion = sxText(address['region_name']).trim();
+      final customerCountry = sxText(address['country_name']).trim();
+      final customerArea = sxText(address['city_area_name']).trim();
+      final customerDistrict = sxText(address['district']).trim();
+      final customerStreet = sxText(address['street']).trim();
+      final customerLandmark = sxText(address['landmark']).trim();
+      final customerLines = <String>[
+        [customerCity, customerRegion, customerCountry]
+            .where((x) => x.isNotEmpty)
+            .join(' · '),
+        [customerArea, customerDistrict, customerStreet, customerLandmark]
+            .where((x) => x.isNotEmpty)
+            .join(' · '),
+      ].where((x) => x.isNotEmpty).toList();
+      final locationText = mode == 'customer_city'
+          ? (customerLines.isNotEmpty ? customerLines.join('\n') : 'حدد عنوانك الافتراضي')
           : fixedParts.join(' · ');
       rows.add(
         row(
