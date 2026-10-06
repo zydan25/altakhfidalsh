@@ -28,6 +28,18 @@
   .sort-name{flex:1;font-weight:900;font-size:11px}
   .sort-actions{display:flex;gap:4px}
   .sort-actions button{width:29px;height:29px;padding:0;border:1px solid #ddd;background:#fff;border-radius:7px;cursor:pointer;font-weight:900}
+  .box-designer{padding:12px;display:grid;gap:10px}
+  .detail-box{border:1px solid #e1e1e1;border-radius:13px;background:#fbfbfb;overflow:hidden}
+  .detail-box-head{display:flex;align-items:center;gap:8px;padding:10px;border-bottom:1px solid #e8e8e8}
+  .detail-box-head input[type=text]{flex:1;min-width:0}
+  .detail-box-items{padding:10px;display:grid;gap:7px}
+  .detail-box-item{display:flex;align-items:center;gap:7px;padding:8px;background:#fff;border:1px solid #e6e6e6;border-radius:9px}
+  .detail-box-item select{flex:1;min-width:0}
+  .detail-box-empty{font-size:9px;color:#888;padding:4px}
+  .detail-box-add{display:flex;gap:7px;padding:0 10px 10px}
+  .detail-box-add select{flex:1}
+  .designer-toolbar{display:flex;gap:7px;flex-wrap:wrap}
+  .designer-toolbar button{border:1px solid #ddd;background:#fff;border-radius:9px;padding:8px 11px;font-weight:900;cursor:pointer}
   .save-bar{position:sticky;bottom:10px;z-index:20;background:rgba(255,255,255,.97);border:1px solid #e4e4e4;border-radius:12px;padding:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
   .save-bar small{color:#777}
   @media(max-width:720px){.pds-grid,.pds-colors{grid-template-columns:1fr}.save-bar{flex-direction:column;align-items:stretch}.save-bar button{width:100%}}
@@ -90,6 +102,63 @@
         </div>
         <input type="hidden" name="detail_order" id="detailOrderInput" value="{{ product_detail_settings.detail_order|join(',') }}">
       </div>
+    </section>
+
+    <section class="pds-panel">
+      <div class="pds-head">
+        <span class="eyebrow">التقسيم المتقدم</span>
+        <h3>مربعات تفاصيل الصنف</h3>
+        <p class="muted">كل مجموعة تصبح مستطيلًا واحدًا للعميل. يمكنك إضافة المستطيلات وحذفها وتغيير ترتيب العناصر داخل كل مستطيل.</p>
+      </div>
+      <div class="box-designer" id="detailBoxDesigner">
+        {% for group in product_detail_settings.detail_groups %}
+        <div class="detail-box" draggable="true">
+          <div class="detail-box-head">
+            <span class="sort-handle">⋮⋮</span>
+            <input type="text" class="group-title" value="{{ group.title }}" maxlength="80" placeholder="اسم المستطيل">
+            <label class="pds-check" style="margin:0;padding:7px 9px;">
+              <input type="checkbox" class="group-show" {% if group.show != false %}checked{% endif %}>
+              <span>إظهار</span>
+            </label>
+            <div class="sort-actions">
+              <button type="button" data-group-up>↑</button>
+              <button type="button" data-group-down>↓</button>
+              <button type="button" data-group-remove>×</button>
+            </div>
+          </div>
+          <div class="detail-box-items">
+            {% for key in group.items %}
+            <div class="detail-box-item">
+              <span class="sort-handle">☷</span>
+              <select class="group-item-key">
+                {% for option_key, option_label in detail_group_options %}
+                <option value="{{ option_key }}" {% if option_key == key %}selected{% endif %}>{{ option_label }}</option>
+                {% endfor %}
+              </select>
+              <button type="button" data-item-up>↑</button>
+              <button type="button" data-item-down>↓</button>
+              <button type="button" data-item-remove>×</button>
+            </div>
+            {% endfor %}
+            {% if not group.items %}<div class="detail-box-empty">أضف أول عنصر إلى هذا المستطيل.</div>{% endif %}
+          </div>
+          <div class="detail-box-add">
+            <select class="group-add-select">
+              <option value="">إضافة عنصر إلى المستطيل…</option>
+              {% for option_key, option_label in detail_group_options %}
+              <option value="{{ option_key }}">{{ option_label }}</option>
+              {% endfor %}
+            </select>
+            <button type="button" class="ghost-button" data-item-add>إضافة</button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="designer-toolbar" style="padding:0 12px 12px;">
+        <button type="button" id="addDetailBox">+ إضافة مستطيل</button>
+        <button type="button" id="resetDetailBoxes">تطبيق تخطيط SHEIN المقترح</button>
+      </div>
+      <input type="hidden" name="detail_groups_json" id="detailGroupsInput">
     </section>
 
     <section class="pds-panel">
@@ -190,6 +259,202 @@
 
 <script>
 (() => {
+
+  const detailGroupOptions = {{ detail_group_options|tojson }};
+  const designer = document.getElementById('detailBoxDesigner');
+  const groupsInput = document.getElementById('detailGroupsInput');
+
+  function addOption(select, key, label, selected) {
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = label;
+    option.selected = key === selected;
+    select.appendChild(option);
+  }
+
+  function makeItem(key) {
+    const row = document.createElement('div');
+    row.className = 'detail-box-item';
+
+    const handle = document.createElement('span');
+    handle.className = 'sort-handle';
+    handle.textContent = '☷';
+
+    const select = document.createElement('select');
+    select.className = 'group-item-key';
+    for (const pair of detailGroupOptions) addOption(select, pair[0], pair[1], key);
+
+    const up = document.createElement('button');
+    up.type = 'button'; up.dataset.itemUp = ''; up.textContent = '↑';
+    const down = document.createElement('button');
+    down.type = 'button'; down.dataset.itemDown = ''; down.textContent = '↓';
+    const remove = document.createElement('button');
+    remove.type = 'button'; remove.dataset.itemRemove = ''; remove.textContent = '×';
+
+    row.append(handle, select, up, down, remove);
+    return row;
+  }
+
+  function addGroup(title, items) {
+    const box = document.createElement('div');
+    box.className = 'detail-box';
+    box.draggable = true;
+
+    const head = document.createElement('div');
+    head.className = 'detail-box-head';
+
+    const handle = document.createElement('span');
+    handle.className = 'sort-handle'; handle.textContent = '⋮⋮';
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text'; titleInput.className = 'group-title';
+    titleInput.maxLength = 80; titleInput.value = title || 'قسم تفاصيل';
+
+    const label = document.createElement('label');
+    label.className = 'pds-check'; label.style.margin = '0'; label.style.padding = '7px 9px';
+    const check = document.createElement('input');
+    check.type = 'checkbox'; check.className = 'group-show'; check.checked = true;
+    const checkText = document.createElement('span'); checkText.textContent = 'إظهار';
+    label.append(check, checkText);
+
+    const actions = document.createElement('div');
+    actions.className = 'sort-actions';
+    const up = document.createElement('button'); up.type='button'; up.dataset.groupUp=''; up.textContent='↑';
+    const down = document.createElement('button'); down.type='button'; down.dataset.groupDown=''; down.textContent='↓';
+    const remove = document.createElement('button'); remove.type='button'; remove.dataset.groupRemove=''; remove.textContent='×';
+    actions.append(up, down, remove);
+
+    head.append(handle, titleInput, label, actions);
+
+    const itemsWrap = document.createElement('div');
+    itemsWrap.className = 'detail-box-items';
+    for (const key of (items || [])) itemsWrap.appendChild(makeItem(key));
+
+    const addWrap = document.createElement('div');
+    addWrap.className = 'detail-box-add';
+    const addSelect = document.createElement('select');
+    addSelect.className = 'group-add-select';
+    addOption(addSelect, '', 'إضافة عنصر إلى المستطيل…', '');
+    for (const pair of detailGroupOptions) addOption(addSelect, pair[0], pair[1], '');
+
+    const addButton = document.createElement('button');
+    addButton.type='button'; addButton.className='ghost-button'; addButton.dataset.itemAdd=''; addButton.textContent='إضافة';
+    addWrap.append(addSelect, addButton);
+
+    box.append(head, itemsWrap, addWrap);
+    designer.appendChild(box);
+    refreshGroupEmpty(box);
+    bindGroupDrag(box);
+  }
+
+  function refreshGroupEmpty(box) {
+    const wrap = box.querySelector('.detail-box-items');
+    const empty = box.querySelector('.detail-box-empty');
+    const hasItems = wrap && wrap.querySelector('.detail-box-item');
+    if (!hasItems && !empty) {
+      const node = document.createElement('div');
+      node.className = 'detail-box-empty';
+      node.textContent = 'أضف أول عنصر إلى هذا المستطيل.';
+      wrap.appendChild(node);
+    } else if (hasItems && empty) {
+      empty.remove();
+    }
+  }
+
+  function syncGroups() {
+    if (!designer || !groupsInput) return;
+    const groups = [];
+    designer.querySelectorAll('.detail-box').forEach(box => {
+      const items = [...box.querySelectorAll('.group-item-key')]
+        .map(x => x.value).filter(Boolean);
+      groups.push({
+        title: box.querySelector('.group-title')?.value?.trim() || 'قسم تفاصيل',
+        show: !!box.querySelector('.group-show')?.checked,
+        items: [...new Set(items)]
+      });
+      refreshGroupEmpty(box);
+    });
+    groupsInput.value = JSON.stringify(groups);
+  }
+
+  function bindGroupDrag(box) {
+    box.addEventListener('dragstart', e => {
+      if (e.target.closest('input,select,button')) { e.preventDefault(); return; }
+      box.classList.add('dragging');
+      window.__detailDragging = box;
+    });
+    box.addEventListener('dragend', () => {
+      box.classList.remove('dragging');
+      window.__detailDragging = null;
+      syncGroups();
+    });
+    box.addEventListener('dragover', e => {
+      e.preventDefault();
+      const dragging = window.__detailDragging;
+      if (!dragging || dragging === box) return;
+      const rect = box.getBoundingClientRect();
+      designer.insertBefore(dragging, e.clientY < rect.top + rect.height / 2 ? box : box.nextSibling);
+    });
+  }
+
+  designer?.querySelectorAll('.detail-box').forEach(bindGroupDrag);
+
+  designer?.addEventListener('click', e => {
+    const box = e.target.closest('.detail-box');
+    if (!box) return;
+
+    if (e.target.closest('[data-group-up]') && box.previousElementSibling) {
+      designer.insertBefore(box, box.previousElementSibling);
+    }
+    if (e.target.closest('[data-group-down]') && box.nextElementSibling) {
+      designer.insertBefore(box.nextElementSibling, box);
+    }
+    if (e.target.closest('[data-group-remove]')) {
+      box.remove();
+    }
+    if (e.target.closest('[data-item-remove]')) {
+      e.target.closest('.detail-box-item')?.remove();
+    }
+    if (e.target.closest('[data-item-up]')) {
+      const row = e.target.closest('.detail-box-item');
+      if (row?.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
+    }
+    if (e.target.closest('[data-item-down]')) {
+      const row = e.target.closest('.detail-box-item');
+      if (row?.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row);
+    }
+    if (e.target.closest('[data-item-add]')) {
+      const select = box.querySelector('.group-add-select');
+      if (select?.value) {
+        const existing = [...box.querySelectorAll('.group-item-key')].map(x => x.value);
+        if (!existing.includes(select.value)) {
+          box.querySelector('.detail-box-items').appendChild(makeItem(select.value));
+        }
+        select.value = '';
+      }
+    }
+    syncGroups();
+  });
+
+  designer?.addEventListener('input', syncGroups);
+  designer?.addEventListener('change', syncGroups);
+
+  document.getElementById('addDetailBox')?.addEventListener('click', () => {
+    addGroup('قسم تفاصيل', []);
+    syncGroups();
+  });
+
+  document.getElementById('resetDetailBoxes')?.addEventListener('click', () => {
+    while (designer.firstChild) designer.firstChild.remove();
+    addGroup('العروض وبيانات المنتج', ['trend','name','badges','price','promotions','description','rating','brand']);
+    addGroup('الصور والألوان والمقاسات', ['thumbs','colors','sizes','size_guide']);
+    addGroup('التفاصيل والخدمات', ['details','stock','delivery','policies','reviews']);
+    addGroup('اقتراحات التسوق', ['related']);
+    syncGroups();
+  });
+
+  syncGroups();
+
   const list=document.getElementById('detailOrderList');
   const input=document.getElementById('detailOrderInput');
 
