@@ -1680,6 +1680,7 @@ def register_entity_views(admin_bp):
             ("price", "السعر والخصم"),
             ("promotions", "الكوبونات والعروض"),
             ("name", "اسم المنتج"),
+            ("description", "الوصف المختصر"),
             ("rating", "التقييم المختصر"),
             ("brand", "العلامة التجارية"),
             ("colors", "الألوان"),
@@ -1720,6 +1721,15 @@ def register_entity_views(admin_bp):
                     ("name_font_size", "حجم الاسم", "number", 14, 32, .5, False),
                     ("name_font_weight", "وزن الاسم", "number", 400, 900, 100, True),
                     ("name_max_lines", "أقصى أسطر للاسم", "number", 2, 6, 1, True),
+                ],
+            },
+            {
+                "title": "الوصف المختصر",
+                "hint": "يظهر أسفل الاسم بالطريقة التسويقية القصيرة، ويمكن وضعه في أي موضع من ترتيب الصفحة.",
+                "fields": [
+                    ("description_show", "إظهار الوصف", "checkbox"),
+                    ("description_font_size", "حجم الوصف", "number", 7, 18, .5, False),
+                    ("description_max_lines", "أقصى أسطر للوصف", "number", 1, 5, 1, True),
                 ],
             },
             {
