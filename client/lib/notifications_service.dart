@@ -11,7 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-const String notificationAlertsChannelId = 'altakhfid_alerts_v3';
+const String notificationAlertsChannelId = 'altakhfid_alerts_v4';
 const String notificationBackgroundChannelId = 'altakhfid_background_v2';
 const int notificationForegroundServiceId = 41001;
 const String notificationLastSeenKey = 'notification_last_seen_id_v1';
@@ -249,7 +249,16 @@ void notificationBackgroundEntrypoint(ServiceInstance service) async {
       final socketBase = base.replaceFirst(RegExp(r'^https?://'), socketScheme);
       final channel = WebSocketChannel.connect(
         Uri.parse(socketBase + '/notifications/ws'),
-        protocols: ['altakhfid-bearer', token],
+      );
+
+      // The server intentionally authenticates with an application-level
+      // handshake frame because this is supported consistently by Flutter's
+      // WebSocket implementations on Android and Web.
+      channel.sink.add(
+        jsonEncode(<String, dynamic>{
+          'type': 'auth',
+          'token': token,
+        }),
       );
 
       final done = Completer<void>();
@@ -263,8 +272,11 @@ void notificationBackgroundEntrypoint(ServiceInstance service) async {
             if (payload['type'] == 'heartbeat' || payload['type'] == 'connected' || payload['type'] == 'error') return;
             final notificationId = int.tryParse((payload['notification_id'] ?? '').toString());
             if (notificationId == null || notificationId <= 0) return;
-            await _saveLastSeen(prefs, notificationId);
+            // Only advance the durable cursor after Android accepted the notification.
+            // This prevents a local-notification failure from silently dropping the event.
             await _showFromLocal(local, payload);
+            await _saveLastSeen(prefs, notificationId);
+            debugPrint('Altakhfid native notification shown: $notificationId');
           } catch (_) {}
         },
         onError: (_) { if (!done.isCompleted) done.complete(); },
@@ -285,7 +297,7 @@ void notificationBackgroundEntrypoint(ServiceInstance service) async {
 Future<void> _syncMissedNotifications(SharedPreferences prefs, String token, FlutterLocalNotificationsPlugin local) async {
   try {
     final response = await http.get(
-      Uri.parse(_apiBaseUrl() + '/notifications/me'),
+      Uri.parse(_apiBaseUrl() + '/notifications/notifications/me'),
       headers: <String, String>{'Authorization': 'Bearer ' + token, 'Accept': 'application/json'},
     ).timeout(const Duration(seconds: 15));
     if (response.statusCode < 200 || response.statusCode >= 300) return;
@@ -306,9 +318,13 @@ Future<void> _syncMissedNotifications(SharedPreferences prefs, String token, Flu
     for (final row in rows) {
       final id = int.tryParse((row['id'] ?? '').toString()) ?? 0;
       if (id <= lastSeen) continue;
-      await _showFromLocal(local, row);
-      lastSeen = id;
-      await prefs.setInt(notificationLastSeenKey, lastSeen);
+      try {
+        await _showFromLocal(local, row);
+        lastSeen = id;
+        await prefs.setInt(notificationLastSeenKey, lastSeen);
+      } catch (_) {
+        // Keep the cursor unchanged so this notification is retried on the next sync.
+      }
     }
   } catch (_) {}
 }
@@ -328,11 +344,14 @@ Future<void> _showFromLocal(FlutterLocalNotificationsPlugin local, Map<String, d
         priority: Priority.max,
         category: AndroidNotificationCategory.message,
         visibility: NotificationVisibility.public,
-        icon: 'app_icon',
+        icon: 'notification_icon',
         ticker: 'التخفيض الصح',
         playSound: true,
         enableVibration: true,
         vibrationPattern: Int64List.fromList(<int>[0, 250, 120, 250]),
+        onlyAlertOnce: false,
+        autoCancel: true,
+        showWhen: true,
         styleInformation: BigTextStyleInformation(
           (payload['body'] ?? '').toString(),
         ),

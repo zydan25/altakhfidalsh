@@ -18,7 +18,30 @@ import 'product_detail.dart';
 import 'widgets.dart';
 import 'notifications_service.dart';
 
-String sxText(dynamic v, [String fallback = '']) => (v ?? fallback).toString();
+String sxText(dynamic v, [String fallback = '']) {
+  final raw = (v ?? fallback).toString();
+  final normalized = raw.toLowerCase();
+
+  // Never leak low-level network/socket errors into the customer UI.
+  if (normalized.contains('socketexception') ||
+      normalized.contains('websocketexception') ||
+      normalized.contains('clientexception') ||
+      normalized.contains('failed host lookup') ||
+      normalized.contains('connection refused') ||
+      normalized.contains('connection reset') ||
+      normalized.contains('network is unreachable') ||
+      normalized.contains('network request failed') ||
+      normalized.contains('xmlhttprequest error') ||
+      normalized.contains('timed out') ||
+      normalized.contains('timeout')) {
+    return 'أنت غير متصل بالإنترنت حاليًا. تم الاحتفاظ بما يمكن حفظه، حاول مرة أخرى عند عودة الاتصال.';
+  }
+
+  return raw
+      .replaceFirst('Exception: ', '')
+      .replaceFirst('ClientException: ', '')
+      .trim();
+}
 int sxInt(dynamic v, [int fallback = 0]) => int.tryParse(sxText(v)) ?? fallback;
 double sxDouble(dynamic v, [double fallback = 0]) => double.tryParse(sxText(v)) ?? fallback;
 
@@ -87,41 +110,9 @@ class _SxAppShellState extends State<SxAppShell> {
     try {
       final data = await api.notificationSummary();
       final count = sxInt(data['unread_count']);
-      if (_lastNotificationCount >= 0 &&
-          count > _lastNotificationCount &&
-          mounted) {
-        final items = sxMaps(data['items']);
-        final firstUnread = items.cast<Map<String, dynamic>?>().firstWhere(
-          (row) => row != null && sxText(row!['read_at']).isEmpty,
-          orElse: () => null,
-        );
-        ScaffoldMessenger.of(context)
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(
-                firstUnread == null
-                    ? 'لديك إشعار جديد من التخفيض الصح.'
-                    : sxText(
-                        firstUnread['title'],
-                        'لديك إشعار جديد من التخفيض الصح.',
-                      ),
-              ),
-              duration: const Duration(seconds: 3),
-              action: SnackBarAction(
-                label: 'عرض',
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const SxNotificationsScreen(),
-                    ),
-                  );
-                },
-              ),
-            ),
-          );
-      }
+      // Native Android notifications are responsible for the heads-up alert.
+      // The app shell only keeps the unread badge in sync; it must not create a
+      // second persistent SnackBar or expose transport errors at the bottom.
       _lastNotificationCount = count;
       notificationBadge.value = count;
     } catch (_) {}
