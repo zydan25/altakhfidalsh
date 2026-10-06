@@ -527,13 +527,28 @@ def public_product_feed():
         )
 
     # Relation joins above can duplicate a product. Collapse them before the
-    # predictable candidate limit is applied.
+    # predictable candidate limit is applied. PostgreSQL does not allow
+    # ORDER BY random() on a SELECT DISTINCT unless random() is also selected,
+    # so randomize the distinct product ids first and then load full Product rows.
     query = query.distinct()
 
     # Keep the database candidate set predictable; final pricing/sorting is done after
     # customer/city/currency pricing has been resolved.
     if sort in {"random", "shuffle"}:
-        rows = query.order_by(func.random()).limit(100).all()
+        candidate_ids = [
+            product_id
+            for (product_id,) in query.with_entities(Product.id).limit(1000).all()
+        ]
+        random.shuffle(candidate_ids)
+        candidate_ids = candidate_ids[:100]
+        if candidate_ids:
+            products_by_id = {
+                row.id: row
+                for row in Product.query.filter(Product.id.in_(candidate_ids)).all()
+            }
+            rows = [products_by_id[product_id] for product_id in candidate_ids if product_id in products_by_id]
+        else:
+            rows = []
     else:
         rows = query.order_by(Product.id.desc()).limit(100).all()
 
