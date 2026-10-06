@@ -1875,13 +1875,47 @@ def register_entity_views(admin_bp):
                     ("show_name", "إظهار اسم المنتج", "checkbox"),
                     ("name_font_size", "حجم اسم المنتج", "number", 7, 24, .5, False),
                     ("name_font_weight", "وزن اسم المنتج", "number", 300, 900, 100, True),
-                    ("name_max_lines", "أقصى أسطر للاسم", "number", 1, 3, 1, True),
+                    ("name_max_lines", "أقصى أسطر للاسم", "number", 1, 6, 1, True),
+                    ("name_overflow", "طريقة تجاوز الاسم الطويل", "select", ["wrap", "ellipsis"]),
                     ("name_background_opacity", "شفافية خلفية الاسم", "number", 0, 1, .05, False),
                     ("show_short_description", "إظهار الوصف القصير", "checkbox"),
+                    ("short_description_position", "موضع الوصف القصير", "select", ["before_name", "after_name", "before_price", "after_price", "before_rating", "after_rating", "end"]),
                     ("short_description_font_size", "حجم الوصف القصير", "number", 7, 18, .5, False),
                     ("short_description_font_weight", "وزن الوصف القصير", "number", 300, 900, 100, True),
                     ("short_description_max_lines", "أقصى أسطر للوصف", "number", 1, 3, 1, True),
                     ("short_description_background_opacity", "شفافية خلفية الوصف", "number", 0, 1, .05, False),
+                ],
+            },
+            {
+                "title": "التقييم داخل البطاقة",
+                "hint": "تحكم في إظهار التقييم ومكانه وحجم النجمة والنص وعدد المراجعات.",
+                "fields": [
+                    ("rating_show", "إظهار التقييم", "checkbox"),
+                    ("rating_position", "موضع التقييم", "select", ["before_name", "after_name", "before_description", "after_description", "before_price", "after_price", "end"]),
+                    ("rating_font_size", "حجم نص التقييم", "number", 6, 18, .5, False),
+                    ("rating_icon_size", "حجم أيقونة النجمة", "number", 7, 24, .5, False),
+                    ("rating_review_count_show", "إظهار عدد المراجعات", "checkbox"),
+                    ("rating_review_count_font_size", "حجم عدد المراجعات", "number", 6, 18, .5, False),
+                ],
+            },
+            {
+                "title": "زر الإضافة السريعة",
+                "hint": "زر صغير فوق صورة المنتج يفتح اختيار اللون والمقاس والكمية قبل الإضافة للسلة.",
+                "fields": [
+                    ("quick_add_show", "إظهار زر الإضافة", "checkbox"),
+                    ("quick_add_icon", "أيقونة الزر", "select", ["shopping_bag_outlined", "shopping_cart_outlined", "add_shopping_cart_outlined", "local_mall_outlined"]),
+                    ("quick_add_size", "حجم الزر", "number", 22, 64, .5, False),
+                    ("quick_add_position", "موقع الزر", "select", ["bottom_left", "bottom_right", "top_left", "top_right"]),
+                    ("quick_add_radius", "تدوير الزر", "number", 0, 32, 1, True),
+                    ("quick_add_opacity", "شفافية خلفية الزر", "number", 0, 1, .05, False),
+                ],
+            },
+            {
+                "title": "تقليب صور المنتج",
+                "hint": "سرعة وحركة الانتقال بين صور المنتج عند السحب على البطاقة.",
+                "fields": [
+                    ("image_flip_effect", "حركة التقليب", "select", ["slide", "fade", "card_flip"]),
+                    ("image_flip_duration_ms", "مدة الحركة بالمللي ثانية", "number", 80, 1200, 10, True),
                 ],
             },
             {
@@ -2012,6 +2046,9 @@ def register_entity_views(admin_bp):
             ("trend_arrow_color", "لون السهم"),
             ("meta_background_color", "خلفية المقاس/العمر"),
             ("meta_text_color", "لون نص المقاس/العمر"),
+            ("rating_color", "لون التقييم"),
+            ("quick_add_background_color", "خلفية زر الإضافة"),
+            ("quick_add_icon_color", "لون أيقونة زر الإضافة"),
         ]
 
         trend_number_names = {
