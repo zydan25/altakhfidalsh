@@ -3006,6 +3006,9 @@ class CatalogService:
         normalized_groups = [g for g in normalized_groups if g["items"]]
 
         for key in defaults["detail_order"]:
+            # The main gallery stays above the boxed detail groups by default.
+            if key == "gallery":
+                continue
             if key not in seen:
                 normalized_groups.append({
                     "title": "قسم تفاصيل",
