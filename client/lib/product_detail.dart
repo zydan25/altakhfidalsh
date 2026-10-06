@@ -3003,29 +3003,9 @@ class _DetailVariantSelectionBox extends StatelessWidget {
         : <Map<String, dynamic>>[];
     final canGuide = showSizeGuide && guideRows.isNotEmpty;
 
-    // When a color is selected, put its linked images first in the thumbnail
-    // rail. The callback still maps back to the original gallery index, so the
-    // main carousel and color selection remain unchanged.
-    final thumbnailRows = <Map<String, dynamic>>[];
-    if (selectedColorId != null) {
-      thumbnailRows.addAll(
-        media.where((row) => sxInt(row['color_id']) == selectedColorId),
-      );
-      thumbnailRows.addAll(
-        media.where((row) => sxInt(row['color_id']) != selectedColorId),
-      );
-    } else {
-      thumbnailRows.addAll(media);
-    }
-
-    final selectedThumbnailIndex = page >= 0 && page < media.length
-        ? thumbnailRows.indexWhere((row) {
-            final rowId = sxInt(row['id']);
-            final pageId = sxInt(media[page]['id']);
-            if (rowId > 0 && pageId > 0) return rowId == pageId;
-            return sxText(row['url']) == sxText(media[page]['url']);
-          })
-        : -1;
+    final thumbnailRows = List<Map<String, dynamic>>.from(media);
+    final selectedThumbnailIndex =
+        page >= 0 && page < thumbnailRows.length ? page : -1;
 
     return Container(
       margin: const EdgeInsets.only(top: 6),
@@ -3062,35 +3042,6 @@ class _DetailVariantSelectionBox extends StatelessWidget {
               radius: sxDouble(detailSettings['thumbs_radius'], 4),
               borderWidth: sxDouble(detailSettings['thumbs_border_width'], 1.5),
             ),
-          if (showColors && colors.isNotEmpty) ...[
-            if (showThumbs && media.length > 1) const SizedBox(height: 5),
-            Row(
-              textDirection: TextDirection.rtl,
-              children: const [
-                Expanded(
-                  child: Text(
-                    'اللون',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            _ProductOptions(
-              colors: colors,
-              sizes: const [],
-              selectedColorId: selectedColorId,
-              selectedSizeId: selectedSizeId,
-              onColor: onColor,
-              onSize: (_) {},
-              colorThumbUrls: colorThumbUrls,
-              settings: detailSettings,
-              showColors: true,
-              showSizes: false,
-              embedded: true,
-            ),
-          ],
           if (showSizes && sizes.isNotEmpty) ...[
             if ((showColors && colors.isNotEmpty) || (showThumbs && media.length > 1))
               const Divider(height: 20),
@@ -3141,6 +3092,35 @@ class _DetailVariantSelectionBox extends StatelessWidget {
               settings: detailSettings,
               showColors: false,
               showSizes: true,
+              embedded: true,
+            ),
+          ],
+          if (showColors && colors.isNotEmpty) ...[
+            if (showThumbs && media.length > 1) const SizedBox(height: 5),
+            Row(
+              textDirection: TextDirection.rtl,
+              children: const [
+                Expanded(
+                  child: Text(
+                    'اللون',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            _ProductOptions(
+              colors: colors,
+              sizes: const [],
+              selectedColorId: selectedColorId,
+              selectedSizeId: selectedSizeId,
+              onColor: onColor,
+              onSize: (_) {},
+              colorThumbUrls: colorThumbUrls,
+              settings: detailSettings,
+              showColors: true,
+              showSizes: false,
               embedded: true,
             ),
           ],
