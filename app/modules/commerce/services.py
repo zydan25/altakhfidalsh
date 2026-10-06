@@ -480,8 +480,14 @@ class CommerceService:
                             {
                                 "id": attachment.id,
                                 "asset_id": attachment.asset_id,
+                                "mime_type": attachment.mime_type,
                                 "url": (
                                     db.session.get(MediaAsset, attachment.asset_id).url
+                                    if db.session.get(MediaAsset, attachment.asset_id)
+                                    else None
+                                ),
+                                "source_name": (
+                                    (db.session.get(MediaAsset, attachment.asset_id).metadata_json or {}).get("source_name")
                                     if db.session.get(MediaAsset, attachment.asset_id)
                                     else None
                                 ),
