@@ -230,7 +230,7 @@ def public_product_feed():
     """Mobile storefront feed with dynamic filters, sorting, price range and currency."""
     from sqlalchemy import func, or_
     from ..customer.security import current_customer
-    from ...services.pricing import price_for_customer
+    from ...services.pricing import calculate_customer_price, price_for_customer
 
     query = Product.query.filter(
         Product.is_active.is_(True),
@@ -954,6 +954,24 @@ def public_product_feed():
             item["currency_id"] = context.currency_id
             item["currency_code"] = context.currency_code
             item["fx_rate"] = str(priced.fx_rate)
+
+            # Compare-at price must follow the exact same currency, pricing-group
+            # markup and city/area adjustment as the customer price. Previously
+            # the card received the raw SAR compare-at price.
+            if row.compare_at_price is not None:
+                compare_priced = calculate_customer_price(
+                    Decimal(row.compare_at_price),
+                    priced.fx_rate,
+                    context.rule,
+                    override_percent=context.override_percent,
+                    override_fixed=context.override_fixed,
+                    location_percent=context.location_percent,
+                    location_fixed_sar=context.location_fixed_sar,
+                )
+                item["compare_at_price"] = str(compare_priced.final)
+                item["base_compare_at_price_sar"] = str(row.compare_at_price)
+            else:
+                item["compare_at_price"] = None
         except Exception:
             item["price"] = str(row.base_price)
             item["currency_code"] = "SAR"
