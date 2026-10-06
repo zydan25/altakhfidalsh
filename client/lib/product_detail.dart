@@ -1524,10 +1524,22 @@ class _DetailTrendSection extends StatelessWidget {
     }).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
-    final bg = sxColor(sxText(settings['trend_background_color']), const Color(0xFFF2E8FF));
-    final titleColor = sxColor(sxText(settings['trend_title_color']), const Color(0xFF8B5CF6));
-    final hashtagColor = sxColor(sxText(settings['trend_hashtag_color']), const Color(0xFF7C3AED));
-    final arrowColor = sxColor(sxText(settings['trend_arrow_color']), hashtagColor);
+    final bg = sxColor(
+      sxText(settings['trend_background_color']),
+      const Color(0xFFF2E8FF),
+    );
+    final titleColor = sxColor(
+      sxText(settings['trend_title_color']),
+      const Color(0xFF8B5CF6),
+    );
+    final hashtagColor = sxColor(
+      sxText(settings['trend_hashtag_color']),
+      const Color(0xFF7C3AED),
+    );
+    final arrowColor = sxColor(
+      sxText(settings['trend_arrow_color']),
+      hashtagColor,
+    );
     final height = sxDouble(settings['trend_height'], 46);
     final horizontal = sxDouble(settings['trend_padding_horizontal'], 12);
 
@@ -1541,7 +1553,10 @@ class _DetailTrendSection extends StatelessWidget {
               color: bg,
               border: Border(
                 bottom: BorderSide(
-                  color: sxColor(sxText(settings['trend_divider_color']), const Color(0xFFE9D5FF)),
+                  color: sxColor(
+                    sxText(settings['trend_divider_color']),
+                    const Color(0xFFE9D5FF),
+                  ),
                   width: i == visible.length - 1 ? 0 : .7,
                 ),
               ),
@@ -1570,7 +1585,12 @@ class _DetailTrendSection extends StatelessWidget {
                     child: Text(
                       sxText(
                         (visible[i]['hashtag'] as Map?)?['display_name'],
-                        sxText(visible[i]['hashtag'] is Map ? (visible[i]['hashtag'] as Map)['name'] : null, '#trend'),
+                        sxText(
+                          visible[i]['hashtag'] is Map
+                              ? (visible[i]['hashtag'] as Map)['name']
+                              : null,
+                          '#trend',
+                        ),
                       ),
                       textAlign: TextAlign.left,
                       maxLines: 1,
@@ -1587,9 +1607,8 @@ class _DetailTrendSection extends StatelessWidget {
                     padding: const EdgeInsets.only(left: 4),
                     child: Icon(Icons.chevron_left, size: 18, color: arrowColor),
                   ),
-                if (settings['trend_show_promo'] == true)
+                if (settings['trend_show_promo'] == true) ...[
                   const SizedBox(width: 6),
-                if (settings['trend_show_promo'] == true)
                   Flexible(
                     child: Text(
                       sxText(visible[i]['promo_text']),
@@ -1603,6 +1622,7 @@ class _DetailTrendSection extends StatelessWidget {
                       ),
                     ),
                   ),
+                ],
               ],
             ),
           ),
@@ -1614,6 +1634,7 @@ class _DetailTrendSection extends StatelessWidget {
 class _DetailPromotionsSection extends StatelessWidget {
   final List<Map<String, dynamic>> strips;
   final List<Map<String, dynamic>> campaigns;
+
   const _DetailPromotionsSection({
     required this.strips,
     required this.campaigns,
@@ -1624,7 +1645,9 @@ class _DetailPromotionsSection extends StatelessWidget {
     if (key.contains('gift')) return Icons.card_giftcard_outlined;
     if (key.contains('club')) return Icons.workspace_premium_outlined;
     if (key.contains('ship')) return Icons.local_shipping_outlined;
-    if (key.contains('percent') || key.contains('discount')) return Icons.percent_outlined;
+    if (key.contains('percent') || key.contains('discount')) {
+      return Icons.percent_outlined;
+    }
     return Icons.local_offer_outlined;
   }
 
@@ -1652,7 +1675,10 @@ class _DetailPromotionsSection extends StatelessWidget {
                     Icon(
                       _iconFor(strip),
                       size: 16,
-                      color: sxColor(sxText(strip['text_color']), const Color(0xFF7C2D12)),
+                      color: sxColor(
+                        sxText(strip['text_color']),
+                        const Color(0xFF7C2D12),
+                      ),
                     ),
                     const SizedBox(width: 7),
                     if (sxText(strip['prefix']).isNotEmpty)
@@ -1661,7 +1687,10 @@ class _DetailPromotionsSection extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 8.5,
                           fontWeight: FontWeight.w900,
-                          color: sxColor(sxText(strip['text_color']), const Color(0xFF7C2D12)),
+                          color: sxColor(
+                            sxText(strip['text_color']),
+                            const Color(0xFF7C2D12),
+                          ),
                         ),
                       ),
                     const SizedBox(width: 5),
@@ -1674,11 +1703,18 @@ class _DetailPromotionsSection extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 9.5,
                           fontWeight: FontWeight.w800,
-                          color: sxColor(sxText(strip['text_color']), const Color(0xFF7C2D12)),
+                          color: sxColor(
+                            sxText(strip['text_color']),
+                            const Color(0xFF7C2D12),
+                          ),
                         ),
                       ),
                     ),
-                    const Icon(Icons.chevron_left, size: 17, color: Color(0xFF777777)),
+                    const Icon(
+                      Icons.chevron_left,
+                      size: 17,
+                      color: Color(0xFF777777),
+                    ),
                   ],
                 ),
               ),
@@ -1703,13 +1739,1762 @@ class _DetailPromotionsSection extends StatelessWidget {
                       textAlign: TextAlign.right,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800),
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _ProductHeroInfo extends StatelessWidget {
+  final String name;
+  final String brand;
+  final String sku;
+  final String price;
+  final String oldPrice;
+  final String currency;
+  final int discount;
+  final double average;
+  final int reviewCount;
+  final bool showRating;
+  final bool showReviewCount;
+  final List<Map<String, dynamic>> badges;
+  final List<Map<String, dynamic>> trendBadges;
+  final Map<String, dynamic> cardSettings;
+  final Map<String, dynamic> detailSettings;
+  final String mode;
+
+  const _ProductHeroInfo({
+    required this.name,
+    required this.brand,
+    required this.sku,
+    required this.price,
+    required this.oldPrice,
+    required this.currency,
+    required this.discount,
+    required this.average,
+    required this.reviewCount,
+    required this.showRating,
+    required this.showReviewCount,
+    required this.badges,
+    required this.trendBadges,
+    required this.cardSettings,
+    required this.detailSettings,
+    required this.mode,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final first = <Map<String, dynamic>>[];
+    final aboveImage = <Map<String, dynamic>>[];
+    final beforeNameRow = <Map<String, dynamic>>[];
+    final beforeNameSame = <Map<String, dynamic>>[];
+    final afterNameSame = <Map<String, dynamic>>[];
+    final afterNameRow = <Map<String, dynamic>>[];
+    final beforePriceRow = <Map<String, dynamic>>[];
+    final belowPrice = <Map<String, dynamic>>[];
+    final beforePriceSame = <Map<String, dynamic>>[];
+    final afterPriceSame = <Map<String, dynamic>>[];
+    final afterPriceRow = <Map<String, dynamic>>[];
+    final rightImage = <Map<String, dynamic>>[];
+
+    for (final badge in badges) {
+      final s = badge['settings'] is Map
+          ? Map<String, dynamic>.from(badge['settings'] as Map)
+          : <String, dynamic>{};
+      final position = sxText(s['position'], 'before_name');
+      switch (position) {
+        case 'first':
+          first.add(badge);
+          break;
+        case 'above_image':
+          aboveImage.add(badge);
+          break;
+        case 'before_name_new_row':
+        case 'before_name_row':
+          beforeNameRow.add(badge);
+          break;
+        case 'before_name':
+        case 'before_name_same_row':
+          beforeNameSame.add(badge);
+          break;
+        case 'after_name_new_row':
+        case 'after_name_row':
+          afterNameRow.add(badge);
+          break;
+        case 'after_name':
+        case 'after_name_same_row':
+          afterNameSame.add(badge);
+          break;
+        case 'before_price_new_row':
+        case 'before_price':
+          beforePriceRow.add(badge);
+          break;
+        case 'before_price_same_row':
+          beforePriceSame.add(badge);
+          break;
+        case 'after_price_same_row':
+          afterPriceSame.add(badge);
+          break;
+        case 'after_price_new_row':
+        case 'after_price':
+          afterPriceRow.add(badge);
+          break;
+        case 'below_price':
+          belowPrice.add(badge);
+          break;
+        case 'right_of_image':
+          rightImage.add(badge);
+          break;
+        default:
+          break;
+      }
+    }
+
+    Widget chip(Map<String, dynamic> badge) {
+      final s = badge['settings'] is Map
+          ? Map<String, dynamic>.from(badge['settings'] as Map)
+          : <String, dynamic>{};
+      final bg = sxColor(
+        sxText(s['background_color'], sxText(badge['bg_color'], '#111827')),
+        Colors.black,
+      ).withOpacity(sxDouble(s['background_opacity'], 1).clamp(0, 1));
+      final fg = sxColor(
+        sxText(s['text_color'], sxText(badge['text_color'], '#ffffff')),
+        Colors.white,
+      );
+      final label = sxText(
+        badge['custom_text'],
+        sxText(badge['name'], sxText(badge['code'], 'شارة')),
+      );
+      Widget body = Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: sxDouble(s['padding_horizontal'], 8),
+          vertical: sxDouble(s['padding_vertical'], 4),
+        ),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(sxDouble(s['border_radius'], 5)),
+          border: Border.all(
+            color: sxColor(sxText(s['border_color'], '#ffffff'), Colors.transparent),
+            width: sxDouble(s['border_width'], 0),
+          ),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: fg,
+            fontSize: sxDouble(s['font_size'], 9),
+            fontWeight: _weight(sxInt(s['font_weight'], 800)),
+            decoration: sxText(s['text_decoration']) == 'line_through'
+                ? TextDecoration.lineThrough
+                : TextDecoration.none,
+          ),
+        ),
+      );
+      return body;
+    }
+
+    Widget strip(List<Map<String, dynamic>> items, {bool compact = false}) {
+      if (items.isEmpty) return const SizedBox.shrink();
+      return Padding(
+        padding: EdgeInsets.only(bottom: compact ? 4 : 7),
+        child: Wrap(
+          textDirection: TextDirection.rtl,
+          alignment: WrapAlignment.start,
+          spacing: 5,
+          runSpacing: 5,
+          children: items.map(chip).toList(),
+        ),
+      );
+    }
+
+    final trends = trendBadges.map((trend) {
+      final s = trend['settings'] is Map
+          ? Map<String, dynamic>.from(trend['settings'] as Map)
+          : <String, dynamic>{};
+      final h = trend['hashtag'] is Map
+          ? Map<String, dynamic>.from(trend['hashtag'] as Map)
+          : <String, dynamic>{};
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: sxColor(
+            sxText(s['trend_badge_background_color'], '#8B5CF6'),
+            const Color(0xFF8B5CF6),
+          ).withOpacity(sxDouble(s['trend_badge_background_opacity'], 1).clamp(0, 1)),
+          borderRadius: BorderRadius.circular(sxDouble(s['trend_badge_radius'], 5)),
+        ),
+        child: Text(
+          sxText(h['display_name'], sxText(trend['text'], 'ترند')),
+          style: TextStyle(
+            color: sxColor(sxText(s['trend_badge_text_color']), Colors.white),
+            fontSize: sxDouble(s['trend_badge_font_size'], 9),
+            fontWeight: _weight(sxInt(s['trend_badge_font_weight'], 800)),
+          ),
+        ),
+      );
+    }).toList();
+
+    Widget priceBox() => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (sxText(detailSettings['price_text_show'], 'false') == 'true' ||
+            detailSettings['price_text_show'] == true)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Text(
+              sxText(detailSettings['price_text'], 'السعر الحالي'),
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: sxColor(
+                  sxText(detailSettings['price_text_color']),
+                  const Color(0xFF6B7280),
+                ),
+                fontSize: sxDouble(detailSettings['price_text_font_size'], 9),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        Wrap(
+          textDirection: TextDirection.rtl,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 7,
+          runSpacing: 4,
+          children: [
+            Text(
+              price,
+              style: TextStyle(
+                color: sxColor(
+                  sxText(detailSettings['price_color'], sxText(cardSettings['price_color'])),
+                  const Color(0xFF111111),
+                ),
+                fontSize: sxDouble(
+                  detailSettings['price_font_size'],
+                  sxDouble(cardSettings['price_font_size'], 22),
+                ),
+                fontWeight: _weight(
+                  sxInt(
+                    detailSettings['price_font_weight'],
+                    sxInt(cardSettings['price_font_weight'], 900),
+                  ),
+                ),
+              ),
+            ),
+            if (detailSettings['show_currency'] != false)
+              Text(
+                currency,
+                style: TextStyle(
+                  color: sxColor(
+                    sxText(detailSettings['currency_color'], sxText(cardSettings['currency_color'])),
+                    const Color(0xFF111111),
+                  ),
+                  fontSize: sxDouble(
+                    detailSettings['currency_font_size'],
+                    sxDouble(cardSettings['currency_font_size'], 10.5),
+                  ),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            if (oldPrice.isNotEmpty && detailSettings['show_compare_price'] != false)
+              Text(
+                oldPrice + ' ' + currency,
+                style: TextStyle(
+                  fontSize: sxDouble(
+                    detailSettings['compare_price_font_size'],
+                    sxDouble(cardSettings['compare_price_font_size'], 10),
+                  ),
+                  color: sxColor(
+                    sxText(detailSettings['compare_price_color'], sxText(cardSettings['compare_price_color'])),
+                    const Color(0xFF9CA3AF),
+                  ),
+                  decoration: sxText(
+                    detailSettings['compare_price_text_decoration'],
+                    'line_through',
+                  ) == 'line_through'
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none,
+                ),
+              ),
+            if (discount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: sxColor(
+                    sxText(cardSettings['discount_badge_background_color']),
+                    const Color(0xFFDC2626),
+                  ),
+                  borderRadius: BorderRadius.circular(
+                    sxDouble(cardSettings['discount_badge_radius'], 5),
+                  ),
+                ),
+                child: Text(
+                  'خصم $discount%',
+                  style: TextStyle(
+                    color: sxColor(
+                      sxText(cardSettings['discount_badge_text_color']),
+                      Colors.white,
+                    ),
+                    fontSize: sxDouble(cardSettings['discount_badge_font_size'], 9),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+
+    Widget nameRow() => Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Row(
+        textDirection: TextDirection.rtl,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              name,
+              maxLines: sxInt(detailSettings['name_max_lines'], 4).clamp(2, 6).toInt(),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: sxColor(
+                  sxText(detailSettings['name_color']),
+                  const Color(0xFF111111),
+                ),
+                fontSize: sxDouble(detailSettings['name_font_size'], 20),
+                fontWeight: _weight(sxInt(detailSettings['name_font_weight'], 800)),
+                height: 1.3,
+              ),
+            ),
+          ),
+          if (afterNameSame.isNotEmpty) ...[
+            const SizedBox(width: 7),
+            Flexible(
+              child: Wrap(
+                textDirection: TextDirection.rtl,
+                spacing: 4,
+                runSpacing: 4,
+                children: afterNameSame.map(chip).toList(),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    Widget beforeSameRow() {
+      if (beforeNameSame.isEmpty) return nameRow();
+      return Row(
+        textDirection: TextDirection.rtl,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Flexible(
+            child: Wrap(
+              textDirection: TextDirection.rtl,
+              spacing: 4,
+              runSpacing: 4,
+              children: beforeNameSame.map(chip).toList(),
+            ),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              name,
+              maxLines: sxInt(detailSettings['name_max_lines'], 4).clamp(2, 6).toInt(),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: sxColor(sxText(detailSettings['name_color']), const Color(0xFF111111)),
+                fontSize: sxDouble(detailSettings['name_font_size'], 20),
+                fontWeight: _weight(sxInt(detailSettings['name_font_weight'], 800)),
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final priceChildren = <Widget>[
+      if (trends.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 7),
+          child: Wrap(
+            textDirection: TextDirection.rtl,
+            spacing: 5,
+            runSpacing: 5,
+            children: trends,
+          ),
+        ),
+      strip(beforePriceRow, compact: true),
+      if (beforePriceSame.isNotEmpty || afterPriceSame.isNotEmpty)
+        Row(
+          textDirection: TextDirection.rtl,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (beforePriceSame.isNotEmpty)
+              Flexible(
+                child: Wrap(
+                  textDirection: TextDirection.rtl,
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: beforePriceSame.map(chip).toList(),
+                ),
+              ),
+            if (beforePriceSame.isNotEmpty) const SizedBox(width: 6),
+            Expanded(child: priceBox()),
+            if (afterPriceSame.isNotEmpty) const SizedBox(width: 6),
+            if (afterPriceSame.isNotEmpty)
+              Flexible(
+                child: Wrap(
+                  textDirection: TextDirection.rtl,
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: afterPriceSame.map(chip).toList(),
+                ),
+              ),
+          ],
+        )
+      else
+        priceBox(),
+      strip(afterPriceRow, compact: true),
+      strip(belowPrice, compact: true),
+    ];
+
+    final nameChildren = <Widget>[
+      strip(beforeNameRow, compact: true),
+      beforeSameRow(),
+    ];
+
+    final brandChildren = <Widget>[
+      if (brand.isNotEmpty)
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            brand,
+            style: TextStyle(
+              color: sxColor(
+                sxText(detailSettings['brand_color']),
+                ClientTheme.muted,
+              ),
+              fontSize: sxDouble(detailSettings['brand_font_size'], 10),
+              fontWeight: _weight(sxInt(detailSettings['brand_font_weight'], 800)),
+            ),
+          ),
+        ),
+      if (sku.isNotEmpty)
+        Align(
+          alignment: Alignment.centerRight,
+          child: Text(
+            sku,
+            style: const TextStyle(fontSize: 8, color: Color(0xFF9CA3AF)),
+          ),
+        ),
+    ];
+
+    final ratingChildren = <Widget>[
+      if (showRating)
+        Align(
+          alignment: Alignment.centerRight,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            textDirection: TextDirection.rtl,
+            children: [
+              Icon(
+                Icons.star_rounded,
+                size: sxDouble(detailSettings['rating_icon_size'], 16),
+                color: sxColor(
+                  sxText(detailSettings['rating_color']),
+                  const Color(0xFFFFB400),
+                ),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                average > 0 ? average.toStringAsFixed(1) : '—',
+                style: TextStyle(
+                  fontSize: sxDouble(detailSettings['rating_font_size'], 10.5),
+                  fontWeight: FontWeight.w900,
+                  color: sxColor(
+                    sxText(detailSettings['rating_color']),
+                    const Color(0xFF111111),
+                  ),
+                ),
+              ),
+              if (showReviewCount)
+                Text(
+                  ' · $reviewCount تقييم',
+                  style: const TextStyle(fontSize: 9, color: ClientTheme.muted),
+                ),
+            ],
+          ),
+        ),
+    ];
+
+    final children = mode == 'price'
+        ? (detailSettings['price_show'] == false ? <Widget>[] : priceChildren)
+        : mode == 'name'
+            ? (detailSettings['name_show'] == false ? <Widget>[] : nameChildren)
+            : mode == 'brand'
+                ? (detailSettings['brand_show'] == false ? <Widget>[] : brandChildren)
+                : ratingChildren;
+
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
+  }
+}
+
+class _ProductIdentityPanel extends StatelessWidget {
+  final String brand;
+  final String productType;
+  final String material;
+  final String sku;
+  const _ProductIdentityPanel({
+    required this.brand,
+    required this.productType,
+    required this.material,
+    required this.sku,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <Map<String,String>>[
+      {'label':'العلامة التجارية','value':brand},
+      {'label':'نوع المنتج','value':productType},
+      {'label':'الخامة','value':material},
+      {'label':'رمز المنتج','value':sku},
+    ].where((x) => (x['value'] ?? '').trim().isNotEmpty).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 11),
+      child: Column(
+        children: items.map((item) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 5),
+          child: Row(
+            children: [
+              Expanded(child: Text(item['label']!, style: const TextStyle(fontSize: 9, color: ClientTheme.muted))),
+              const SizedBox(width: 10),
+              Flexible(child: Text(item['value']!, textAlign: TextAlign.right, style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800))),
+            ],
+          ),
+        )).toList(),
+      ),
+    );
+  }
+}
+
+
+class _DeliveryBadgePanel extends StatelessWidget {
+  final List<Map<String,dynamic>> badges;
+  final double fontSize;
+  final Color color;
+
+  const _DeliveryBadgePanel({
+    required this.badges,
+    this.fontSize = 9,
+    this.color = Colors.black,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = badges.where((x) => x['visible'] != false).toList();
+    if (visible.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(10, 7, 10, 8),
+      child: Wrap(
+        textDirection: TextDirection.rtl,
+        spacing: 6,
+        runSpacing: 6,
+        children: visible.map((badge) {
+          final bg = sxColor(
+            sxText(badge['background_color'], '#F5F5F5'),
+            const Color(0xFFF5F5F5),
+          );
+          final fg = sxColor(sxText(badge['text_color']), color);
+          final iconName = sxText(badge['icon']);
+          final icon = iconName == 'verified'
+              ? Icons.verified_outlined
+              : iconName == 'store'
+                  ? Icons.storefront_outlined
+                  : Icons.local_shipping_outlined;
+          final text = sxText(badge['text'], 'التوصيل');
+
+          return InkWell(
+            onTap: () => showDialog<void>(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: Text(
+                  text,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+                ),
+                content: Text(
+                  text,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    height: 1.7,
+                    color: fg,
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إغلاق'),
+                  ),
+                ],
+              ),
+            ),
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                textDirection: TextDirection.rtl,
+                children: [
+                  Icon(icon, size: 15, color: fg),
+                  const SizedBox(width: 5),
+                  Text(
+                    text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: sxDouble(badge['font_size'], fontSize),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _DetailVariantSelectionBox extends StatelessWidget {
+  final List<Map<String, dynamic>> media;
+  final int page;
+  final List<Map<String, dynamic>> colors;
+  final List<Map<String, dynamic>> sizes;
+  final List<Map<String, dynamic>> variants;
+  final int? selectedColorId;
+  final int? selectedSizeId;
+  final Map<int, String> colorThumbUrls;
+  final Map<String, dynamic> detailSettings;
+  final bool showThumbs;
+  final bool showSizes;
+  final bool showColors;
+  final Map<String, dynamic> sizeGuide;
+  final bool showSizeGuide;
+  final ValueChanged<int> onGalleryChanged;
+  final ValueChanged<int> onColor;
+  final ValueChanged<int> onSize;
+
+  const _DetailVariantSelectionBox({
+    required this.media,
+    required this.page,
+    required this.colors,
+    required this.sizes,
+    required this.variants,
+    required this.selectedColorId,
+    required this.selectedSizeId,
+    required this.colorThumbUrls,
+    required this.detailSettings,
+    required this.showThumbs,
+    required this.showSizes,
+    required this.showColors,
+    required this.sizeGuide,
+    required this.showSizeGuide,
+    required this.onGalleryChanged,
+    required this.onColor,
+    required this.onSize,
+  });
+
+  Color _color(dynamic value, Color fallback) =>
+      sxColor(sxText(value), fallback);
+
+  String _selectedColorName() {
+    final match = colors.where((x) => sxInt(x['id']) == selectedColorId);
+    return match.isEmpty ? '' : sxText(match.first['name']);
+  }
+
+  int _qtyForSize(int sizeId) {
+    for (final variant in variants) {
+      final colorOk = selectedColorId == null ||
+          sxInt(variant['color_id']) == selectedColorId;
+      if (colorOk && sxInt(variant['size_id']) == sizeId) {
+        return sxInt(variant['available_qty']);
+      }
+    }
+    return 0;
+  }
+
+  Widget _colorItem(
+    BuildContext context,
+    Map<String, dynamic> item, {
+    required double imageSize,
+    required double swatchSize,
+    required double gap,
+  }) {
+    final id = sxInt(item['id']);
+    final selected = id == selectedColorId;
+    final url = colorThumbUrls[id] ?? '';
+    final mode = sxText(detailSettings['color_presentation'], 'image_circle');
+    final shape = sxText(detailSettings['color_shape'], 'circle');
+    final useImage = (mode == 'image' || mode == 'image_circle') && url.isNotEmpty;
+    final useSwatch = mode == 'circle' || (mode == 'image_circle' && url.isEmpty);
+    final label = sxText(item['name']);
+    final showLabel = detailSettings['color_show_label'] != false;
+    final borderColor = selected
+        ? _color(detailSettings['color_selected_border_color'], Colors.black)
+        : _color(detailSettings['color_border_color'], const Color(0xFFDCDCDC));
+
+    final thumb = Container(
+      width: useImage ? imageSize : swatchSize,
+      height: useImage ? imageSize : swatchSize,
+      decoration: BoxDecoration(
+        shape: shape == 'circle' ? BoxShape.circle : BoxShape.rectangle,
+        color: _color(item['hex_code'], const Color(0xFFD1D5DB)),
+        border: Border.all(
+          color: borderColor,
+          width: selected
+              ? sxDouble(detailSettings['color_selected_border_width'], 2)
+              : .8,
+        ),
+        borderRadius: shape == 'circle' ? null : BorderRadius.circular(5),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: useImage
+          ? Stack(
+              fit: StackFit.expand,
+              children: [
+                _DetailNetworkImage(url: url),
+                if (mode == 'image_circle')
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Container(
+                        width: swatchSize * .55,
+                        height: swatchSize * .55,
+                        decoration: BoxDecoration(
+                          color: _color(item['hex_code'], const Color(0xFFD1D5DB)),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            )
+          : (useSwatch
+              ? null
+              : Icon(Icons.image_outlined, size: swatchSize * .6)),
+    );
+
+    return InkWell(
+      onTap: id > 0 ? () => onColor(id) : null,
+      borderRadius: BorderRadius.circular(shape == 'circle' ? imageSize : 6),
+      child: SizedBox(
+        width: (imageSize > swatchSize ? imageSize : swatchSize) + 8,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(child: thumb),
+                if (showLabel) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: sxDouble(detailSettings['color_label_font_size'], 9),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            if (detailSettings['color_show_hot'] != false &&
+                item['hot'] == true)
+              Positioned(
+                top: -4,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF5A3D),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: const Text(
+                    'HOT',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 7,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _colorRow(BuildContext context) {
+    if (!showColors || colors.isEmpty) return const SizedBox.shrink();
+    final selectedName = _selectedColorName();
+    final maxVisible = sxInt(
+      detailSettings['color_max_visible'],
+      12,
+    ).clamp(1, 30).toInt();
+    final rows = colors.take(maxVisible).toList();
+    final imageSize = sxDouble(detailSettings['color_image_size'], 48).clamp(30, 72).toDouble();
+    final swatchSize = sxDouble(detailSettings['color_swatches_size'], 30).clamp(18, 64).toDouble();
+    final gap = sxDouble(detailSettings['color_gap'], 8).clamp(0, 18).toDouble();
+    final childHeight = imageSize + (detailSettings['color_show_label'] != false ? 17 : 0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            const Text(
+              'اللون:',
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+            ),
+            if (selectedName.isNotEmpty) ...[
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  selectedName,
+                  textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ] else
+              const Spacer(),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: childHeight + 6,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            reverse: false,
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < rows.length; i++)
+                    Padding(
+                      padding: EdgeInsets.only(left: i == rows.length - 1 ? 0 : gap),
+                      child: _colorItem(
+                        context,
+                        rows[i],
+                        imageSize: imageSize,
+                        swatchSize: swatchSize,
+                        gap: gap,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sizeRow(BuildContext context) {
+    if (!showSizes || sizes.isEmpty) return const SizedBox.shrink();
+    final sizeHeight = sxDouble(detailSettings['size_height'], 48).clamp(34, 68).toDouble();
+    final minWidth = sxDouble(detailSettings['size_min_width'], 56).clamp(38, 110).toDouble();
+    final radius = sxDouble(detailSettings['size_border_radius'], 2).clamp(0, 16).toDouble();
+    final gap = sxDouble(detailSettings['size_row_gap'], 7).clamp(0, 18).toDouble();
+    final threshold = sxInt(detailSettings['size_inventory_threshold'], 7);
+    final badgeShow = detailSettings['size_inventory_badge_show'] != false;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            const Expanded(
+              child: Text(
+                'مقاس افتراضي',
+                textAlign: TextAlign.right,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < sizes.length; i++)
+                  Padding(
+                    padding: EdgeInsets.only(left: i == sizes.length - 1 ? 0 : gap),
+                    child: _SizeChoice(
+                      label: sxText(sizes[i]['label'], sxText(sizes[i]['code'], '—')),
+                      selected: sxInt(sizes[i]['id']) == selectedSizeId,
+                      availableQty: _qtyForSize(sxInt(sizes[i]['id'])),
+                      showInventoryBadge: badgeShow,
+                      inventoryOnlyWhenLow: detailSettings['size_inventory_only_when_low'] != false,
+                      inventoryThreshold: threshold,
+                      height: sizeHeight,
+                      minWidth: minWidth,
+                      radius: radius,
+                      settings: detailSettings,
+                      onTap: () => onSize(sxInt(sizes[i]['id'])),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sizeTools(BuildContext context) {
+    if (!showSizes || !showSizeGuide || detailSettings['size_tools_show'] == false) {
+      return const SizedBox.shrink();
+    }
+    final guideRows = sizeGuide['rows'] is List ? (sizeGuide['rows'] as List) : const <dynamic>[];
+    if (guideRows.isEmpty) return const SizedBox.shrink();
+    final color = _color(detailSettings['size_tools_color'], Colors.black);
+    final font = sxDouble(detailSettings['size_tools_font_size'], 10);
+    final icon = sxDouble(detailSettings['size_tools_icon_size'], 16);
+    final gap = sxDouble(detailSettings['size_tools_gap'], 12);
+    final children = <Widget>[
+      InkWell(
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => _SizeGuideDialog(
+            guide: sizeGuide,
+            initialSizeId: selectedSizeId,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.straighten_outlined, size: icon, color: color),
+            const SizedBox(width: 4),
+            Text(
+              'مرجع المقاس',
+              style: TextStyle(
+                color: color,
+                fontSize: font,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+      Container(width: .7, height: icon + 2, color: const Color(0xFFE5E5E5)),
+      InkWell(
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => _SizeFitDialog(guide: sizeGuide),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.edit_outlined, size: icon, color: color),
+            const SizedBox(width: 4),
+            Text(
+              'تحقق من مقاسي',
+              style: TextStyle(
+                color: color,
+                fontSize: font,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(top: 9),
+      child: Wrap(
+        textDirection: TextDirection.rtl,
+        alignment: WrapAlignment.start,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: gap,
+        runSpacing: 8,
+        children: children,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showAny = (showThumbs && media.length > 1) || (showColors && colors.isNotEmpty) || (showSizes && sizes.isNotEmpty);
+    if (!showAny) return const SizedBox.shrink();
+
+    final paddingH = sxDouble(detailSettings['variant_padding_horizontal'], 12);
+    final paddingV = sxDouble(detailSettings['variant_padding_vertical'], 10);
+    final dividerShow = detailSettings['variant_divider_show'] != false;
+    final dividerColor = _color(detailSettings['variant_divider_color'], const Color(0xFFEEEEEE));
+    final dividerWidth = sxDouble(detailSettings['variant_divider_width'], .7);
+
+    final parts = <Widget>[];
+    if (showColors && colors.isNotEmpty) parts.add(_colorRow(context));
+    if (showThumbs && media.length > 1) {
+      if (parts.isNotEmpty && dividerShow) {
+        parts.add(Container(height: dividerWidth, color: dividerColor));
+      }
+      parts.add(
+        SxGalleryThumbs(
+          rows: media,
+          page: page.clamp(0, media.length - 1).toInt(),
+          changed: onGalleryChanged,
+          itemWidth: sxDouble(detailSettings['thumbs_size'], 62),
+          itemHeight: sxDouble(detailSettings['thumbs_height'], 70),
+          gap: sxDouble(detailSettings['thumbs_gap'], 6),
+          radius: sxDouble(detailSettings['thumbs_radius'], 4),
+          borderWidth: sxDouble(detailSettings['thumbs_border_width'], 1.5),
+          colorRows: colors,
+        ),
+      );
+    }
+    if (showSizes && sizes.isNotEmpty) {
+      if (parts.isNotEmpty && dividerShow) {
+        parts.add(Container(height: dividerWidth, color: dividerColor));
+      }
+      parts.add(_sizeRow(context));
+      if (detailSettings['size_tools_show'] != false) {
+        parts.add(_sizeTools(context));
+      }
+    }
+
+    return Container(
+      color: _color(detailSettings['variant_background_color'], Colors.white),
+      padding: EdgeInsets.symmetric(horizontal: paddingH, vertical: paddingV),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < parts.length; i++) ...[
+            if (i > 0) SizedBox(height: sxDouble(detailSettings['variant_row_gap'], 12)),
+            parts[i],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SizeChoice extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final int availableQty;
+  final bool showInventoryBadge;
+  final bool inventoryOnlyWhenLow;
+  final int inventoryThreshold;
+  final double height;
+  final double minWidth;
+  final double radius;
+  final Map<String, dynamic> settings;
+  final VoidCallback onTap;
+
+  const _SizeChoice({
+    required this.label,
+    required this.selected,
+    required this.availableQty,
+    required this.showInventoryBadge,
+    required this.inventoryOnlyWhenLow,
+    required this.inventoryThreshold,
+    required this.height,
+    required this.minWidth,
+    required this.radius,
+    required this.settings,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final showBadge = showInventoryBadge &&
+        availableQty > 0 &&
+        (!inventoryOnlyWhenLow || availableQty <= inventoryThreshold);
+    final bg = selected
+        ? sxColor(sxText(settings['sizes_selected_background_color']), Colors.black)
+        : sxColor(sxText(settings['sizes_background_color']), const Color(0xFFF7F7F7));
+    final fg = selected
+        ? sxColor(sxText(settings['sizes_selected_text_color']), Colors.white)
+        : sxColor(sxText(settings['sizes_text_color']), Colors.black);
+    final border = selected
+        ? sxColor(sxText(settings['color_selected_border_color']), Colors.black)
+        : sxColor(sxText(settings['sizes_border_color']), const Color(0xFFE3E3E3));
+    final badgeBg = sxColor(sxText(settings['size_inventory_badge_background']), const Color(0xFFFF5A3D));
+    final badgeFg = sxColor(sxText(settings['size_inventory_badge_text']), Colors.white);
+
+    return SizedBox(
+      width: minWidth,
+      height: height + (showBadge ? 6 : 0),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            top: showBadge ? 6 : 0,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(radius),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                decoration: BoxDecoration(
+                  color: bg,
+                  border: Border.all(
+                    color: border,
+                    width: selected
+                        ? sxDouble(settings['size_selected_border_width'], 1)
+                        : .7,
+                  ),
+                  borderRadius: BorderRadius.circular(radius),
+                ),
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  label,
+                  textAlign: settings['size_label_alignment'] == 'left'
+                      ? TextAlign.left
+                      : settings['size_label_alignment'] == 'right'
+                          ? TextAlign.right
+                          : TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: sxDouble(settings['sizes_font_size'], 10),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (showBadge)
+            Positioned(
+              top: 0,
+              right: 3,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                child: Text(
+                  '$availableQty left',
+                  style: TextStyle(
+                    color: badgeFg,
+                    fontSize: sxDouble(settings['size_inventory_badge_font_size'], 8),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SizeFitDialog extends StatelessWidget {
+  final Map<String, dynamic> guide;
+  const _SizeFitDialog({required this.guide});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('تحقق من مقاسي', textAlign: TextAlign.right),
+      content: const Text(
+        'اختر المقاس الأقرب إلى قياسات جسمك من خلال مرجع المقاسات المتاح لهذا المنتج.',
+        textAlign: TextAlign.right,
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+      ],
+    );
+  }
+}
+
+class _ProductOptions extends StatelessWidget {
+  final List<Map<String, dynamic>> colors;
+  final List<Map<String, dynamic>> sizes;
+  final int? selectedColorId;
+  final int? selectedSizeId;
+  final ValueChanged<int> onColor;
+  final ValueChanged<int> onSize;
+  final Map<int, String> colorThumbUrls;
+  final Map<String, dynamic> settings;
+  final bool showColors;
+  final bool showSizes;
+  final bool embedded;
+
+  const _ProductOptions({
+    required this.colors,
+    required this.sizes,
+    required this.selectedColorId,
+    required this.selectedSizeId,
+    required this.onColor,
+    required this.onSize,
+    this.colorThumbUrls = const {},
+    this.settings = const {},
+    this.showColors = true,
+    this.showSizes = true,
+    this.embedded = false,
+  });
+
+  Color _color(String key, Color fallback) => sxColor(
+    sxText(settings[key]),
+    fallback,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final colorsVisible = showColors && colors.isNotEmpty;
+    final sizesVisible = showSizes && sizes.isNotEmpty;
+    if (!colorsVisible && !sizesVisible) return const SizedBox.shrink();
+
+    final colorSize = sxDouble(settings['colors_size'], 38).clamp(24, 64).toDouble();
+    final colorGap = sxDouble(settings['colors_gap'], 9).clamp(0, 18).toDouble();
+    final colorRunGap = sxDouble(settings['colors_run_gap'], 8).clamp(0, 18).toDouble();
+    final selectedBorder = sxDouble(
+      settings['colors_selected_border_width'],
+      2,
+    ).clamp(0, 4).toDouble();
+    final labelSize = sxDouble(settings['colors_label_font_size'], 8.5).clamp(6, 16).toDouble();
+
+    final sizeFont = sxDouble(settings['sizes_font_size'], 10).clamp(7, 18).toDouble();
+    final sizeHorizontal = sxDouble(
+      settings['sizes_padding_horizontal'],
+      12,
+    ).clamp(4, 24).toDouble();
+    final sizeVertical = sxDouble(settings['sizes_padding_vertical'], 9).clamp(3, 18).toDouble();
+    final sizeGap = sxDouble(settings['sizes_gap'], 7).clamp(0, 16).toDouble();
+
+    return Container(
+      margin: embedded ? EdgeInsets.zero : const EdgeInsets.only(top: 6),
+      color: embedded ? Colors.transparent : Colors.white,
+      padding: embedded ? EdgeInsets.zero : const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (colorsVisible) ...[
+            if (!embedded) ...[
+              const Text(
+                'اللون',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 9),
+            ],
+            SizedBox(
+              height: colorSize + labelSize + 18,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: false,
+                child: Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var index = 0; index < colors.length; index++)
+                        Padding(
+                          padding: EdgeInsets.only(left: index == colors.length - 1 ? 0 : colorGap),
+                          child: InkWell(
+                            onTap: () => onColor(sxInt(colors[index]['id'])),
+                            borderRadius: BorderRadius.circular(colorSize / 2),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Builder(builder: (_) {
+                                  final item = colors[index];
+                                  final id = sxInt(item['id']);
+                                  final selected = id == selectedColorId;
+                                  return Container(
+                                    width: colorSize,
+                                    height: colorSize,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: sxColor(
+                                        sxText(item['hex_code'], '#D1D5DB'),
+                                        const Color(0xFFD1D5DB),
+                                      ),
+                                      border: Border.all(
+                                        color: selected ? Colors.black : const Color(0xFFE5E7EB),
+                                        width: selected ? selectedBorder : 1,
+                                      ),
+                                    ),
+                                    child: selected
+                                        ? Icon(
+                                            Icons.check,
+                                            size: colorSize * .43,
+                                            color: Colors.black,
+                                          )
+                                        : null,
+                                  );
+                                }),
+                                const SizedBox(height: 4),
+                                SizedBox(
+                                  width: colorSize + 8,
+                                  child: Text(
+                                    sxText(colors[index]['name']),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: labelSize,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+          if (colorsVisible && sizesVisible && !embedded) const Divider(height: 24),
+          if (sizesVisible) ...[
+            if (!embedded) ...[
+              const Text(
+                'المقاس',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 9),
+            ],
+            SizedBox(
+              height: sizeFont + (sizeVertical * 2) + 14,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: false,
+                child: Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var index = 0; index < sizes.length; index++)
+                        Padding(
+                          padding: EdgeInsets.only(left: index == sizes.length - 1 ? 0 : sizeGap),
+                          child: InkWell(
+                            onTap: () => onSize(sxInt(sizes[index]['id'])),
+                            borderRadius: BorderRadius.circular(5),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 130),
+                              constraints: const BoxConstraints(minWidth: 55),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: sizeHorizontal,
+                                vertical: sizeVertical,
+                              ),
+                              decoration: BoxDecoration(
+                                color: sxInt(sizes[index]['id']) == selectedSizeId
+                                    ? _color('sizes_selected_background_color', Colors.black)
+                                    : _color('sizes_background_color', Colors.white),
+                                border: Border.all(
+                                  color: sxInt(sizes[index]['id']) == selectedSizeId
+                                      ? _color('sizes_selected_background_color', Colors.black)
+                                      : _color('sizes_border_color', const Color(0xFFD8D8D8)),
+                                ),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Text(
+                                sxText(sizes[index]['label'], sxText(sizes[index]['code'])),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: sxInt(sizes[index]['id']) == selectedSizeId
+                                      ? _color('sizes_selected_text_color', Colors.white)
+                                      : _color('sizes_text_color', Colors.black),
+                                  fontSize: sizeFont,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProductSavings extends StatelessWidget {
+  final int percent;
+  final String price;
+  final String oldPrice;
+  final String currency;
+  const _ProductSavings({
+    required this.percent,
+    required this.price,
+    required this.oldPrice,
+    required this.currency,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(top: 6),
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Row(
+          children: [
+            _Pill(
+              text: 'وفر ' + percent.toString() + '%',
+              background: Colors.black,
+              foreground: Colors.white,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'السعر الحالي ' + price + ' ' + currency +
+                    ' بدلًا من ' + oldPrice + ' ' + currency,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _ProductTrust extends StatelessWidget {
+  final bool showShipping;
+  final bool showReturn;
+  const _ProductTrust({
+    required this.showShipping,
+    required this.showReturn,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!showShipping && !showReturn) return const SizedBox.shrink();
+    final items = <Widget>[
+      if (showShipping)
+        const _TrustCell(
+          icon: Icons.local_shipping_outlined,
+          title: 'الشحن',
+          text: 'المدة حسب العنوان',
+        ),
+      if (showReturn)
+        const _TrustCell(
+          icon: Icons.assignment_return_outlined,
+          title: 'الإرجاع',
+          text: 'حسب السياسة',
+        ),
+      const _TrustCell(
+        icon: Icons.lock_outline,
+        title: 'الدفع',
+        text: 'دفع آمن',
+      ),
+    ];
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(vertical: 11),
+      child: Row(children: items.map((item) => Expanded(child: item)).toList()),
+    );
+  }
+}
+
+class _TrustCell extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String text;
+  const _TrustCell({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) => Column(
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(height: 3),
+          Text(title, style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 2),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 7.5, color: ClientTheme.muted),
+          ),
+        ],
+      );
+}
+
+class _DetailSection extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final String text;
+  final Map<String, dynamic> settings;
+
+  const _DetailSection({
+    required this.title,
+    required this.icon,
+    required this.text,
+    this.settings = const {},
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(top: 6),
+        color: sxColor(sxText(settings['details_background_color']), Colors.white),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 17,
+                  color: sxColor(sxText(settings['details_title_color']), Colors.black),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: sxDouble(settings['details_title_font_size'], 13),
+                    fontWeight: FontWeight.w900,
+                    color: sxColor(sxText(settings['details_title_color']), Colors.black),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 9),
+            Text(
+              text.isEmpty ? 'لا توجد تفاصيل إضافية لهذا المنتج.' : text,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: sxDouble(settings['details_text_font_size'], 10.5),
+                height: 1.65,
+                color: sxColor(sxText(settings['details_text_color']), const Color(0xFF4B5563)),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+class _PolicySections extends StatelessWidget {
+  final Map<String, dynamic> policies;
+  final Map<String, dynamic> settings;
+
+  const _PolicySections({
+    required this.policies,
+    required this.settings,
+  });
+
+  Map<String, dynamic> _map(dynamic value) =>
+      value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
+
+  @override
+  Widget build(BuildContext context) {
+    final shipping = _map(policies['shipping']);
+    final returning = _map(policies['return']);
+    final warranty = _map(policies['warranty']);
+
+    final items = <Map<String, dynamic>>[
+      if (shipping.isNotEmpty)
+        {
+          'key': 'shipping',
+          'title': 'الشحن والتوصيل',
+          'icon': Icons.local_shipping_outlined,
+          'text': <String>[
+            sxText(shipping['name']),
+            sxText(shipping['promo_text']),
+            if (sxText(shipping['delivery_window']).isNotEmpty)
+              'مدة التوصيل: ' + sxText(shipping['delivery_window']),
+            if (shipping['free_shipping_enabled'] == true &&
+                sxText(shipping['min_order_amount']).isNotEmpty)
+              'شحن مجاني عند بلوغ ' + sxText(shipping['min_order_amount']),
+          ].where((x) => x.trim().isNotEmpty).join('\n\n'),
+          'background': sxColor(sxText(settings['shipping_button_color']), Colors.black),
+          'foreground': sxColor(sxText(settings['shipping_button_text_color']), Colors.white),
+        },
+      if (returning.isNotEmpty)
+        {
+          'key': 'returns',
+          'title': 'الإرجاع والاسترداد',
+          'icon': Icons.assignment_return_outlined,
+          'text': <String>[
+            sxText(returning['name']),
+            if (sxInt(returning['return_window_days']) > 0)
+              'مدة الإرجاع: ' + sxInt(returning['return_window_days']).toString() + ' يومًا',
+            sxText(returning['conditions']),
+            if (sxText(returning['fee_rule']).isNotEmpty)
+              'الرسوم: ' + sxText(returning['fee_rule']),
+            if (sxText(returning['refund_method']).isNotEmpty)
+              'طريقة الاسترداد: ' + sxText(returning['refund_method']),
+          ].where((x) => x.trim().isNotEmpty).join('\n\n'),
+          'background': sxColor(sxText(settings['returns_button_color']), const Color(0xFFF3F4F6)),
+          'foreground': sxColor(sxText(settings['returns_button_text_color']), Colors.black),
+        },
+      if (warranty.isNotEmpty)
+        {
+          'key': 'warranty',
+          'title': 'الضمان',
+          'icon': Icons.verified_user_outlined,
+          'text': <String>[
+            sxText(warranty['name']),
+            if (sxInt(warranty['duration_days']) > 0)
+              'المدة: ' + sxInt(warranty['duration_days']).toString() + ' يومًا',
+            sxText(warranty['coverage']),
+            if (sxText(warranty['exclusions']).isNotEmpty)
+              'الاستثناءات: ' + sxText(warranty['exclusions']),
+            if (sxText(warranty['claim_method']).isNotEmpty)
+              'طريقة المطالبة: ' + sxText(warranty['claim_method']),
+          ].where((x) => x.trim().isNotEmpty).join('\n\n'),
+          'background': sxColor(sxText(settings['warranty_button_color']), const Color(0xFFF3F4F6)),
+          'foreground': sxColor(sxText(settings['warranty_button_text_color']), Colors.black),
+        },
+      {
+        'key': 'payment',
+        'title': 'الدفع الآمن',
+        'icon': Icons.lock_outline,
+        'text': 'الدفع يتم وفق طرق الدفع المتاحة عند إتمام الطلب.',
+        'background': sxColor(sxText(settings['payment_button_color']), const Color(0xFFF3F4F6)),
+        'foreground': sxColor(sxText(settings['payment_button_text_color']), Colors.black),
+      },
+    ];
+
+    final byKey = <String, Map<String, dynamic>>{
+      for (final item in items) sxText(item['key']): item,
+    };
+    final rawOrder = settings['policy_order'];
+    final keys = rawOrder is List
+        ? rawOrder.map((x) => sxText(x)).where((x) => byKey[x]?.isNotEmpty == true).toList()
+        : <String>[];
+    for (final key in byKey.keys) {
+      if (!keys.contains(key)) keys.add(key);
+    }
+    if (keys.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(10, 7, 10, 8),
+      child: Wrap(
+        textDirection: TextDirection.rtl,
+        spacing: 6,
+        runSpacing: 6,
+        children: keys.map((key) {
+          final item = byKey[key]!;
+          final bg = item['background'] as Color;
+          final fg = item['foreground'] as Color;
+          final radius = sxDouble(settings['policy_button_radius'], 18);
+          final font = sxDouble(settings['policy_button_font_size'], 9);
+
+          return InkWell(
+            onTap: () => showDialog<void>(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: Text(
+                  sxText(item['title']),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+                ),
+                content: SingleChildScrollView(
+                  child: Text(
+                    sxText(item['text']),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(fontSize: 10.5, height: 1.7),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إغلاق'),
+                  ),
+                ],
+              ),
+            ),
+            borderRadius: BorderRadius.circular(radius),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(radius),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                textDirection: TextDirection.rtl,
+                children: [
+                  Icon(
+                    item['icon'] as IconData,
+                    size: font + 7,
+                    color: fg,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    sxText(item['title']),
+                    style: TextStyle(
+                      fontSize: font,
+                      fontWeight: FontWeight.w900,
+                      color: fg,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -1772,7 +3557,11 @@ class _DeliveryPolicyBox extends StatelessWidget {
     Color iconColor = Colors.black,
     Color titleColor = Colors.black,
   }) {
-    final height = sxDouble(settings['delivery_row_height'], 54).clamp(40, 76).toDouble();
+    final height = sxDouble(
+      settings['delivery_row_height'],
+      54,
+    ).clamp(40, 76).toDouble();
+
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -1815,7 +3604,10 @@ class _DeliveryPolicyBox extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: titleColor,
-                      fontSize: sxDouble(settings['delivery_row_title_font_size'], 11),
+                      fontSize: sxDouble(
+                        settings['delivery_row_title_font_size'],
+                        11,
+                      ),
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -1828,7 +3620,10 @@ class _DeliveryPolicyBox extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: sxDouble(settings['delivery_row_subtitle_font_size'], 9.5),
+                          fontSize: sxDouble(
+                            settings['delivery_row_subtitle_font_size'],
+                            9.5,
+                          ),
                           color: ClientTheme.muted,
                           height: 1.35,
                         ),
@@ -1857,7 +3652,6 @@ class _DeliveryPolicyBox extends StatelessWidget {
     final shipping = _map(policies['shipping']);
     final returning = _map(policies['return']);
     final warranty = _map(policies['warranty']);
-
     final returnDays = sxInt(returning['return_window_days']);
     final warrantyDays = sxInt(warranty['duration_days']);
 
@@ -1903,7 +3697,10 @@ class _DeliveryPolicyBox extends StatelessWidget {
         'icon': Icons.verified_user_outlined,
         'subtitle': warrantyDays > 0
             ? 'ضمان لمدة ' + warrantyDays.toString() + ' يومًا'
-            : sxText(warranty['coverage'], 'اضغط لعرض تفاصيل الضمان'),
+            : sxText(
+                warranty['coverage'],
+                'اضغط لعرض تفاصيل الضمان',
+              ),
         'dialog': <String>[
           sxText(warranty['name']),
           if (warrantyDays > 0)
@@ -1929,7 +3726,10 @@ class _DeliveryPolicyBox extends StatelessWidget {
           context,
           icon: Icons.location_on_outlined,
           title: sxText(settings['delivery_location_title'], 'الشحن إلى'),
-          subtitle: sxText(settings['delivery_location_country'], 'Saudi Arabia'),
+          subtitle: sxText(
+            settings['delivery_location_country'],
+            'Saudi Arabia',
+          ),
           arrow: true,
           iconColor: sxColor(
             sxText(settings['delivery_location_color']),
@@ -1943,13 +3743,17 @@ class _DeliveryPolicyBox extends StatelessWidget {
       );
     }
 
-    final visibleDelivery = deliveryBadges.where((x) => x['visible'] != false).toList();
+    final visibleDelivery = deliveryBadges.where(
+      (x) => x['visible'] != false,
+    ).toList();
+
     for (final badge in visibleDelivery) {
       final title = sxText(badge['text'], 'التوصيل');
       final subtitle = sxText(
         badge['subtitle'],
         sxText(badge['details']),
       );
+
       rows.add(
         row(
           context,
@@ -1961,7 +3765,10 @@ class _DeliveryPolicyBox extends StatelessWidget {
             title: title,
             text: sxText(badge['details'], subtitle),
           ),
-          iconColor: sxColor(sxText(badge['text_color']), Colors.black),
+          iconColor: sxColor(
+            sxText(badge['text_color']),
+            Colors.black,
+          ),
         ),
       );
     }
@@ -1970,10 +3777,14 @@ class _DeliveryPolicyBox extends StatelessWidget {
     final rawOrder = settings['policy_order'];
     if (rawOrder is List) {
       for (final key in rawOrder) {
-        final k = sxText(key);
-        if (policyItems.containsKey(k) && !order.contains(k)) order.add(k);
+        final normalized = sxText(key);
+        if (policyItems.containsKey(normalized) &&
+            !order.contains(normalized)) {
+          order.add(normalized);
+        }
       }
     }
+
     for (final key in policyItems.keys) {
       if (!order.contains(key)) order.add(key);
     }
@@ -1981,10 +3792,15 @@ class _DeliveryPolicyBox extends StatelessWidget {
     for (final key in order) {
       final item = policyItems[key];
       if (item == null) continue;
-      final hasContent = key == 'payment' ||
-          (key == 'shipping' && (shipping.isNotEmpty || sxText(item['subtitle']).isNotEmpty)) ||
+
+      final hasContent =
+          key == 'payment' ||
+          (key == 'shipping' &&
+              (shipping.isNotEmpty ||
+                  sxText(item['subtitle']).isNotEmpty)) ||
           (key == 'returns' && returning.isNotEmpty) ||
           (key == 'warranty' && warranty.isNotEmpty);
+
       if (!hasContent) continue;
 
       rows.add(
