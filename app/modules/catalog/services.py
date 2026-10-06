@@ -2816,18 +2816,13 @@ class CatalogService:
         defaults = {
             "detail_groups": [
                 {
-                    "title": "العروض وبيانات المنتج",
-                    "items": ["trend", "name", "badges", "price", "promotions", "description", "rating", "brand"],
+                    "title": "هوية المنتج والسعر",
+                    "items": ["trend", "name", "rating", "brand", "price", "promotions", "description", "badges"],
                     "show": True,
                 },
                 {
-                    "title": "الصور والألوان والمقاسات",
+                    "title": "الألوان والمقاسات",
                     "items": ["thumbs", "colors", "sizes", "size_guide"],
-                    "show": True,
-                },
-                {
-                    "title": "التفاصيل والمخزون",
-                    "items": ["details", "stock"],
                     "show": True,
                 },
                 {
@@ -2836,7 +2831,12 @@ class CatalogService:
                     "show": True,
                 },
                 {
-                    "title": "التقييمات",
+                    "title": "تفاصيل المنتج والتوفر",
+                    "items": ["details", "stock"],
+                    "show": True,
+                },
+                {
+                    "title": "التقييمات والمراجعات",
                     "items": ["reviews"],
                     "show": True,
                 },
@@ -2846,6 +2846,94 @@ class CatalogService:
                     "show": True,
                 },
             ],
+            "layout_mode": "shein",
+            "group_show_titles": False,
+            "group_background_color": "#FFFFFF",
+            "group_border_color": "#F0F0F0",
+            "group_border_width": 0.0,
+            "group_radius": 0,
+            "group_margin_top": 0,
+            "group_padding_horizontal": 12,
+            "group_padding_vertical": 10,
+            "group_divider": "subtle",
+            "group_divider_color": "#EEEEEE",
+            "group_divider_width": 0.7,
+            "trend_show": True,
+            "trend_title": "ترندات",
+            "trend_show_hashtag": True,
+            "trend_show_promo": False,
+            "trend_show_arrow": False,
+            "trend_title_font_size": 17,
+            "trend_hashtag_font_size": 12,
+            "trend_height": 46,
+            "trend_padding_horizontal": 12,
+            "trend_background_color": "#F2E8FF",
+            "trend_title_color": "#8B5CF6",
+            "trend_hashtag_color": "#7C3AED",
+            "trend_arrow_color": "#7C3AED",
+            "trend_divider_color": "#E9D5FF",
+            "variant_background_color": "#FFFFFF",
+            "variant_padding_horizontal": 12,
+            "variant_padding_vertical": 10,
+            "variant_row_gap": 12,
+            "variant_divider_show": True,
+            "variant_divider_color": "#EEEEEE",
+            "variant_divider_width": 0.7,
+            "color_presentation": "image_circle",
+            "color_shape": "circle",
+            "color_image_size": 48,
+            "color_swatches_size": 30,
+            "color_gap": 8,
+            "color_label_font_size": 9,
+            "color_show_label": True,
+            "color_show_hot": True,
+            "color_selected_border_width": 2,
+            "color_selected_border_color": "#111111",
+            "color_border_color": "#DDDDDD",
+            "color_max_visible": 12,
+            "size_height": 48,
+            "size_min_width": 56,
+            "size_border_radius": 2,
+            "size_inventory_badge_show": True,
+            "size_inventory_badge_font_size": 8,
+            "size_inventory_badge_background": "#FF5A3D",
+            "size_inventory_badge_text": "#FFFFFF",
+            "size_inventory_only_when_low": True,
+            "size_inventory_threshold": 7,
+            "size_label_alignment": "center",
+            "size_row_gap": 7,
+            "size_selected_border_width": 1,
+            "size_divider_show": False,
+            "size_divider_color": "#EEEEEE",
+            "size_divider_width": 0.7,
+            "size_tools_show": True,
+            "size_tools_divider_show": False,
+            "size_tools_font_size": 10,
+            "size_tools_icon_size": 16,
+            "size_tools_color": "#111111",
+            "size_tools_gap": 12,
+            "delivery_location_show": True,
+            "delivery_location_title": "الشحن إلى",
+            "delivery_location_country": "Saudi Arabia",
+            "delivery_location_font_size": 12,
+            "delivery_location_icon_size": 18,
+            "delivery_location_color": "#111111",
+            "delivery_row_height": 54,
+            "delivery_row_title_font_size": 11,
+            "delivery_row_subtitle_font_size": 9.5,
+            "delivery_row_icon_size": 19,
+            "delivery_row_divider_show": True,
+            "delivery_row_divider_color": "#EEEEEE",
+            "delivery_row_divider_width": 0.7,
+            "policy_row_height": 50,
+            "policy_row_title_font_size": 11,
+            "policy_row_subtitle_font_size": 9.5,
+            "policy_row_icon_size": 19,
+            "policy_row_divider_show": True,
+            "policy_row_divider_color": "#EEEEEE",
+            "policy_row_divider_width": 0.7,
+            "policy_show_arrows": True,
+            "policy_show_dialog": True,
             "detail_order": [
                 "badges", "gallery", "thumbs", "trend", "price", "promotions",
                 "name", "description", "rating", "brand", "colors", "sizes", "size_guide",
@@ -3083,6 +3171,48 @@ class CatalogService:
             return value
 
         for key, low, high, integer in (
+            ("group_border_width", 0, 4, False),
+            ("group_radius", 0, 24, True),
+            ("group_margin_top", 0, 24, True),
+            ("group_padding_horizontal", 0, 24, True),
+            ("group_padding_vertical", 0, 24, True),
+            ("group_divider_width", 0, 3, False),
+            ("trend_title_font_size", 9, 28, False),
+            ("trend_hashtag_font_size", 7, 20, False),
+            ("trend_height", 28, 80, True),
+            ("trend_padding_horizontal", 4, 24, True),
+            ("variant_padding_horizontal", 0, 24, True),
+            ("variant_padding_vertical", 0, 24, True),
+            ("variant_row_gap", 0, 24, True),
+            ("variant_divider_width", 0, 3, False),
+            ("color_image_size", 30, 72, True),
+            ("color_swatches_size", 18, 64, True),
+            ("color_gap", 0, 18, True),
+            ("color_label_font_size", 6, 16, False),
+            ("color_selected_border_width", 0, 5, False),
+            ("size_height", 34, 68, True),
+            ("size_min_width", 38, 110, True),
+            ("size_border_radius", 0, 16, True),
+            ("size_inventory_badge_font_size", 6, 14, False),
+            ("size_inventory_threshold", 1, 30, True),
+            ("size_row_gap", 0, 18, True),
+            ("size_selected_border_width", 0, 4, False),
+            ("size_divider_width", 0, 3, False),
+            ("size_tools_font_size", 7, 18, False),
+            ("size_tools_icon_size", 10, 26, True),
+            ("size_tools_gap", 0, 24, True),
+            ("delivery_location_font_size", 8, 18, False),
+            ("delivery_location_icon_size", 12, 28, True),
+            ("delivery_row_height", 40, 76, True),
+            ("delivery_row_title_font_size", 8, 18, False),
+            ("delivery_row_subtitle_font_size", 7, 16, False),
+            ("delivery_row_icon_size", 12, 28, True),
+            ("delivery_row_divider_width", 0, 3, False),
+            ("policy_row_height", 40, 76, True),
+            ("policy_row_title_font_size", 8, 18, False),
+            ("policy_row_subtitle_font_size", 7, 16, False),
+            ("policy_row_icon_size", 12, 28, True),
+            ("policy_row_divider_width", 0, 3, False),
             ("thumbs_size", 40, 110, True),
             ("thumbs_height", 45, 120, True),
             ("thumbs_gap", 0, 18, True),
@@ -3127,6 +3257,24 @@ class CatalogService:
         ):
             merged[key] = number(key, low, high, integer)
 
+        merged["group_show_titles"] = flag("group_show_titles")
+        merged["trend_show"] = flag("trend_show")
+        merged["trend_show_hashtag"] = flag("trend_show_hashtag")
+        merged["trend_show_promo"] = flag("trend_show_promo")
+        merged["trend_show_arrow"] = flag("trend_show_arrow")
+        merged["variant_divider_show"] = flag("variant_divider_show")
+        merged["color_show_label"] = flag("color_show_label")
+        merged["color_show_hot"] = flag("color_show_hot")
+        merged["size_inventory_badge_show"] = flag("size_inventory_badge_show")
+        merged["size_inventory_only_when_low"] = flag("size_inventory_only_when_low")
+        merged["size_tools_show"] = flag("size_tools_show")
+        merged["size_tools_divider_show"] = flag("size_tools_divider_show")
+        merged["size_divider_show"] = flag("size_divider_show")
+        merged["delivery_location_show"] = flag("delivery_location_show")
+        merged["delivery_row_divider_show"] = flag("delivery_row_divider_show")
+        merged["policy_row_divider_show"] = flag("policy_row_divider_show")
+        merged["policy_show_arrows"] = flag("policy_show_arrows")
+        merged["policy_show_dialog"] = flag("policy_show_dialog")
         merged["gallery_show"] = flag("gallery_show")
         merged["thumbs_show"] = flag("thumbs_show")
         merged["badges_show"] = flag("badges_show")
@@ -3155,9 +3303,22 @@ class CatalogService:
             if merged["compare_price_text_decoration"] in {"line_through", "none"}
             else defaults["compare_price_text_decoration"]
         )
+        merged["layout_mode"] = merged.get("layout_mode") if merged.get("layout_mode") in {"shein", "boxed"} else "shein"
+        merged["group_divider"] = merged.get("group_divider") if merged.get("group_divider") in {"none", "subtle", "strong"} else "subtle"
+        merged["color_presentation"] = merged.get("color_presentation") if merged.get("color_presentation") in {"image", "circle", "image_circle"} else "image_circle"
+        merged["color_shape"] = merged.get("color_shape") if merged.get("color_shape") in {"circle", "square"} else "circle"
+        merged["size_label_alignment"] = merged.get("size_label_alignment") if merged.get("size_label_alignment") in {"left", "center", "right"} else "center"
         merged["price_text"] = str(merged.get("price_text") or defaults["price_text"])[:80]
 
         for key in (
+            "group_background_color", "group_border_color", "group_divider_color",
+            "trend_background_color", "trend_title_color", "trend_hashtag_color", "trend_arrow_color", "trend_divider_color",
+            "variant_background_color", "variant_divider_color",
+            "color_selected_border_color", "color_border_color",
+            "size_inventory_badge_background", "size_inventory_badge_text",
+            "size_divider_color", "size_tools_color",
+            "delivery_location_color", "delivery_row_divider_color",
+            "policy_row_divider_color",
             "name_color", "description_color", "price_color", "compare_price_color", "currency_color",
             "price_text_color", "brand_color",
             "sizes_background_color", "sizes_text_color",
