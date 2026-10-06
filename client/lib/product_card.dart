@@ -712,13 +712,16 @@ class SxProductCard extends StatefulWidget {
   State<SxProductCard> createState() => _SxProductCardState();
 }
 
-class _SxProductCardState extends State<SxProductCard> {
-  // Logical carousel position is intentionally unbounded. The displayed
-  // image is derived with modulo, so first <-> last never reuses a logical
-  // position and the transition can continue forever.
+class _SxProductCardState extends State<SxProductCard>
+    with SingleTickerProviderStateMixin {
   int _carouselIndex = 0;
+  int _queuedDirections = 0;
   double _dragDistance = 0;
   int _swipeDirection = 1;
+  int? _transitionFrom;
+  int? _transitionTo;
+  bool _transitionRunning = false;
+  late final AnimationController _imageController;
   late List<String> _gallery;
   bool _galleryLoading = false;
   bool _galleryLoaded = false;
@@ -728,9 +731,15 @@ class _SxProductCardState extends State<SxProductCard> {
   void didUpdateWidget(covariant SxProductCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.product.id != widget.product.id) {
+      _imageController.stop();
       _carouselIndex = 0;
+      _queuedDirections = 0;
+      _transitionFrom = null;
+      _transitionTo = null;
+      _transitionRunning = false;
+      _galleryLoadFuture = null;
       _gallery = _uniqueImages(widget.product.images, widget.product.image);
-      _galleryLoaded = false;
+      _galleryLoaded = _gallery.length > 1;
       _galleryLoading = false;
     }
   }
@@ -738,16 +747,37 @@ class _SxProductCardState extends State<SxProductCard> {
   @override
   void initState() {
     super.initState();
+    _imageController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    );
     _gallery = _uniqueImages(widget.product.images, widget.product.image);
-    _galleryLoaded = false;
+    _galleryLoaded = _gallery.length > 1;
+  }
+
+  @override
+  void dispose() {
+    _imageController.dispose();
+    super.dispose();
   }
 
   List<String> _uniqueImages(Iterable<String> images, String? primary) {
-    final merged = <String>[
-      ...images.where((x) => x.isNotEmpty),
-      if (primary != null && primary.isNotEmpty) primary,
-    ];
-    return merged.toSet().toList();
+    final result = <String>[];
+    final seen = <String>{};
+
+    void addImage(String? raw) {
+      final value = (raw ?? '').trim();
+      if (value.isEmpty) return;
+      final canonical = api.url(value);
+      if (canonical.isEmpty || !seen.add(canonical)) return;
+      result.add(canonical);
+    }
+
+    for (final image in images) {
+      addImage(image);
+    }
+    addImage(primary);
+    return result;
   }
 
   Future<void> _loadFullGallery() {
@@ -817,9 +847,6 @@ class _SxProductCardState extends State<SxProductCard> {
 
     if (distance.abs() < 18 && velocity.abs() < 100) return;
 
-    // On the first real swipe, finish loading the full detail gallery before
-    // choosing the next image. This brings in every ProductMedia row,
-    // including media assigned to specific colors.
     if (!_galleryLoaded) {
       await _loadFullGallery();
       if (!mounted) return;
@@ -832,22 +859,76 @@ class _SxProductCardState extends State<SxProductCard> {
         ? (velocity < 0 ? 1 : -1)
         : (distance < 0 ? 1 : -1);
 
-    // Do not wrap/reset this number. Keep it growing in either direction.
-    // The visible image is computed with modulo below.
-    final nextCarouselIndex = _carouselIndex + direction;
-
-    if (mounted) {
+    if (_transitionRunning) {
       setState(() {
-        _swipeDirection = direction;
-        _carouselIndex = nextCarouselIndex;
+        _queuedDirections =
+            (_queuedDirections + direction).clamp(-6, 6).toInt();
       });
+      return;
+    }
+
+    await _animateToDirection(direction);
+  }
+
+  Future<void> _animateToDirection(int direction) async {
+    if (!mounted || direction == 0 || _gallery.length <= 1) return;
+
+    final normalizedDirection = direction > 0 ? 1 : -1;
+    final from = _carouselIndex;
+    final to = from + normalizedDirection;
+
+    setState(() {
+      _swipeDirection = normalizedDirection;
+      _transitionFrom = from;
+      _transitionTo = to;
+      _transitionRunning = true;
+    });
+
+    _imageController.duration = _imageTransitionDuration();
+
+    try {
+      await _imageController.forward(from: 0);
+    } catch (_) {
+      if (!mounted) return;
+    }
+
+    if (!mounted) return;
+
+    final queued = _queuedDirections;
+    setState(() {
+      _carouselIndex = to;
+      _transitionFrom = null;
+      _transitionTo = null;
+      _transitionRunning = false;
+      _queuedDirections = 0;
+    });
+
+    if (queued != 0 && mounted) {
+      await _animateToDirection(queued > 0 ? 1 : -1);
     }
   }
 
-  int _galleryIndex(int count) {
+  Duration _imageTransitionDuration() => Duration(
+        milliseconds: _cardNumber(
+          'image_flip_duration_ms',
+          260,
+        ).round().clamp(80, 1200),
+      );
+
+  int _galleryIndexFor(int logicalIndex, int count) {
     if (count <= 0) return 0;
-    final remainder = _carouselIndex % count;
+    final remainder = logicalIndex % count;
     return remainder < 0 ? remainder + count : remainder;
+  }
+
+  int _galleryIndex(int count) =>
+      _galleryIndexFor(_carouselIndex, count);
+
+  int _indicatorIndex(int count) {
+    final logical = _transitionRunning && _transitionTo != null
+        ? _transitionTo!
+        : _carouselIndex;
+    return _galleryIndexFor(logical, count);
   }
 
   Map<String, dynamic> get _cardSettings =>
@@ -1092,59 +1173,98 @@ class _SxProductCardState extends State<SxProductCard> {
   }
 
   Widget _imageTransition({
-    required Widget child,
+    required List<String> gallery,
   }) {
-    final duration = Duration(
-      milliseconds: _cardNumber('image_flip_duration_ms', 260).round().clamp(80, 1200),
-    );
+    if (gallery.isEmpty) {
+      return Container(
+        color: ClientTheme.soft,
+        child: const Icon(Icons.image_outlined),
+      );
+    }
+
+    final count = gallery.length;
+    if (!_transitionRunning ||
+        _transitionFrom == null ||
+        _transitionTo == null ||
+        count <= 1) {
+      return _ProductCardImage(
+        url: gallery[_galleryIndex(count)],
+        fit: BoxFit.cover,
+      );
+    }
+
+    final fromUrl = gallery[_galleryIndexFor(_transitionFrom!, count)];
+    final toUrl = gallery[_galleryIndexFor(_transitionTo!, count)];
     final effect = _cardText('image_flip_effect', 'slide');
 
-    return AnimatedSwitcher(
-      duration: duration,
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (child, animation) {
+    return AnimatedBuilder(
+      animation: _imageController,
+      builder: (context, _) {
+        final t = Curves.easeOutCubic.transform(_imageController.value);
+
         if (effect == 'fade') {
-          return FadeTransition(opacity: animation, child: child);
-        }
-        if (effect == 'card_flip') {
-          final rotation = Tween<double>(
-            begin: math.pi / 2,
-            end: 0,
-          ).animate(
-            CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            ),
-          );
-          return AnimatedBuilder(
-            animation: rotation,
-            child: child,
-            builder: (_, child) => Transform(
-              alignment: Alignment.center,
-              transform: Matrix4.identity()
-                ..setEntry(3, 2, 0.0012)
-                ..rotateY(rotation.value),
-              child: child,
-            ),
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Opacity(
+                opacity: 1 - t,
+                child: _ProductCardImage(url: fromUrl, fit: BoxFit.cover),
+              ),
+              Opacity(
+                opacity: t,
+                child: _ProductCardImage(url: toUrl, fit: BoxFit.cover),
+              ),
+            ],
           );
         }
 
-        final begin = Offset(
-          _swipeDirection > 0 ? 1.0 : -1.0,
-          0,
-        );
-        final slide = Tween<Offset>(begin: begin, end: Offset.zero)
-            .chain(
-              CurveTween(curve: Curves.easeOutCubic),
-            )
-            .animate(animation);
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(position: slide, child: child),
+        if (effect == 'card_flip') {
+          final outgoingAngle =
+              (_swipeDirection > 0 ? -1 : 1) * math.pi / 2 * t;
+          final incomingAngle =
+              (_swipeDirection > 0 ? 1 : -1) *
+                  math.pi / 2 *
+                  (1 - t);
+
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.0012)
+                  ..rotateY(outgoingAngle),
+                child: _ProductCardImage(url: fromUrl, fit: BoxFit.cover),
+              ),
+              Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.0012)
+                  ..rotateY(incomingAngle),
+                child: _ProductCardImage(url: toUrl, fit: BoxFit.cover),
+              ),
+            ],
+          );
+        }
+
+        final outgoingOffset = _swipeDirection > 0 ? -t : t;
+        final incomingOffset =
+            _swipeDirection > 0 ? 1 - t : -1 + t;
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            FractionalTranslation(
+              translation: Offset(outgoingOffset, 0),
+              child: _ProductCardImage(url: fromUrl, fit: BoxFit.cover),
+            ),
+            FractionalTranslation(
+              translation: Offset(incomingOffset, 0),
+              child: _ProductCardImage(url: toUrl, fit: BoxFit.cover),
+            ),
+          ],
         );
       },
-      child: child,
     );
   }
 
@@ -1173,17 +1293,7 @@ class _SxProductCardState extends State<SxProductCard> {
               );
             },
             child: _imageTransition(
-              child: KeyedSubtree(
-                key: ValueKey(
-                  widget.product.id.toString() +
-                      '-carousel-' +
-                      _carouselIndex.toString(),
-                ),
-                child: _ProductCardImage(
-                  url: gallery[_galleryIndex(gallery.length)],
-                  fit: BoxFit.cover,
-                ),
-              ),
+              gallery: gallery,
             ),
           );
 
@@ -1381,7 +1491,7 @@ class _SxProductCardState extends State<SxProductCard> {
                 (i) => AnimatedContainer(
                   duration: const Duration(milliseconds: 130),
                   margin: const EdgeInsets.symmetric(horizontal: 2),
-                  width: i == _galleryIndex(gallery.length) ? 12 : 5,
+                  width: i == _indicatorIndex(gallery.length) ? 12 : 5,
                   height: 3,
                   decoration: BoxDecoration(
                     color: i == _galleryIndex(gallery.length)
