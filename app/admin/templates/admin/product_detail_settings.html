@@ -1,0 +1,202 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<style>
+  .pds-page{display:grid;gap:14px}
+  .pds-hero,.pds-panel{background:#fff;border:1px solid #e8e8e8;border-radius:15px}
+  .pds-hero{padding:16px}
+  .pds-hero h2{margin:3px 0 5px}
+  .pds-hero p{margin:0;line-height:1.7}
+  .pds-head{padding:14px 16px;border-bottom:1px solid #eee}
+  .pds-head h3{margin:2px 0 4px}
+  .pds-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}
+  .pds-grid label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:800}
+  .pds-grid input,.pds-grid select{width:100%;box-sizing:border-box}
+  .pds-check{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;background:#fafafa;border:1px solid #ededed;padding:10px;border-radius:9px}
+  .pds-check input{width:auto!important}
+  .pds-colors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:12px}
+  .pds-colors label{font-size:11px;font-weight:800}
+  .color-sync{display:grid;grid-template-columns:42px 1fr;gap:7px;align-items:center;margin-top:5px}
+  .color-sync input[type=color]{height:39px;padding:2px}
+  .color-sync input[type=text]{direction:ltr;text-align:left;font-family:monospace}
+  .sort-wrap{padding:12px}
+  .sort-note{padding:10px 12px;margin-bottom:10px;background:#fafafa;border:1px dashed #ddd;border-radius:10px;line-height:1.6;font-size:10px}
+  .sort-list{display:grid;gap:7px}
+  .sort-item{display:flex;align-items:center;gap:8px;padding:10px;background:#fff;border:1px solid #e6e6e6;border-radius:10px;cursor:grab}
+  .sort-item.dragging{opacity:.55}
+  .sort-handle{font-size:16px;color:#999}
+  .sort-index{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:#111;color:#fff;font-size:9px;font-weight:900;flex:0 0 24px}
+  .sort-name{flex:1;font-weight:900;font-size:11px}
+  .sort-actions{display:flex;gap:4px}
+  .sort-actions button{width:29px;height:29px;padding:0;border:1px solid #ddd;background:#fff;border-radius:7px;cursor:pointer;font-weight:900}
+  .save-bar{position:sticky;bottom:10px;z-index:20;background:rgba(255,255,255,.97);border:1px solid #e4e4e4;border-radius:12px;padding:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.08)}
+  .save-bar small{color:#777}
+  @media(max-width:720px){.pds-grid,.pds-colors{grid-template-columns:1fr}.save-bar{flex-direction:column;align-items:stretch}.save-bar button{width:100%}}
+</style>
+
+<div class="pds-page">
+  <section class="pds-hero">
+    <div class="module-toolbar">
+      <div class="module-heading-copy">
+        <span class="eyebrow">المحتوى والمتجر</span>
+        <h2>إعدادات تفاصيل الصنف</h2>
+        <p class="muted">
+          شاشة مستقلة للتحكم في صفحة تفاصيل المنتج: ترتيب كل العناصر، إظهارها أو إخفاؤها،
+          الأحجام والألوان، الصور المصغرة، السعر، تفاصيل المنتج، دليل المقاسات، والسياسات.
+        </p>
+      </div>
+      <div class="module-toolbar-actions">
+        <a class="ghost-button" href="/admin/trends/display-settings">إعدادات بطاقة المنتج</a>
+      </div>
+    </div>
+  </section>
+
+  {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+  <form method="post" id="productDetailSettingsForm">
+    <section class="pds-panel">
+      <div class="pds-head">
+        <span class="eyebrow">1 · ترتيب الشاشة</span>
+        <h3>ترتيب عناصر تفاصيل الصنف</h3>
+        <p class="muted">اسحب العنصر أو استخدم السهمين. الترتيب ينعكس مباشرة على شاشة العميل.</p>
+      </div>
+      <div class="sort-wrap">
+        <div class="sort-note">الترتيب لا يغيّر البيانات نفسها؛ يغيّر فقط مكان عرضها. يمكن وضع الشارات قبل الصورة أو السعر قبل الاسم أو الألوان والمقاسات في أي مكان من العناصر المدرجة.</div>
+        <div class="sort-list" id="detailOrderList">
+          {% for key, label in detail_order_options %}
+          <div class="sort-item" draggable="true" data-key="{{ key }}">
+            <span class="sort-handle">☷</span>
+            <span class="sort-index">{{ loop.index }}</span>
+            <span class="sort-name">{{ label }}</span>
+            <span class="sort-actions">
+              <button type="button" data-move="up" aria-label="أعلى">↑</button>
+              <button type="button" data-move="down" aria-label="أسفل">↓</button>
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="detail_order" id="detailOrderInput" value="{{ product_detail_settings.detail_order|join(',') }}">
+      </div>
+    </section>
+
+    {% for group in product_detail_groups[1:] %}
+    <section class="pds-panel">
+      <div class="pds-head">
+        <span class="eyebrow">{{ loop.index + 1 }} · إعداد</span>
+        <h3>{{ group.title }}</h3>
+        <p class="muted">{{ group.hint }}</p>
+      </div>
+      <div class="pds-grid">
+        {% for field in group.fields %}
+          {% set key=field[0] %}
+          {% set label=field[1] %}
+          {% set kind=field[2] %}
+          {% if kind=="checkbox" %}
+          <label class="pds-check">
+            <input type="checkbox" name="{{ key }}" {% if product_detail_settings[key] %}checked{% endif %}>
+            <span>{{ label }}</span>
+          </label>
+          {% elif kind=="select" %}
+          <label>{{ label }}
+            <select name="{{ key }}">
+              {% for option in field[3] %}
+              <option value="{{ option }}" {% if product_detail_settings[key]==option %}selected{% endif %}>
+                {% if option=="line_through" %}خط على السعر
+                {% elif option=="none" %}بدون خط
+                {% else %}{{ option }}{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+          </label>
+          {% elif kind=="text" %}
+          <label>{{ label }}
+            <input type="text" name="{{ key }}" maxlength="{{ field[3] }}" value="{{ product_detail_settings[key] }}">
+          </label>
+          {% elif kind=="number" %}
+          <label>{{ label }}
+            <input type="number" name="{{ key }}" min="{{ field[3] }}" max="{{ field[4] }}" step="{{ field[5] }}" value="{{ product_detail_settings[key] }}">
+          </label>
+          {% endif %}
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+
+    <section class="pds-panel">
+      <div class="pds-head">
+        <span class="eyebrow">الألوان</span>
+        <h3>ألوان العناصر بشكل مستقل</h3>
+        <p class="muted">كل زر من أزرار السياسات له لون خلفية ولون نص مستقل، بالإضافة إلى عناصر الصفحة الأساسية.</p>
+      </div>
+      <div class="pds-colors">
+        {% for key, label in product_detail_color_fields %}
+        <label>
+          {{ label }}
+          <span class="color-sync">
+            <input type="color" value="{{ product_detail_settings[key] }}" data-picker="{{ key }}">
+            <input type="text" name="{{ key }}" value="{{ product_detail_settings[key] }}" maxlength="7" data-color="{{ key }}" dir="ltr">
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="save-bar">
+      <div><strong>إعدادات تفاصيل الصنف</strong><small>تُحفظ في storefront / product_detail_settings.</small></div>
+      <button class="primary-button" type="submit">حفظ إعدادات تفاصيل الصنف</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(() => {
+  const list=document.getElementById('detailOrderList');
+  const input=document.getElementById('detailOrderInput');
+
+  function sync(){
+    const keys=[...list.querySelectorAll('.sort-item')].map(x=>x.dataset.key);
+    input.value=keys.join(',');
+    [...list.querySelectorAll('.sort-item')].forEach((x,i)=>x.querySelector('.sort-index').textContent=String(i+1));
+  }
+
+  let dragging=null;
+  list.querySelectorAll('.sort-item').forEach(item=>{
+    item.addEventListener('dragstart',()=>{dragging=item;item.classList.add('dragging');});
+    item.addEventListener('dragend',()=>{item.classList.remove('dragging');dragging=null;sync();});
+    item.addEventListener('dragover',e=>{
+      e.preventDefault();
+      if(!dragging||dragging===item)return;
+      const box=item.getBoundingClientRect();
+      const before=e.clientY<box.top+box.height/2;
+      list.insertBefore(dragging,before?item:item.nextSibling);
+    });
+  });
+  list.addEventListener('click',e=>{
+    const btn=e.target.closest('[data-move]');
+    if(!btn)return;
+    const item=btn.closest('.sort-item');
+    if(btn.dataset.move==='up' && item.previousElementSibling) list.insertBefore(item,item.previousElementSibling);
+    if(btn.dataset.move==='down' && item.nextElementSibling) list.insertBefore(item.nextElementSibling,item);
+    sync();
+  });
+  sync();
+
+  const valid=/^#[0-9A-Fa-f]{6}$/;
+  document.querySelectorAll('[data-picker]').forEach(picker=>{
+    const key=picker.dataset.picker;
+    const text=document.querySelector('[data-color="'+key+'"]');
+    if(!text)return;
+    picker.addEventListener('input',()=>text.value=picker.value.toLowerCase());
+    text.addEventListener('input',()=>{
+      const v=text.value.trim();
+      if(valid.test(v)) picker.value=v;
+    });
+    text.addEventListener('blur',()=>{
+      const v=text.value.trim();
+      if(!valid.test(v)) text.value=picker.value.toLowerCase();
+      else text.value=v.toLowerCase();
+    });
+  });
+})();
+</script>
+{% endblock %}
