@@ -2529,59 +2529,79 @@ class _ProductOptions extends StatelessWidget {
               style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 9),
-            Wrap(
-              spacing: colorGap,
-              runSpacing: colorRunGap,
-              children: colors.map((item) {
-                final id = sxInt(item['id']);
-                final selected = id == selectedColorId;
-                final thumb = colorThumbUrls[id];
-                final hasThumb = thumb != null && thumb.trim().isNotEmpty;
-                return InkWell(
-                  onTap: () => onColor(id),
-                  borderRadius: BorderRadius.circular(colorSize / 2),
-                  child: Column(
+            SizedBox(
+              height: colorSize + labelSize + 18,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: false,
+                child: Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        width: colorSize,
-                        height: colorSize,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: sxColor(
-                            sxText(item['hex_code'], '#D1D5DB'),
-                            const Color(0xFFD1D5DB),
-                          ),
-                          border: Border.all(
-                            color: selected ? Colors.black : const Color(0xFFE5E7EB),
-                            width: selected ? selectedBorder : 1,
+                      for (var index = 0; index < colors.length; index++)
+                        Padding(
+                          padding: EdgeInsets.only(left: index == colors.length - 1 ? 0 : colorGap),
+                          child: InkWell(
+                            onTap: () => onColor(sxInt(colors[index]['id'])),
+                            borderRadius: BorderRadius.circular(colorSize / 2),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Builder(builder: (_) {
+                                  final item = colors[index];
+                                  final id = sxInt(item['id']);
+                                  final selected = id == selectedColorId;
+                                  final thumb = colorThumbUrls[id];
+                                  final hasThumb = thumb != null && thumb.trim().isNotEmpty;
+                                  return Container(
+                                    width: colorSize,
+                                    height: colorSize,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: sxColor(
+                                        sxText(item['hex_code'], '#D1D5DB'),
+                                        const Color(0xFFD1D5DB),
+                                      ),
+                                      border: Border.all(
+                                        color: selected ? Colors.black : const Color(0xFFE5E7EB),
+                                        width: selected ? selectedBorder : 1,
+                                      ),
+                                    ),
+                                    clipBehavior: Clip.antiAlias,
+                                    child: hasThumb
+                                        ? _DetailNetworkImage(url: thumb)
+                                        : selected
+                                            ? Icon(
+                                                Icons.check,
+                                                size: colorSize * .43,
+                                                color: Colors.white,
+                                              )
+                                            : null,
+                                  );
+                                }),
+                                const SizedBox(height: 4),
+                                SizedBox(
+                                  width: colorSize + 8,
+                                  child: Text(
+                                    sxText(colors[index]['name']),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: labelSize,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        clipBehavior: Clip.antiAlias,
-                        child: hasThumb
-                            ? _DetailNetworkImage(url: thumb)
-                            : selected
-                                ? Icon(
-                                    Icons.check,
-                                    size: colorSize * .43,
-                                    color: Colors.white,
-                                  )
-                                : null,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        sxText(item['name']),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: labelSize,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
                     ],
                   ),
-                );
-              }).toList(),
+                ),
+              ),
             ),
           ],
           if (colorsVisible && sizesVisible) const Divider(height: 24),
@@ -2594,47 +2614,58 @@ class _ProductOptions extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 9),
-            Wrap(
-              spacing: sizeGap,
-              runSpacing: sizeGap,
-              children: sizes.map((item) {
-                final id = sxInt(item['id']);
-                final selected = id == selectedSizeId;
-                return InkWell(
-                  onTap: () => onSize(id),
-                  borderRadius: BorderRadius.circular(5),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 130),
-                    constraints: const BoxConstraints(minWidth: 55),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: sizeHorizontal,
-                      vertical: sizeVertical,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? _color('sizes_selected_background_color', Colors.black)
-                          : _color('sizes_background_color', Colors.white),
-                      border: Border.all(
-                        color: selected
-                            ? _color('sizes_selected_background_color', Colors.black)
-                            : _color('sizes_border_color', const Color(0xFFD8D8D8)),
-                      ),
-                      borderRadius: BorderRadius.circular(5),
-                    ),
-                    child: Text(
-                      sxText(item['label'], sxText(item['code'])),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: selected
-                            ? _color('sizes_selected_text_color', Colors.white)
-                            : _color('sizes_text_color', Colors.black),
-                        fontSize: sizeFont,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+            SizedBox(
+              height: sizeFont + (sizeVertical * 2) + 14,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: false,
+                child: Directionality(
+                  textDirection: TextDirection.rtl,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var index = 0; index < sizes.length; index++)
+                        Padding(
+                          padding: EdgeInsets.only(left: index == sizes.length - 1 ? 0 : sizeGap),
+                          child: InkWell(
+                            onTap: () => onSize(sxInt(sizes[index]['id'])),
+                            borderRadius: BorderRadius.circular(5),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 130),
+                              constraints: const BoxConstraints(minWidth: 55),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: sizeHorizontal,
+                                vertical: sizeVertical,
+                              ),
+                              decoration: BoxDecoration(
+                                color: sxInt(sizes[index]['id']) == selectedSizeId
+                                    ? _color('sizes_selected_background_color', Colors.black)
+                                    : _color('sizes_background_color', Colors.white),
+                                border: Border.all(
+                                  color: sxInt(sizes[index]['id']) == selectedSizeId
+                                      ? _color('sizes_selected_background_color', Colors.black)
+                                      : _color('sizes_border_color', const Color(0xFFD8D8D8)),
+                                ),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Text(
+                                sxText(sizes[index]['label'], sxText(sizes[index]['code'])),
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: sxInt(sizes[index]['id']) == selectedSizeId
+                                      ? _color('sizes_selected_text_color', Colors.white)
+                                      : _color('sizes_text_color', Colors.black),
+                                  fontSize: sizeFont,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                );
-              }).toList(),
+                ),
+              ),
             ),
           ],
         ],
