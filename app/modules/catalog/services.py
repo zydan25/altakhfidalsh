@@ -3050,18 +3050,6 @@ class CatalogService:
                 normalized_order.append(key)
         merged["detail_order"] = normalized_order
 
-        flattened_group_order = []
-        for group in merged["detail_groups"]:
-            if group.get("show") is False:
-                continue
-            for key in group.get("items", []):
-                if key not in flattened_group_order:
-                    flattened_group_order.append(key)
-        for key in allowed_order:
-            if key not in flattened_group_order:
-                flattened_group_order.append(key)
-        merged["detail_order"] = flattened_group_order
-
         allowed_policy_order = ["shipping", "returns", "warranty", "payment"]
         raw_policy_order = merged.get("policy_order")
         if not isinstance(raw_policy_order, list):
