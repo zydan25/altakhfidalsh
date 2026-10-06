@@ -3534,6 +3534,16 @@ class _DetailVariantSelectionBox extends StatelessWidget {
                       showInventoryBadge: badgeShow,
                       inventoryOnlyWhenLow: detailSettings['size_inventory_only_when_low'] != false,
                       inventoryThreshold: threshold,
+                      showOutOfStockBadge:
+                          detailSettings['size_inventory_badge_show_out_of_stock'] == true,
+                      badgeTextTemplate: sxText(
+                        detailSettings['size_inventory_badge_text_template'],
+                        '{qty} left',
+                      ),
+                      outOfStockText: sxText(
+                        detailSettings['size_inventory_badge_out_of_stock_text'],
+                        'نفد',
+                      ),
                       height: sizeHeight,
                       minWidth: minWidth,
                       radius: radius,
