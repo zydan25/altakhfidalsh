@@ -3001,6 +3001,7 @@ class CatalogService:
             "rating_show",
             "rating_review_count_show",
             "quick_add_show",
+            "quick_add_transparent",
         ):
             merged[key] = _bool(key)
 
