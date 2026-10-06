@@ -1178,6 +1178,17 @@ def upload_product_media(product_id):
     return {"items": items}, 201
 
 
+@api_bp.delete("/products/<int:product_id>/media/<int:media_id>")
+@admin_api_required("product.edit")
+def delete_product_media(product_id, media_id):
+    try:
+        return {"item": CatalogService.remove_product_media(product_id, media_id)}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_media", "detail": str(exc)}, 400
+
+
 
 @api_bp.get("/reference/product-side-categories")
 def product_side_category_references():
