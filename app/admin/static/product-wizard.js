@@ -59,6 +59,59 @@
     });
   };
 
+  // Media rendering is isolated from the rest of hydrate(). If another
+  // optional editor section throws, the image cards and their delete controls
+  // must still be rendered.
+  const renderMediaDeleteControls = () => {
+    const rows = snapshot?.media || [];
+    const mediaCard = (item) => (
+      '<div class="media-thumb">' +
+      (item.url
+        ? '<img src="' + escapeHtml(item.url) + '" alt="' +
+          escapeHtml(item.color_name || "صورة المنتج") + '">'
+        : '<span>صورة</span>') +
+      '<div class="media-thumb-meta"><small>' +
+        (item.color_name ? escapeHtml(item.color_name) : 'عام') +
+        '</small><small>#' + item.id + '</small></div>' +
+      '<button type="button" class="danger-button media-delete-button" ' +
+        'data-delete-media="' + item.id + '">حذف الصورة</button>' +
+      '</div>'
+    );
+
+    const preview = document.getElementById("mediaPreview");
+    if (preview) preview.innerHTML = rows.map(mediaCard).join("");
+
+    const groups = document.getElementById("mediaColorGroups");
+    if (!groups) return;
+    const colors = (configRefs?.colors || optionRefs?.colors || [])
+      .filter(color =>
+        color.is_active &&
+        (draftColorIds.has(Number(color.id)) ||
+          rows.some(x => Number(x.color_id) === Number(color.id)))
+      );
+    groups.innerHTML = colors.length
+      ? colors.map(color => {
+          const colorRows = rows.filter(
+            x => String(x.color_id || "") === String(color.id)
+          );
+          const bg = color.hex_code || "#111827";
+          return '<article class="color-media-card">' +
+            '<div class="color-media-head"><div class="manage-card-title">' +
+              '<span class="color-swatch" style="background:' + escapeHtml(bg) + '"></span>' +
+              '<div><strong>' + escapeHtml(color.name) + '</strong><small>' +
+                colorRows.length + ' صورة</small></div></div></div>' +
+            '<div class="media-card-grid">' +
+              (colorRows.length
+                ? colorRows.map(mediaCard).join("")
+                : '<div class="media-empty">لم تُرفع صور لهذا اللون بعد.</div>') +
+            '</div></article>';
+        }).join("")
+      : '<div class="empty-state compact"><strong>لا توجد صور ألوان.</strong>' +
+        '<span class="muted">أضف لونًا أو ارفع صورة خاصة بلون أولًا.</span></div>';
+    const count = document.getElementById("mediaTotalCount");
+    if (count) count.textContent = rows.length + " صورة";
+  };
+
   const load = async () => {
     const requests = await Promise.allSettled([
       requestJson("/api/v1/catalog/products/" + productId + "/wizard"),
@@ -85,6 +138,12 @@
       hydrate();
     } catch (error) {
       notify(error?.message || "تعذر رسم بعض أجزاء معالج المنتج.", "error");
+    } finally {
+      try {
+        renderMediaDeleteControls();
+      } catch (error) {
+        // Keep media controls best-effort; never block the rest of the editor.
+      }
     }
     // These sections are independent of the rest of hydrate(); always render
     // them after the snapshot is available so one optional UI error cannot
