@@ -1249,6 +1249,7 @@ class SxGalleryThumbs extends StatelessWidget {
   final double gap;
   final double radius;
   final double borderWidth;
+  final List<Map<String, dynamic>> colorRows;
 
   const SxGalleryThumbs({
     super.key,
@@ -1260,16 +1261,24 @@ class SxGalleryThumbs extends StatelessWidget {
     this.gap = 6,
     this.radius = 4,
     this.borderWidth = 1.5,
+    this.colorRows = const [],
   });
+
+  Color _colorFor(Map<String, dynamic> row) {
+    final colorId = sxInt(row['color_id']);
+    final match = colorRows.where((x) => sxInt(x['id']) == colorId);
+    if (match.isEmpty) return const Color(0xFFE5E7EB);
+    return sxColor(sxText(match.first['hex_code'], '#E5E7EB'), const Color(0xFFE5E7EB));
+  }
 
   @override
   Widget build(BuildContext context) {
     if (rows.length < 2) return const SizedBox.shrink();
     return Container(
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(9, 7, 9, 8),
+      padding: const EdgeInsets.fromLTRB(0, 4, 0, 5),
       child: SizedBox(
-        height: itemHeight + 6,
+        height: itemHeight + 8,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           reverse: false,
@@ -1283,6 +1292,7 @@ class SxGalleryThumbs extends StatelessWidget {
                     padding: EdgeInsets.only(left: index == rows.length - 1 ? 0 : gap),
                     child: InkWell(
                       onTap: () => changed(index),
+                      borderRadius: BorderRadius.circular(radius),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 130),
                         width: itemWidth,
@@ -1296,7 +1306,32 @@ class SxGalleryThumbs extends StatelessWidget {
                           borderRadius: BorderRadius.circular(radius),
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: _DetailNetworkImage(url: sxText(rows[index]['url'])),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            _DetailNetworkImage(url: sxText(rows[index]['url'])),
+                            if (sxInt(rows[index]['color_id']) > 0)
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: _colorFor(rows[index]),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: Colors.white, width: 1.4),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Color(0x22000000),
+                                        blurRadius: 2,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -3043,6 +3078,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
   final int page;
   final List<Map<String, dynamic>> colors;
   final List<Map<String, dynamic>> sizes;
+  final List<Map<String, dynamic>> variants;
   final int? selectedColorId;
   final int? selectedSizeId;
   final Map<int, String> colorThumbUrls;
@@ -3061,6 +3097,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
     required this.page,
     required this.colors,
     required this.sizes,
+    required this.variants,
     required this.selectedColorId,
     required this.selectedSizeId,
     required this.colorThumbUrls,
@@ -3075,140 +3112,527 @@ class _DetailVariantSelectionBox extends StatelessWidget {
     required this.onSize,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    final guideRows = sizeGuide['rows'] is List
-        ? (sizeGuide['rows'] as List)
-            .whereType<Map>()
-            .map((row) => Map<String, dynamic>.from(row))
-            .toList()
-        : <Map<String, dynamic>>[];
-    final canGuide = showSizeGuide && guideRows.isNotEmpty;
+  Color _color(dynamic value, Color fallback) =>
+      sxColor(sxText(value), fallback);
 
-    final thumbnailRows = List<Map<String, dynamic>>.from(media);
-    final selectedThumbnailIndex =
-        page >= 0 && page < thumbnailRows.length ? page : -1;
+  String _selectedColorName() {
+    final match = colors.where((x) => sxInt(x['id']) == selectedColorId);
+    return match.isEmpty ? '' : sxText(match.first['name']);
+  }
 
-    return Container(
-      margin: const EdgeInsets.only(top: 6),
-      color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(8, 6, 8, 9),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // SHEIN-like single options rectangle: thumbnails -> sizes + size reference -> colors.
-          if (showThumbs && thumbnailRows.length > 1)
-            SxGalleryThumbs(
-              rows: thumbnailRows,
-              page: selectedThumbnailIndex >= 0 ? selectedThumbnailIndex : 0,
-              changed: (thumbnailIndex) {
-                if (thumbnailIndex < 0 || thumbnailIndex >= thumbnailRows.length) return;
-                final target = thumbnailRows[thumbnailIndex];
-                final targetId = sxInt(target['id']);
-                var globalIndex = -1;
-                if (targetId > 0) {
-                  globalIndex = media.indexWhere(
-                    (row) => sxInt(row['id']) == targetId,
-                  );
-                }
-                if (globalIndex < 0) {
-                  globalIndex = media.indexWhere(
-                    (row) => sxText(row['url']) == sxText(target['url']),
-                  );
-                }
-                if (globalIndex >= 0) onGalleryChanged(globalIndex);
-              },
-              itemWidth: sxDouble(detailSettings['thumbs_size'], 62),
-              itemHeight: sxDouble(detailSettings['thumbs_height'], 70),
-              gap: sxDouble(detailSettings['thumbs_gap'], 6),
-              radius: sxDouble(detailSettings['thumbs_radius'], 4),
-              borderWidth: sxDouble(detailSettings['thumbs_border_width'], 1.5),
-            ),
-          if (showSizes && sizes.isNotEmpty) ...[
-            if ((showColors && colors.isNotEmpty) || (showThumbs && media.length > 1))
-              const Divider(height: 20),
-            Row(
-              textDirection: TextDirection.rtl,
-              crossAxisAlignment: CrossAxisAlignment.center,
+  int _qtyForSize(int sizeId) {
+    for (final variant in variants) {
+      final colorOk = selectedColorId == null ||
+          sxInt(variant['color_id']) == selectedColorId;
+      if (colorOk && sxInt(variant['size_id']) == sizeId) {
+        return sxInt(variant['available_qty']);
+      }
+    }
+    return 0;
+  }
+
+  Widget _colorItem(
+    BuildContext context,
+    Map<String, dynamic> item, {
+    required double imageSize,
+    required double swatchSize,
+    required double gap,
+  }) {
+    final id = sxInt(item['id']);
+    final selected = id == selectedColorId;
+    final url = colorThumbUrls[id] ?? '';
+    final mode = sxText(detailSettings['color_presentation'], 'image_circle');
+    final shape = sxText(detailSettings['color_shape'], 'circle');
+    final useImage = (mode == 'image' || mode == 'image_circle') && url.isNotEmpty;
+    final useSwatch = mode == 'circle' || (mode == 'image_circle' && url.isEmpty);
+    final label = sxText(item['name']);
+    final showLabel = detailSettings['color_show_label'] != false;
+    final borderColor = selected
+        ? _color(detailSettings['color_selected_border_color'], Colors.black)
+        : _color(detailSettings['color_border_color'], const Color(0xFFDCDCDC));
+
+    final thumb = Container(
+      width: useImage ? imageSize : swatchSize,
+      height: useImage ? imageSize : swatchSize,
+      decoration: BoxDecoration(
+        shape: shape == 'circle' ? BoxShape.circle : BoxShape.rectangle,
+        color: _color(item['hex_code'], const Color(0xFFD1D5DB)),
+        border: Border.all(
+          color: borderColor,
+          width: selected
+              ? sxDouble(detailSettings['color_selected_border_width'], 2)
+              : .8,
+        ),
+        borderRadius: shape == 'circle' ? null : BorderRadius.circular(5),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: useImage
+          ? Stack(
+              fit: StackFit.expand,
               children: [
-                const Expanded(
-                  child: Text(
-                    'المقاسات',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
-                  ),
-                ),
-                if (canGuide)
-                  InkWell(
-                    onTap: () => showDialog<void>(
-                      context: context,
-                      builder: (_) => _SizeGuideDialog(
-                        guide: sizeGuide,
-                        initialSizeId: selectedSizeId,
-                      ),
-                    ),
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 3, vertical: 3),
-                      child: Text(
-                        'مرجع المقاسات ›',
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          decoration: TextDecoration.underline,
-                          decorationThickness: 1.1,
+                _DetailNetworkImage(url: url),
+                if (mode == 'image_circle')
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Container(
+                        width: swatchSize * .55,
+                        height: swatchSize * .55,
+                        decoration: BoxDecoration(
+                          color: _color(item['hex_code'], const Color(0xFFD1D5DB)),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1),
                         ),
                       ),
                     ),
                   ),
               ],
-            ),
-            const SizedBox(height: 6),
-            _ProductOptions(
-              colors: const [],
-              sizes: sizes,
-              selectedColorId: selectedColorId,
-              selectedSizeId: selectedSizeId,
-              onColor: (_) {},
-              onSize: onSize,
-              colorThumbUrls: const {},
-              settings: detailSettings,
-              showColors: false,
-              showSizes: true,
-              embedded: true,
-            ),
-          ],
-          if (showColors && colors.isNotEmpty) ...[
-            if (showSizes && sizes.isNotEmpty) const Divider(height: 20),
-            if (!showSizes && showThumbs && media.length > 1) const SizedBox(height: 5),
-            Row(
-              textDirection: TextDirection.rtl,
-              children: const [
-                Expanded(
-                  child: Text(
-                    'اللون',
-                    textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+            )
+          : (useSwatch
+              ? null
+              : Icon(Icons.image_outlined, size: swatchSize * .6)),
+    );
+
+    return InkWell(
+      onTap: id > 0 ? () => onColor(id) : null,
+      borderRadius: BorderRadius.circular(shape == 'circle' ? imageSize : 6),
+      child: SizedBox(
+        width: mathMax(imageSize, swatchSize) + 8,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(child: thumb),
+                if (showLabel) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: sxDouble(detailSettings['color_label_font_size'], 9),
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
-            const SizedBox(height: 6),
-            _ProductOptions(
-              colors: colors,
-              sizes: const [],
-              selectedColorId: selectedColorId,
-              selectedSizeId: selectedSizeId,
-              onColor: onColor,
-              onSize: (_) {},
-              colorThumbUrls: colorThumbUrls,
-              settings: detailSettings,
-              showColors: true,
-              showSizes: false,
-              embedded: true,
+            if (detailSettings['color_show_hot'] != false &&
+                item['hot'] == true)
+              Positioned(
+                top: -4,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF5A3D),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: const Text(
+                    'HOT',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 7,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _colorRow(BuildContext context) {
+    if (!showColors || colors.isEmpty) return const SizedBox.shrink();
+    final selectedName = _selectedColorName();
+    final maxVisible = sxInt(
+      detailSettings['color_max_visible'],
+      12,
+    ).clamp(1, 30).toInt();
+    final rows = colors.take(maxVisible).toList();
+    final imageSize = sxDouble(detailSettings['color_image_size'], 48).clamp(30, 72).toDouble();
+    final swatchSize = sxDouble(detailSettings['color_swatches_size'], 30).clamp(18, 64).toDouble();
+    final gap = sxDouble(detailSettings['color_gap'], 8).clamp(0, 18).toDouble();
+    final childHeight = imageSize + (detailSettings['color_show_label'] != false ? 17 : 0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            const Text(
+              'اللون:',
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
             ),
+            if (selectedName.isNotEmpty) ...[
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  selectedName,
+                  textAlign: TextAlign.right,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ] else
+              const Spacer(),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: childHeight + 6,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            reverse: false,
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < rows.length; i++)
+                    Padding(
+                      padding: EdgeInsets.only(left: i == rows.length - 1 ? 0 : gap),
+                      child: _colorItem(
+                        context,
+                        rows[i],
+                        imageSize: imageSize,
+                        swatchSize: swatchSize,
+                        gap: gap,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sizeRow(BuildContext context) {
+    if (!showSizes || sizes.isEmpty) return const SizedBox.shrink();
+    final sizeHeight = sxDouble(detailSettings['size_height'], 48).clamp(34, 68).toDouble();
+    final minWidth = sxDouble(detailSettings['size_min_width'], 56).clamp(38, 110).toDouble();
+    final radius = sxDouble(detailSettings['size_border_radius'], 2).clamp(0, 16).toDouble();
+    final gap = sxDouble(detailSettings['size_row_gap'], 7).clamp(0, 18).toDouble();
+    final threshold = sxInt(detailSettings['size_inventory_threshold'], 7);
+    final badgeShow = detailSettings['size_inventory_badge_show'] != false;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            const Expanded(
+              child: Text(
+                'مقاس افتراضي',
+                textAlign: TextAlign.right,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Directionality(
+            textDirection: TextDirection.rtl,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < sizes.length; i++)
+                  Padding(
+                    padding: EdgeInsets.only(left: i == sizes.length - 1 ? 0 : gap),
+                    child: _SizeChoice(
+                      label: sxText(sizes[i]['label'], sxText(sizes[i]['code'], '—')),
+                      selected: sxInt(sizes[i]['id']) == selectedSizeId,
+                      availableQty: _qtyForSize(sxInt(sizes[i]['id'])),
+                      showInventoryBadge: badgeShow,
+                      inventoryOnlyWhenLow: detailSettings['size_inventory_only_when_low'] != false,
+                      inventoryThreshold: threshold,
+                      height: sizeHeight,
+                      minWidth: minWidth,
+                      radius: radius,
+                      settings: detailSettings,
+                      onTap: () => onSize(sxInt(sizes[i]['id'])),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sizeTools(BuildContext context) {
+    if (!showSizes || !showSizeGuide || detailSettings['size_tools_show'] == false) {
+      return const SizedBox.shrink();
+    }
+    final guideRows = sizeGuide['rows'] is List ? (sizeGuide['rows'] as List) : const <dynamic>[];
+    if (guideRows.isEmpty) return const SizedBox.shrink();
+    final color = _color(detailSettings['size_tools_color'], Colors.black);
+    final font = sxDouble(detailSettings['size_tools_font_size'], 10);
+    final icon = sxDouble(detailSettings['size_tools_icon_size'], 16);
+    final gap = sxDouble(detailSettings['size_tools_gap'], 12);
+    final children = <Widget>[
+      InkWell(
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => _SizeGuideDialog(
+            guide: sizeGuide,
+            initialSizeId: selectedSizeId,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.straighten_outlined, size: icon, color: color),
+            const SizedBox(width: 4),
+            Text(
+              'مرجع المقاس',
+              style: TextStyle(
+                color: color,
+                fontSize: font,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+      Container(width: .7, height: icon + 2, color: const Color(0xFFE5E5E5)),
+      InkWell(
+        onTap: () => showDialog<void>(
+          context: context,
+          builder: (_) => _SizeFitDialog(guide: sizeGuide),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.edit_outlined, size: icon, color: color),
+            const SizedBox(width: 4),
+            Text(
+              'تحقق من مقاسي',
+              style: TextStyle(
+                color: color,
+                fontSize: font,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
+    return Padding(
+      padding: const EdgeInsets.only(top: 9),
+      child: Wrap(
+        textDirection: TextDirection.rtl,
+        alignment: WrapAlignment.start,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: gap,
+        runSpacing: 8,
+        children: children,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showAny = (showThumbs && media.length > 1) || (showColors && colors.isNotEmpty) || (showSizes && sizes.isNotEmpty);
+    if (!showAny) return const SizedBox.shrink();
+
+    final paddingH = sxDouble(detailSettings['variant_padding_horizontal'], 12);
+    final paddingV = sxDouble(detailSettings['variant_padding_vertical'], 10);
+    final dividerShow = detailSettings['variant_divider_show'] != false;
+    final dividerColor = _color(detailSettings['variant_divider_color'], const Color(0xFFEEEEEE));
+    final dividerWidth = sxDouble(detailSettings['variant_divider_width'], .7);
+
+    final parts = <Widget>[];
+    if (showColors && colors.isNotEmpty) parts.add(_colorRow(context));
+    if (showThumbs && media.length > 1) {
+      if (parts.isNotEmpty && dividerShow) {
+        parts.add(Container(height: dividerWidth, color: dividerColor));
+      }
+      parts.add(
+        SxGalleryThumbs(
+          rows: media,
+          page: page.clamp(0, media.length - 1).toInt(),
+          changed: onGalleryChanged,
+          itemWidth: sxDouble(detailSettings['thumbs_size'], 62),
+          itemHeight: sxDouble(detailSettings['thumbs_height'], 70),
+          gap: sxDouble(detailSettings['thumbs_gap'], 6),
+          radius: sxDouble(detailSettings['thumbs_radius'], 4),
+          borderWidth: sxDouble(detailSettings['thumbs_border_width'], 1.5),
+          colorRows: colors,
+        ),
+      );
+    }
+    if (showSizes && sizes.isNotEmpty) {
+      if (parts.isNotEmpty && dividerShow) {
+        parts.add(Container(height: dividerWidth, color: dividerColor));
+      }
+      parts.add(_sizeRow(context));
+      if (detailSettings['size_tools_show'] != false) {
+        parts.add(_sizeTools(context));
+      }
+    }
+
+    return Container(
+      color: _color(detailSettings['variant_background_color'], Colors.white),
+      padding: EdgeInsets.symmetric(horizontal: paddingH, vertical: paddingV),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < parts.length; i++) ...[
+            if (i > 0) SizedBox(height: sxDouble(detailSettings['variant_row_gap'], 12)),
+            parts[i],
           ],
         ],
       ),
+    );
+  }
+}
+
+class _SizeChoice extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final int availableQty;
+  final bool showInventoryBadge;
+  final bool inventoryOnlyWhenLow;
+  final int inventoryThreshold;
+  final double height;
+  final double minWidth;
+  final double radius;
+  final Map<String, dynamic> settings;
+  final VoidCallback onTap;
+
+  const _SizeChoice({
+    required this.label,
+    required this.selected,
+    required this.availableQty,
+    required this.showInventoryBadge,
+    required this.inventoryOnlyWhenLow,
+    required this.inventoryThreshold,
+    required this.height,
+    required this.minWidth,
+    required this.radius,
+    required this.settings,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final showBadge = showInventoryBadge &&
+        availableQty > 0 &&
+        (!inventoryOnlyWhenLow || availableQty <= inventoryThreshold);
+    final bg = selected
+        ? sxColor(sxText(settings['sizes_selected_background_color']), Colors.black)
+        : sxColor(sxText(settings['sizes_background_color']), const Color(0xFFF7F7F7));
+    final fg = selected
+        ? sxColor(sxText(settings['sizes_selected_text_color']), Colors.white)
+        : sxColor(sxText(settings['sizes_text_color']), Colors.black);
+    final border = selected
+        ? sxColor(sxText(settings['color_selected_border_color']), Colors.black)
+        : sxColor(sxText(settings['sizes_border_color']), const Color(0xFFE3E3E3));
+    final badgeBg = sxColor(sxText(settings['size_inventory_badge_background']), const Color(0xFFFF5A3D));
+    final badgeFg = sxColor(sxText(settings['size_inventory_badge_text']), Colors.white);
+
+    return SizedBox(
+      width: minWidth,
+      height: height + (showBadge ? 6 : 0),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            top: showBadge ? 6 : 0,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(radius),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 120),
+                decoration: BoxDecoration(
+                  color: bg,
+                  border: Border.all(
+                    color: border,
+                    width: selected
+                        ? sxDouble(settings['size_selected_border_width'], 1)
+                        : .7,
+                  ),
+                  borderRadius: BorderRadius.circular(radius),
+                ),
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Text(
+                  label,
+                  textAlign: settings['size_label_alignment'] == 'left'
+                      ? TextAlign.left
+                      : settings['size_label_alignment'] == 'right'
+                          ? TextAlign.right
+                          : TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: sxDouble(settings['sizes_font_size'], 10),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (showBadge)
+            Positioned(
+              top: 0,
+              right: 3,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+                child: Text(
+                  '$availableQty left',
+                  style: TextStyle(
+                    color: badgeFg,
+                    fontSize: sxDouble(settings['size_inventory_badge_font_size'], 8),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SizeFitDialog extends StatelessWidget {
+  final Map<String, dynamic> guide;
+  const _SizeFitDialog({required this.guide});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('تحقق من مقاسي', textAlign: TextAlign.right),
+      content: const Text(
+        'اختر المقاس الأقرب إلى قياسات جسمك من خلال مرجع المقاسات المتاح لهذا المنتج.',
+        textAlign: TextAlign.right,
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+      ],
     );
   }
 }
