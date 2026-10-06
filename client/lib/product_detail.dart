@@ -3491,38 +3491,74 @@ class _SizeGuideButton extends StatelessWidget {
   }
 }
 
-class _SizeGuideDialog extends StatelessWidget {
+
+class _SizeGuideDialog extends StatefulWidget {
   final Map<String, dynamic> guide;
   const _SizeGuideDialog({required this.guide});
 
-  String _measurement(Map<String, dynamic> map) {
-    if (map.isEmpty) return '—';
-    return map.entries
-        .map((entry) {
-          final value = sxText(entry.value);
-          return value.isEmpty ? '' : entry.key + ': ' + value;
-        })
-        .where((x) => x.isNotEmpty)
-        .join(' · ');
+  @override
+  State<_SizeGuideDialog> createState() => _SizeGuideDialogState();
+}
+
+class _SizeGuideDialogState extends State<_SizeGuideDialog> {
+  int? selectedIndex;
+
+  String _value(Map<String, dynamic> map, String key) {
+    final value = sxText(map[key]);
+    return value.isEmpty ? '—' : value;
+  }
+
+  String _label(String key) {
+    const labels = <String, String>{
+      'length': 'الطول',
+      'height': 'الطول',
+      'chest': 'الصدر',
+      'bust': 'الصدر',
+      'waist': 'الخصر',
+      'hip': 'الأرداف',
+      'hips': 'الأرداف',
+      'shoulder': 'الكتف',
+      'sleeve': 'طول الكم',
+      'sleeve_length': 'طول الكم',
+      'inseam': 'طول الساق الداخلي',
+      'outseam': 'طول الساق',
+      'width': 'العرض',
+    };
+    return labels[key] ?? key;
+  }
+
+  List<String> _metricKeys(List<Map<String, dynamic>> rows) {
+    final keys = <String>[];
+    for (final row in rows) {
+      for (final key in _asMap(row['product_measurements']).keys) {
+        final k = key.toString();
+        if (!keys.contains(k)) keys.add(k);
+      }
+    }
+    return keys;
   }
 
   @override
   Widget build(BuildContext context) {
-    final rows = guide['rows'] is List
-        ? (guide['rows'] as List)
+    final rows = widget.guide['rows'] is List
+        ? (widget.guide['rows'] as List)
             .whereType<Map>()
             .map((x) => Map<String, dynamic>.from(x))
             .toList()
         : <Map<String, dynamic>>[];
+    final metrics = _metricKeys(rows);
+    final selected = selectedIndex == null || selectedIndex! >= rows.length
+        ? null
+        : rows[selectedIndex!];
 
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 28),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 620),
+        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 680),
         child: Directionality(
           textDirection: TextDirection.rtl,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
             child: Column(
               children: [
                 Row(
@@ -3531,8 +3567,8 @@ class _SizeGuideDialog extends StatelessWidget {
                     const SizedBox(width: 7),
                     Expanded(
                       child: Text(
-                        sxText(guide['name'], 'دليل المقاسات'),
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                        sxText(widget.guide['name'], 'دليل المقاسات'),
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
                       ),
                     ),
                     IconButton(
@@ -3541,71 +3577,118 @@ class _SizeGuideDialog extends StatelessWidget {
                     ),
                   ],
                 ),
-                if (sxText(guide['intro_text']).isNotEmpty)
+                if (sxText(widget.guide['intro_text']).isNotEmpty)
                   Align(
                     alignment: Alignment.centerRight,
                     child: Padding(
-                      padding: const EdgeInsets.only(bottom: 9),
+                      padding: const EdgeInsets.only(bottom: 8),
                       child: Text(
-                        sxText(guide['intro_text']),
-                        style: const TextStyle(fontSize: 10, height: 1.5, color: ClientTheme.muted),
+                        sxText(widget.guide['intro_text']),
+                        style: const TextStyle(fontSize: 9.5, height: 1.5, color: ClientTheme.muted),
                       ),
                     ),
                   ),
                 Expanded(
                   child: rows.isEmpty
-                      ? const Center(child: Text('لا توجد بيانات مقاسات لهذا المنتج حاليًا.'))
+                      ? const Center(child: Text('لا توجد بيانات جدول المقاسات لهذا المنتج حاليًا.'))
                       : SingleChildScrollView(
-                          child: Table(
-                            border: TableBorder.all(color: ClientTheme.border, width: .7),
-                            columnWidths: const {
-                              0: FixedColumnWidth(68),
-                              1: FlexColumnWidth(),
-                              2: FlexColumnWidth(),
-                            },
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              const TableRow(
-                                decoration: BoxDecoration(color: Color(0xFFF5F5F5)),
-                                children: [
-                                  Padding(
-                                    padding: EdgeInsets.all(8),
-                                    child: Text('المقاس', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900)),
-                                  ),
-                                  Padding(
-                                    padding: EdgeInsets.all(8),
-                                    child: Text('قياسات المنتج', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900)),
-                                  ),
-                                  Padding(
-                                    padding: EdgeInsets.all(8),
-                                    child: Text('قياسات الجسم', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900)),
-                                  ),
-                                ],
-                              ),
-                              for (final row in rows)
-                                TableRow(
+                              Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: ClientTheme.border, width: .7),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: Column(
                                   children: [
-                                    Padding(
-                                      padding: const EdgeInsets.all(8),
-                                      child: Text(
-                                        sxText(row['size_label'], sxText(row['size_code'], '—')),
-                                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900),
+                                    Container(
+                                      color: const Color(0xFFF5F5F5),
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 8),
+                                      child: Row(
+                                        textDirection: TextDirection.rtl,
+                                        children: [
+                                          const SizedBox(
+                                            width: 58,
+                                            child: Text(
+                                              'المقاس',
+                                              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900),
+                                            ),
+                                          ),
+                                          for (final key in metrics)
+                                            Expanded(
+                                              child: Text(
+                                                _label(key),
+                                                textAlign: TextAlign.center,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ),
-                                    Padding(
-                                      padding: const EdgeInsets.all(8),
-                                      child: Text(
-                                        _measurement(_asMap(row['product_measurements'])),
-                                        style: const TextStyle(fontSize: 8.5, height: 1.4),
+                                    for (var i = 0; i < rows.length; i++)
+                                      InkWell(
+                                        onTap: () => setState(() => selectedIndex = selectedIndex == i ? null : i),
+                                        child: Container(
+                                          color: selectedIndex == i ? const Color(0xFFF9FAFB) : Colors.white,
+                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 9),
+                                          child: Row(
+                                            textDirection: TextDirection.rtl,
+                                            children: [
+                                              SizedBox(
+                                                width: 58,
+                                                child: Text(
+                                                  sxText(rows[i]['size_label'], sxText(rows[i]['size_code'], '—')),
+                                                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                                                ),
+                                              ),
+                                              for (final key in metrics)
+                                                Expanded(
+                                                  child: Text(
+                                                    _value(_asMap(rows[i]['product_measurements']), key),
+                                                    textAlign: TextAlign.center,
+                                                    style: const TextStyle(fontSize: 8.5, height: 1.35),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                    Padding(
-                                      padding: const EdgeInsets.all(8),
-                                      child: Text(
-                                        _measurement(_asMap(row['body_measurements'])),
-                                        style: const TextStyle(fontSize: 8.5, height: 1.4),
-                                      ),
-                                    ),
                                   ],
+                                ),
+                              ),
+                              if (selected != null)
+                                Container(
+                                  margin: const EdgeInsets.only(top: 8),
+                                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 11),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF7F7F7),
+                                    borderRadius: BorderRadius.circular(7),
+                                    border: Border.all(color: ClientTheme.border, width: .7),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    children: [
+                                      Text(
+                                        'تفاصيل المقاس ' + sxText(selected['size_label'], sxText(selected['size_code'], '')),
+                                        textAlign: TextAlign.right,
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _MeasurementPanel(
+                                        title: 'قياسات المنتج',
+                                        values: _asMap(selected['product_measurements']),
+                                      ),
+                                      const SizedBox(height: 7),
+                                      _MeasurementPanel(
+                                        title: 'قياسات الجسم',
+                                        values: _asMap(selected['body_measurements']),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                             ],
                           ),
@@ -3616,6 +3699,59 @@ class _SizeGuideDialog extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MeasurementPanel extends StatelessWidget {
+  final String title;
+  final Map<String, dynamic> values;
+  const _MeasurementPanel({required this.title, required this.values});
+
+  String _label(String key) {
+    const labels = <String, String>{
+      'length': 'الطول',
+      'height': 'الطول',
+      'chest': 'الصدر',
+      'bust': 'الصدر',
+      'waist': 'الخصر',
+      'hip': 'الأرداف',
+      'hips': 'الأرداف',
+      'shoulder': 'الكتف',
+      'sleeve': 'طول الكم',
+      'sleeve_length': 'طول الكم',
+      'width': 'العرض',
+    };
+    return labels[key] ?? key;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (values.isEmpty) {
+      return Text(
+        title + ': لا توجد قياسات مسجلة.',
+        textAlign: TextAlign.right,
+        style: const TextStyle(fontSize: 9, color: ClientTheme.muted),
+      );
+    }
+    return Wrap(
+      textDirection: TextDirection.rtl,
+      spacing: 6,
+      runSpacing: 6,
+      children: values.entries.map((entry) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: ClientTheme.border, width: .7),
+          ),
+          child: Text(
+            _label(entry.key) + ': ' + sxText(entry.value, '—'),
+            style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700),
+          ),
+        );
+      }).toList(),
     );
   }
 }
