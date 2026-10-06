@@ -3079,8 +3079,7 @@ class CatalogService:
             merged["short_description_position"] = defaults["short_description_position"]
 
         if merged["rating_position"] not in {
-            "before_name", "after_name", "before_description", "after_description",
-            "before_price", "after_price", "end",
+            "before_name", "after_name", "before_price", "after_price", "end",
         }:
             merged["rating_position"] = defaults["rating_position"]
 
