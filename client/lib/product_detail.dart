@@ -3622,53 +3622,106 @@ class _DetailVariantSelectionBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showAny = (showThumbs && media.length > 1) || (showColors && colors.isNotEmpty) || (showSizes && sizes.isNotEmpty);
+    final showAny = (showThumbs && media.length > 1) ||
+        (showColors && colors.isNotEmpty) ||
+        (showSizes && sizes.isNotEmpty);
     if (!showAny) return const SizedBox.shrink();
 
-    final paddingH = sxDouble(detailSettings['variant_padding_horizontal'], 12);
-    final paddingV = sxDouble(detailSettings['variant_padding_vertical'], 10);
+    final paddingH = sxDouble(
+      detailSettings['variant_padding_horizontal'],
+      12,
+    );
+    final paddingV = sxDouble(
+      detailSettings['variant_padding_vertical'],
+      10,
+    );
     final dividerShow = detailSettings['variant_divider_show'] != false;
-    final dividerColor = _color(detailSettings['variant_divider_color'], const Color(0xFFEEEEEE));
-    final dividerWidth = sxDouble(detailSettings['variant_divider_width'], .7);
+    final dividerColor = _color(
+      detailSettings['variant_divider_color'],
+      const Color(0xFFEEEEEE),
+    );
+    final dividerWidth = sxDouble(
+      detailSettings['variant_divider_width'],
+      .7,
+    );
+
+    final requested = itemOrder.isEmpty
+        ? const <String>['thumbs', 'colors', 'sizes', 'size_guide']
+        : itemOrder;
+
+    final visible = <String>[];
+    for (final key in requested) {
+      if (!visible.contains(key)) visible.add(key);
+    }
 
     final parts = <Widget>[];
-    if (showColors && colors.isNotEmpty) parts.add(_colorRow(context));
-    if (showThumbs && media.length > 1) {
-      if (parts.isNotEmpty && dividerShow) {
-        parts.add(Container(height: dividerWidth, color: dividerColor));
-      }
-      parts.add(
-        SxGalleryThumbs(
-          rows: media,
-          page: page.clamp(0, media.length - 1).toInt(),
-          changed: onGalleryChanged,
-          itemWidth: sxDouble(detailSettings['thumbs_size'], 62),
-          itemHeight: sxDouble(detailSettings['thumbs_height'], 70),
-          gap: sxDouble(detailSettings['thumbs_gap'], 6),
-          radius: sxDouble(detailSettings['thumbs_radius'], 4),
-          borderWidth: sxDouble(detailSettings['thumbs_border_width'], 1.5),
-          colorRows: colors,
-        ),
-      );
-    }
-    if (showSizes && sizes.isNotEmpty) {
-      if (parts.isNotEmpty && dividerShow) {
-        parts.add(Container(height: dividerWidth, color: dividerColor));
-      }
-      parts.add(_sizeRow(context));
-      if (detailSettings['size_tools_show'] != false) {
-        parts.add(_sizeTools(context));
+    for (final key in visible) {
+      switch (key) {
+        case 'thumbs':
+          if (showThumbs && media.length > 1) {
+            parts.add(
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (showColors && colors.isNotEmpty) _colorHeader(),
+                  SxGalleryThumbs(
+                    rows: media,
+                    page: page.clamp(0, media.length - 1).toInt(),
+                    changed: onGalleryChanged,
+                    itemWidth: sxDouble(detailSettings['thumbs_size'], 62),
+                    itemHeight: sxDouble(detailSettings['thumbs_height'], 70),
+                    gap: sxDouble(detailSettings['thumbs_gap'], 6),
+                    radius: sxDouble(detailSettings['thumbs_radius'], 4),
+                    borderWidth: sxDouble(
+                      detailSettings['thumbs_border_width'],
+                      1.5,
+                    ),
+                    colorRows: colors,
+                  ),
+                ],
+              ),
+            );
+          }
+          break;
+        case 'colors':
+          if (showColors && colors.isNotEmpty) {
+            parts.add(_colorRow(context));
+          }
+          break;
+        case 'sizes':
+          if (showSizes && sizes.isNotEmpty) {
+            parts.add(_sizeRow(context));
+          }
+          break;
+        case 'size_guide':
+          if (showSizes && showSizeGuide) {
+            parts.add(_sizeTools(context));
+          }
+          break;
       }
     }
 
+    if (parts.isEmpty) return const SizedBox.shrink();
+
     return Container(
-      color: _color(detailSettings['variant_background_color'], Colors.white),
-      padding: EdgeInsets.symmetric(horizontal: paddingH, vertical: paddingV),
+      color: _color(
+        detailSettings['variant_background_color'],
+        Colors.white,
+      ),
+      padding: EdgeInsets.symmetric(
+        horizontal: paddingH,
+        vertical: paddingV,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           for (var i = 0; i < parts.length; i++) ...[
-            if (i > 0) SizedBox(height: sxDouble(detailSettings['variant_row_gap'], 12)),
+            if (i > 0)
+              Container(
+                height: dividerShow ? dividerWidth : 0,
+                color: dividerShow ? dividerColor : Colors.transparent,
+                margin: const EdgeInsets.symmetric(vertical: 7),
+              ),
             parts[i],
           ],
         ],
@@ -3684,6 +3737,9 @@ class _SizeChoice extends StatelessWidget {
   final bool showInventoryBadge;
   final bool inventoryOnlyWhenLow;
   final int inventoryThreshold;
+  final bool showOutOfStockBadge;
+  final String badgeTextTemplate;
+  final String outOfStockText;
   final double height;
   final double minWidth;
   final double radius;
@@ -3697,6 +3753,9 @@ class _SizeChoice extends StatelessWidget {
     required this.showInventoryBadge,
     required this.inventoryOnlyWhenLow,
     required this.inventoryThreshold,
+    required this.showOutOfStockBadge,
+    required this.badgeTextTemplate,
+    required this.outOfStockText,
     required this.height,
     required this.minWidth,
     required this.radius,
@@ -3706,9 +3765,14 @@ class _SizeChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showBadge = showInventoryBadge &&
+    final outOfStock = availableQty <= 0;
+    final showLowBadge = showInventoryBadge &&
         availableQty > 0 &&
         (!inventoryOnlyWhenLow || availableQty <= inventoryThreshold);
+    final showBadge = showLowBadge || (outOfStock && showOutOfStockBadge);
+    final badgeText = outOfStock
+        ? outOfStockText
+        : badgeTextTemplate.replaceAll('{qty}', availableQty.toString());
     final bg = selected
         ? sxColor(sxText(settings['sizes_selected_background_color']), Colors.black)
         : sxColor(sxText(settings['sizes_background_color']), const Color(0xFFF7F7F7));
@@ -3778,7 +3842,7 @@ class _SizeChoice extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2),
                 ),
                 child: Text(
-                  '$availableQty left',
+                  badgeText,
                   style: TextStyle(
                     color: badgeFg,
                     fontSize: sxDouble(settings['size_inventory_badge_font_size'], 8),
