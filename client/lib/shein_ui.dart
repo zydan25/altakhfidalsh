@@ -758,55 +758,73 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
         _headerIsSolid = false;
       });
     }
+
+    Map<String, dynamic>? nextHome;
+    List<Map<String, dynamic>>? nextLooks;
+    List<CategoryModel>? nextAllCategories;
+    List<CategoryModel>? nextRoots;
+    List<ProductModel>? nextProducts;
+    Object? homeError;
+    Object? productsError;
+
+    // Start shell and product requests together. A failed/slow shell request
+    // must never prevent products from reaching the grid.
+    final homeFuture = api.home();
+    final productsFuture = api.feed(
+      sort: 'random',
+      currencyId: state.currencyId,
+    );
+
     try {
-      // Load the storefront shell first. Do not blank existing content
-      // while refreshing; commit the new shell as soon as it is ready.
-      final h = await api.home();
+      final h = await homeFuture;
+      nextHome = h;
       unawaited(_saveBannerColorCache(-1, sxMaps(h['banners'])));
-      final nextLooks = sxMaps(h['looks']);
-      final nextAllCategories =
+      nextLooks = sxMaps(h['looks']);
+      nextAllCategories =
           sxMaps(h['categories']).map(CategoryModel.fromJson).toList();
-      final nextRoots = nextAllCategories.where((x) => x.parentId == null).toList()
+      nextRoots = nextAllCategories.where((x) => x.parentId == null).toList()
         ..sort((a, b) => a.sortOrder == b.sortOrder
             ? a.id.compareTo(b.id)
             : a.sortOrder.compareTo(b.sortOrder));
-
-      if (!mounted || requestSerial != _loadSerial) return;
-      setState(() {
-        home = h;
-        looks = nextLooks;
-        allCategories = nextAllCategories;
-        roots = nextRoots;
-      });
-
-      // Products are intentionally loaded after the shell. If this request is
-      // slow, the banner/categories/old product grid remain visible.
-      final nextProducts = await api.feed(
-        sort: 'random',
-        currencyId: state.currencyId,
-      );
-      try {
-        final c = await api.cart(currencyId: state.currencyId);
-        cartBadge.value = sxMaps(c['item']?['items']).length;
-      } catch (_) {}
-
-      if (!mounted || requestSerial != _loadSerial) {
-        return;
-      }
-      setState(() {
-        home = h;
-        looks = nextLooks;
-        allCategories = nextAllCategories;
-        roots = nextRoots;
-        _allStoreProducts = nextProducts;
-        products = _filterVisibleProducts(nextProducts);
-        loading = false;
-      });
     } catch (e) {
-      if (!mounted || requestSerial != _loadSerial) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(sxText(e))));
-      setState(() => loading = false);
+      homeError = e;
+    }
+
+    try {
+      nextProducts = await productsFuture;
+    } catch (e) {
+      productsError = e;
+    }
+
+    try {
+      final c = await api.cart(currencyId: state.currencyId);
+      cartBadge.value = sxMaps(c['item']?['items']).length;
+    } catch (_) {}
+
+    if (!mounted || requestSerial != _loadSerial) return;
+
+    setState(() {
+      if (nextHome != null) {
+        home = nextHome!;
+        looks = nextLooks ?? looks;
+        allCategories = nextAllCategories ?? allCategories;
+        roots = nextRoots ?? roots;
+      }
+      if (nextProducts != null) {
+        _allStoreProducts = nextProducts!;
+        products = _filterVisibleProducts(nextProducts!);
+      }
+      loading = false;
+    });
+
+    if (homeError != null && productsError != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(sxText(productsError ?? homeError))),
+      );
+    } else if (productsError != null && mounted && products.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(sxText(productsError))),
+      );
     }
   }
   Set<int> _categoryScopeIds(int rootId) {
@@ -1015,7 +1033,7 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
   }
 
   @override Widget build(BuildContext context) {
-    if (loading && home.isEmpty) {
+    if (loading && home.isEmpty && products.isEmpty) {
       return const Scaffold(
         backgroundColor: Colors.white,
         body: Center(
