@@ -1918,7 +1918,10 @@ class _SxProductCardState extends State<SxProductCard>
         padding: const EdgeInsets.fromLTRB(8, 4, 8, 2),
         child: Row(
           textDirection: TextDirection.rtl,
-          mainAxisAlignment: MainAxisAlignment.start,
+          mainAxisAlignment:
+              _cardText('rating_alignment', 'right') == 'left'
+                  ? MainAxisAlignment.end
+                  : MainAxisAlignment.start,
           children: [
             Icon(
               Icons.star,
