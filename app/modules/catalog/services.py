@@ -1490,20 +1490,33 @@ class CatalogService:
 
     @staticmethod
     def remove_product_media(product_id, media_id):
-        media = db.session.get(ProductMedia, media_id)
-        if media is None or media.product_id != product_id:
+        media = (
+            ProductMedia.query
+            .filter(
+                ProductMedia.id == int(media_id),
+                ProductMedia.product_id == int(product_id),
+            )
+            .first()
+        )
+        if media is None:
             raise LookupError("product media not found")
-        asset = db.session.get(MediaAsset, media.asset_id)
-        db.session.delete(media)
-        db.session.flush()
-        # Keep the physical asset record/file safe because assets may be referenced
-        # by other storefront entities or historical records. Removing only the
-        # product-media relation makes the image disappear from the product without
-        # risking a foreign-key failure or deleting a shared asset.
-        if asset is not None:
-            asset.is_active = False
+
+        # Remove only the product-media relation. Keep the MediaAsset itself
+        # because it may be shared by another storefront entity or historical data.
+        deleted = (
+            ProductMedia.query
+            .filter(
+                ProductMedia.id == media.id,
+                ProductMedia.product_id == int(product_id),
+            )
+            .delete(synchronize_session=False)
+        )
+        if deleted != 1:
+            db.session.rollback()
+            raise LookupError("product media not found")
+
         db.session.commit()
-        return {"id": media_id}
+        return {"id": int(media_id), "product_id": int(product_id)}
 
     @staticmethod
     def update_variant(product_id, variant_id, payload):
