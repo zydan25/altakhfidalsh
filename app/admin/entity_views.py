@@ -1908,6 +1908,7 @@ def register_entity_views(admin_bp):
                     ("quick_add_size", "حجم الزر", "number", 22, 64, .5, False),
                     ("quick_add_position", "موقع الزر", "select", ["bottom_left", "bottom_right", "top_left", "top_right"]),
                     ("quick_add_radius", "تدوير الزر", "number", 0, 32, 1, True),
+                    ("quick_add_transparent", "خلفية شفافة للزر", "checkbox"),
                     ("quick_add_opacity", "شفافية خلفية الزر", "number", 0, 1, .05, False),
                 ],
             },
