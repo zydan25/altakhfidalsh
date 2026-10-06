@@ -2390,12 +2390,42 @@ class CatalogService:
             for row, tag in hashtag_rows
         ]
         promotional_strips = [
-            {"id": row.strip_id}
-            for row in ProductPromotionalStrip.query.filter_by(product_id=product_id).order_by(ProductPromotionalStrip.sort_order, ProductPromotionalStrip.id).all()
+            {
+                "id": row.strip_id,
+                "name": strip.name,
+                "prefix": strip.text_prefix,
+                "text": strip.text_body,
+                "background_color": strip.background_color or "#FFF1E8",
+                "text_color": strip.text_color or "#7C2D12",
+                "sort_order": row.sort_order,
+            }
+            for row, strip in (
+                db.session.query(ProductPromotionalStrip, PromotionalStrip)
+                .join(PromotionalStrip, PromotionalStrip.id == ProductPromotionalStrip.strip_id)
+                .filter(
+                    ProductPromotionalStrip.product_id == product_id,
+                    PromotionalStrip.is_active.is_(True),
+                )
+                .order_by(ProductPromotionalStrip.sort_order, ProductPromotionalStrip.id)
+                .all()
+            )
         ]
         campaigns = [
-            {"id": row.campaign_id}
-            for row in CampaignProduct.query.filter_by(product_id=product_id).order_by(CampaignProduct.sort_order, CampaignProduct.id).all()
+            {
+                "id": row.campaign_id,
+                "name": campaign.name,
+                "badge": {"id": campaign.badge_id} if campaign.badge_id else None,
+            }
+            for row, campaign in (
+                db.session.query(CampaignProduct, Campaign)
+                .join(Campaign, Campaign.id == CampaignProduct.campaign_id)
+                .filter(
+                    CampaignProduct.product_id == product_id,
+                    Campaign.status == "active",
+                )
+                .order_by(CampaignProduct.sort_order, CampaignProduct.id)
+                .all()
+            )
         ]
         media_rows = (
             db.session.query(ProductMedia, MediaAsset, Color)
@@ -2528,7 +2558,6 @@ class CatalogService:
                         "body_measurements": row.body_measurements or {},
                     }
                     for row, size in best_rows
-                    if not product_size_ids or int(row.size_id) in product_size_ids
                 ],
             }
 
@@ -2786,9 +2815,9 @@ class CatalogService:
         import json
         defaults = {
             "detail_order": [
-                "badges", "gallery", "thumbs", "price", "name", "brand",
-                "rating", "colors", "sizes", "size_guide", "details", "stock",
-                "delivery", "policies", "reviews", "related",
+                "badges", "gallery", "thumbs", "trend", "price", "promotions",
+                "name", "rating", "brand", "colors", "sizes", "size_guide",
+                "details", "stock", "delivery", "policies", "reviews", "related",
             ],
             "gallery_show": True,
             "gallery_ratio": 0.78,
@@ -2911,9 +2940,9 @@ class CatalogService:
         merged = {**defaults, **custom}
 
         allowed_order = [
-            "badges", "gallery", "thumbs", "price", "name", "brand",
-            "rating", "colors", "sizes", "size_guide", "details", "stock",
-            "delivery", "policies", "reviews", "related",
+            "badges", "gallery", "thumbs", "trend", "price", "promotions",
+            "name", "rating", "brand", "colors", "sizes", "size_guide",
+            "details", "stock", "delivery", "policies", "reviews", "related",
         ]
         raw_order = merged.get("detail_order")
         if not isinstance(raw_order, list):
