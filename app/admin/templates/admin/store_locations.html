@@ -1,0 +1,128 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<style>
+.loc-wrap{display:grid;gap:12px}
+.loc-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.loc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.loc-card{min-width:0}
+.loc-card .panel{padding:12px}
+.loc-form{display:grid;gap:10px}
+.loc-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.loc-fields label{display:grid;gap:5px;font-size:10px;font-weight:800}
+.loc-fields label.full{grid-column:1/-1}
+.loc-fields input,.loc-fields textarea{width:100%;min-height:42px;padding:8px 10px;border:1px solid #ddd;border-radius:10px;font:inherit;box-sizing:border-box}
+.loc-fields textarea{min-height:78px;resize:vertical}
+.loc-actions{display:flex;gap:7px;flex-wrap:wrap}
+.loc-actions>*{min-height:40px}
+.loc-images{display:flex;gap:7px;overflow:auto;padding-bottom:3px}
+.loc-image{position:relative;flex:0 0 78px;width:78px;height:78px;border-radius:10px;overflow:hidden;background:#f5f5f5;border:1px solid #e7e7e7}
+.loc-image img{width:100%;height:100%;object-fit:cover;display:block}
+.loc-image label{position:absolute;inset:auto 4px 4px 4px;background:rgba(0,0,0,.72);color:#fff;border-radius:7px;padding:4px;font-size:8px;text-align:center}
+.loc-upload{display:grid;gap:5px;padding:10px;border:1px dashed #ccc;border-radius:10px;background:#fafafa}
+.loc-upload input{font-size:11px}
+.loc-empty{padding:18px;text-align:center;color:#777;border:1px dashed #ddd;border-radius:12px}
+.loc-mini{font-size:9px;color:#777;line-height:1.7}
+@media(max-width:760px){
+ .loc-grid{grid-template-columns:1fr}
+ .loc-fields{grid-template-columns:1fr}
+ .loc-fields label.full{grid-column:auto}
+ .loc-actions{display:grid;grid-template-columns:1fr 1fr}
+ .loc-actions>*{width:100%}
+}
+</style>
+
+<section class="module-header panel">
+  <div class="loc-head">
+    <div>
+      <span class="eyebrow">المحتوى والمتجر</span>
+      <h2>مواقعنا</h2>
+      <p class="muted">أضف عدة فروع للمتجر. لكل موقع اسم ومحافظة ومدينة وعنوان وإحداثيات أو رابط خريطة، مع عدة صور يمكن للعميل تقليبها.</p>
+    </div>
+    <a class="ghost-button" href="/admin/system/settings">الإعدادات العامة</a>
+  </div>
+</section>
+
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+
+<div class="loc-wrap">
+  <article class="panel loc-card">
+    <div class="panel-heading">
+      <div><span class="eyebrow">إضافة</span><strong>موقع جديد</strong></div>
+    </div>
+    <form method="post" enctype="multipart/form-data" class="loc-form">
+      <input type="hidden" name="action" value="save">
+      <div class="loc-fields">
+        <label>اسم الموقع<input name="name" required placeholder="فرع صنعاء الرئيسي"></label>
+        <label>المحافظة / المنطقة<input name="region" placeholder="أمانة العاصمة"></label>
+        <label>المدينة<input name="city" placeholder="صنعاء"></label>
+        <label>رابط الخريطة <span class="loc-mini">(اختياري)</span><input name="map_url" dir="ltr" placeholder="https://maps.google.com/..."></label>
+        <label>خط العرض <span class="loc-mini">(اختياري)</span><input name="latitude" dir="ltr" inputmode="decimal" placeholder="15.3694"></label>
+        <label>خط الطول <span class="loc-mini">(اختياري)</span><input name="longitude" dir="ltr" inputmode="decimal" placeholder="44.1910"></label>
+        <label class="full">العنوان التفصيلي<input name="address" placeholder="الشارع، المبنى، بجانب..."></label>
+      </div>
+      <div class="loc-upload">
+        <strong>صور الموقع</strong>
+        <span class="loc-mini">يمكن رفع عدة صور دفعة واحدة، وستظهر كتقليب للعميل.</span>
+        <input type="file" name="images" accept="image/*" multiple>
+      </div>
+      <button class="primary-button" type="submit">＋ حفظ الموقع وإضافة الصور</button>
+    </form>
+  </article>
+
+  {% if locations %}
+  <div class="loc-grid">
+    {% for location in locations %}
+    <article class="panel loc-card">
+      <form method="post" enctype="multipart/form-data" class="loc-form">
+        <input type="hidden" name="action" value="save">
+        <input type="hidden" name="location_id" value="{{ location.id }}">
+        <div class="panel-heading">
+          <div>
+            <span class="eyebrow">الموقع #{{ loop.index }}</span>
+            <strong>{{ location.name or "موقع بدون اسم" }}</strong>
+          </div>
+          <span class="status-pill">{{ (location.images or [])|length }} صورة</span>
+        </div>
+        <div class="loc-fields">
+          <label>اسم الموقع<input name="name" required value="{{ location.name or '' }}"></label>
+          <label>المحافظة / المنطقة<input name="region" value="{{ location.region or '' }}"></label>
+          <label>المدينة<input name="city" value="{{ location.city or '' }}"></label>
+          <label>رابط الخريطة<input name="map_url" dir="ltr" value="{{ location.map_url or '' }}"></label>
+          <label>خط العرض<input name="latitude" dir="ltr" value="{{ location.latitude or '' }}"></label>
+          <label>خط الطول<input name="longitude" dir="ltr" value="{{ location.longitude or '' }}"></label>
+          <label class="full">العنوان التفصيلي<input name="address" value="{{ location.address or '' }}"></label>
+        </div>
+
+        {% if location.images %}
+        <div>
+          <div class="loc-mini" style="margin-bottom:5px">الصور الحالية · فعّل "إزالة" لأي صورة تريد حذفها من الموقع.</div>
+          <div class="loc-images">
+            {% for image in location.images %}
+            <div class="loc-image">
+              <img src="{{ image.url }}" alt="{{ location.name }}">
+              <label><input type="checkbox" name="remove_asset_ids" value="{{ image.id }}"> إزالة</label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="loc-upload">
+          <strong>إضافة صور أخرى</strong>
+          <input type="file" name="images" accept="image/*" multiple>
+        </div>
+
+        <div class="loc-actions">
+          <button class="primary-button" type="submit">حفظ التعديلات</button>
+          <button class="ghost-button" type="submit" name="action" value="delete" onclick="return confirm('حذف هذا الموقع من واجهة العميل؟')">حذف الموقع</button>
+        </div>
+      </form>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="loc-empty">لا توجد مواقع محفوظة حتى الآن. أضف أول موقع من النموذج أعلاه.</div>
+  {% endif %}
+</div>
+{% endblock %}
