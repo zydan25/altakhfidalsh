@@ -209,7 +209,9 @@
             <select name="{{ key }}">
               {% for option in field[3] %}
               <option value="{{ option }}" {% if product_detail_settings[key]==option %}selected{% endif %}>
-                {% if option=="line_through" %}خط على السعر
+                {% if key=="delivery_location_mode" and option=="fixed" %}موقع ثابت من إعدادات الإدارة
+                {% elif key=="delivery_location_mode" and option=="customer_city" %}مدينة وعنوان العميل الافتراضي
+                {% elif option=="line_through" %}خط على السعر
                 {% elif option=="none" %}بدون خط
                 {% else %}{{ option }}{% endif %}
               </option>
