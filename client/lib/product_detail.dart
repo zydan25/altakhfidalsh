@@ -770,8 +770,18 @@ class _SxProductScreenState extends State<SxProductScreen> {
         'show': true,
       },
       {
-        'title': 'التفاصيل والخدمات',
-        'items': ['details', 'stock', 'delivery', 'policies', 'reviews'],
+        'title': 'التفاصيل والمخزون',
+        'items': ['details', 'stock'],
+        'show': true,
+      },
+      {
+        'title': 'التوصيل والسياسات',
+        'items': ['delivery', 'policies'],
+        'show': true,
+      },
+      {
+        'title': 'التقييمات',
+        'items': ['reviews'],
         'show': true,
       },
       {
@@ -786,7 +796,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
         ? rawGroups
             .whereType<Map>()
             .map((group) => Map<String, dynamic>.from(group))
-            .where((group) => _maps(group['items']).isNotEmpty || group['items'] is List)
+            .where((group) => group['items'] is List && (group['items'] as List).isNotEmpty)
             .toList()
         : fallbackGroups;
 
