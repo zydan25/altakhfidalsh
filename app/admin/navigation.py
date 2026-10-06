@@ -46,7 +46,7 @@ NAVIGATION = [
         NavItem("دوائر الفئات", "/admin/category-circles", "○"),
         NavItem("الفئات الجانبية", "/admin/side-categories", "◉"),
         NavItem("الترندات والهاشتاجات", "/admin/trends", "#"),
-        NavItem("إعدادات بطاقة المنتج", "/admin/trends/display-settings", "⚙"),
+        NavItem("إعدادات الترند وبطاقات المنتجات", "/admin/trends/display-settings", "⚙"),
         NavItem("إعدادات تفاصيل الصنف", "/admin/product-detail-settings", "▣"),
         NavItem("الإطلالات", "/admin/looks", "◇"),
         NavItem("مواقعنا", "/admin/store-locations", "⌖"),
