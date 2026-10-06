@@ -568,6 +568,8 @@ def register_admin_routes(admin_bp):
             "hashtags": len(snapshot.get("hashtags") or []),
             "images": len(media),
             "stock": sum(int(x.get("available") or 0) for x in (snapshot.get("inventory") or [])),
+            "on_hand": sum(int(x.get("on_hand") or 0) for x in (snapshot.get("inventory") or [])),
+            "reserved": sum(int(x.get("reserved") or 0) for x in (snapshot.get("inventory") or [])),
             "reviews": int((snapshot.get("rating_summary") or {}).get("count") or 0),
         }
         return render_template(
