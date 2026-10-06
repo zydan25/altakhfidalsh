@@ -2364,10 +2364,12 @@ class _ProductIdentityPanel extends StatelessWidget {
   }
 }
 
+
 class _DeliveryBadgePanel extends StatelessWidget {
   final List<Map<String,dynamic>> badges;
   final double fontSize;
   final Color color;
+
   const _DeliveryBadgePanel({
     required this.badges,
     this.fontSize = 9,
@@ -2379,81 +2381,79 @@ class _DeliveryBadgePanel extends StatelessWidget {
     final visible = badges.where((x) => x['visible'] != false).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
-    final groups = <String, List<Map<String,dynamic>>>{};
-    for (final badge in visible) {
-      final section = sxText(badge['section'], 'shipping');
-      groups.putIfAbsent(section, () => <Map<String,dynamic>>[]).add(badge);
-    }
+    final summary = visible
+        .map((badge) => sxText(badge['text']))
+        .where((x) => x.trim().isNotEmpty)
+        .join(' • ');
 
     return Container(
       margin: const EdgeInsets.only(top: 6),
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('التوصيل والمزايا', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
-          ...groups.entries.map((entry) => Padding(
-            padding: const EdgeInsets.only(bottom: 7),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  _deliverySectionLabel(entry.key),
-                  style: const TextStyle(fontSize: 8.5, color: ClientTheme.muted, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 5),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: entry.value.map((badge) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: sxColor(sxText(badge['background_color']), const Color(0xFFF5F5F5)),
-                      borderRadius: BorderRadius.circular(7),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (sxText(badge['icon']).isNotEmpty)
-                          const Icon(Icons.local_shipping_outlined, size: 13),
-                        const SizedBox(width: 4),
-                        Text(
-                          sxText(badge['text']),
-                          style: TextStyle(
-                            color: sxColor(sxText(badge['text_color']), const Color(0xFF111111)),
-                            fontSize: sxDouble(badge['font_size'], fontSize),
-                            fontWeight: FontWeight.w800,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      child: SizedBox(
+        height: 44,
+        child: OutlinedButton.icon(
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text(
+                'التوصيل والمزايا',
+                textAlign: TextAlign.right,
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final badge in visible)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: sxColor(sxText(badge['background_color']), const Color(0xFFF5F5F5)),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Text(
+                            sxText(badge['text']),
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              color: sxColor(sxText(badge['text_color']), color),
+                              fontSize: sxDouble(badge['font_size'], fontSize),
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                  )).toList(),
+                      ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إغلاق'),
                 ),
               ],
             ),
-          )),
-        ],
+          ),
+          icon: Icon(Icons.local_shipping_outlined, size: 18, color: color),
+          label: Text(
+            summary.isEmpty ? 'التوصيل والمزايا' : summary,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w900, color: color),
+          ),
+          style: OutlinedButton.styleFrom(
+            backgroundColor: Colors.white,
+            side: const BorderSide(color: Color(0xFFE6E6E6)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+          ),
+        ),
       ),
     );
   }
-
-  String _deliverySectionLabel(String key) {
-    switch (key) {
-      case 'shipping':
-        return 'الشحن';
-      case 'returns':
-        return 'الإرجاع';
-      case 'payment':
-        return 'الدفع';
-      case 'warranty':
-        return 'الضمان';
-      default:
-        return key;
-    }
-  }
 }
+
 
 class _ProductOptions extends StatelessWidget {
   final List<Map<String, dynamic>> colors;
@@ -3237,6 +3237,7 @@ class _DetailBadgeStrip extends StatelessWidget {
   }
 }
 
+
 class _StockStatusPanel extends StatelessWidget {
   final int availableQty;
   final bool hasVariant;
@@ -3257,38 +3258,68 @@ class _StockStatusPanel extends StatelessWidget {
         ? 'اختر اللون والمقاس لمعرفة التوفر'
         : inStock
             ? (availableQty <= 5
-                ? 'متوفر — تبقى $availableQty فقط'
+                ? 'متوفر — تبقى ' + availableQty.toString() + ' فقط'
                 : 'متوفر في المخزون')
             : 'غير متوفر حاليًا';
 
     return Container(
       margin: const EdgeInsets.only(top: 6),
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
-      child: Row(
-        children: [
-          Icon(
-            inStock ? Icons.check_circle_outline : Icons.inventory_2_outlined,
-            size: 19,
-            color: inStock ? const Color(0xFF15803D) : ClientTheme.muted,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w900,
-                color: inStock ? const Color(0xFF15803D) : ClientTheme.muted,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      child: SizedBox(
+        height: 44,
+        child: OutlinedButton.icon(
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (_) => AlertDialog(
+              title: const Text(
+                'المخزون والتوفر',
+                textAlign: TextAlign.right,
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
               ),
+              content: Text(
+                text,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  fontSize: fontSize,
+                  height: 1.65,
+                  color: textColor,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إغلاق'),
+                ),
+              ],
             ),
           ),
-        ],
+          icon: Icon(
+            inStock ? Icons.inventory_2_outlined : Icons.inventory_2_outlined,
+            size: 18,
+            color: inStock ? const Color(0xFF15803D) : ClientTheme.muted,
+          ),
+          label: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w900,
+              color: inStock ? const Color(0xFF15803D) : textColor,
+            ),
+          ),
+          style: OutlinedButton.styleFrom(
+            backgroundColor: Colors.white,
+            side: const BorderSide(color: Color(0xFFE6E6E6)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+          ),
+        ),
       ),
     );
   }
 }
+
 
 class _ProductBottomBar extends StatelessWidget {
   final String price;
