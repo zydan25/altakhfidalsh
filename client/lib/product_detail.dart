@@ -3385,72 +3385,110 @@ class _DetailVariantSelectionBox extends StatelessWidget {
     );
   }
 
+  Widget _colorHeader() {
+    if (!showColors || colors.isEmpty) return const SizedBox.shrink();
+    final name = _selectedColorName();
+    final stockText = _colorStockText();
+    final stockAvailable = selectedColorId != null &&
+        _qtyForColor(selectedColorId!) > 0;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 7),
+      child: Row(
+        textDirection: TextDirection.rtl,
+        children: [
+          const Text(
+            'اللون:',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Text(
+              name.isEmpty ? 'اختر اللون' : name,
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+            ),
+          ),
+          if (stockText.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              decoration: BoxDecoration(
+                color: stockAvailable
+                    ? const Color(0xFFE9F7EF)
+                    : const Color(0xFFF7F7F7),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                stockText,
+                style: TextStyle(
+                  color: stockAvailable
+                      ? _color(
+                          detailSettings['stock_inline_color'],
+                          const Color(0xFF15803D),
+                        )
+                      : const Color(0xFF777777),
+                  fontSize: 8.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _colorRow(BuildContext context) {
     if (!showColors || colors.isEmpty) return const SizedBox.shrink();
-    final selectedName = _selectedColorName();
+
     final maxVisible = sxInt(
       detailSettings['color_max_visible'],
       12,
     ).clamp(1, 30).toInt();
     final rows = colors.take(maxVisible).toList();
-    final imageSize = sxDouble(detailSettings['color_image_size'], 48).clamp(30, 72).toDouble();
-    final swatchSize = sxDouble(detailSettings['color_swatches_size'], 30).clamp(18, 64).toDouble();
-    final gap = sxDouble(detailSettings['color_gap'], 8).clamp(0, 18).toDouble();
-    final childHeight = imageSize + (detailSettings['color_show_label'] != false ? 17 : 0);
+    final imageSize = sxDouble(
+      detailSettings['color_image_size'],
+      48,
+    ).clamp(30, 72).toDouble();
+    final swatchSize = sxDouble(
+      detailSettings['color_swatches_size'],
+      30,
+    ).clamp(18, 64).toDouble();
+    final gap = sxDouble(
+      detailSettings['color_gap'],
+      8,
+    ).clamp(0, 18).toDouble();
+    final childHeight =
+        (imageSize > swatchSize ? imageSize : swatchSize) +
+        (detailSettings['color_show_label'] != false ? 17 : 0);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
+    return SizedBox(
+      height: childHeight + 6,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        reverse: false,
+        child: Directionality(
           textDirection: TextDirection.rtl,
-          children: [
-            const Text(
-              'اللون:',
-              textAlign: TextAlign.right,
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
-            ),
-            if (selectedName.isNotEmpty) ...[
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  selectedName,
-                  textAlign: TextAlign.right,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = 0; i < rows.length; i++)
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: i == rows.length - 1 ? 0 : gap,
+                  ),
+                  child: _colorItem(
+                    context,
+                    rows[i],
+                    imageSize: imageSize,
+                    swatchSize: swatchSize,
+                    gap: gap,
+                  ),
                 ),
-              ),
-            ] else
-              const Spacer(),
-          ],
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: childHeight + 6,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            reverse: false,
-            child: Directionality(
-              textDirection: TextDirection.rtl,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var i = 0; i < rows.length; i++)
-                    Padding(
-                      padding: EdgeInsets.only(left: i == rows.length - 1 ? 0 : gap),
-                      child: _colorItem(
-                        context,
-                        rows[i],
-                        imageSize: imageSize,
-                        swatchSize: swatchSize,
-                        gap: gap,
-                      ),
-                    ),
-                ],
-              ),
-            ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 
