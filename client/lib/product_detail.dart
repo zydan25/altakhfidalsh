@@ -203,6 +203,28 @@ class _SxProductScreenState extends State<SxProductScreen> {
     });
   }
 
+  Map<int, String> _colorThumbUrls(
+    List<Map<String, dynamic>> colors,
+    List<Map<String, dynamic>> media,
+  ) {
+    final urls = <int, String>{};
+    for (final row in media) {
+      final id = sxInt(row['color_id']);
+      final url = sxText(row['url']);
+      if (id > 0 && url.isNotEmpty) urls.putIfAbsent(id, () => url);
+    }
+    for (final color in colors) {
+      final id = sxInt(color['id']);
+      if (id <= 0) continue;
+      final swatch = sxText(
+        color['swatch_asset_url'],
+        sxText(color['swatch_url']),
+      );
+      if (swatch.isNotEmpty) urls[id] = swatch;
+    }
+    return urls;
+  }
+
   void _selectColor(int color) {
     final index = _firstGalleryIndexForColor(color);
     setState(() {
@@ -864,7 +886,7 @@ class _SxGalleryState extends State<SxGallery> {
     return Container(
       color: Colors.white,
       child: AspectRatio(
-        aspectRatio: aspectRatio,
+        aspectRatio: widget.aspectRatio,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -893,6 +915,64 @@ class _SxGalleryState extends State<SxGallery> {
       ),
     );
   }
+}
+
+List<Widget> _galleryBadgeWidgets(List<Map<String, dynamic>> badges) {
+  final selected = badges.where((badge) {
+    final s = badge['settings'] is Map
+        ? Map<String, dynamic>.from(badge['settings'] as Map)
+        : <String, dynamic>{};
+    return s['visible'] != false &&
+        {'top_right', 'top_left', 'bottom_right', 'bottom_left', 'right_of_image'}
+            .contains(sxText(s['position']));
+  }).toList();
+
+  return selected.take(8).map((badge) {
+    final s = badge['settings'] is Map
+        ? Map<String, dynamic>.from(badge['settings'] as Map)
+        : <String, dynamic>{};
+    final label = sxText(badge['custom_text'], sxText(badge['name'], 'شارة'));
+    final bg = sxColor(
+      sxText(s['background_color'], sxText(badge['bg_color'], '#111827')),
+      Colors.black,
+    ).withOpacity(sxDouble(s['background_opacity'], 1).clamp(0, 1).toDouble());
+    final fg = sxColor(
+      sxText(s['text_color'], sxText(badge['text_color'], '#ffffff')),
+      Colors.white,
+    );
+    final chip = Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: sxDouble(s['padding_horizontal'], 7),
+        vertical: sxDouble(s['padding_vertical'], 3),
+      ),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(sxDouble(s['border_radius'], 5)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: fg,
+          fontSize: sxDouble(s['font_size'], 9),
+          fontWeight: _weight(sxInt(s['font_weight'], 800)),
+        ),
+      ),
+    );
+    switch (sxText(s['position'])) {
+      case 'top_left':
+        return Positioned(top: 8, left: 8, child: chip);
+      case 'bottom_left':
+        return Positioned(bottom: 8, left: 8, child: chip);
+      case 'bottom_right':
+        return Positioned(bottom: 8, right: 8, child: chip);
+      case 'right_of_image':
+        return Positioned(top: 0, right: 0, bottom: 0, child: Center(child: chip));
+      default:
+        return Positioned(top: 48, right: 8, child: chip);
+    }
+  }).toList();
 }
 
 class SxGalleryThumbs extends StatelessWidget {
@@ -1880,7 +1960,13 @@ class _ProductIdentityPanel extends StatelessWidget {
 
 class _DeliveryBadgePanel extends StatelessWidget {
   final List<Map<String,dynamic>> badges;
-  const _DeliveryBadgePanel({required this.badges, this.fontSize = 9, this.color = Colors.black});
+  final double fontSize;
+  final Color color;
+  const _DeliveryBadgePanel({
+    required this.badges,
+    this.fontSize = 9,
+    this.color = Colors.black,
+  });
 
   @override
   Widget build(BuildContext context) {
