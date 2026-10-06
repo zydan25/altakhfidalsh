@@ -220,7 +220,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
         color['swatch_asset_url'],
         sxText(color['swatch_url']),
       );
-      if (swatch.isNotEmpty) urls[id] = swatch;
+      if (swatch.isNotEmpty) urls.putIfAbsent(id, () => swatch);
     }
     return urls;
   }
@@ -296,6 +296,27 @@ class _SxProductScreenState extends State<SxProductScreen> {
   int _availableQty() {
     final variant = _selectedVariant();
     return variant == null ? 0 : sxInt(variant['available_qty']);
+  }
+
+  int _availableQtyForColor(int? colorId) {
+    final variants = _maps(data['variants']);
+    if (colorId == null || colorId <= 0) {
+      return variants.fold<int>(0, (sum, row) => sum + sxInt(row['available_qty']));
+    }
+    return variants
+        .where((row) => sxInt(row['color_id']) == colorId)
+        .fold<int>(0, (sum, row) => sum + sxInt(row['available_qty']));
+  }
+
+  String _inlineStockText(Map<String, dynamic> settings) {
+    if (settings['stock_inline_show'] == false ||
+        sxText(settings['stock_inline_position'], 'name') == 'none') {
+      return '';
+    }
+    final qty = _availableQtyForColor(selectedColorId);
+    return qty > 0
+        ? sxText(settings['stock_inline_text'], 'متوفر')
+        : sxText(settings['stock_inline_out_text'], 'غير متوفر');
   }
 
   int _discount(String current, String previous) {
@@ -757,7 +778,13 @@ class _SxProductScreenState extends State<SxProductScreen> {
               : _RelatedProductsSection(
                   related: related,
                   titleFontSize: sxDouble(detailSettings['related_title_font_size'], 13),
-                  displaySettings: cardSettings,
+                  displaySettings: {
+                    ...cardSettings,
+                    'show_size': false,
+                    'colors_show': false,
+                    'colors_max': 0,
+                    'meta_show': false,
+                  },
                 );
         default:
           return null;
@@ -2265,11 +2292,15 @@ class _DetailNameBlock extends StatelessWidget {
   final String name;
   final Map<String, dynamic> settings;
   final List<Map<String, dynamic>> badges;
+  final String stockText;
+  final bool stockAvailable;
 
   const _DetailNameBlock({
     required this.name,
     required this.settings,
     this.badges = const [],
+    this.stockText = '',
+    this.stockAvailable = false,
   });
 
   @override
@@ -2346,8 +2377,32 @@ class _DetailNameBlock extends StatelessWidget {
                 height: 1.3,
               ),
             ),
-          ),
-        ],
+            if (stockText.trim().isNotEmpty &&
+                sxText(settings['stock_inline_position'], 'name') == 'name')
+              Padding(
+                padding: const EdgeInsets.only(right: 7, top: 2),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: stockAvailable
+                        ? const Color(0xFFE9F7EF)
+                        : const Color(0xFFF7F7F7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    stockText,
+                    style: TextStyle(
+                      color: stockAvailable
+                          ? sxColor(sxText(settings['stock_inline_color']), const Color(0xFF15803D))
+                          : const Color(0xFF777777),
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
