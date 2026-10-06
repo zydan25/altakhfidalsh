@@ -1166,7 +1166,7 @@ class _SxProductCardState extends State<SxProductCard> {
                       _imageTransitionRevision.toString(),
                 ),
                 child: _ProductCardImage(
-                  url: gallery[page.clamp(0, gallery.length - 1)],
+                  url: gallery[page.clamp(0, gallery.length - 1).toInt()],
                   fit: BoxFit.cover,
                 ),
               ),
