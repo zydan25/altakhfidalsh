@@ -480,6 +480,190 @@ class _SxProductScreenState extends State<SxProductScreen> {
     final reviews = _maps(data['reviews_preview']);
     final detailSettings = _asMap(data['product_detail_settings']);
     final trendBadges = _maps(data['trend_badges']);
+    final detailOrder = ((detailSettings['detail_order'] as List?) ?? const <dynamic>[])
+        .map((x) => sxText(x))
+        .where((x) => x.isNotEmpty)
+        .toList();
+    if (!detailOrder.contains('rating')) {
+      final brandIndex = detailOrder.indexOf('brand');
+      detailOrder.insert(brandIndex >= 0 ? brandIndex + 1 : detailOrder.length, 'rating');
+    }
+
+    Widget? detailSection(String key) {
+      switch (key) {
+        case 'badges':
+          return detailSettings['badges_show'] == false
+              ? const SizedBox.shrink()
+              : _DetailBadgeStrip(
+                  title: 'الشارات',
+                  badges: _maps(data['badges']),
+                  positions: const {
+                    'first', 'above_image',
+                    'before_name', 'before_name_same_row', 'before_name_new_row',
+                    'after_name', 'after_name_same_row', 'after_name_new_row',
+                    'before_price', 'before_price_same_row', 'before_price_new_row',
+                    'after_price', 'after_price_same_row', 'after_price_new_row',
+                    'after_description', 'after_description_same_row', 'after_description_new_row',
+                    'before_details', 'after_details', 'after_details_same_row', 'after_details_new_row',
+                    'below_description', 'below_price', 'right_of_image', 'last',
+                  },
+                  gap: sxDouble(detailSettings['badges_gap'], 5),
+                );
+        case 'gallery':
+          return detailSettings['gallery_show'] == false
+              ? const SizedBox.shrink()
+              : SxGallery(
+                  rows: media,
+                  page: page,
+                  aspectRatio: sxDouble(detailSettings['gallery_ratio'], .78),
+                  changed: _onGalleryPageChanged,
+                  badges: _maps(data['badges']),
+                );
+        case 'thumbs':
+          return detailSettings['thumbs_show'] == false
+              ? const SizedBox.shrink()
+              : SxGalleryThumbs(
+                  rows: media,
+                  page: page,
+                  changed: _onGalleryPageChanged,
+                  itemWidth: sxDouble(detailSettings['thumbs_size'], 62),
+                  itemHeight: sxDouble(detailSettings['thumbs_height'], 70),
+                  gap: sxDouble(detailSettings['thumbs_gap'], 6),
+                  radius: sxDouble(detailSettings['thumbs_radius'], 4),
+                  borderWidth: sxDouble(detailSettings['thumbs_border_width'], 1.5),
+                );
+        case 'price':
+          return detailSettings['price_show'] == false
+              ? const SizedBox.shrink()
+              : _DetailPriceBlock(
+                  price: formattedPrice,
+                  oldPrice: formattedOldPrice,
+                  currency: detailCurrency,
+                  settings: detailSettings,
+                );
+        case 'name':
+          return detailSettings['name_show'] == false
+              ? const SizedBox.shrink()
+              : _DetailNameBlock(
+                  name: sxText(product['name'], 'منتج'),
+                  settings: detailSettings,
+                );
+        case 'brand':
+          return detailSettings['brand_show'] == false || brand.isEmpty
+              ? const SizedBox.shrink()
+              : _DetailBrandBlock(
+                  brand: sxText(brand['name']),
+                  settings: detailSettings,
+                );
+        case 'rating':
+          return detailSettings['rating_show'] == false
+              ? const SizedBox.shrink()
+              : _DetailRatingBlock(
+                  average: average,
+                  reviewCount: reviewCount,
+                  settings: detailSettings,
+                );
+        case 'colors':
+          return _ProductOptions(
+            colors: colors,
+            sizes: const [],
+            selectedColorId: selectedColorId,
+            selectedSizeId: sizeId,
+            onColor: _selectColor,
+            onSize: (_) {},
+            colorThumbUrls: _colorThumbUrls(colors, media),
+            settings: detailSettings,
+            showColors: detailSettings['colors_show'] != false,
+            showSizes: false,
+          );
+        case 'sizes':
+          return _ProductOptions(
+            colors: const [],
+            sizes: sizes,
+            selectedColorId: selectedColorId,
+            selectedSizeId: sizeId,
+            onColor: (_) {},
+            onSize: (value) => setState(() => sizeId = value),
+            settings: detailSettings,
+            showColors: false,
+            showSizes: detailSettings['sizes_show'] != false,
+          );
+        case 'size_guide':
+          return detailSettings['size_guide_show'] == false || data['size_guide'] == null
+              ? const SizedBox.shrink()
+              : _SizeGuideButton(
+                  guide: _asMap(data['size_guide']),
+                  settings: detailSettings,
+                );
+        case 'details':
+          return detailSettings['details_show'] == false
+              ? const SizedBox.shrink()
+              : _DetailSection(
+                  title: 'تفاصيل المنتج',
+                  icon: Icons.description_outlined,
+                  text: <String>[
+                    sxText(product['description']),
+                    if (sxText(product['material']).isNotEmpty)
+                      'الخامة: ' + sxText(product['material']),
+                    if (sxText(product['care_instructions']).isNotEmpty)
+                      'العناية: ' + sxText(product['care_instructions']),
+                    if (sxText(product['product_type']).isNotEmpty)
+                      'نوع المنتج: ' + sxText(product['product_type']),
+                    if (sxText(product['sku']).isNotEmpty)
+                      'رمز المنتج: ' + sxText(product['sku']),
+                  ].where((text) => text.trim().isNotEmpty).join('\n\n'),
+                  settings: detailSettings,
+                );
+        case 'stock':
+          return detailSettings['stock_show'] == false
+              ? const SizedBox.shrink()
+              : _StockStatusPanel(
+                  availableQty: _availableQty(),
+                  hasVariant: _selectedVariant() != null,
+                  fontSize: sxDouble(detailSettings['stock_font_size'], 10),
+                  textColor: sxColor(sxText(detailSettings['stock_text_color']), Colors.black),
+                );
+        case 'delivery':
+          return detailSettings['delivery_show'] == false
+              ? const SizedBox.shrink()
+              : _DeliveryBadgePanel(
+                  badges: _maps(data['delivery_badges']),
+                  fontSize: sxDouble(detailSettings['delivery_font_size'], 9),
+                  color: sxColor(sxText(detailSettings['delivery_color']), Colors.black),
+                );
+        case 'policies':
+          return detailSettings['policies_show'] == false
+              ? const SizedBox.shrink()
+              : _PolicySections(policies: policies, settings: detailSettings);
+        case 'reviews':
+          return detailSettings['reviews_show'] == false
+              ? const SizedBox.shrink()
+              : _ReviewSection(
+                  average: average,
+                  count: reviewCount,
+                  reviews: reviews,
+                  onWriteReview: _openReviewComposer,
+                  settings: detailSettings,
+                );
+        case 'related':
+          return detailSettings['related_show'] == false || related.isEmpty
+              ? const SizedBox.shrink()
+              : _RelatedProductsSection(
+                  related: related,
+                  titleFontSize: sxDouble(detailSettings['related_title_font_size'], 13),
+                );
+        default:
+          return null;
+      }
+    }
+
+    final orderedSections = <Widget>[];
+    for (final key in detailOrder) {
+      final section = detailSection(key);
+      if (section != null) {
+        orderedSections.add(SliverToBoxAdapter(child: section));
+      }
+    }
 
     return Directionality(
       textDirection: TextDirection.rtl,
@@ -521,216 +705,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
                       ],
                     ),
                   ),
-                  SliverToBoxAdapter(
-                    child: SxGallery(
-                      rows: media,
-                      page: page,
-                      changed: (index) => setState(() => page = index),
-                      badges: _maps(data['badges']),
-                    ),
-                  ),
-                  // Thumbnails belong to the gallery and are kept immediately
-                  // underneath it, before any product information.
-                  SliverToBoxAdapter(
-                    child: SxGalleryThumbs(
-                      rows: media,
-                      page: page,
-                      changed: (index) => setState(() => page = index),
-                    ),
-                  ),
-                  // All badges intended for the start/before-price area.
-                  SliverToBoxAdapter(
-                    child: _DetailBadgeStrip(
-                      title: 'الشارات',
-                      badges: _maps(data['badges']),
-                      positions: const {
-                        'first',
-                        'before_price',
-                        'before_price_new_row',
-                      },
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _ProductHeroInfo(
-                      mode: 'price',
-                      name: sxText(product['name'], 'منتج'),
-                      brand: sxText(brand['name']),
-                      sku: sxText(product['sku']),
-                      price: formattedPrice,
-                      oldPrice: formattedOldPrice,
-                      currency: detailCurrency,
-                      discount: discount,
-                      average: average,
-                      reviewCount: reviewCount,
-                      showRating: display['show_rating'] != false,
-                      showReviewCount: display['show_review_count'] != false,
-                      badges: _maps(data['badges']),
-                      trendBadges: trendBadges,
-                      cardSettings: _asMap(data['product_card_settings']),
-                      detailSettings: detailSettings,
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _ProductHeroInfo(
-                      mode: 'name',
-                      name: sxText(product['name'], 'منتج'),
-                      brand: sxText(brand['name']),
-                      sku: sxText(product['sku']),
-                      price: formattedPrice,
-                      oldPrice: formattedOldPrice,
-                      currency: detailCurrency,
-                      discount: discount,
-                      average: average,
-                      reviewCount: reviewCount,
-                      showRating: display['show_rating'] != false,
-                      showReviewCount: display['show_review_count'] != false,
-                      badges: _maps(data['badges']),
-                      trendBadges: trendBadges,
-                      cardSettings: _asMap(data['product_card_settings']),
-                      detailSettings: detailSettings,
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _DetailBadgeStrip(
-                      title: 'الشارات قبل الوصف',
-                      badges: _maps(data['badges']),
-                      positions: const {
-                        'before_description',
-                        'before_description_new_row',
-                        'before_details',
-                      },
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _DetailSection(
-                      title: 'تفاصيل المنتج',
-                      icon: Icons.description_outlined,
-                      text: <String>[
-                        sxText(product['description']),
-                        if (sxText(product['material']).isNotEmpty)
-                          'الخامة: ' + sxText(product['material']),
-                        if (sxText(product['care_instructions']).isNotEmpty)
-                          'العناية: ' + sxText(product['care_instructions']),
-                        if (sxText(product['product_type']).isNotEmpty)
-                          'نوع المنتج: ' + sxText(product['product_type']),
-                        if (sxText(product['sku']).isNotEmpty)
-                          'رمز المنتج: ' + sxText(product['sku']),
-                      ].where((text) => text.trim().isNotEmpty).join('\n\n'),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _DetailBadgeStrip(
-                      title: 'الشارات بعد الوصف والتفاصيل',
-                      badges: _maps(data['badges']),
-                      positions: const {
-                        'after_description',
-                        'after_description_same_row',
-                        'after_description_new_row',
-                        'below_description',
-                        'after_details',
-                        'after_details_same_row',
-                        'after_details_new_row',
-                      },
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _ProductIdentityPanel(
-                      brand: sxText(brand['name']),
-                      productType: sxText(product['product_type']),
-                      material: sxText(product['material']),
-                      sku: sxText(product['sku']),
-                    ),
-                  ),
-                  if (colors.isNotEmpty || sizes.isNotEmpty)
-                    SliverToBoxAdapter(
-                      child: _ProductOptions(
-                        colors: colors,
-                        sizes: sizes,
-                        selectedColorId: selectedColorId,
-                        selectedSizeId: sizeId,
-                        onColor: (value) => setState(() {
-                          selectedColorId = value;
-                          page = 0;
-                        }),
-                        onSize: (value) => setState(() => sizeId = value),
-                      ),
-                    ),
-                  SliverToBoxAdapter(
-                    child: _StockStatusPanel(
-                      availableQty: _availableQty(),
-                      hasVariant: _selectedVariant() != null,
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _DeliveryBadgePanel(
-                      badges: _maps(data['delivery_badges']),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: _ProductTrust(
-                      showShipping: display['show_shipping_banner'] != false,
-                      showReturn: display['show_return'] != false,
-                    ),
-                  ),
-                  SliverToBoxAdapter(child: _PolicySections(policies: policies)),
-                  SliverToBoxAdapter(
-                    child: _ReviewSection(
-                      average: average,
-                      count: reviewCount,
-                      reviews: reviews,
-                      onWriteReview: _openReviewComposer,
-                    ),
-                  ),
-                  if (related.isNotEmpty)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Column(
-                          children: [
-                            const _DetailSectionTitle(title: 'قد يعجبك أيضًا'),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 7),
-                              child: Align(
-                                alignment: Alignment.centerRight,
-                                child: Container(
-                                  width: 58,
-                                  height: 30,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: const Text(
-                                    'التوصية',
-                                    style: TextStyle(color: Colors.white, fontSize: 9.5, fontWeight: FontWeight.w900),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(7, 0, 7, 20),
-                              child: SxProductGrid(
-                                products: related,
-                                masonry: false,
-                                onProductTap: (product) => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => SxProductScreen(id: product.id),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  SliverToBoxAdapter(
-                    child: _DetailBadgeStrip(
-                      title: 'الشارات الأخيرة',
-                      badges: _maps(data['badges']),
-                      positions: const {'last'},
-                    ),
-                  ),
+                  ...orderedSections,
                 ],
               ),
             ),
