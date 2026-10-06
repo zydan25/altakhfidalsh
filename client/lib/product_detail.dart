@@ -1646,7 +1646,7 @@ class _DetailPromotionsSection extends StatelessWidget {
     if (key.contains('club')) return Icons.workspace_premium_outlined;
     if (key.contains('ship')) return Icons.local_shipping_outlined;
     if (key.contains('percent') || key.contains('discount')) {
-      return Icons.percent_outlined;
+      return Icons.percent;
     }
     return Icons.local_offer_outlined;
   }
