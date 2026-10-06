@@ -1604,7 +1604,11 @@ class _DetailPromotionsSection extends StatelessWidget {
 }
 
 class _RecommendationProductsScreen extends StatefulWidget {
-  const _RecommendationProductsScreen();
+  final Map<String, dynamic> displaySettings;
+
+  const _RecommendationProductsScreen({
+    this.displaySettings = const {},
+  });
 
   @override
   State<_RecommendationProductsScreen> createState() => _RecommendationProductsScreenState();
@@ -1654,10 +1658,11 @@ class _RecommendationProductsScreenState extends State<_RecommendationProductsSc
           : products.isEmpty
               ? const Center(child: Text('لا توجد توصيات حاليًا.'))
               : SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(7, 8, 7, 20),
+                  padding: const EdgeInsets.fromLTRB(6, 3, 6, 18),
                   child: SxProductGrid(
                     products: products,
-                    masonry: false,
+                    masonry: true,
+                    displaySettings: widget.displaySettings,
                     onProductTap: (product) => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -2148,7 +2153,9 @@ class _RelatedProductsSection extends StatelessWidget {
                     onPressed: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const _RecommendationProductsScreen(),
+                        builder: (_) => _RecommendationProductsScreen(
+                          displaySettings: cardSettings,
+                        ),
                       ),
                     ),
                     child: const Text(
