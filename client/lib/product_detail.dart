@@ -3566,7 +3566,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
           children: [
             const Expanded(
               child: Text(
-                'مقاس افتراضي',
+                'المقاس',
                 textAlign: TextAlign.right,
                 style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
               ),
@@ -3730,7 +3730,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (showColors && colors.isNotEmpty) _colorHeader(),
+                  if (colors.isNotEmpty) _colorHeader(),
                   SxGalleryThumbs(
                     rows: media,
                     page: page.clamp(0, media.length - 1).toInt(),
