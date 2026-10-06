@@ -23,7 +23,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
   bool loadingRelated = false;
   bool wishlisted = false;
   int page = 0;
-  int? colorId;
+  int? selectedColorId;
+  int? galleryColorId;
   int? sizeId;
 
   @override
@@ -47,7 +48,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
         );
         final c = sxInt(preferred['color_id']);
         final s = sxInt(preferred['size_id']);
-        colorId = c > 0 ? c : null;
+        selectedColorId = c > 0 ? c : null;
         sizeId = s > 0 ? s : null;
       }
 
@@ -144,11 +145,72 @@ class _SxProductScreenState extends State<SxProductScreen> {
 
   List<Map<String, dynamic>> _media() {
     final rows = _maps(data['media']);
-    if (colorId == null) return rows;
-    return <Map<String, dynamic>>[
-      ...rows.where((row) => row['color_id'] == null),
-      ...rows.where((row) => sxInt(row['color_id']) == colorId),
-    ];
+    if (rows.isEmpty) return const <Map<String, dynamic>>[];
+
+    final result = <Map<String, dynamic>>[];
+    final seen = <String>{};
+
+    void addRow(Map<String, dynamic> row) {
+      final url = sxText(row['url']);
+      final id = sxInt(row['id']);
+      final key = id > 0 ? 'id:$id' : 'url:$url';
+      if (key.endsWith(':') || (!seen.add(key))) return;
+      result.add(row);
+    }
+
+    // The carousel always starts with the product's main images.
+    for (final row in rows.where((row) => row['color_id'] == null)) {
+      addRow(row);
+    }
+
+    // Then it walks color by color in the exact reference-color order.
+    final colorIds = _colors().map((color) => sxInt(color['id'])).where((id) => id > 0);
+    final includedColorIds = <int>{};
+    for (final id in colorIds) {
+      includedColorIds.add(id);
+      for (final row in rows.where((row) => sxInt(row['color_id']) == id)) {
+        addRow(row);
+      }
+    }
+
+    // Preserve any colored media whose color is not currently in the reference
+    // list, without losing it from the customer's gallery.
+    for (final row in rows) {
+      final id = sxInt(row['color_id']);
+      if (id > 0 && !includedColorIds.contains(id)) addRow(row);
+    }
+    return result;
+  }
+
+  int _firstGalleryIndexForColor(int color) {
+    final rows = _media();
+    for (var i = 0; i < rows.length; i++) {
+      if (sxInt(rows[i]['color_id']) == color) return i;
+    }
+    return 0;
+  }
+
+  void _onGalleryPageChanged(int index) {
+    final rows = _media();
+    if (rows.isEmpty) return;
+    final safeIndex = index.clamp(0, rows.length - 1);
+    final mediaColor = sxInt(rows[safeIndex]['color_id']);
+    setState(() {
+      page = safeIndex;
+      galleryColorId = mediaColor > 0 ? mediaColor : null;
+      // Once the user reaches a color's images, that color becomes the active
+      // purchasable variant too. Main product images keep the current variant.
+      if (mediaColor > 0) selectedColorId = mediaColor;
+    });
+  }
+
+  void _selectColor(int color) {
+    final index = _firstGalleryIndexForColor(color);
+    setState(() {
+      selectedColorId = color;
+      galleryColorId = color;
+      page = index;
+    });
   }
 
   List<Map<String, dynamic>> _colors() {
