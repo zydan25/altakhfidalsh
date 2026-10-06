@@ -3078,10 +3078,11 @@ class _DetailVariantSelectionBox extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(top: 6),
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(10, 7, 10, 11),
+      padding: const EdgeInsets.fromLTRB(8, 6, 8, 9),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // SHEIN-like second rectangle: thumbnails -> colors -> sizes + size reference.
           if (showThumbs && media.length > 1)
             SxGalleryThumbs(
               rows: media,
@@ -3094,7 +3095,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
               borderWidth: sxDouble(detailSettings['thumbs_border_width'], 1.5),
             ),
           if (showColors && colors.isNotEmpty) ...[
-            if (showSizes && sizes.isNotEmpty) const SizedBox(height: 7),
+            if (showThumbs && media.length > 1) const SizedBox(height: 5),
             Row(
               textDirection: TextDirection.rtl,
               children: const [
@@ -3107,7 +3108,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 6),
             _ProductOptions(
               colors: colors,
               sizes: const [],
@@ -3122,13 +3123,9 @@ class _DetailVariantSelectionBox extends StatelessWidget {
               embedded: true,
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
           if (showSizes && sizes.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            if ((showColors && colors.isNotEmpty) || (showThumbs && media.length > 1))
+              const Divider(height: 20),
             Row(
               textDirection: TextDirection.rtl,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -3164,7 +3161,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 7),
+            const SizedBox(height: 6),
             _ProductOptions(
               colors: const [],
               sizes: sizes,
@@ -3179,7 +3176,6 @@ class _DetailVariantSelectionBox extends StatelessWidget {
               embedded: true,
             ),
           ],
-
         ],
       ),
     );
