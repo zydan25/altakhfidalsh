@@ -1643,7 +1643,7 @@ class _SxProductCardState extends State<SxProductCard>
     }
   }
 
-  Widget _badgeChip(Map<String, dynamic> badge) {
+  Widget _badgeChip(Map<String, dynamic> badge, {bool inline = false}) {
     final settings = _badgeSettings(badge);
     if (settings['visible'] == false) return const SizedBox.shrink();
 
@@ -1673,7 +1673,7 @@ class _SxProductCardState extends State<SxProductCard>
     final vertical = _numberFromMap(settings, 'padding_vertical', 2);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 3),
+      margin: EdgeInsets.only(bottom: inline ? 0 : 3),
       padding: EdgeInsets.symmetric(horizontal: horizontal, vertical: vertical),
       decoration: BoxDecoration(
         color: bg,
@@ -1968,32 +1968,55 @@ class _SxProductCardState extends State<SxProductCard>
       if (!_cardBool('show_name', true)) return const SizedBox.shrink();
       if (beforeNameSame.isEmpty && afterNameSame.isEmpty) return nameText();
 
-      return Row(
-        textDirection: TextDirection.rtl,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (beforeNameSame.isNotEmpty)
-            Flexible(
-              child: Wrap(
-                textDirection: TextDirection.rtl,
-                spacing: 4,
-                runSpacing: 3,
-                children: beforeNameSame.map(_badgeChip).toList(),
-              ),
+      // Keep the badge truly inline with the name instead of putting the badge
+      // in a separate Row column. The old Row reserved a permanent width for
+      // the badge, which made long Arabic names wrap to line two too early.
+      final spans = <InlineSpan>[];
+      for (final badge in beforeNameSame) {
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: _badgeChip(badge, inline: true),
             ),
-          if (beforeNameSame.isNotEmpty) const SizedBox(width: 4),
-          Expanded(child: nameText()),
-          if (afterNameSame.isNotEmpty) const SizedBox(width: 4),
-          if (afterNameSame.isNotEmpty)
-            Flexible(
-              child: Wrap(
-                textDirection: TextDirection.rtl,
-                spacing: 4,
-                runSpacing: 3,
-                children: afterNameSame.map(_badgeChip).toList(),
-              ),
+          ),
+        );
+      }
+      spans.add(TextSpan(text: product.name));
+      for (final badge in afterNameSame) {
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: _badgeChip(badge, inline: true),
             ),
-        ],
+          ),
+        );
+      }
+
+      return Container(
+        color: nameBackground,
+        padding: const EdgeInsets.fromLTRB(8, 1, 8, 0),
+        child: Text.rich(
+          TextSpan(
+            style: TextStyle(
+              color: _cardColor('name_color', const Color(0xFF111111)),
+              fontSize: _cardNumber('name_font_size', 11),
+              fontWeight:
+                  _fontWeight(_cardNumber('name_font_weight', 600).round()),
+              height: 1.25,
+            ),
+            children: spans,
+          ),
+          maxLines: _cardNumber('name_max_lines', 2).round().clamp(1, 6),
+          overflow: _cardText('name_overflow', 'wrap') == 'ellipsis'
+              ? TextOverflow.ellipsis
+              : TextOverflow.clip,
+          textAlign: TextAlign.right,
+          textDirection: TextDirection.rtl,
+        ),
       );
     }
 
