@@ -1892,6 +1892,7 @@ def register_entity_views(admin_bp):
                 "fields": [
                     ("rating_show", "إظهار التقييم", "checkbox"),
                     ("rating_position", "موضع التقييم", "select", ["before_name", "after_name", "before_price", "after_price", "end"]),
+                    ("rating_alignment", "محاذاة التقييم", "select", ["right", "left"]),
                     ("rating_font_size", "حجم نص التقييم", "number", 6, 18, .5, False),
                     ("rating_icon_size", "حجم أيقونة النجمة", "number", 7, 24, .5, False),
                     ("rating_review_count_show", "إظهار عدد المراجعات", "checkbox"),
