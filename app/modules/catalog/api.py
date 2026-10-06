@@ -1998,7 +1998,10 @@ def public_trend_detail(trend_id):
     ):
         return {"error": "not_found", "detail": "trend not found"}, 404
     payload = CatalogService.serialize_public_trend(trend)
-    if not payload["hashtag"] or not payload["background"] or len(payload["products"]) != 3:
+    # Keep the same availability rule as the public trend list. The
+    # background is optional; the client renders a dark placeholder when it
+    # is missing, so a media upload problem must not remove the trend.
+    if not payload["hashtag"] or len(payload["products"]) != 3:
         return {"error": "not_found", "detail": "trend not available"}, 404
     return {"item": payload}
 
