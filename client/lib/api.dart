@@ -29,6 +29,27 @@ class ApiService {
     if(x is Map&&x['error']!=null)throw Exception(x['error'].toString());
     throw Exception('تعذر تنفيذ الطلب (undefined)');
   }
+
+  bool _isNetworkFailure(Object error) {
+    final s = error.toString().toLowerCase();
+    return s.contains('socketexception') ||
+        s.contains('websocketexception') ||
+        s.contains('clientexception') ||
+        s.contains('failed host lookup') ||
+        s.contains('connection refused') ||
+        s.contains('connection reset') ||
+        s.contains('network is unreachable') ||
+        s.contains('handshakeexception') ||
+        s.contains('httpexception') ||
+        s.contains('connection closed') ||
+        s.contains('connection terminated') ||
+        s.contains('timed out') ||
+        s.contains('timeout');
+  }
+
+  Exception _offlineException() => Exception(
+        'أنت غير متصل بالإنترنت حاليًا. تم الاحتفاظ بما يمكن حفظه، حاول مرة أخرى عند عودة الاتصال.',
+      );
   Future<dynamic> get(String p,{Map<String,String>? q}) async {
     try {
       return decode(await http.get(
@@ -36,10 +57,7 @@ class ApiService {
         headers:headers(),
       ).timeout(const Duration(seconds:25)));
     } catch(e) {
-      final s=e.toString();
-      if(s.contains('SocketException')||s.contains('TimeoutException')||s.contains('ClientException')) {
-        throw Exception('تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.');
-      }
+      if (_isNetworkFailure(e)) throw _offlineException();
       rethrow;
     }
   }
@@ -51,10 +69,7 @@ class ApiService {
         body:jsonEncode(b),
       ).timeout(const Duration(seconds:25)));
     } catch(e) {
-      final s=e.toString();
-      if(s.contains('SocketException')||s.contains('TimeoutException')||s.contains('ClientException')) {
-        throw Exception('تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.');
-      }
+      if (_isNetworkFailure(e)) throw _offlineException();
       rethrow;
     }
   }
@@ -66,10 +81,7 @@ class ApiService {
         body:jsonEncode(b),
       ).timeout(const Duration(seconds:25)));
     } catch(e) {
-      final s=e.toString();
-      if(s.contains('SocketException')||s.contains('TimeoutException')||s.contains('ClientException')) {
-        throw Exception('تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.');
-      }
+      if (_isNetworkFailure(e)) throw _offlineException();
       rethrow;
     }
   }
@@ -80,10 +92,7 @@ class ApiService {
         headers:headers(),
       ).timeout(const Duration(seconds:25)));
     } catch(e) {
-      final s=e.toString();
-      if(s.contains('SocketException')||s.contains('TimeoutException')||s.contains('ClientException')) {
-        throw Exception('تعذر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.');
-      }
+      if (_isNetworkFailure(e)) throw _offlineException();
       rethrow;
     }
   }
