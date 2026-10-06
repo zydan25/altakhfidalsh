@@ -26,6 +26,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
   int? selectedColorId;
   int? galleryColorId;
   int? sizeId;
+  Map<String, dynamic>? _defaultCustomerAddress;
 
   @override
   void initState() {
@@ -53,6 +54,19 @@ class _SxProductScreenState extends State<SxProductScreen> {
       }
 
       if (state.loggedIn) {
+        try {
+          final customerAddresses = await api.addresses();
+          final defaults = customerAddresses.where(
+            (x) => x['is_default'] == true,
+          ).toList();
+          _defaultCustomerAddress = defaults.isNotEmpty
+              ? Map<String, dynamic>.from(defaults.first)
+              : (customerAddresses.isNotEmpty
+                  ? Map<String, dynamic>.from(customerAddresses.first)
+                  : null);
+        } catch (_) {
+          _defaultCustomerAddress = null;
+        }
         try {
           final ids = await api.wishlistIds();
           wishlisted = ids.contains(widget.id);
@@ -853,6 +867,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
       deliveryBadges: _maps(data['delivery_badges']),
       policies: policies,
       settings: detailSettings,
+      customerAddress: _defaultCustomerAddress,
     );
 
     Widget renderGroup(String title, List<String> keys) {
@@ -3443,7 +3458,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
   }
 
   Widget _colorHeader() {
-    if (!showColors || colors.isEmpty) return const SizedBox.shrink();
+    if (colors.isEmpty) return const SizedBox.shrink();
     final name = _selectedColorName();
     final stockText = _colorStockText();
     final stockAvailable = selectedColorId != null &&
@@ -4484,11 +4499,13 @@ class _DeliveryPolicyBox extends StatelessWidget {
   final List<Map<String, dynamic>> deliveryBadges;
   final Map<String, dynamic> policies;
   final Map<String, dynamic> settings;
+  final Map<String, dynamic>? customerAddress;
 
   const _DeliveryPolicyBox({
     required this.deliveryBadges,
     required this.policies,
     required this.settings,
+    this.customerAddress,
   });
 
   Map<String, dynamic> _map(dynamic value) =>
