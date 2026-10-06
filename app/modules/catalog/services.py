@@ -2876,6 +2876,13 @@ class CatalogService:
             "payment_button_color": "#f3f4f6",
             "payment_button_text_color": "#111111",
 
+            "rating_show": True,
+            "rating_icon_size": 14,
+            "rating_font_size": 10,
+            "rating_review_count_show": True,
+            "rating_review_count_font_size": 8,
+            "rating_color": "#ffb400",
+
             "reviews_show": True,
             "reviews_title_font_size": 13,
             "reviews_color": "#111111",
@@ -2968,6 +2975,9 @@ class CatalogService:
             ("policy_button_radius", 0, 24, True),
             ("policy_button_gap", 0, 16, True),
             ("policy_button_font_size", 7, 18, False),
+            ("rating_icon_size", 7, 28, False),
+            ("rating_font_size", 7, 20, False),
+            ("rating_review_count_font_size", 6, 18, False),
             ("reviews_title_font_size", 9, 20, False),
             ("related_title_font_size", 9, 20, False),
         ):
@@ -2989,6 +2999,8 @@ class CatalogService:
         merged["stock_show"] = flag("stock_show")
         merged["delivery_show"] = flag("delivery_show")
         merged["policies_show"] = flag("policies_show")
+        merged["rating_show"] = flag("rating_show")
+        merged["rating_review_count_show"] = flag("rating_review_count_show")
         merged["reviews_show"] = flag("reviews_show")
         merged["related_show"] = flag("related_show")
 
@@ -3012,6 +3024,7 @@ class CatalogService:
             "returns_button_color", "returns_button_text_color",
             "warranty_button_color", "warranty_button_text_color",
             "payment_button_color", "payment_button_text_color",
+            "rating_color",
             "reviews_color",
         ):
             merged[key] = color(key)
