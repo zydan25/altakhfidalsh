@@ -474,6 +474,10 @@ class _SxProductScreenState extends State<SxProductScreen> {
       displayCurrency['symbol'],
       state.currencySymbol,
     );
+    final shortDescription = sxText(
+      product['short_description'],
+      sxText(product['description']),
+    );
     final currencyCode = sxText(
       displayCurrency['code'],
       state.currencyCode,
@@ -518,6 +522,10 @@ class _SxProductScreenState extends State<SxProductScreen> {
     if (!detailOrder.contains('promotions')) {
       final priceIndex = detailOrder.indexOf('price');
       detailOrder.insert(priceIndex >= 0 ? priceIndex + 1 : detailOrder.length, 'promotions');
+    }
+    if (!detailOrder.contains('description')) {
+      final nameIndex = detailOrder.indexOf('name');
+      detailOrder.insert(nameIndex >= 0 ? nameIndex + 1 : detailOrder.length, 'description');
     }
 
     Widget? detailSection(String key) {
@@ -589,6 +597,13 @@ class _SxProductScreenState extends State<SxProductScreen> {
               ? const SizedBox.shrink()
               : _DetailNameBlock(
                   name: sxText(product['name'], 'منتج'),
+                  settings: detailSettings,
+                );
+        case 'description':
+          return detailSettings['description_show'] == false || shortDescription.trim().isEmpty
+              ? const SizedBox.shrink()
+              : _DetailDescriptionBlock(
+                  description: shortDescription,
                   settings: detailSettings,
                 );
         case 'brand':
@@ -714,7 +729,23 @@ class _SxProductScreenState extends State<SxProductScreen> {
     }
 
     final orderedSections = <Widget>[];
-    for (final key in detailOrder) {
+    for (var i = 0; i < detailOrder.length; i++) {
+      final key = detailOrder[i];
+      if (key == 'name' &&
+          i + 2 < detailOrder.length &&
+          detailOrder[i + 1] == 'description' &&
+          detailOrder[i + 2] == 'rating') {
+        final merged = _DetailNameRatingBlock(
+          name: sxText(product['name'], 'منتج'),
+          description: shortDescription,
+          average: average,
+          reviewCount: reviewCount,
+          settings: detailSettings,
+        );
+        orderedSections.add(SliverToBoxAdapter(child: merged));
+        i += 2;
+        continue;
+      }
       final section = detailSection(key);
       if (section != null) {
         orderedSections.add(SliverToBoxAdapter(child: section));
@@ -1656,6 +1687,136 @@ class _DetailPriceBlock extends StatelessWidget {
                 ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _DetailDescriptionBlock extends StatelessWidget {
+  final String description;
+  final Map<String, dynamic> settings;
+  const _DetailDescriptionBlock({
+    required this.description,
+    required this.settings,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    margin: const EdgeInsets.only(top: 6),
+    color: Colors.white,
+    padding: const EdgeInsets.fromLTRB(12, 2, 12, 10),
+    child: Text(
+      description,
+      maxLines: sxInt(settings['description_max_lines'], 3).clamp(1, 5).toInt(),
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        color: sxColor(sxText(settings['description_color']), const Color(0xFF6B7280)),
+        fontSize: sxDouble(settings['description_font_size'], 10.5),
+        height: 1.45,
+      ),
+    ),
+  );
+}
+
+class _DetailNameRatingBlock extends StatelessWidget {
+  final String name;
+  final String description;
+  final double average;
+  final int reviewCount;
+  final Map<String, dynamic> settings;
+
+  const _DetailNameRatingBlock({
+    required this.name,
+    required this.description,
+    required this.average,
+    required this.reviewCount,
+    required this.settings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final showRating = settings['rating_show'] != false;
+    final showCount = settings['rating_review_count_show'] != false;
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            textDirection: TextDirection.rtl,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: sxInt(settings['name_max_lines'], 4).clamp(2, 6).toInt(),
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: sxColor(sxText(settings['name_color']), Colors.black),
+                    fontSize: sxDouble(settings['name_font_size'], 20),
+                    fontWeight: _weight(sxInt(settings['name_font_weight'], 800)),
+                    height: 1.28,
+                  ),
+                ),
+              ),
+              if (showRating) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    textDirection: TextDirection.rtl,
+                    children: [
+                      Icon(
+                        Icons.star_rounded,
+                        size: sxDouble(settings['rating_icon_size'], 16),
+                        color: sxColor(
+                          sxText(settings['rating_color']),
+                          const Color(0xFFFFB400),
+                        ),
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        average > 0 ? average.toStringAsFixed(1) : '—',
+                        style: TextStyle(
+                          fontSize: sxDouble(settings['rating_font_size'], 10.5),
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      if (showCount)
+                        Text(
+                          ' (' + reviewCount.toString() + ')',
+                          style: TextStyle(
+                            fontSize: sxDouble(settings['rating_review_count_font_size'], 8),
+                            color: ClientTheme.muted,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (settings['description_show'] != false && description.trim().isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(
+              description,
+              maxLines: sxInt(settings['description_max_lines'], 3).clamp(1, 5).toInt(),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: sxColor(sxText(settings['description_color']), const Color(0xFF6B7280)),
+                fontSize: sxDouble(settings['description_font_size'], 10.5),
+                height: 1.45,
+              ),
+            ),
+          ],
         ],
       ),
     );
