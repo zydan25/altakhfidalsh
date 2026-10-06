@@ -714,6 +714,7 @@ class SxProductCard extends StatefulWidget {
 
 class _SxProductCardState extends State<SxProductCard> {
   int page = 0;
+  int _imageTransitionRevision = 0;
   double _dragDistance = 0;
   int _swipeDirection = 1;
   late List<String> _gallery;
@@ -725,6 +726,7 @@ class _SxProductCardState extends State<SxProductCard> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.product.id != widget.product.id) {
       page = 0;
+      _imageTransitionRevision++;
       _gallery = _uniqueImages(widget.product.images, widget.product.image);
       _galleryLoaded = _gallery.length > 1;
       _galleryLoading = false;
@@ -811,6 +813,8 @@ class _SxProductCardState extends State<SxProductCard> {
       setState(() {
         _swipeDirection = direction;
         page = nextPage;
+        // Fresh identity for every swipe, including last <-> first.
+        _imageTransitionRevision++;
       });
     }
   }
@@ -1143,7 +1147,11 @@ class _SxProductCardState extends State<SxProductCard> {
             child: _imageTransition(
               child: KeyedSubtree(
                 key: ValueKey(
-                  widget.product.id.toString() + '-' + page.toString(),
+                  widget.product.id.toString() +
+                      '-' +
+                      page.toString() +
+                      '-' +
+                      _imageTransitionRevision.toString(),
                 ),
                 child: _ProductCardImage(
                   url: gallery[page],
