@@ -3014,7 +3014,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // SHEIN-like second rectangle: thumbnails -> colors -> sizes + size reference.
+          // SHEIN-like single options rectangle: thumbnails -> sizes + size reference -> colors.
           if (showThumbs && thumbnailRows.length > 1)
             SxGalleryThumbs(
               rows: thumbnailRows,
@@ -3096,7 +3096,8 @@ class _DetailVariantSelectionBox extends StatelessWidget {
             ),
           ],
           if (showColors && colors.isNotEmpty) ...[
-            if (showThumbs && media.length > 1) const SizedBox(height: 5),
+            if (showSizes && sizes.isNotEmpty) const Divider(height: 20),
+            if (!showSizes && showThumbs && media.length > 1) const SizedBox(height: 5),
             Row(
               textDirection: TextDirection.rtl,
               children: const [
@@ -3192,12 +3193,14 @@ class _ProductOptions extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (colorsVisible && !embedded) ...[
-            const Text(
-              'اللون',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 9),
+          if (colorsVisible) ...[
+            if (!embedded) ...[
+              const Text(
+                'اللون',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 9),
+            ],
             SizedBox(
               height: colorSize + labelSize + 18,
               child: SingleChildScrollView(
@@ -3269,15 +3272,17 @@ class _ProductOptions extends StatelessWidget {
             ),
           ],
           if (colorsVisible && sizesVisible && !embedded) const Divider(height: 24),
-          if (sizesVisible && !embedded) ...[
-            Text(
-              'المقاس',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w900,
+          if (sizesVisible) ...[
+            if (!embedded) ...[
+              const Text(
+                'المقاس',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-            ),
-            const SizedBox(height: 9),
+              const SizedBox(height: 9),
+            ],
             SizedBox(
               height: sizeFont + (sizeVertical * 2) + 14,
               child: SingleChildScrollView(
