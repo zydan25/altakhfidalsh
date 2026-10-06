@@ -635,16 +635,62 @@ class _SxProductScreenState extends State<SxProductScreen> {
             showSizes: false,
           );
         case 'sizes':
-          return _ProductOptions(
-            colors: const [],
-            sizes: sizes,
-            selectedColorId: selectedColorId,
-            selectedSizeId: sizeId,
-            onColor: (_) {},
-            onSize: (value) => setState(() => sizeId = value),
-            settings: detailSettings,
-            showColors: false,
-            showSizes: detailSettings['sizes_show'] != false,
+          final sizeGuide = _asMap(data['size_guide']);
+          final guideRows = _maps(sizeGuide['rows']);
+          final selectedGuideIndex = guideRows.indexWhere(
+            (row) => sxInt(row['size_id']) == sxInt(sizeId),
+          );
+          final selectedGuideRow = selectedGuideIndex >= 0
+              ? guideRows[selectedGuideIndex]
+              : <String, dynamic>{};
+          final hasSizeDetails =
+              selectedGuideRow.isNotEmpty &&
+              (_asMap(selectedGuideRow['product_measurements']).isNotEmpty ||
+                  _asMap(selectedGuideRow['body_measurements']).isNotEmpty);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ProductOptions(
+                colors: const [],
+                sizes: sizes,
+                selectedColorId: selectedColorId,
+                selectedSizeId: sizeId,
+                onColor: (_) {},
+                onSize: (value) => setState(() => sizeId = value),
+                settings: detailSettings,
+                showColors: false,
+                showSizes: detailSettings['sizes_show'] != false,
+              ),
+              if (hasSizeDetails)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: InkWell(
+                      onTap: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => _SizeGuideDialog(
+                          guide: sizeGuide,
+                          initialSizeId: sizeId,
+                        ),
+                      ),
+                      child: Text(
+                        'تفاصيل المقاس',
+                        style: TextStyle(
+                          color: sxColor(
+                            sxText(detailSettings['size_guide_color']),
+                            Colors.black,
+                          ),
+                          fontSize: sxDouble(detailSettings['size_guide_font_size'], 10),
+                          fontWeight: FontWeight.w800,
+                          decoration: TextDecoration.underline,
+                          decorationThickness: 1.1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
           );
         case 'size_guide':
           if (detailSettings['size_guide_show'] == false) {
@@ -1579,6 +1625,103 @@ class _RecommendationProductsScreenState extends State<_RecommendationProductsSc
   );
 }
 
+
+String _priceInArabicWords(String price, String currency) {
+  final value = double.tryParse(price.replaceAll(',', '').trim());
+  if (value == null) return price;
+  final whole = value.floor();
+  final minor = ((value - whole) * 100).round().clamp(0, 99);
+  final major = _arabicCurrencyMajor(currency);
+  final minorName = _arabicCurrencyMinor(currency);
+  if (minor == 0) return _arabicIntegerWords(whole) + ' ' + major;
+  return _arabicIntegerWords(whole) + ' ' + major + ' و' +
+      _arabicIntegerWords(minor) + ' ' + minorName;
+}
+
+String _arabicCurrencyMajor(String currency) {
+  final c = currency.trim().toUpperCase();
+  if (c.contains('SAR') || c == 'ر.س' || c.contains('ريال')) return 'ريال سعودي';
+  if (c.contains('AED') || c.contains('د.إ') || c.contains('درهم')) return 'درهم إماراتي';
+  if (c.contains('KWD') || c.contains('د.ك') || c.contains('دينار')) return 'دينار كويتي';
+  if (c.contains('BHD') || c.contains('د.ب')) return 'دينار بحريني';
+  if (c.contains('QAR') || c.contains('ر.ق')) return 'ريال قطري';
+  if (c.contains('OMR') || c.contains('ر.ع')) return 'ريال عماني';
+  if (c.contains('EGP') || c.contains('ج.م') || c.contains('جنيه')) return 'جنيه مصري';
+  if (c == '€' || c.contains('EUR') || c.contains('يورو')) return 'يورو';
+  if (c == r'$' || c.contains('USD') || c.contains('دولار')) return 'دولار أمريكي';
+  return currency.isEmpty ? 'وحدة' : currency;
+}
+
+String _arabicCurrencyMinor(String currency) {
+  final c = currency.trim().toUpperCase();
+  if (c.contains('SAR') || c == 'ر.س' || c.contains('ريال')) return 'هللة';
+  if (c.contains('AED') || c.contains('د.إ') || c.contains('درهم')) return 'فلس';
+  if (c.contains('KWD') || c.contains('د.ك') || c.contains('دينار')) return 'فلس';
+  if (c.contains('EGP') || c.contains('ج.م') || c.contains('جنيه')) return 'قرش';
+  if (c == '€' || c.contains('EUR') || c.contains('يورو')) return 'سنت';
+  if (c == r'$' || c.contains('USD') || c.contains('دولار')) return 'سنت';
+  return 'جزء';
+}
+
+String _arabicIntegerWords(int number) {
+  if (number == 0) return 'صفر';
+  const ones = <String>[
+    '', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة',
+    'ثمانية', 'تسعة', 'عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر',
+    'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر',
+    'تسعة عشر',
+  ];
+  const tens = <String>[
+    '', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون',
+    'سبعون', 'ثمانون', 'تسعون',
+  ];
+  if (number < 20) return ones[number];
+  if (number < 100) {
+    final t = number ~/ 10;
+    final o = number % 10;
+    return o == 0 ? tens[t] : ones[o] + ' و' + tens[t];
+  }
+  if (number < 1000) {
+    final h = number ~/ 100;
+    final r = number % 100;
+    const hundreds = <String>[
+      '', 'مائة', 'مائتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة',
+      'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة',
+    ];
+    return r == 0 ? hundreds[h] : hundreds[h] + ' و' + _arabicIntegerWords(r);
+  }
+  if (number < 1000000) {
+    final k = number ~/ 1000;
+    final r = number % 1000;
+    final kWord = k == 1
+        ? 'ألف'
+        : k == 2
+            ? 'ألفان'
+            : k < 11
+                ? _arabicIntegerWords(k) + ' آلاف'
+                : _arabicIntegerWords(k) + ' ألف';
+    return r == 0 ? kWord : kWord + ' و' + _arabicIntegerWords(r);
+  }
+  if (number < 1000000000) {
+    final m = number ~/ 1000000;
+    final r = number % 1000000;
+    final mWord = m == 1
+        ? 'مليون'
+        : m == 2
+            ? 'مليونان'
+            : _arabicIntegerWords(m) + ' مليون';
+    return r == 0 ? mWord : mWord + ' و' + _arabicIntegerWords(r);
+  }
+  return number.toString();
+}
+
+int _detailDiscount(String current, String previous) {
+  final now = double.tryParse(current.replaceAll(',', '').trim());
+  final old = double.tryParse(previous.replaceAll(',', '').trim());
+  if (now == null || old == null || old <= now || old <= 0) return 0;
+  return ((1 - now / old) * 100).round();
+}
+
 class _DetailPriceBlock extends StatelessWidget {
   final String price;
   final String oldPrice;
@@ -1596,9 +1739,10 @@ class _DetailPriceBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final showOld = settings['show_compare_price'] != false && oldPrice.trim().isNotEmpty;
+    final showOld =
+        settings['show_compare_price'] != false && oldPrice.trim().isNotEmpty;
     final showCurrency = settings['show_currency'] != false;
-    final discount = _discountValue(price, oldPrice);
+    final discount = _detailDiscount(price, oldPrice);
     final discountBg = sxColor(
       sxText(
         settings['discount_badge_background_color'],
@@ -1613,26 +1757,14 @@ class _DetailPriceBlock extends StatelessWidget {
       ),
       Colors.white,
     );
+
     return Container(
       margin: const EdgeInsets.only(top: 6),
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (settings['price_text_show'] == true)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                sxText(settings['price_text'], 'السعر الحالي'),
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  color: sxColor(sxText(settings['price_text_color']), const Color(0xFF6B7280)),
-                  fontSize: sxDouble(settings['price_text_font_size'], 9),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
           Wrap(
             alignment: WrapAlignment.start,
             crossAxisAlignment: WrapCrossAlignment.end,
@@ -1662,9 +1794,15 @@ class _DetailPriceBlock extends StatelessWidget {
                 Text(
                   oldPrice + (showCurrency ? ' ' + currency : ''),
                   style: TextStyle(
-                    color: sxColor(sxText(settings['compare_price_color']), const Color(0xFF9CA3AF)),
+                    color: sxColor(
+                      sxText(settings['compare_price_color']),
+                      const Color(0xFF9CA3AF),
+                    ),
                     fontSize: sxDouble(settings['compare_price_font_size'], 10),
-                    decoration: sxText(settings['compare_price_text_decoration'], 'line_through') == 'line_through'
+                    decoration: sxText(
+                              settings['compare_price_text_decoration'],
+                              'line_through',
+                            ) == 'line_through'
                         ? TextDecoration.lineThrough
                         : TextDecoration.none,
                   ),
@@ -1687,6 +1825,22 @@ class _DetailPriceBlock extends StatelessWidget {
                 ),
             ],
           ),
+          if (settings['price_text_show'] == true)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                _priceInArabicWords(price, currency),
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: sxColor(
+                    sxText(settings['price_text_color']),
+                    const Color(0xFF6B7280),
+                  ),
+                  fontSize: sxDouble(settings['price_text_font_size'], 9),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -2550,79 +2704,86 @@ class _DeliveryBadgePanel extends StatelessWidget {
     final visible = badges.where((x) => x['visible'] != false).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
-    final summary = visible
-        .map((badge) => sxText(badge['text']))
-        .where((x) => x.trim().isNotEmpty)
-        .join(' • ');
-
     return Container(
       margin: const EdgeInsets.only(top: 6),
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-      child: SizedBox(
-        height: 44,
-        child: OutlinedButton.icon(
-          onPressed: () => showDialog<void>(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: const Text(
-                'التوصيل والمزايا',
-                textAlign: TextAlign.right,
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final badge in visible)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: sxColor(sxText(badge['background_color']), const Color(0xFFF5F5F5)),
-                            borderRadius: BorderRadius.circular(7),
-                          ),
-                          child: Text(
-                            sxText(badge['text']),
-                            textAlign: TextAlign.right,
-                            style: TextStyle(
-                              color: sxColor(sxText(badge['text_color']), color),
-                              fontSize: sxDouble(badge['font_size'], fontSize),
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
+      padding: const EdgeInsets.fromLTRB(10, 7, 10, 8),
+      child: Wrap(
+        textDirection: TextDirection.rtl,
+        spacing: 6,
+        runSpacing: 6,
+        children: visible.map((badge) {
+          final bg = sxColor(
+            sxText(badge['background_color'], '#F5F5F5'),
+            const Color(0xFFF5F5F5),
+          );
+          final fg = sxColor(sxText(badge['text_color']), color);
+          final iconName = sxText(badge['icon']);
+          final icon = iconName == 'verified'
+              ? Icons.verified_outlined
+              : iconName == 'store'
+                  ? Icons.storefront_outlined
+                  : Icons.local_shipping_outlined;
+          final text = sxText(badge['text'], 'التوصيل');
+
+          return InkWell(
+            onTap: () => showDialog<void>(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: Text(
+                  text,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('إغلاق'),
+                content: Text(
+                  text,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    height: 1.7,
+                    color: fg,
+                  ),
                 ),
-              ],
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إغلاق'),
+                  ),
+                ],
+              ),
             ),
-          ),
-          icon: Icon(Icons.local_shipping_outlined, size: 18, color: color),
-          label: Text(
-            summary.isEmpty ? 'التوصيل والمزايا' : summary,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w900, color: color),
-          ),
-          style: OutlinedButton.styleFrom(
-            backgroundColor: Colors.white,
-            side: const BorderSide(color: Color(0xFFE6E6E6)),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
-          ),
-        ),
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                textDirection: TextDirection.rtl,
+                children: [
+                  Icon(icon, size: 15, color: fg),
+                  const SizedBox(width: 5),
+                  Text(
+                    text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: sxDouble(badge['font_size'], fontSize),
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 }
-
 
 class _ProductOptions extends StatelessWidget {
   final List<Map<String, dynamic>> colors;
@@ -2713,8 +2874,6 @@ class _ProductOptions extends StatelessWidget {
                                   final item = colors[index];
                                   final id = sxInt(item['id']);
                                   final selected = id == selectedColorId;
-                                  final thumb = colorThumbUrls[id];
-                                  final hasThumb = thumb != null && thumb.trim().isNotEmpty;
                                   return Container(
                                     width: colorSize,
                                     height: colorSize,
@@ -2729,16 +2888,13 @@ class _ProductOptions extends StatelessWidget {
                                         width: selected ? selectedBorder : 1,
                                       ),
                                     ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: hasThumb
-                                        ? _DetailNetworkImage(url: thumb)
-                                        : selected
-                                            ? Icon(
-                                                Icons.check,
-                                                size: colorSize * .43,
-                                                color: Colors.white,
-                                              )
-                                            : null,
+                                    child: selected
+                                        ? Icon(
+                                            Icons.check,
+                                            size: colorSize * .43,
+                                            color: Colors.black,
+                                          )
+                                        : null,
                                   );
                                 }),
                                 const SizedBox(height: 4),
@@ -3009,9 +3165,11 @@ class _PolicySections extends StatelessWidget {
     final shipping = _map(policies['shipping']);
     final returning = _map(policies['return']);
     final warranty = _map(policies['warranty']);
+
     final items = <Map<String, dynamic>>[
       if (shipping.isNotEmpty)
         {
+          'key': 'shipping',
           'title': 'الشحن والتوصيل',
           'icon': Icons.local_shipping_outlined,
           'text': <String>[
@@ -3019,12 +3177,16 @@ class _PolicySections extends StatelessWidget {
             sxText(shipping['promo_text']),
             if (sxText(shipping['delivery_window']).isNotEmpty)
               'مدة التوصيل: ' + sxText(shipping['delivery_window']),
+            if (shipping['free_shipping_enabled'] == true &&
+                sxText(shipping['min_order_amount']).isNotEmpty)
+              'شحن مجاني عند بلوغ ' + sxText(shipping['min_order_amount']),
           ].where((x) => x.trim().isNotEmpty).join('\n\n'),
           'background': sxColor(sxText(settings['shipping_button_color']), Colors.black),
           'foreground': sxColor(sxText(settings['shipping_button_text_color']), Colors.white),
         },
       if (returning.isNotEmpty)
         {
+          'key': 'returns',
           'title': 'الإرجاع والاسترداد',
           'icon': Icons.assignment_return_outlined,
           'text': <String>[
@@ -3042,6 +3204,7 @@ class _PolicySections extends StatelessWidget {
         },
       if (warranty.isNotEmpty)
         {
+          'key': 'warranty',
           'title': 'الضمان',
           'icon': Icons.verified_user_outlined,
           'text': <String>[
@@ -3058,103 +3221,101 @@ class _PolicySections extends StatelessWidget {
           'foreground': sxColor(sxText(settings['warranty_button_text_color']), Colors.black),
         },
       {
-        'title': 'الدفع',
+        'key': 'payment',
+        'title': 'الدفع الآمن',
         'icon': Icons.lock_outline,
         'text': 'الدفع يتم وفق طرق الدفع المتاحة عند إتمام الطلب.',
         'background': sxColor(sxText(settings['payment_button_color']), const Color(0xFFF3F4F6)),
         'foreground': sxColor(sxText(settings['payment_button_text_color']), Colors.black),
       },
     ];
-    if (items.isEmpty) return const SizedBox.shrink();
 
     final byKey = <String, Map<String, dynamic>>{
-      'shipping': items.firstWhere((x) => x['title'] == 'الشحن والتوصيل', orElse: () => <String, dynamic>{}),
-      'returns': items.firstWhere((x) => x['title'] == 'الإرجاع والاسترداد', orElse: () => <String, dynamic>{}),
-      'warranty': items.firstWhere((x) => x['title'] == 'الضمان', orElse: () => <String, dynamic>{}),
-      'payment': items.firstWhere((x) => x['title'] == 'الدفع', orElse: () => <String, dynamic>{}),
+      for (final item in items) sxText(item['key']): item,
     };
     final rawOrder = settings['policy_order'];
     final keys = rawOrder is List
         ? rawOrder.map((x) => sxText(x)).where((x) => byKey[x]?.isNotEmpty == true).toList()
         : <String>[];
     for (final key in byKey.keys) {
-      if (!keys.contains(key) && byKey[key]!.isNotEmpty) keys.add(key);
+      if (!keys.contains(key)) keys.add(key);
     }
-    final orderedItems = keys.map((key) => byKey[key]!).where((x) => x.isNotEmpty).toList();
+    if (keys.isEmpty) return const SizedBox.shrink();
 
     return Container(
       margin: const EdgeInsets.only(top: 6),
       color: Colors.white,
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('السياسات والخدمات', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
-          const SizedBox(height: 8),
-          for (var i = 0; i < orderedItems.length; i++) ...[
-            SizedBox(
-              height: sxDouble(settings['policy_button_height'], 52),
-              child: FilledButton.icon(
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: Row(
-                      children: [
-                        Icon(orderedItems[i]['icon'] as IconData, size: 20),
-                        const SizedBox(width: 7),
-                        Expanded(
-                          child: Text(
-                            sxText(orderedItems[i]['title']),
-                            textAlign: TextAlign.right,
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                      ],
-                    ),
-                    content: SingleChildScrollView(
-                      child: Text(
-                        sxText(orderedItems[i]['text']),
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(fontSize: 10.5, height: 1.7),
-                      ),
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('إغلاق'),
-                      ),
-                    ],
+      padding: const EdgeInsets.fromLTRB(10, 7, 10, 8),
+      child: Wrap(
+        textDirection: TextDirection.rtl,
+        spacing: 6,
+        runSpacing: 6,
+        children: keys.map((key) {
+          final item = byKey[key]!;
+          final bg = item['background'] as Color;
+          final fg = item['foreground'] as Color;
+          final radius = sxDouble(settings['policy_button_radius'], 18);
+          final font = sxDouble(settings['policy_button_font_size'], 9);
+
+          return InkWell(
+            onTap: () => showDialog<void>(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: Text(
+                  sxText(item['title']),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+                ),
+                content: SingleChildScrollView(
+                  child: Text(
+                    sxText(item['text']),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(fontSize: 10.5, height: 1.7),
                   ),
                 ),
-                icon: Icon(orderedItems[i]['icon'] as IconData, size: 18),
-                style: FilledButton.styleFrom(
-                  backgroundColor: orderedItems[i]['background'] as Color,
-                  foregroundColor: orderedItems[i]['foreground'] as Color,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      sxDouble(settings['policy_button_radius'], 8),
-                    ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('إغلاق'),
                   ),
-                ),
-                label: Text(
-                  sxText(orderedItems[i]['title']),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: sxDouble(settings['policy_button_font_size'], 9),
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                ],
               ),
             ),
-            if (i < orderedItems.length - 1)
-              SizedBox(height: sxDouble(settings['policy_button_gap'], 6)),
-          ],
-        ],
+            borderRadius: BorderRadius.circular(radius),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(radius),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                textDirection: TextDirection.rtl,
+                children: [
+                  Icon(
+                    item['icon'] as IconData,
+                    size: font + 7,
+                    color: fg,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    sxText(item['title']),
+                    style: TextStyle(
+                      fontSize: font,
+                      fontWeight: FontWeight.w900,
+                      color: fg,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 }
+
 class _ReviewSection extends StatelessWidget {
   final double average;
   final int count;
@@ -3400,8 +3561,7 @@ class _DetailBadgeStrip extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
-          SizedBox(height: gap + 1),
+          if (gap > 0) SizedBox(height: gap),
           Wrap(
             textDirection: TextDirection.rtl,
             spacing: gap,
@@ -3725,7 +3885,12 @@ class _SizeGuideButton extends StatelessWidget {
 
 class _SizeGuideDialog extends StatefulWidget {
   final Map<String, dynamic> guide;
-  const _SizeGuideDialog({required this.guide});
+  final int? initialSizeId;
+
+  const _SizeGuideDialog({
+    required this.guide,
+    this.initialSizeId,
+  });
 
   @override
   State<_SizeGuideDialog> createState() => _SizeGuideDialogState();
@@ -3733,6 +3898,21 @@ class _SizeGuideDialog extends StatefulWidget {
 
 class _SizeGuideDialogState extends State<_SizeGuideDialog> {
   int? selectedIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    final rawRows = widget.guide['rows'];
+    if (widget.initialSizeId != null && rawRows is List) {
+      for (var i = 0; i < rawRows.length; i++) {
+        final row = rawRows[i];
+        if (row is Map && sxInt(row['size_id']) == widget.initialSizeId) {
+          selectedIndex = i;
+          break;
+        }
+      }
+    }
+  }
 
   String _value(Map<String, dynamic> map, String key) {
     final value = sxText(map[key]);
