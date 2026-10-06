@@ -115,9 +115,9 @@
         <div class="detail-box" draggable="true">
           <div class="detail-box-head">
             <span class="sort-handle">⋮⋮</span>
-            <input type="text" class="group-title" value="{{ group.title }}" maxlength="80" placeholder="اسم المستطيل">
+            <input type="text" class="group-title" value="{{ group["title"] }}" maxlength="80" placeholder="اسم المستطيل">
             <label class="pds-check" style="margin:0;padding:7px 9px;">
-              <input type="checkbox" class="group-show" {% if group.show != false %}checked{% endif %}>
+              <input type="checkbox" class="group-show" {% if group["show"] != false %}checked{% endif %}>
               <span>إظهار</span>
             </label>
             <div class="sort-actions">
@@ -127,7 +127,7 @@
             </div>
           </div>
           <div class="detail-box-items">
-            {% for key in group.items %}
+            {% for key in group["items"] %}
             <div class="detail-box-item">
               <span class="sort-handle">☷</span>
               <select class="group-item-key">
@@ -140,7 +140,7 @@
               <button type="button" data-item-remove>×</button>
             </div>
             {% endfor %}
-            {% if not group.items %}<div class="detail-box-empty">أضف أول عنصر إلى هذا المستطيل.</div>{% endif %}
+            {% if not group["items"] %}<div class="detail-box-empty">أضف أول عنصر إلى هذا المستطيل.</div>{% endif %}
           </div>
           <div class="detail-box-add">
             <select class="group-add-select">
@@ -191,7 +191,7 @@
     <section class="pds-panel">
       <div class="pds-head">
         <span class="eyebrow">{{ loop.index + 1 }} · إعداد</span>
-        <h3>{{ group.title }}</h3>
+        <h3>{{ group["title"] }}</h3>
         <p class="muted">{{ group.hint }}</p>
       </div>
       <div class="pds-grid">
