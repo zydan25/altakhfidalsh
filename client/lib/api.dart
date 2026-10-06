@@ -6,6 +6,7 @@ import 'models.dart';
 
 class ApiService {
   static const _homeCachePrefix = 'storefront_home_v5_';
+  static const _trendsCacheKey = 'storefront_trends_v1';
   // v6 invalidates older result caches after the circle-result filtering fixes.
   // v7 includes trend/hashtag/meta payloads used by the product-card renderer.
   static const _feedCachePrefix = 'storefront_feed_v8_';
@@ -190,13 +191,49 @@ class ApiService {
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>CategoryModel.fromJson(Map<String,dynamic>.from(e))).toList();
   }
   Future<Map<String,dynamic>> trendsPage() async {
-    final d = Map<String, dynamic>.from(
-      await get(
-        '/catalog/trends',
-        q: {'_trends_ts': DateTime.now().millisecondsSinceEpoch.toString()},
-      ),
-    );
-    return d;
+    try {
+      final d = Map<String, dynamic>.from(
+        await get(
+          '/catalog/trends',
+          q: {'_trends_ts': DateTime.now().millisecondsSinceEpoch.toString()},
+        ),
+      );
+      // Keep the last successful trend payload so a transient API/network
+      // failure cannot blank the whole Trends screen.
+      await _saveJson(_trendsCacheKey, d);
+      return d;
+    } catch (_) {
+      // First fall back to the last known-good payload.
+      final cached = await _readJson(_trendsCacheKey);
+      if (cached is Map) {
+        final cachedMap = Map<String, dynamic>.from(cached);
+        if (cachedMap['items'] is List && (cachedMap['items'] as List).isNotEmpty) {
+          return cachedMap;
+        }
+      }
+
+      // The home endpoint carries the same trend data. Use it as a server-side
+      // compatibility fallback when /catalog/trends is temporarily unavailable.
+      try {
+        final homePayload = await home();
+        final fallback = <String, dynamic>{
+          'items': homePayload['trends'] is List ? homePayload['trends'] : const [],
+          'hashtags': homePayload['trend_hashtags'] is List
+              ? homePayload['trend_hashtags']
+              : const [],
+          'settings': homePayload['trend_settings'] is Map
+              ? homePayload['trend_settings']
+              : <String, dynamic>{},
+          'product_card_settings': homePayload['product_card_settings'] is Map
+              ? homePayload['product_card_settings']
+              : <String, dynamic>{},
+        };
+        await _saveJson(_trendsCacheKey, fallback);
+        return fallback;
+      } catch (_) {}
+
+      rethrow;
+    }
   }
 
   Future<Map<String,dynamic>> home({int? rootCategoryId}) async {
