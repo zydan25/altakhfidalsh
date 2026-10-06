@@ -637,7 +637,12 @@ class _SxProductScreenState extends State<SxProductScreen> {
           );
         case 'sizes':
           final sizeGuide = _asMap(data['size_guide']);
-          final guideRows = _maps(sizeGuide['rows']);
+          final guideRows = sizeGuide['rows'] is List
+        ? (sizeGuide['rows'] as List)
+            .whereType<Map>()
+            .map((x) => Map<String, dynamic>.from(x))
+            .toList()
+        : <Map<String, dynamic>>[];
           final selectedGuideIndex = guideRows.indexWhere(
             (row) => sxInt(row['size_id']) == sxInt(sizeId),
           );
