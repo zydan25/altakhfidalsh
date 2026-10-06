@@ -727,6 +727,8 @@ class SizeGuide(TimestampMixin, ActiveMixin, db.Model):
     guide_type = db.Column(String(40), nullable=False, default="product")
     fit_type = db.Column(String(40))
     intro_text = db.Column(Text)
+    product_columns_json = db.Column(db.JSON, nullable=False, default=list, server_default="[]")
+    body_columns_json = db.Column(db.JSON, nullable=False, default=list, server_default="[]")
 
 
 class SizeGuideRow(TimestampMixin, db.Model):
