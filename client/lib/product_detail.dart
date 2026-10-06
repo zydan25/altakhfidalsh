@@ -797,39 +797,50 @@ class _SxProductScreenState extends State<SxProductScreen> {
     var variantRendered = false;
     var policyRendered = false;
 
-    Widget variantBox() => _DetailVariantSelectionBox(
-      media: media,
-      page: page,
-      colors: colors,
-      sizes: sizes,
-      variants: _maps(data['variants']),
-      selectedColorId: selectedColorId,
-      selectedSizeId: sizeId,
-      colorThumbUrls: _colorThumbUrls(colors, media),
-      detailSettings: detailSettings,
-      showThumbs: detailSettings['thumbs_show'] != false,
-      showSizes: detailSettings['sizes_show'] != false,
-      showColors: detailSettings['colors_show'] != false,
-      sizeGuide: (() {
-        final guide = _asMap(data['size_guide']);
-        if (guide.isNotEmpty) return guide;
-        return <String, dynamic>{
-          'name': 'دليل المقاسات',
-          'intro_text': 'اختر المقاس من الجدول لعرض القياسات بالكامل.',
-          'rows': sizes.map((item) => <String, dynamic>{
-            'size_id': sxInt(item['id']),
-            'size_label': sxText(item['label'], sxText(item['code'], '—')),
-            'size_code': sxText(item['code']),
-            'product_measurements': <String, dynamic>{},
-            'body_measurements': <String, dynamic>{},
-          }).toList(),
-        };
-      })(),
-      showSizeGuide: detailSettings['size_guide_show'] != false,
-      onGalleryChanged: _onGalleryPageChanged,
-      onColor: _selectColor,
-      onSize: (value) => setState(() => sizeId = value),
-    );
+    _DetailVariantSelectionBox variantBox([List<String>? requestedOrder]) =>
+        _DetailVariantSelectionBox(
+          media: media,
+          page: page,
+          colors: colors,
+          sizes: sizes,
+          variants: _maps(data['variants']),
+          selectedColorId: selectedColorId,
+          selectedSizeId: sizeId,
+          colorThumbUrls: _colorThumbUrls(colors, media),
+          detailSettings: detailSettings,
+          itemOrder: requestedOrder ??
+              const <String>['thumbs', 'colors', 'sizes', 'size_guide'],
+          showThumbs: detailSettings['thumbs_show'] != false,
+          showSizes: detailSettings['sizes_show'] != false,
+          showColors: detailSettings['colors_show'] != false,
+          sizeGuide: (() {
+            final guide = _asMap(data['size_guide']);
+            if (guide.isNotEmpty) return guide;
+            return <String, dynamic>{
+              'name': 'دليل المقاسات',
+              'intro_text': 'اختر المقاس من الجدول لعرض القياسات بالكامل.',
+              'product_columns': const <dynamic>[
+                {'key': 'length', 'label': 'الطول', 'unit': 'سم'},
+                {'key': 'width', 'label': 'العرض', 'unit': 'سم'},
+              ],
+              'body_columns': const <dynamic>[
+                {'key': 'chest', 'label': 'الصدر', 'unit': 'سم'},
+                {'key': 'waist', 'label': 'الخصر', 'unit': 'سم'},
+              ],
+              'rows': sizes.map((item) => <String, dynamic>{
+                'size_id': sxInt(item['id']),
+                'size_label': sxText(item['label'], sxText(item['code'], '—')),
+                'size_code': sxText(item['code']),
+                'product_measurements': <String, dynamic>{},
+                'body_measurements': <String, dynamic>{},
+              }).toList(),
+            };
+          })(),
+          showSizeGuide: detailSettings['size_guide_show'] != false,
+          onGalleryChanged: _onGalleryPageChanged,
+          onColor: _selectColor,
+          onSize: (value) => setState(() => sizeId = value),
+        );
 
     Widget policyBox() => _DeliveryPolicyBox(
       deliveryBadges: _maps(data['delivery_badges']),
@@ -839,16 +850,13 @@ class _SxProductScreenState extends State<SxProductScreen> {
 
     Widget renderGroup(String title, List<String> keys) {
       final children = <Widget>[];
-      var groupVariant = false;
+      final variantOrder = <String>[];
       var groupPolicy = false;
+
       for (final key in keys) {
         if (key == 'gallery') continue;
         if (variantKeys.contains(key)) {
-          if (!groupVariant) {
-            groupVariant = true;
-            children.add(variantBox());
-            variantRendered = true;
-          }
+          if (!variantOrder.contains(key)) variantOrder.add(key);
           continue;
         }
         if (policyKeys.contains(key)) {
@@ -862,6 +870,12 @@ class _SxProductScreenState extends State<SxProductScreen> {
         final section = detailSection(key);
         if (section != null) children.add(section);
       }
+
+      if (variantOrder.isNotEmpty) {
+        children.insert(0, variantBox(variantOrder));
+        variantRendered = true;
+      }
+
       if (children.isEmpty) return const SizedBox.shrink();
       return _DetailGroupBox(
         title: title,
