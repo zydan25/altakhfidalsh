@@ -4494,7 +4494,7 @@ class _SxResultsState extends State<SxResults> {
                                       id: product.id,
                                       cartBuilder: (_) => const SxCartScreen(),
                                     ))),
-                                masonry: false,
+                                masonry: true,
                                 displaySettings:
                                     home['product_card_settings'] is Map
                                         ? Map<String, dynamic>.from(
@@ -5914,38 +5914,17 @@ class _SxTrendsScreenState extends State<SxTrendsScreen> {
                                     ui['picks_section_background_color'],
                                     const Color(0xFFF3F3F3),
                                   ),
-                                  padding: EdgeInsets.only(
-                                    top: 6 * scale,
-                                    bottom: 6 * scale,
-                                  ),
-                                  child: GridView.builder(
-                                    primary: false,
-                                    shrinkWrap: true,
-                                    physics:
-                                        const NeverScrollableScrollPhysics(),
-                                    padding: EdgeInsets.zero,
-                                    itemCount: picks.length,
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
-                                      crossAxisSpacing: 4 * scale,
-                                      mainAxisSpacing: 5 * scale,
-                                      mainAxisExtent: picksExtent,
-                                    ),
-                                    itemBuilder: (_, i) => Container(
-                                      color: Colors.white,
-                                      child: _TrendProductTile(
-                                        product: picks[i],
-                                        hashtag: hashtagId == null
-                                            ? null
-                                            : trendTags.firstWhere(
-                                                (x) =>
-                                                    sxInt(x['id']) == hashtagId,
-                                                orElse: () =>
-                                                    <String, dynamic>{},
-                                              ),
-                                        ui: ui,
-                                        displaySettings: productCardSettings,
+                                  child: SxProductGrid(
+                                    products: picks,
+                                    masonry: true,
+                                    displaySettings: productCardSettings,
+                                    onProductTap: (product) => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => SxProductScreen(
+                                          id: product.id,
+                                          cartBuilder: (_) => const SxCartScreen(),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -7572,14 +7551,40 @@ class _TrendProductTileState extends State<_TrendProductTile> {
   }
 }
 
-class SxTrendDetailScreen extends StatelessWidget {
+class SxTrendDetailScreen extends StatefulWidget {
   final Map<String, dynamic> trend;
 
   const SxTrendDetailScreen({super.key, required this.trend});
 
   @override
+  State<SxTrendDetailScreen> createState() => _SxTrendDetailScreenState();
+}
+
+class _SxTrendDetailScreenState extends State<SxTrendDetailScreen> {
+  Map<String, dynamic> productCardSettings = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProductCardSettings();
+  }
+
+  Future<void> _loadProductCardSettings() async {
+    try {
+      final payload = await api.trendsPage();
+      final settings = payload['product_card_settings'];
+      if (!mounted) return;
+      setState(() {
+        productCardSettings = settings is Map
+            ? Map<String, dynamic>.from(settings)
+            : <String, dynamic>{};
+      });
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final products = sxMaps(trend['products'])
+    final products = sxMaps(widget.trend['products'])
         .map((x) => x['product'])
         .whereType<Map>()
         .map((x) => ProductModel.fromJson(Map<String, dynamic>.from(x)))
@@ -7587,7 +7592,7 @@ class SxTrendDetailScreen extends StatelessWidget {
 
     return SxShellPage(
       title: sxText(
-        (trend['hashtag'] as Map?)?['display_name'],
+        (widget.trend['hashtag'] as Map?)?['display_name'],
         'الترند',
       ),
       back: true,
@@ -7596,14 +7601,14 @@ class SxTrendDetailScreen extends StatelessWidget {
           SizedBox(
             height: 285,
             child: SxImage(
-              url: (trend['background'] as Map?)?['url'],
+              url: (widget.trend['background'] as Map?)?['url'],
               fit: BoxFit.cover,
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(15),
             child: Text(
-              sxText(trend['promo_text']),
+              sxText(widget.trend['promo_text']),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 17,
@@ -7614,10 +7619,20 @@ class SxTrendDetailScreen extends StatelessWidget {
           const SxSectionTitle(title: 'منتجات الترند'),
           Padding(
             padding: const EdgeInsets.fromLTRB(7, 0, 7, 20),
-            child: SxProductGrid(products: products, onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(
-                                      id: product.id,
-                                      cartBuilder: (_) => const SxCartScreen(),
-                                    )))),
+            child: SxProductGrid(
+              products: products,
+              masonry: true,
+              displaySettings: productCardSettings,
+              onProductTap: (product) => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SxProductScreen(
+                    id: product.id,
+                    cartBuilder: (_) => const SxCartScreen(),
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -11512,16 +11527,56 @@ class SxWishlistScreen extends StatefulWidget {
   @override State<SxWishlistScreen> createState() => _SxWishlistScreenState();
 }
 class _SxWishlistScreenState extends State<SxWishlistScreen> {
-  List<ProductModel> products = []; bool loading = true;
-  @override void initState() { super.initState(); load(); }
+  List<ProductModel> products = [];
+  Map<String, dynamic> productCardSettings = {};
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
   Future<void> load() async {
-    try { final ids = await api.wishlistIds(); state.wishlist = ids.toSet(); final all = await api.feed(currencyId: state.currencyId); products = all.where((x) => ids.contains(x.id)).toList(); } catch (_) {}
+    try {
+      final home = await api.home();
+      final ids = await api.wishlistIds();
+      final all = await api.feed(currencyId: state.currencyId);
+      state.wishlist = ids.toSet();
+      products = all.where((x) => ids.contains(x.id)).toList();
+      productCardSettings = home['product_card_settings'] is Map
+          ? Map<String, dynamic>.from(home['product_card_settings'] as Map)
+          : <String, dynamic>{};
+    } catch (_) {}
     if (mounted) setState(() => loading = false);
   }
-  @override Widget build(BuildContext context) => SxShellPage(title: 'المفضلة', back: true, child: loading ? const Center(child: CircularProgressIndicator(strokeWidth: 2)) : ListView(padding: const EdgeInsets.fromLTRB(7, 8, 7, 20), children: [SxProductGrid(products: products, onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(
-                                      id: product.id,
-                                      cartBuilder: (_) => const SxCartScreen(),
-                                    ))))]));
+
+  @override
+  Widget build(BuildContext context) => SxShellPage(
+    title: 'المفضلة',
+    back: true,
+    child: loading
+        ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+        : ListView(
+            padding: const EdgeInsets.fromLTRB(7, 8, 7, 20),
+            children: [
+              SxProductGrid(
+                products: products,
+                masonry: true,
+                displaySettings: productCardSettings,
+                onProductTap: (product) => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SxProductScreen(
+                      id: product.id,
+                      cartBuilder: (_) => const SxCartScreen(),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+  );
 }
 
 class SxNotificationsScreen extends StatefulWidget {
@@ -12288,18 +12343,83 @@ class _SxLooksScreenState extends State<SxLooksScreen> {
     )),
   ]));
 }
-class SxLookDetail extends StatelessWidget {
-  final Map<String, dynamic> look; const SxLookDetail({super.key, required this.look});
-  @override Widget build(BuildContext context) {
-    final products = sxMaps(look['products']).map((x) => x['product']).whereType<Map>().map((x) => ProductModel.fromJson(Map<String, dynamic>.from(x))).toList();
-    return SxShellPage(title: sxText(look['name'], 'الإطلالة'), back: true, child: ListView(children: [
-      SizedBox(height: 370, child: SxImage(url: look['cover_url'])),
-      Padding(padding: const EdgeInsets.all(14), child: Text(sxText(look['description']), style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, height: 1.5))),
-      const SxSectionTitle(title: 'تسوق الإطلالة'), Padding(padding: const EdgeInsets.fromLTRB(7, 0, 7, 20), child: SxProductGrid(products: products, onProductTap: (product) => Navigator.push(context, MaterialPageRoute(builder: (_) => SxProductScreen(
-                                      id: product.id,
-                                      cartBuilder: (_) => const SxCartScreen(),
-                                    ))))),
-    ]));
+class SxLookDetail extends StatefulWidget {
+  final Map<String, dynamic> look;
+
+  const SxLookDetail({super.key, required this.look});
+
+  @override
+  State<SxLookDetail> createState() => _SxLookDetailState();
+}
+
+class _SxLookDetailState extends State<SxLookDetail> {
+  Map<String, dynamic> productCardSettings = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProductCardSettings();
+  }
+
+  Future<void> _loadProductCardSettings() async {
+    try {
+      final payload = await api.home();
+      final settings = payload['product_card_settings'];
+      if (!mounted) return;
+      setState(() {
+        productCardSettings = settings is Map
+            ? Map<String, dynamic>.from(settings)
+            : <String, dynamic>{};
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final products = sxMaps(widget.look['products'])
+        .map((x) => x['product'])
+        .whereType<Map>()
+        .map((x) => ProductModel.fromJson(Map<String, dynamic>.from(x)))
+        .toList();
+
+    return SxShellPage(
+      title: sxText(widget.look['name'], 'الإطلالة'),
+      back: true,
+      child: ListView(
+        children: [
+          SizedBox(height: 370, child: SxImage(url: widget.look['cover_url'])),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Text(
+              sxText(widget.look['description']),
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                height: 1.5,
+              ),
+            ),
+          ),
+          const SxSectionTitle(title: 'تسوق الإطلالة'),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(7, 0, 7, 20),
+            child: SxProductGrid(
+              products: products,
+              masonry: true,
+              displaySettings: productCardSettings,
+              onProductTap: (product) => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SxProductScreen(
+                    id: product.id,
+                    cartBuilder: (_) => const SxCartScreen(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
