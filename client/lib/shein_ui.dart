@@ -1320,14 +1320,6 @@ class _HomeFixedHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (loading && home.isEmpty) {
-      return const Scaffold(
-        backgroundColor: Colors.white,
-        body: Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    }
     final tabs = <CategoryModel>[
       const CategoryModel(id: -1, name: 'الكل'),
       ...roots,
@@ -2672,7 +2664,27 @@ class _SxStoreLocationsState extends State<SxStoreLocations> {
             ),
           ),
           if (widget.locations.length > 1)
-            Padding(padding: const EdgeInsets.only(top: 7), child: Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(widget.locations.length, (i) => AnimatedContainer(duration: const Duration(milliseconds: 140), width: i == _locationPage ? 16 : 4, height: 3, margin: const EdgeInsets.symmetric(horizontal: 2), decoration: BoxDecoration(color: i == _locationPage ? Colors.black : const Color(0xFFBDBDBD), borderRadius: BorderRadius.circular(10))))),
+            Padding(
+              padding: const EdgeInsets.only(top: 7),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  widget.locations.length,
+                  (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 140),
+                    width: i == _locationPage ? 16 : 4,
+                    height: 3,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      color: i == _locationPage
+                          ? Colors.black
+                          : const Color(0xFFBDBDBD),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );
