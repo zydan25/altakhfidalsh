@@ -174,7 +174,8 @@
     card_background_color:'خلفية البطاقة', card_background_opacity:'شفافية خلفية البطاقة', card_radius:'نصف قطر البطاقة',
     show_name:'إظهار اسم المنتج', name_font_size:'حجم اسم المنتج', name_font_weight:'وزن اسم المنتج', name_color:'لون الاسم',
     name_background_color:'خلفية الاسم', name_background_opacity:'شفافية خلفية الاسم', name_max_lines:'أقصى أسطر للاسم',
-    show_short_description:'إظهار الوصف القصير', short_description_font_size:'حجم الوصف القصير', short_description_font_weight:'وزن الوصف القصير',
+    name_overflow:'طريقة تجاوز الاسم الطويل',
+    show_short_description:'إظهار الوصف القصير', short_description_position:'موضع الوصف القصير', short_description_font_size:'حجم الوصف القصير', short_description_font_weight:'وزن الوصف القصير',
     short_description_color:'لون الوصف القصير', short_description_background_color:'خلفية الوصف القصير', short_description_background_opacity:'شفافية خلفية الوصف', short_description_max_lines:'أسطر الوصف',
     show_price:'إظهار السعر', price_font_size:'حجم السعر', price_font_weight:'وزن السعر', price_color:'لون السعر',
     price_background_color:'خلفية السعر', price_background_opacity:'شفافية خلفية السعر',
@@ -194,13 +195,20 @@
     colors_gap:'المسافة بين الألوان', colors_max:'عدد الألوان', colors_container_size:'حجم حاوية اللون', colors_border_width:'سُمك حدود اللون',
     meta_show:'إظهار المعلومة العلوية', meta_position:'موقع المعلومة', meta_font_size:'حجم المعلومة',
     meta_background_color:'خلفية المعلومة', meta_text_color:'لون المعلومة', meta_radius:'تدوير المعلومة',
+    rating_show:'إظهار التقييم', rating_position:'موضع التقييم', rating_font_size:'حجم نص التقييم', rating_icon_size:'حجم النجمة', rating_review_count_show:'إظهار عدد المراجعات', rating_review_count_font_size:'حجم عدد المراجعات', rating_color:'لون التقييم',
+    quick_add_show:'إظهار زر الإضافة', quick_add_icon:'أيقونة زر الإضافة', quick_add_size:'حجم زر الإضافة', quick_add_position:'موقع زر الإضافة', quick_add_radius:'تدوير زر الإضافة', quick_add_opacity:'شفافية زر الإضافة', quick_add_background_color:'خلفية زر الإضافة', quick_add_icon_color:'لون أيقونة زر الإضافة',
+    image_flip_effect:'حركة تقليب الصور', image_flip_duration_ms:'مدة تقليب الصور';
     meta_padding_horizontal:'الحشو الأفقي للمعلومة', meta_padding_vertical:'الحشو الرأسي للمعلومة',
     discount_badge_background_color:'خلفية شارة الخصم', discount_badge_text_color:'لون نص شارة الخصم',
     discount_badge_font_size:'حجم شارة الخصم', discount_badge_font_weight:'وزن شارة الخصم', discount_badge_radius:'تدوير شارة الخصم'
   };
   const groups = [
-    ['الخلفية والاسم',['card_','show_name','name_','show_short_description','short_description_']],
+    ['الخلفية والاسم',['card_','show_name','name_']],
+    ['الوصف القصير',['show_short_description','short_description_']],
     ['السعر والعملة',['show_price','price_','show_compare_price','compare_price_','show_currency','currency_']],
+    ['التقييم',['rating_']],
+    ['زر الإضافة السريعة',['quick_add_']],
+    ['تقليب الصور',['image_flip_']],
     ['المقاس والعلامة',['show_size','size_','show_brand','brand_']],
     ['الخصم والترند',['discount_badge_','show_trend_badge','trend_badge_','show_trend_hashtag','trend_hashtag_','trend_']],
     ['ألوان المنتج والمعلومة',['colors_','meta_']]
@@ -209,10 +217,26 @@
 
   function options(key) {
     if (key.endsWith('text_decoration')) return [['line_through','خط في النص'],['none','بدون']];
-    if (key==='brand_position' || key==='colors_position' || key==='meta_position') return [
+    if (key==='brand_position' || key==='colors_position' || key==='meta_position' || key==='quick_add_position') return [
       ['top_right','أعلى اليمين'],['top_left','أعلى اليسار'],['bottom_right','أسفل اليمين'],['bottom_left','أسفل اليسار']
     ];
     if (key==='colors_direction') return [['horizontal','أفقي'],['vertical','رأسي']];
+    if (key==='name_overflow') return [['wrap','التفاف طبيعي بدون نقاط'],['ellipsis','نقاط عند تجاوز الحد']];
+    if (key==='short_description_position') return [
+      ['before_name','قبل الاسم'],['after_name','بعد الاسم'],['before_price','قبل السعر'],
+      ['after_price','بعد السعر'],['before_rating','قبل التقييم'],['after_rating','بعد التقييم'],['end','آخر البطاقة']
+    ];
+    if (key==='rating_position') return [
+      ['before_name','قبل الاسم'],['after_name','بعد الاسم'],['before_description','قبل الوصف'],
+      ['after_description','بعد الوصف'],['before_price','قبل السعر'],['after_price','بعد السعر'],['end','آخر البطاقة']
+    ];
+    if (key==='quick_add_icon') return [
+      ['shopping_bag_outlined','حقيبة تسوق'],['shopping_cart_outlined','سلة تسوق'],
+      ['add_shopping_cart_outlined','إضافة للسلة'],['local_mall_outlined','حقيبة متجر']
+    ];
+    if (key==='image_flip_effect') return [
+      ['slide','انزلاق (الحالي)'],['fade','تلاشي'],['card_flip','تقليب بطاقة ثلاثي الأبعاد']
+    ];
     return null;
   }
   function valueControl(key, globalValue, value) {
