@@ -1117,6 +1117,220 @@ class _DetailNetworkImage extends StatelessWidget {
   }
 }
 
+class _DetailPriceBlock extends StatelessWidget {
+  final String price;
+  final String oldPrice;
+  final String currency;
+  final Map<String, dynamic> settings;
+
+  const _DetailPriceBlock({
+    required this.price,
+    required this.oldPrice,
+    required this.currency,
+    required this.settings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final showOld = settings['show_compare_price'] != false && oldPrice.trim().isNotEmpty;
+    final showCurrency = settings['show_currency'] != false;
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (settings['price_text_show'] == true)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                sxText(settings['price_text'], 'السعر الحالي'),
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: sxColor(sxText(settings['price_text_color']), const Color(0xFF6B7280)),
+                  fontSize: sxDouble(settings['price_text_font_size'], 9),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          Wrap(
+            alignment: WrapAlignment.start,
+            crossAxisAlignment: WrapCrossAlignment.end,
+            textDirection: TextDirection.rtl,
+            spacing: 7,
+            runSpacing: 5,
+            children: [
+              Text(
+                price,
+                style: TextStyle(
+                  color: sxColor(sxText(settings['price_color']), Colors.black),
+                  fontSize: sxDouble(settings['price_font_size'], 22),
+                  fontWeight: _weight(sxInt(settings['price_font_weight'], 900)),
+                  height: 1,
+                ),
+              ),
+              if (showCurrency)
+                Text(
+                  currency,
+                  style: TextStyle(
+                    color: sxColor(sxText(settings['currency_color']), Colors.black),
+                    fontSize: sxDouble(settings['currency_font_size'], 10.5),
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              if (showOld)
+                Text(
+                  oldPrice + (showCurrency ? ' ' + currency : ''),
+                  style: TextStyle(
+                    color: sxColor(sxText(settings['compare_price_color']), const Color(0xFF9CA3AF)),
+                    fontSize: sxDouble(settings['compare_price_font_size'], 10),
+                    decoration: sxText(settings['compare_price_text_decoration'], 'line_through') == 'line_through'
+                        ? TextDecoration.lineThrough
+                        : TextDecoration.none,
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailNameBlock extends StatelessWidget {
+  final String name;
+  final Map<String, dynamic> settings;
+  const _DetailNameBlock({required this.name, required this.settings});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(top: 6),
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Text(
+          name,
+          textAlign: TextAlign.right,
+          maxLines: sxInt(settings['name_max_lines'], 4).clamp(2, 6).toInt(),
+          overflow: TextOverflow.clip,
+          style: TextStyle(
+            color: sxColor(sxText(settings['name_color']), Colors.black),
+            fontSize: sxDouble(settings['name_font_size'], 20),
+            fontWeight: _weight(sxInt(settings['name_font_weight'], 800)),
+            height: 1.3,
+          ),
+        ),
+      );
+}
+
+class _DetailBrandBlock extends StatelessWidget {
+  final String brand;
+  final Map<String, dynamic> settings;
+  const _DetailBrandBlock({required this.brand, required this.settings});
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(top: 6),
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Text(
+          brand,
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            color: sxColor(sxText(settings['brand_color']), ClientTheme.muted),
+            fontSize: sxDouble(settings['brand_font_size'], 10),
+            fontWeight: _weight(sxInt(settings['brand_font_weight'], 800)),
+          ),
+        ),
+      );
+}
+
+class _DetailRatingBlock extends StatelessWidget {
+  final double average;
+  final int reviewCount;
+  final Map<String, dynamic> settings;
+  const _DetailRatingBlock({
+    required this.average,
+    required this.reviewCount,
+    required this.settings,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(top: 6),
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
+        child: Row(
+          textDirection: TextDirection.rtl,
+          children: [
+            Icon(
+              Icons.star_rounded,
+              size: sxDouble(settings['rating_icon_size'], 14),
+              color: sxColor(sxText(settings['rating_color']), const Color(0xFFFFB400)),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              average > 0 ? average.toStringAsFixed(1) : '—',
+              style: TextStyle(
+                fontSize: sxDouble(settings['rating_font_size'], 10),
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            if (settings['rating_review_count_show'] != false) ...[
+              const SizedBox(width: 5),
+              Text(
+                '· $reviewCount تقييم',
+                style: TextStyle(
+                  fontSize: sxDouble(settings['rating_review_count_font_size'], 8),
+                  color: ClientTheme.muted,
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+}
+
+class _RelatedProductsSection extends StatelessWidget {
+  final List<ProductModel> related;
+  final double titleFontSize;
+
+  const _RelatedProductsSection({
+    required this.related,
+    required this.titleFontSize,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 12, 10, 8),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'قد يعجبك أيضًا',
+                  style: TextStyle(fontSize: titleFontSize, fontWeight: FontWeight.w900),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(7, 0, 7, 20),
+              child: SxProductGrid(
+                products: related,
+                masonry: false,
+                onProductTap: (product) => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => SxProductScreen(id: product.id)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
 class _ProductHeroInfo extends StatelessWidget {
   final String name;
   final String brand;
@@ -2037,70 +2251,91 @@ class _DetailSection extends StatelessWidget {
   final String title;
   final IconData icon;
   final String text;
+  final Map<String, dynamic> settings;
+
   const _DetailSection({
     required this.title,
     required this.icon,
     required this.text,
+    this.settings = const {},
   });
 
   @override
   Widget build(BuildContext context) => Container(
         margin: const EdgeInsets.only(top: 6),
-        color: Colors.white,
-        child: ExpansionTile(
-          tilePadding: const EdgeInsets.symmetric(horizontal: 12),
-          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
-          title: Row(
-            children: [
-              Icon(icon, size: 17),
-              const SizedBox(width: 8),
-              Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
-            ],
-          ),
+        color: sxColor(sxText(settings['details_background_color']), Colors.white),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                text.isEmpty ? 'لا توجد تفاصيل إضافية لهذا المنتج.' : text,
-                style: const TextStyle(fontSize: 10.5, height: 1.65, color: Color(0xFF4B5563)),
+            Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 17,
+                  color: sxColor(sxText(settings['details_title_color']), Colors.black),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: sxDouble(settings['details_title_font_size'], 13),
+                    fontWeight: FontWeight.w900,
+                    color: sxColor(sxText(settings['details_title_color']), Colors.black),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 9),
+            Text(
+              text.isEmpty ? 'لا توجد تفاصيل إضافية لهذا المنتج.' : text,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: sxDouble(settings['details_text_font_size'], 10.5),
+                height: 1.65,
+                color: sxColor(sxText(settings['details_text_color']), const Color(0xFF4B5563)),
               ),
             ),
           ],
         ),
       );
 }
-
 class _PolicySections extends StatelessWidget {
   final Map<String, dynamic> policies;
-  const _PolicySections({required this.policies});
+  final Map<String, dynamic> settings;
+
+  const _PolicySections({
+    required this.policies,
+    required this.settings,
+  });
+
+  Map<String, dynamic> _map(dynamic value) =>
+      value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
 
   @override
   Widget build(BuildContext context) {
-    final shipping = _asMap(policies['shipping']);
-    final returning = _asMap(policies['return']);
-    final warranty = _asMap(policies['warranty']);
-    final widgets = <Widget>[];
-
-    if (shipping.isNotEmpty) {
-      widgets.add(
-        _DetailSection(
-          title: 'الشحن والتوصيل',
-          icon: Icons.local_shipping_outlined,
-          text: <String>[
+    final shipping = _map(policies['shipping']);
+    final returning = _map(policies['return']);
+    final warranty = _map(policies['warranty']);
+    final items = <Map<String, dynamic>>[
+      if (shipping.isNotEmpty)
+        {
+          'title': 'الشحن والتوصيل',
+          'icon': Icons.local_shipping_outlined,
+          'text': <String>[
             sxText(shipping['name']),
             sxText(shipping['promo_text']),
             if (sxText(shipping['delivery_window']).isNotEmpty)
               'مدة التوصيل: ' + sxText(shipping['delivery_window']),
           ].where((x) => x.trim().isNotEmpty).join('\n\n'),
-        ),
-      );
-    }
-    if (returning.isNotEmpty) {
-      widgets.add(
-        _DetailSection(
-          title: 'الإرجاع والاسترداد',
-          icon: Icons.assignment_return_outlined,
-          text: <String>[
+          'background': sxColor(sxText(settings['shipping_button_color']), Colors.black),
+          'foreground': sxColor(sxText(settings['shipping_button_text_color']), Colors.white),
+        },
+      if (returning.isNotEmpty)
+        {
+          'title': 'الإرجاع والاسترداد',
+          'icon': Icons.assignment_return_outlined,
+          'text': <String>[
             sxText(returning['name']),
             if (sxInt(returning['return_window_days']) > 0)
               'مدة الإرجاع: ' + sxInt(returning['return_window_days']).toString() + ' يومًا',
@@ -2110,15 +2345,14 @@ class _PolicySections extends StatelessWidget {
             if (sxText(returning['refund_method']).isNotEmpty)
               'طريقة الاسترداد: ' + sxText(returning['refund_method']),
           ].where((x) => x.trim().isNotEmpty).join('\n\n'),
-        ),
-      );
-    }
-    if (warranty.isNotEmpty) {
-      widgets.add(
-        _DetailSection(
-          title: 'الضمان',
-          icon: Icons.verified_user_outlined,
-          text: <String>[
+          'background': sxColor(sxText(settings['returns_button_color']), const Color(0xFFF3F4F6)),
+          'foreground': sxColor(sxText(settings['returns_button_text_color']), Colors.black),
+        },
+      if (warranty.isNotEmpty)
+        {
+          'title': 'الضمان',
+          'icon': Icons.verified_user_outlined,
+          'text': <String>[
             sxText(warranty['name']),
             if (sxInt(warranty['duration_days']) > 0)
               'المدة: ' + sxInt(warranty['duration_days']).toString() + ' يومًا',
@@ -2128,23 +2362,104 @@ class _PolicySections extends StatelessWidget {
             if (sxText(warranty['claim_method']).isNotEmpty)
               'طريقة المطالبة: ' + sxText(warranty['claim_method']),
           ].where((x) => x.trim().isNotEmpty).join('\n\n'),
-        ),
-      );
-    }
-    return Column(children: widgets);
+          'background': sxColor(sxText(settings['warranty_button_color']), const Color(0xFFF3F4F6)),
+          'foreground': sxColor(sxText(settings['warranty_button_text_color']), Colors.black),
+        },
+      {
+        'title': 'الدفع',
+        'icon': Icons.lock_outline,
+        'text': 'الدفع يتم وفق طرق الدفع المتاحة عند إتمام الطلب.',
+        'background': sxColor(sxText(settings['payment_button_color']), const Color(0xFFF3F4F6)),
+        'foreground': sxColor(sxText(settings['payment_button_text_color']), Colors.black),
+      },
+    ];
+    if (items.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('السياسات والخدمات', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900)),
+          const SizedBox(height: 8),
+          for (var i = 0; i < items.length; i++) ...[
+            SizedBox(
+              height: sxDouble(settings['policy_button_height'], 52),
+              child: FilledButton.icon(
+                onPressed: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: Row(
+                      children: [
+                        Icon(items[i]['icon'] as IconData, size: 20),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            sxText(items[i]['title']),
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                      ],
+                    ),
+                    content: SingleChildScrollView(
+                      child: Text(
+                        sxText(items[i]['text']),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(fontSize: 10.5, height: 1.7),
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('إغلاق'),
+                      ),
+                    ],
+                  ),
+                ),
+                icon: Icon(items[i]['icon'] as IconData, size: 18),
+                style: FilledButton.styleFrom(
+                  backgroundColor: items[i]['background'] as Color,
+                  foregroundColor: items[i]['foreground'] as Color,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(
+                      sxDouble(settings['policy_button_radius'], 8),
+                    ),
+                  ),
+                ),
+                label: Text(
+                  sxText(items[i]['title']),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: sxDouble(settings['policy_button_font_size'], 9),
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ),
+            if (i < items.length - 1)
+              SizedBox(height: sxDouble(settings['policy_button_gap'], 6)),
+          ],
+        ],
+      ),
+    );
   }
 }
-
 class _ReviewSection extends StatelessWidget {
   final double average;
   final int count;
   final List<Map<String, dynamic>> reviews;
   final VoidCallback onWriteReview;
+  final Map<String, dynamic> settings;
   const _ReviewSection({
     required this.average,
     required this.count,
     required this.reviews,
     required this.onWriteReview,
+    this.settings = const {},
   });
 
   @override
@@ -2615,6 +2930,174 @@ class _SizeGuide extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _SizeGuideButton extends StatelessWidget {
+  final Map<String, dynamic> guide;
+  final Map<String, dynamic> settings;
+  const _SizeGuideButton({required this.guide, required this.settings});
+
+  @override
+  Widget build(BuildContext context) {
+    final font = sxDouble(settings['size_guide_font_size'], 10);
+    final fg = sxColor(sxText(settings['size_guide_color']), Colors.black);
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: OutlinedButton.icon(
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (_) => _SizeGuideDialog(guide: guide),
+          ),
+          icon: Icon(Icons.straighten_outlined, size: font + 5, color: fg),
+          label: Text(
+            'دليل المقاسات',
+            style: TextStyle(fontSize: font, fontWeight: FontWeight.w900, color: fg),
+          ),
+          style: OutlinedButton.styleFrom(
+            backgroundColor: sxColor(
+              sxText(settings['size_guide_background_color']),
+              Colors.white,
+            ),
+            side: BorderSide(color: fg),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SizeGuideDialog extends StatelessWidget {
+  final Map<String, dynamic> guide;
+  const _SizeGuideDialog({required this.guide});
+
+  String _measurement(Map<String, dynamic> map) {
+    if (map.isEmpty) return '—';
+    return map.entries
+        .map((entry) {
+          final value = sxText(entry.value);
+          return value.isEmpty ? '' : entry.key + ': ' + value;
+        })
+        .where((x) => x.isNotEmpty)
+        .join(' · ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = guide['rows'] is List
+        ? (guide['rows'] as List)
+            .whereType<Map>()
+            .map((x) => Map<String, dynamic>.from(x))
+            .toList()
+        : <Map<String, dynamic>>[];
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 28),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560, maxHeight: 620),
+        child: Directionality(
+          textDirection: TextDirection.rtl,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.straighten_outlined, size: 20),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        sxText(guide['name'], 'دليل المقاسات'),
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, size: 19),
+                    ),
+                  ],
+                ),
+                if (sxText(guide['intro_text']).isNotEmpty)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 9),
+                      child: Text(
+                        sxText(guide['intro_text']),
+                        style: const TextStyle(fontSize: 10, height: 1.5, color: ClientTheme.muted),
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: rows.isEmpty
+                      ? const Center(child: Text('لا توجد بيانات مقاسات لهذا المنتج حاليًا.'))
+                      : SingleChildScrollView(
+                          child: Table(
+                            border: TableBorder.all(color: ClientTheme.border, width: .7),
+                            columnWidths: const {
+                              0: FixedColumnWidth(68),
+                              1: FlexColumnWidth(),
+                              2: FlexColumnWidth(),
+                            },
+                            children: [
+                              const TableRow(
+                                decoration: BoxDecoration(color: Color(0xFFF5F5F5)),
+                                children: [
+                                  Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: Text('المقاس', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900)),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: Text('قياسات المنتج', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900)),
+                                  ),
+                                  Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: Text('قياسات الجسم', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900)),
+                                  ),
+                                ],
+                              ),
+                              for (final row in rows)
+                                TableRow(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: Text(
+                                        sxText(row['size_label'], sxText(row['size_code'], '—')),
+                                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: Text(
+                                        _measurement(_asMap(row['product_measurements'])),
+                                        style: const TextStyle(fontSize: 8.5, height: 1.4),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: Text(
+                                        _measurement(_asMap(row['body_measurements'])),
+                                        style: const TextStyle(fontSize: 8.5, height: 1.4),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 Map<String, dynamic> _asMap(dynamic value) =>
