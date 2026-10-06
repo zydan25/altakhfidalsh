@@ -621,6 +621,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
                   name: sxText(product['name'], 'منتج'),
                   settings: detailSettings,
                   badges: _maps(data['badges']),
+                  stockText: _inlineStockText(detailSettings),
+                  stockAvailable: _availableQtyForColor(selectedColorId) > 0,
                 );
         case 'description':
           return detailSettings['description_show'] == false || shortDescription.trim().isEmpty
@@ -742,14 +744,19 @@ class _SxProductScreenState extends State<SxProductScreen> {
                   settings: detailSettings,
                 );
         case 'stock':
-          return detailSettings['stock_show'] == false
-              ? const SizedBox.shrink()
-              : _StockStatusPanel(
-                  availableQty: _availableQty(),
-                  hasVariant: _selectedVariant() != null,
-                  fontSize: sxDouble(detailSettings['stock_font_size'], 10),
-                  textColor: sxColor(sxText(detailSettings['stock_text_color']), Colors.black),
-                );
+          if (detailSettings['stock_show'] == false ||
+              detailSettings['stock_inline_show'] == true) {
+            return const SizedBox.shrink();
+          }
+          return _StockStatusPanel(
+            availableQty: _availableQty(),
+            hasVariant: _selectedVariant() != null,
+            fontSize: sxDouble(detailSettings['stock_font_size'], 10),
+            textColor: sxColor(
+              sxText(detailSettings['stock_text_color']),
+              Colors.black,
+            ),
+          );
         case 'delivery':
           return detailSettings['delivery_show'] == false
               ? const SizedBox.shrink()
