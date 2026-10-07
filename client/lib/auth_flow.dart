@@ -6,6 +6,7 @@ import 'shein_ui.dart';
 import 'theme.dart';
 import 'widgets.dart';
 import 'notifications_service.dart';
+import 'referral_links.dart';
 
 class SxWelcomeScreen extends StatefulWidget {
   const SxWelcomeScreen({super.key});
@@ -282,7 +283,23 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
           'password': newPassword.text,
         },
       );
-      await finalizeLogin();
+
+      // The account is now authenticated. Give a brand-new customer one
+      // optional referral step; existing accounts never see this step.
+      await finalizeLogin(redirectToHome: false);
+      final referralCode = await ReferralLinkService.takePendingCode();
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => SxReferralOnboardingScreen(initialCode: referralCode),
+        ),
+      );
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const SxAppShell()),
+        (_) => false,
+      );
     } catch (e) { fail(e); }
     finally { if (mounted) setState(() => busy = false); }
   }
@@ -321,7 +338,7 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
     finally { if (mounted) setState(() => busy = false); }
   }
 
-  Future<void> finalizeLogin() async {
+  Future<void> finalizeLogin({bool redirectToHome = true}) async {
     try { await api.acceptPrivacy(); } catch (_) {}
     await state.restorePreferences();
 
@@ -358,7 +375,7 @@ class _SxAuthFlowScreenState extends State<SxAuthFlowScreen> {
     }
 
     await AltakhfidNotificationService.ensureStarted();
-    if (!mounted) return;
+    if (!redirectToHome || !mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const SxAppShell()),
