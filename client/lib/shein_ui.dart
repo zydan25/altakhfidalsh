@@ -9698,91 +9698,93 @@ class SxStoreLocationScreen extends StatefulWidget {
 }
 
 class _SxStoreLocationScreenState extends State<SxStoreLocationScreen> {
-  Map<String, dynamic> info = {};
+  List<Map<String, dynamic>> locations = [];
   bool loading = true;
 
-  @override void initState() {
+  @override
+  void initState() {
     super.initState();
     _load();
   }
 
   Future<void> _load() async {
     try {
-      final next = await api.storeInfo();
-      if (mounted) setState(() => info = next);
+      final next = await api.storeLocations();
+      if (next.isNotEmpty) {
+        if (mounted) setState(() => locations = next);
+      } else {
+        // Backward-compatible fallback for installations that still only
+        // have the old single-store settings.
+        final info = await api.storeInfo();
+        final name = sxText(info['name']).trim();
+        final address = sxText(info['address']).trim();
+        final lat = sxText(info['latitude']).trim();
+        final lng = sxText(info['longitude']).trim();
+        final mapUrl = sxText(info['map_url']).trim();
+        final imageUrl = sxText(info['image_url']).trim();
+        if ([name, address, lat, lng, mapUrl, imageUrl]
+            .any((value) => value.isNotEmpty)) {
+          if (mounted) {
+            setState(() {
+              locations = [
+                {
+                  'id': 'legacy-store',
+                  'name': name.isNotEmpty ? name : 'موقع المتجر',
+                  'region': '',
+                  'city': '',
+                  'address': address,
+                  'map_url': mapUrl,
+                  'latitude': lat,
+                  'longitude': lng,
+                  'images': imageUrl.isNotEmpty
+                      ? [
+                          {'id': 'legacy-image', 'url': imageUrl}
+                        ]
+                      : <Map<String, dynamic>>[],
+                },
+              ];
+            });
+          }
+        }
+      }
     } catch (_) {}
     if (mounted) setState(() => loading = false);
   }
 
-  Future<void> _openMap() async {
-    final configured = sxText(info['map_url']).trim();
-    final lat = sxText(info['latitude']).trim();
-    final lng = sxText(info['longitude']).trim();
-    final url = configured.isNotEmpty
-        ? configured
-        : lat.isNotEmpty && lng.isNotEmpty
-            ? 'https://www.google.com/maps/search/?api=1&query=$lat,$lng'
-            : '';
-    if (url.isEmpty) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('لم يتم تحديد موقع المتجر بعد.')));
-      return;
-    }
-    final uri = Uri.tryParse(url);
-    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح موقع المتجر.')));
-    }
-  }
-
-  @override Widget build(BuildContext context) => SxShellPage(
+  @override
+  Widget build(BuildContext context) => SxShellPage(
     title: 'موقعنا',
     back: true,
     child: loading
       ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
       : ListView(
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 70),
           children: [
-            if (sxText(info['image_url']).trim().isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: SxImage(url: info['image_url'], height: 220, fit: BoxFit.cover),
+            if (locations.isEmpty)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(18, 28, 18, 80),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.storefront_outlined,
+                      size: 62,
+                      color: Color(0xFF8A8A8A),
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      'لم يتم إضافة أي موقع للمتجر بعد.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: ClientTheme.muted,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
               )
             else
-              Container(
-                height: 220,
-                decoration: BoxDecoration(color: ClientTheme.soft, borderRadius: BorderRadius.circular(16)),
-                child: const Center(child: Icon(Icons.storefront_outlined, size: 62, color: Color(0xFF8A8A8A))),
-              ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: ClientTheme.border)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(sxText(info['name'], 'موقع المتجر'), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-                  const SizedBox(height: 6),
-                  Text(sxText(info['address'], 'لم يتم تحديد عنوان المتجر بعد.'), style: const TextStyle(fontSize: 10, color: ClientTheme.muted, height: 1.5)),
-                  if (sxText(info['hours']).isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text('ساعات العمل: ' + sxText(info['hours']), style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700)),
-                  ],
-                  if (sxText(info['latitude']).isNotEmpty && sxText(info['longitude']).isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text('الإحداثيات: ' + sxText(info['latitude']) + ' ، ' + sxText(info['longitude']), textDirection: TextDirection.ltr, textAlign: TextAlign.left, style: const TextStyle(fontSize: 9, color: ClientTheme.muted)),
-                  ],
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 48,
-                    child: FilledButton.icon(
-                      onPressed: _openMap,
-                      icon: const Icon(Icons.map_outlined),
-                      label: const Text('فتح الموقع على الخريطة', style: TextStyle(fontWeight: FontWeight.w900)),
-                      style: FilledButton.styleFrom(backgroundColor: Colors.black),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+              SxStoreLocations(locations: locations),
             const SxDeveloperSignature(),
           ],
         ),
