@@ -287,13 +287,19 @@ jobs:
           manifest = Path("android/app/src/main/AndroidManifest.xml")
           text = manifest.read_text(encoding="utf-8")
           if "com.google.firebase.messaging.default_notification_channel_id" not in text:
-              marker = "    <application"
-              metadata = '''    <application'''
-              insert = marker + '''
+              metadata = '''
               <meta-data
                   android:name="com.google.firebase.messaging.default_notification_channel_id"
                   android:value="altakhfid_alerts_v5" />'''
-              text = text.replace(marker, insert, 1)
+              text2, count = re.subn(
+                  r"(    <application\\b[^>]*>)",
+                  r"\\1" + metadata,
+                  text,
+                  count=1,
+              )
+              if count != 1:
+                  raise SystemExit("AndroidManifest.xml: <application> opening tag not found")
+              text = text2
           manifest.write_text(text, encoding="utf-8")
           print("Firebase Google Services plugin and FCM default channel configured.")
           PY
