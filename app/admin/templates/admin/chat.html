@@ -63,7 +63,7 @@
           {% for order in filter_orders %}
           <button type="button" class="popover-option" data-value="{{ order.id }}" data-label="{{ order.order_no or ('طلب #' ~ order.id) }}">
             <span>{{ order.order_no or ("طلب #" ~ order.id) }}</span>
-            <small>{{ order.customer.name if order.customer else "" }}</small>
+            <small>{{ order.customer_name or "" }}</small>
           </button>
           {% endfor %}
         </div>

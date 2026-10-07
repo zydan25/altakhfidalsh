@@ -450,10 +450,36 @@ def register_entity_views(admin_bp):
                 ),
                 "last_sender_type": last_message.sender_type if last_message else None,
             })
+        filter_customers = (
+            Customer.query
+            .order_by(Customer.id.desc())
+            .limit(500)
+            .all()
+        )
+        filter_orders_rows = (
+            Order.query
+            .order_by(Order.id.desc())
+            .limit(500)
+            .all()
+        )
+        filter_orders = [
+            {
+                "id": order.id,
+                "order_no": order.order_no,
+                "customer_name": (
+                    db.session.get(Customer, order.customer_id).name
+                    if db.session.get(Customer, order.customer_id)
+                    else "عميل"
+                ),
+            }
+            for order in filter_orders_rows
+        ]
         return render_template(
             "admin/chat.html",
             title="المحادثات",
             conversations=cards,
+            filter_customers=filter_customers,
+            filter_orders=filter_orders,
             **build_admin_context(),
         )
 
