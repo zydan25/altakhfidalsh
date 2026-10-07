@@ -31,6 +31,7 @@ class Config:
     ]
     _required_web_origins = [
         "https://zydan25.github.io",
+        "https://takhfidsh.alattab.site",
     ]
     CORS_ORIGINS = list(
         dict.fromkeys(_configured_cors + _required_web_origins)
