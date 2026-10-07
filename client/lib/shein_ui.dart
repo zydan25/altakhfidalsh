@@ -10568,11 +10568,11 @@ class _SxOrdersScreenState extends State<SxOrdersScreen> {
 
   static const filters = <String, String>{
     'all': 'الكل',
-    'confirmation': 'بانتظار التأكيد',
-    'payment': 'بانتظار الدفع',
-    'processing': 'قيد التجهيز',
-    'shipped': 'الشحن والتسليم',
-    'completed': 'مكتملة',
+    'approval': 'موافقة الطلب',
+    'processing': 'التجهيز',
+    'shipping': 'الشحن',
+    'in_transit': 'في الطريق',
+    'delivered': 'تم التسليم',
     'cancelled': 'ملغاة',
   };
 
@@ -10597,20 +10597,37 @@ class _SxOrdersScreenState extends State<SxOrdersScreen> {
     }
   }
 
+  int lifecycleIndex(Map<String, dynamic> row) {
+    final status = sxText(row['status']);
+    final shippingStatus = sxText(row['shipping_status']).trim().toLowerCase();
+
+    if (status == 'delivered' || status == 'returned' || shippingStatus == 'delivered') {
+      return 4;
+    }
+    if (status == 'shipped') {
+      if (const {'picked_up', 'in_transit', 'out_for_delivery'}
+          .contains(shippingStatus)) {
+        return 3;
+      }
+      return 2;
+    }
+    if (status == 'paid' || status == 'processing') return 1;
+    return 0;
+  }
+
   bool matches(Map<String, dynamic> row, String key) {
     final status = sxText(row['status']);
-    final payment = sxText(row['payment_status']);
     switch (key) {
-      case 'confirmation':
-        return status == 'created';
-      case 'payment':
-        return status == 'awaiting_payment' || payment == 'pending' || payment == 'pending_proof';
+      case 'approval':
+        return status != 'cancelled' && lifecycleIndex(row) == 0;
       case 'processing':
-        return status == 'paid' || status == 'processing';
-      case 'shipped':
-        return status == 'shipped' || status == 'delivered';
-      case 'completed':
-        return status == 'delivered' || status == 'returned';
+        return status != 'cancelled' && lifecycleIndex(row) == 1;
+      case 'shipping':
+        return status != 'cancelled' && lifecycleIndex(row) == 2;
+      case 'in_transit':
+        return status != 'cancelled' && lifecycleIndex(row) == 3;
+      case 'delivered':
+        return status != 'cancelled' && lifecycleIndex(row) == 4;
       case 'cancelled':
         return status == 'cancelled';
       default:
@@ -10618,17 +10635,22 @@ class _SxOrdersScreenState extends State<SxOrdersScreen> {
     }
   }
 
-  String statusLabel(String status) {
+  String statusLabel(String status, [String shippingStatus = '']) {
     const labels = <String, String>{
-      'created': 'بانتظار تأكيد المتجر',
-      'awaiting_payment': 'بانتظار الدفع',
+      'created': 'بانتظار موافقة الطلب',
+      'awaiting_payment': 'تمت موافقة الطلب',
       'paid': 'تم الدفع',
-      'processing': 'جاري التجهيز',
-      'shipped': 'جاري الشحن',
+      'processing': 'قيد التجهيز',
+      'shipped': 'تم الشحن',
       'delivered': 'تم التسليم',
       'returned': 'تمت الإعادة',
       'cancelled': 'ملغى',
     };
+    if (status == 'shipped' &&
+        const {'picked_up', 'in_transit', 'out_for_delivery'}
+            .contains(shippingStatus.trim().toLowerCase())) {
+      return 'في الطريق';
+    }
     return labels[status] ?? status;
   }
 
@@ -10788,7 +10810,10 @@ class _SxOrdersScreenState extends State<SxOrdersScreen> {
                                           borderRadius: BorderRadius.circular(18),
                                         ),
                                         child: Text(
-                                          statusLabel(sxText(row['status'])),
+                                          statusLabel(
+                                            sxText(row['status']),
+                                            sxText(row['shipping_status']),
+                                          ),
                                           style: TextStyle(fontSize: 8.2, fontWeight: FontWeight.w800, color: statusFg(sxText(row['status']))),
                                         ),
                                       ),
@@ -10890,9 +10915,10 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
   bool uploadingPaymentProof = false;
 
   static const stages = <String>[
-    'created',
+    'approval',
     'processing',
-    'shipped',
+    'shipping',
+    'in_transit',
     'delivered',
   ];
 
@@ -10934,10 +10960,10 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
     }
   }
 
-  String statusLabel(String status) {
+  String statusLabel(String status, [String shippingStatus = '']) {
     const labels = <String, String>{
-      'created': 'تم إنشاء الطلب',
-      'awaiting_payment': 'بانتظار الدفع',
+      'created': 'بانتظار موافقة الطلب',
+      'awaiting_payment': 'تمت موافقة الطلب',
       'paid': 'تم الدفع',
       'processing': 'قيد التجهيز',
       'shipped': 'تم الشحن',
@@ -10945,12 +10971,27 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
       'returned': 'تمت الإعادة',
       'cancelled': 'ملغى',
     };
+    if (status == 'shipped' &&
+        const {'picked_up', 'in_transit', 'out_for_delivery'}
+            .contains(shippingStatus.trim().toLowerCase())) {
+      return 'في الطريق';
+    }
     return labels[status] ?? status;
   }
 
-  int progressIndex(String status) {
-    if (status == 'delivered' || status == 'returned') return 3;
-    if (status == 'shipped') return 2;
+  int progressIndex(Map<String, dynamic> data) {
+    final status = sxText(data['status']);
+    final shippingStatus = sxText(data['shipping_status']).trim().toLowerCase();
+
+    if (status == 'delivered' || status == 'returned' || shippingStatus == 'delivered') {
+      return 4;
+    }
+    if (status == 'shipped') {
+      return const {'picked_up', 'in_transit', 'out_for_delivery'}
+              .contains(shippingStatus)
+          ? 3
+          : 2;
+    }
     if (status == 'paid' || status == 'processing') return 1;
     return 0;
   }
@@ -11152,6 +11193,7 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
     final items = sxMaps(order['items']);
     final histories = sxMaps(order['status_history']);
     final shipments = sxMaps(order['shipments']);
+    final progress = progressIndex(order);
 
     return SxShellPage(
       title: 'تفاصيل الطلب',
@@ -11180,8 +11222,14 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                       ),
                       SxPill(
                         text: status == 'shipped'
-                            ? shippingStatusLabel(sxText(order['shipping_status'], 'shipped'))
-                            : statusLabel(status),
+                            ? statusLabel(
+                                status,
+                                sxText(order['shipping_status'], 'shipped'),
+                              )
+                            : statusLabel(
+                                status,
+                                sxText(order['shipping_status']),
+                              ),
                         background: status == 'cancelled' ? const Color(0xFFFFEEEE) : ClientTheme.soft,
                         foreground: status == 'cancelled' ? const Color(0xFFC62828) : Colors.black,
                       ),
@@ -11196,7 +11244,7 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                   else
                     Row(
                       children: List.generate(stages.length, (i) {
-                        final active = progressIndex(status) >= i;
+                        final active = progress >= i;
                         return Expanded(
                           child: Column(
                             children: [
@@ -11206,7 +11254,7 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                                     Expanded(
                                       child: Container(
                                         height: 2,
-                                        color: progressIndex(status) >= i ? Colors.black : ClientTheme.border,
+                                        color: progress >= i ? Colors.black : ClientTheme.border,
                                       ),
                                     ),
                                   Container(
@@ -11225,14 +11273,14 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
                                     Expanded(
                                       child: Container(
                                         height: 2,
-                                        color: progressIndex(status) > i ? Colors.black : ClientTheme.border,
+                                        color: progress > i ? Colors.black : ClientTheme.border,
                                       ),
                                     ),
                                 ],
                               ),
                               const SizedBox(height: 5),
                               Text(
-                                const ['الطلب', 'التجهيز', 'الشحن', 'التسليم'][i],
+                                const ['موافقة الطلب', 'التجهيز', 'الشحن', 'في الطريق', 'تم التسليم'][i],
                                 style: TextStyle(fontSize: 8.2, fontWeight: active ? FontWeight.w900 : FontWeight.w500, color: active ? Colors.black : ClientTheme.muted),
                               ),
                             ],
