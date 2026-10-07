@@ -35,6 +35,22 @@ def conversations():
             Message.sender_type != "customer",
             Message.read_at.is_(None),
         ).count()
+        last_message = (
+            Message.query
+            .filter_by(conversation_id=x.id)
+            .order_by(Message.created_at.desc(), Message.id.desc())
+            .first()
+        )
+        if last_message is None:
+            preview = "لا توجد رسائل بعد"
+        elif last_message.body:
+            preview = last_message.body
+        elif last_message.message_type == "payment_proof":
+            preview = "إثبات دفع مرفق"
+        elif last_message.message_type == "attachment":
+            preview = "مرفق"
+        else:
+            preview = "رسالة"
         items.append({
             "id": x.id,
             "customer_id": x.customer_id,
@@ -43,6 +59,8 @@ def conversations():
             "subject": x.subject or ("محادثة الدعم" if x.type == "customer_service" and x.order_id is None else "محادثة"),
             "status": x.status,
             "last_message_at": x.last_message_at.isoformat() if x.last_message_at else None,
+            "last_message": preview,
+            "last_sender_type": last_message.sender_type if last_message else None,
             "unread_count": unread_count,
         })
     return {"items": items}
