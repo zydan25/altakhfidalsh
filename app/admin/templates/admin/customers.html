@@ -12,6 +12,8 @@
   <div class="entity-field"><span class="entity-label">الهاتف</span><strong dir="ltr">{{ customer.phone_normalized }}</strong></div>
   <div class="entity-field"><span class="entity-label">المدينة</span><strong>#{{ customer.city_id or "—" }}</strong></div>
   <div class="entity-field"><span class="entity-label">الحالة</span><strong>{{ customer.status }}</strong></div>
+  <div class="entity-field"><span class="entity-label">رمز الدعوة</span><strong dir="ltr">{{ customer.invite_code or "—" }}</strong></div>
+  <div class="entity-field"><span class="entity-label">الدعوات</span><strong>{{ customer.invited_count }}</strong></div>
   <a class="primary-button" href="/admin/customers/{{ customer.id }}">فتح الملف الكامل</a>
 </article>
 {% else %}
