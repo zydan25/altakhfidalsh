@@ -12182,10 +12182,8 @@ class _SxSupportScreenState extends State<SxSupportScreen> {
   }
 
   String _preview(Map<String, dynamic> row) {
-    final unread = sxInt(row['unread_count']);
-    if (unread > 0) {
-      return unread == 1 ? 'رسالة جديدة' : '$unread رسائل جديدة';
-    }
+    final raw = sxText(row['last_message']).trim();
+    if (raw.isNotEmpty) return raw;
     return sxText(row['last_message_at']).isNotEmpty
         ? 'آخر تحديث في المحادثة'
         : 'لا توجد رسائل بعد';
