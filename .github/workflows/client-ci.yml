@@ -220,61 +220,85 @@ jobs:
                   print(line)
           PY
 
-      - name: Configure notification service permissions
+      - name: Configure Firebase and notification channel
         working-directory: client
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
 
-          path = Path("android/app/src/main/AndroidManifest.xml")
-          text = path.read_text(encoding="utf-8")
+          # The Firebase Android app was registered as:
+          # com.example.altakhfid_client
+          # The generated google-services.json is committed with the customer app.
+          google_services = Path("android/app/google-services.json")
+          if not google_services.exists():
+              raise SystemExit("Missing android/app/google-services.json")
 
-          manifest_permissions = [
-              '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />',
-              '<uses-permission android:name="android.permission.VIBRATE" />',
-              '<uses-permission android:name="android.permission.WAKE_LOCK" />',
-              '<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />',
-              '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />',
-              '<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />',
-          ]
-
-          marker = '<application'
-          if marker not in text:
-              raise SystemExit("AndroidManifest.xml: <application> not found")
-
-          for permission in manifest_permissions:
-              if permission not in text:
-                  text = text.replace(marker, permission + "\n    " + marker, 1)
-
-          # The Android plugin declares the same service as exported=true.
-          # Explicitly replace that attribute in the app manifest so the merge
-          # is deterministic and compatible with the background-service plugin.
-          if 'xmlns:tools="http://schemas.android.com/tools"' not in text:
-              text = text.replace(
-                  '<manifest xmlns:android=',
-                  '<manifest xmlns:tools="http://schemas.android.com/tools" xmlns:android=',
-                  1,
-              )
-
-          service = '''    <service
-              android:name="id.flutter.flutter_background_service.BackgroundService"
-              android:exported="false"
-              android:foregroundServiceType="remoteMessaging"
-              tools:replace="android:exported" />'''
-          if "id.flutter.flutter_background_service.BackgroundService" not in text:
-              text = text.replace(
-                  "    </application>",
-                  service + "\n    </application>",
-                  1,
-              )
-
+          settings_kts = Path("android/settings.gradle.kts")
+          settings_groovy = Path("android/settings.gradle")
+          if settings_kts.exists():
+              path = settings_kts
+              text = path.read_text(encoding="utf-8")
+              plugin = '    id("com.google.gms.google-services") version "4.5.0" apply false'
+              if "com.google.gms.google-services" not in text:
+                  marker = "plugins {"
+                  if marker not in text:
+                      raise SystemExit("settings.gradle.kts: plugins block not found")
+                  text = text.replace(marker, marker + "\n" + plugin, 1)
+          elif settings_groovy.exists():
+              path = settings_groovy
+              text = path.read_text(encoding="utf-8")
+              plugin = '    id "com.google.gms.google-services" version "4.5.0" apply false'
+              if "com.google.gms.google-services" not in text:
+                  marker = "plugins {"
+                  if marker not in text:
+                      raise SystemExit("settings.gradle: plugins block not found")
+                  text = text.replace(marker, marker + "\n" + plugin, 1)
+          else:
+              raise SystemExit("Android settings.gradle file not found")
           path.write_text(text, encoding="utf-8")
-          print("Configured custom WebSocket notification foreground service.")
+
+          groovy = Path("android/app/build.gradle")
+          kotlin = Path("android/app/build.gradle.kts")
+          if kotlin.exists():
+              path = kotlin
+              text = path.read_text(encoding="utf-8")
+              plugin = '    id("com.google.gms.google-services")'
+              if "com.google.gms.google-services" not in text:
+                  marker = "plugins {"
+                  if marker not in text:
+                      raise SystemExit("build.gradle.kts: plugins block not found")
+                  text = text.replace(marker, marker + "\n" + plugin, 1)
+          elif groovy.exists():
+              path = groovy
+              text = path.read_text(encoding="utf-8")
+              plugin = "    id 'com.google.gms.google-services'"
+              if "com.google.gms.google-services" not in text:
+                  marker = "plugins {"
+                  if marker not in text:
+                      raise SystemExit("build.gradle: plugins block not found")
+                  text = text.replace(marker, marker + "\n" + plugin, 1)
+          else:
+              raise SystemExit("Android app Gradle file not found")
+          path.write_text(text, encoding="utf-8")
+
+          # Configure the channel FCM uses when Android displays a background
+          # notification. Importance HIGH/MAX is created in Dart as well.
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          text = manifest.read_text(encoding="utf-8")
+          if "com.google.firebase.messaging.default_notification_channel_id" not in text:
+              marker = "    <application"
+              metadata = '''    <application'''
+              insert = marker + '''
+              <meta-data
+                  android:name="com.google.firebase.messaging.default_notification_channel_id"
+                  android:value="altakhfid_alerts_v5" />'''
+              text = text.replace(marker, insert, 1)
+          manifest.write_text(text, encoding="utf-8")
+          print("Firebase Google Services plugin and FCM default channel configured.")
           PY
 
-          mkdir -p android/app/src/main/res/drawable
-          cp android/app/src/main/res/drawable/app_icon.png android/app/src/main/res/drawable/ic_bg_service_small.png
+          grep -n -E "google-services|default_notification_channel_id|altakhfid_alerts_v5"             android/settings.gradle android/settings.gradle.kts             android/app/build.gradle android/app/build.gradle.kts             android/app/src/main/AndroidManifest.xml 2>/dev/null || true
 
       - name: Set Android application name
         working-directory: client
