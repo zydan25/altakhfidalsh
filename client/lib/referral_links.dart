@@ -32,15 +32,6 @@ class ReferralLinkService {
         queryParameters: {'ref': code.toUpperCase()},
       );
 
-  static String androidIntentReferralLink(String code) {
-    final cleanCode = code.trim().toUpperCase();
-    final web = referralUri(cleanCode).toString();
-    final queryValue = Uri.encodeQueryComponent(cleanCode);
-    final fallback = Uri.encodeComponent(web);
-    return 'intent://invite?ref=$queryValue'
-        '#Intent;scheme=altakhfid;'
-        'S.browser_fallback_url=$fallback;end';
-  }
 
   static Future<void> initialize() async {
     // The browser already exposes the invitation URL through Uri.base.
