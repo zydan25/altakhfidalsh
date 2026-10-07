@@ -21,6 +21,38 @@
   <article class="metric-card"><div><span class="metric-label">الشحن</span><strong>{{ order.shipping_status }}</strong></div></article>
   <article class="metric-card"><div><span class="metric-label">مجموعة التسعير</span><strong>#{{ order.pricing_group_id or "—" }}</strong></div></article>
 </section>
+<section class="panel" style="margin-top:12px">
+  <div class="panel-heading">
+    <div>
+      <span class="eyebrow">التواصل</span>
+      <h3>محادثة الطلب</h3>
+    </div>
+    {% if order_unread_messages > 0 %}
+      <span class="status-pill">{{ order_unread_messages }} جديدة</span>
+    {% endif %}
+  </div>
+  <div class="mini-callout">
+    <strong>
+      {% if order_conversation %}
+        هذه محادثة واحدة مرتبطة بالطلب وتحتوي كامل الرسائل والتحديثات.
+      {% else %}
+        لم تبدأ محادثة الطلب بعد.
+      {% endif %}
+    </strong>
+    <span>رسائل العميل والإدارة والنظام والتحديثات المرتبطة بالطلب تظهر في نفس المحادثة.</span>
+  </div>
+  <div style="margin-top:10px">
+    {% if order_conversation %}
+      <a class="primary-button" href="/admin/chat/{{ order_conversation.id }}">فتح محادثة الطلب{% if order_unread_messages > 0 %} · {{ order_unread_messages }} جديدة{% endif %}</a>
+    {% else %}
+      <form method="post">
+        <input type="hidden" name="action" value="message">
+        <textarea name="body" rows="2" required placeholder="اكتب أول رسالة للعميل..."></textarea>
+        <button class="primary-button" style="margin-top:8px" type="submit">إنشاء المحادثة وإرسال</button>
+      </form>
+    {% endif %}
+  </div>
+</section>
 
 <section class="two-panel">
   <article class="panel">
@@ -155,36 +187,5 @@
   </article>
 </section>
 
-<section class="panel" style="margin-top:12px">
-  <div class="panel-heading">
-    <div>
-      <span class="eyebrow">التواصل</span>
-      <h3>محادثة الطلب</h3>
-    </div>
-    {% if order_unread_messages > 0 %}
-      <span class="status-pill">{{ order_unread_messages }} جديدة</span>
-    {% endif %}
-  </div>
-  <div class="mini-callout">
-    <strong>
-      {% if order_conversation %}
-        هذه محادثة واحدة مرتبطة بالطلب وتحتوي كامل الرسائل والتحديثات.
-      {% else %}
-        لم تبدأ محادثة الطلب بعد.
-      {% endif %}
-    </strong>
-    <span>رسائل العميل والإدارة والنظام والتحديثات المرتبطة بالطلب تظهر في نفس المحادثة.</span>
-  </div>
-  <div style="margin-top:10px">
-    {% if order_conversation %}
-      <a class="primary-button" href="/admin/chat/{{ order_conversation.id }}">فتح محادثة الطلب{% if order_unread_messages > 0 %} · {{ order_unread_messages }} جديدة{% endif %}</a>
-    {% else %}
-      <form method="post">
-        <input type="hidden" name="action" value="message">
-        <textarea name="body" rows="2" required placeholder="اكتب أول رسالة للعميل..."></textarea>
-        <button class="primary-button" style="margin-top:8px" type="submit">إنشاء المحادثة وإرسال</button>
-      </form>
-    {% endif %}
-  </div>
-</section>
+
 {% endblock %}
