@@ -36,10 +36,18 @@ jobs:
         working-directory: client
         run: flutter create --platforms=web .
 
-      - name: Prepare branding asset
+      - name: Prepare branding assets
         run: |
-          mkdir -p client/assets
+          mkdir -p client/assets client/web/icons
           cp 20260911_164630.jpg client/assets/app_background.jpg
+
+          # Generate the same branded launcher artwork used by the Android APK.
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          convert 20260911_164630.jpg             -auto-orient             -colorspace sRGB             -fuzz 10% -trim +repage             -resize '470x470^'             -gravity center             -background '#050505'             -extent 470x470             -bordercolor '#050505' -border 21             -unsharp 0x0.8+0.8+0             -strip             client/web/icons/Icon-512.png
+          convert client/web/icons/Icon-512.png -resize 192x192 -strip client/web/icons/Icon-192.png
+          cp client/web/icons/Icon-512.png client/web/icons/Icon-maskable-512.png
+          convert client/web/icons/Icon-512.png -resize 64x64 -strip client/web/favicon.png
 
       - name: Dependencies
         working-directory: client
@@ -51,8 +59,8 @@ jobs:
           API_BASE_URL: https://takhfidsh.alattab.site/api/v1
         run: |
           flutter build web --release \
-            --pwa-strategy=none \
-            --base-href "/${GITHUB_REPOSITORY#*/}/" \
+            --pwa-strategy=offline-first \
+            --base-href "/" \
             --dart-define=API_BASE_URL="$API_BASE_URL"
 
       - name: Prevent stale Flutter Web cache
@@ -92,26 +100,33 @@ jobs:
           
           guard = '''
           <meta name="altakhfid-build" content="BUILD_SHA_PLACEHOLDER">
-          <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-          <meta http-equiv="Pragma" content="no-cache">
-          <meta http-equiv="Expires" content="0">
-          <script>
-          (async function(){
-            try {
-              if ("serviceWorker" in navigator) {
-                const regs = await navigator.serviceWorker.getRegistrations();
-                await Promise.all(regs.map(r => r.unregister()));
-              }
-              if ("caches" in window) {
-                const keys = await caches.keys();
-                await Promise.all(keys.map(k => caches.delete(k)));
-              }
-            } catch (_) {}
-          })();
-          </script>
+          <meta name="theme-color" content="#050505">
+          <meta name="application-name" content="التخفيض الصح">
+          <meta name="apple-mobile-web-app-title" content="التخفيض الصح">
+          <link rel="icon" type="image/png" href="favicon.png">
           '''.replace('BUILD_SHA_PLACEHOLDER', sha)
           s = s.replace('</head>', guard + '\n</head>')
           index.write_text(s, encoding='utf-8')
+
+          import json
+          manifest = root / 'manifest.json'
+          data = json.loads(manifest.read_text(encoding='utf-8'))
+          data['name'] = 'التخفيض الصح'
+          data['short_name'] = 'التخفيض الصح'
+          data['description'] = 'متجر التخفيض الصح'
+          data['display'] = 'standalone'
+          data['start_url'] = './'
+          data['scope'] = './'
+          data['theme_color'] = '#050505'
+          data['background_color'] = '#050505'
+          data['icons'] = [
+              {'src': 'icons/Icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
+              {'src': 'icons/Icon-512.png', 'sizes': '512x512', 'type': 'image/png'},
+              {'src': 'icons/Icon-maskable-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
+          ]
+          manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          (root / 'CNAME').write_text('takhfidsh.alattab.site\n', encoding='utf-8')
           PY
       - name: Upload web build artifact
         uses: actions/upload-artifact@v7
