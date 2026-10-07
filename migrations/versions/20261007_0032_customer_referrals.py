@@ -1,4 +1,4 @@
-"""Add customer referral identity and referrer relation.
+"""Add/refine customer referral identity and referrer relation.
 
 Revision ID: 20261007_0032
 Revises: 20261007_0031
@@ -7,6 +7,8 @@ import secrets
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
+
 
 revision = "20261007_0032"
 down_revision = "20261007_0031"
@@ -14,6 +16,9 @@ branch_labels = None
 depends_on = None
 
 _ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+_REFERRER_INDEX = "ix_customers_referrer_0032"
+_REFERRER_FK = "fk_customers_referrer_0032"
+_REFERRAL_UNIQUE_INDEX = "uq_customers_invite_code_0032"
 
 
 def _new_code(bind, used):
@@ -30,60 +35,111 @@ def _new_code(bind, used):
             return code
 
 
+def _column(inspector, table_name, column_name):
+    for row in inspector.get_columns(table_name):
+        if row["name"] == column_name:
+            return row
+    return None
+
+
+def _has_unique_invite_key(inspector):
+    for row in inspector.get_indexes("customers"):
+        if row.get("unique") and row.get("column_names") == ["invite_code"]:
+            return True
+    for row in inspector.get_unique_constraints("customers"):
+        if row.get("column_names") == ["invite_code"]:
+            return True
+    return False
+
+
+def _has_referrer_fk(inspector):
+    for row in inspector.get_foreign_keys("customers"):
+        if (
+            row.get("referred_columns") == ["id"]
+            and row.get("constrained_columns") == ["referred_by_customer_id"]
+            and row.get("referred_table") == "customers"
+        ):
+            return True
+    return False
+
+
+def _has_referrer_index(inspector):
+    for row in inspector.get_indexes("customers"):
+        if row.get("column_names") == ["referred_by_customer_id"]:
+            return True
+    return False
+
+
 def upgrade():
-    op.add_column(
-        "customers",
-        sa.Column("invite_code", sa.String(length=20), nullable=True),
-    )
-    op.add_column(
-        "customers",
-        sa.Column("referred_by_customer_id", sa.Integer(), nullable=True),
-    )
-
-    op.create_foreign_key(
-        "fk_customers_referred_by_customer_id",
-        "customers",
-        "customers",
-        ["referred_by_customer_id"],
-        ["id"],
-        ondelete="SET NULL",
-    )
-    op.create_index(
-        "ix_customers_referred_by_customer_id",
-        "customers",
-        ["referred_by_customer_id"],
-        unique=False,
-    )
-    op.create_index(
-        "uq_customers_invite_code",
-        "customers",
-        ["invite_code"],
-        unique=True,
-    )
-
     bind = op.get_bind()
-    used = set()
-    customer_ids = bind.execute(
-        sa.text("SELECT id FROM customers WHERE invite_code IS NULL ORDER BY id")
-    ).scalars().all()
-    for customer_id in customer_ids:
-        bind.execute(
-            sa.text(
-                "UPDATE customers SET invite_code = :code WHERE id = :customer_id"
-            ),
-            {"code": _new_code(bind, used), "customer_id": customer_id},
+    inspector = inspect(bind)
+
+    invite_column = _column(inspector, "customers", "invite_code")
+    if invite_column is None:
+        op.add_column(
+            "customers",
+            sa.Column("invite_code", sa.String(length=20), nullable=True),
+        )
+        invite_column = {"name": "invite_code", "nullable": True}
+        inspector = inspect(bind)
+
+    # Bootstrap migration 0001 derives the initial schema from SQLAlchemy's
+    # current metadata. On a fresh database invite_code may therefore already
+    # exist. On an older production database it may be missing. Handle both.
+    if invite_column.get("nullable", True):
+        rows = bind.execute(
+            sa.text("SELECT id FROM customers WHERE invite_code IS NULL ORDER BY id")
+        ).scalars().all()
+        used = set()
+        for customer_id in rows:
+            bind.execute(
+                sa.text(
+                    "UPDATE customers SET invite_code = :code "
+                    "WHERE id = :customer_id"
+                ),
+                {"code": _new_code(bind, used), "customer_id": customer_id},
+            )
+        op.alter_column("customers", "invite_code", nullable=False)
+
+    inspector = inspect(bind)
+    if not _has_unique_invite_key(inspector):
+        op.create_index(
+            _REFERRAL_UNIQUE_INDEX,
+            "customers",
+            ["invite_code"],
+            unique=True,
         )
 
-    op.alter_column("customers", "invite_code", nullable=False)
+    inspector = inspect(bind)
+    if _column(inspector, "customers", "referred_by_customer_id") is None:
+        op.add_column(
+            "customers",
+            sa.Column("referred_by_customer_id", sa.Integer(), nullable=True),
+        )
+
+    inspector = inspect(bind)
+    if not _has_referrer_index(inspector):
+        op.create_index(
+            _REFERRER_INDEX,
+            "customers",
+            ["referred_by_customer_id"],
+            unique=False,
+        )
+
+    inspector = inspect(bind)
+    if not _has_referrer_fk(inspector):
+        op.create_foreign_key(
+            _REFERRER_FK,
+            "customers",
+            "customers",
+            ["referred_by_customer_id"],
+            ["id"],
+            ondelete="SET NULL",
+        )
 
 
 def downgrade():
-    op.drop_index("uq_customers_invite_code", table_name="customers")
-    op.drop_index("ix_customers_referred_by_customer_id", table_name="customers")
-    op.drop_constraint(
-        "fk_customers_referred_by_customer_id",
-        "customers",
-        type_="foreignkey",
-    )
-    op.drop_column("customers", "referred_by_customer_id")
-    op.drop_column("customers", "invite_code")
+    # The bootstrap migration builds current metadata directly. A downgrade
+    # from this compatibility migration must never remove columns/indexes that
+    # were already present before revision 0032.
+    pass
