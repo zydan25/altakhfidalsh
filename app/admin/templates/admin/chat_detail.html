@@ -1,0 +1,104 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">المحادثة</span>
+  <div class="split-heading">
+    <div>
+      <h2>{{ conversation.subject or "المحادثة" }}</h2>
+      <p class="muted">
+        {{ customer.name or "عميل" }}
+        {% if customer.phone_normalized %} · <span dir="ltr">{{ customer.phone_normalized }}</span>{% endif %}
+        {% if order %} · <a class="inline-link" href="/admin/orders/{{ order.id }}">الطلب #{{ order.id }}</a>{% endif %}
+      </p>
+    </div>
+    <a class="ghost-button" href="/admin/chat">العودة للمحادثات</a>
+  </div>
+</section>
+
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="wa-wrap">
+  <header class="wa-header">
+    <div class="wa-avatar {% if order %}order{% endif %}">
+      {% if order %}▣{% else %}◎{% endif %}
+    </div>
+    <div class="wa-title">
+      <strong>{{ customer.name or "عميل" }}</strong>
+      <span>{% if order %}محادثة الطلب #{{ order.id }}{% else %}خدمة العملاء{% endif %}</span>
+    </div>
+    <div class="wa-actions">
+      {% if order %}<a href="/admin/orders/{{ order.id }}" title="فتح الطلب">▣</a>{% endif %}
+      <a href="/admin/chat" title="المحادثات">☰</a>
+    </div>
+  </header>
+
+  <div class="wa-messages">
+    {% for message in messages %}
+    {% set mine = message.sender_type == "admin" %}
+    {% set system = message.sender_type == "system" %}
+    <div class="wa-row {% if system %}system{% elif mine %}mine{% else %}customer{% endif %}">
+      <article class="wa-bubble">
+        <span class="wa-meta">
+          {% if system %}النظام{% elif mine %}الإدارة{% else %}العميل{% endif %}
+          · {{ message.created_at }}
+        </span>
+        {% if message.body %}<div class="wa-body">{{ message.body }}</div>{% endif %}
+        {% for a in message.attachments if a.url %}
+          {% if a.mime_type and a.mime_type.startswith("image/") %}
+          <a href="{{ a.url }}" target="_blank" rel="noreferrer"><img class="wa-image" src="{{ a.url }}" alt="{{ a.source_name or 'مرفق' }}"></a>
+          {% else %}
+          <a class="wa-file" href="{{ a.url }}" target="_blank" rel="noreferrer">📎 {{ a.source_name or "مرفق" }}</a>
+          {% endif %}
+        {% endfor %}
+      </article>
+    </div>
+    {% else %}
+    <div class="wa-empty">لا توجد رسائل بعد. ابدأ المحادثة من الحقل أدناه.</div>
+    {% endfor %}
+  </div>
+
+  <form method="post" class="wa-compose">
+    <input type="hidden" name="action" value="message">
+    <textarea name="body" rows="1" required placeholder="اكتب رسالة..."></textarea>
+    <button type="submit" title="إرسال">➤</button>
+  </form>
+</section>
+
+<style>
+.wa-wrap{max-width:880px;margin:0 auto;border:1px solid #e2e2e4;border-radius:16px;overflow:hidden;background:#f2f2f3;box-shadow:0 8px 28px rgba(0,0,0,.05)}
+.wa-header{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e6}
+.wa-avatar{width:46px;height:46px;flex:0 0 46px;border-radius:50%;display:grid;place-items:center;background:#ececec;color:#111;font-size:21px;font-weight:900}
+.wa-avatar.order{background:#111;color:#fff}
+.wa-title{min-width:0;flex:1;display:grid;gap:2px}
+.wa-title strong{font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wa-title span{font-size:8.5px;color:#858585}
+.wa-actions{display:flex;gap:5px}
+.wa-actions a{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;text-decoration:none;color:#111;background:#f3f3f3;font-size:15px}
+.wa-messages{min-height:470px;max-height:64vh;overflow:auto;padding:18px 12px;background:#f4f4f4}
+.wa-row{display:flex;margin-bottom:7px}
+.wa-row.customer{justify-content:flex-start}
+.wa-row.mine{justify-content:flex-end}
+.wa-row.system{justify-content:center}
+.wa-bubble{max-width:min(76%,620px);padding:8px 10px 6px;border-radius:15px;background:#fff;border:1px solid #e4e4e5;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.wa-row.mine .wa-bubble{background:#111;color:#fff;border-color:#111;border-bottom-left-radius:4px}
+.wa-row.customer .wa-bubble{border-bottom-right-radius:4px}
+.wa-row.system .wa-bubble{max-width:88%;background:#ececec;border-color:#dedede;text-align:center}
+.wa-meta{display:block;font-size:7.2px;color:#969696;margin-bottom:3px}
+.wa-row.mine .wa-meta{color:#bdbdbd}
+.wa-body{font-size:11px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+.wa-image{display:block;max-width:300px;max-height:330px;width:auto;height:auto;border-radius:10px;margin-top:5px}
+.wa-file{display:block;margin-top:5px;padding:8px 9px;background:#f0f0f0;color:#111;text-decoration:none;border-radius:9px;font-size:9px}
+.wa-row.mine .wa-file{background:#2a2a2a;color:#fff}
+.wa-empty{padding:70px 20px;text-align:center;color:#888;font-size:10px}
+.wa-compose{display:flex;align-items:flex-end;gap:8px;padding:9px;background:#fff;border-top:1px solid #e2e2e3}
+.wa-compose textarea{flex:1;resize:vertical;min-height:42px;max-height:110px;border:1px solid #dedede;border-radius:22px;padding:11px 14px;font:inherit;font-size:11px;line-height:1.4;outline:none}
+.wa-compose button{width:43px;height:43px;flex:0 0 43px;border:0;border-radius:50%;background:#111;color:#fff;font-size:19px;cursor:pointer}
+@media(max-width:700px){
+ .wa-wrap{border-radius:12px;margin:0}
+ .wa-messages{min-height:58vh;max-height:68vh;padding:12px 8px}
+ .wa-bubble{max-width:86%}
+ .wa-image{max-width:230px}
+}
+</style>
+{% endblock %}
