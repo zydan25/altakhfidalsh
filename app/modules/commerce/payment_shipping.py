@@ -5,6 +5,7 @@ from uuid import uuid4
 from ...extensions import db
 from ...models import (
     Order,
+    Conversation,
     PaymentMethod,
     PaymentProof,
     PaymentTransaction,
@@ -255,8 +256,7 @@ class PaymentShippingService:
             message = None
 
         if message:
-            self_message = message
-            PaymentShippingService._order_system_message(order, self_message)
+            PaymentShippingService._order_system_message(order, message)
             from ...services.notifications import NotificationService
             NotificationService.shipping_updated(
                 order,
