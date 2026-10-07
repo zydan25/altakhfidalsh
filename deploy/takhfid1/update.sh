@@ -19,6 +19,19 @@ echo "[takhfid1] migrations..."
 set -a
 source "$APP_ROOT/.env"
 set +a
+
+# Keep the server-side Firebase service-account path in .env without ever
+# storing the service-account JSON in Git.
+FIREBASE_KEY="$APP_ROOT/storage/firebase/altakhfid-fcm-sender.json"
+if [ -f "$FIREBASE_KEY" ]; then
+  if grep -q '^FIREBASE_CREDENTIALS=' "$APP_ROOT/.env"; then
+    sed -i "s#^FIREBASE_CREDENTIALS=.*#FIREBASE_CREDENTIALS=$FIREBASE_KEY#" "$APP_ROOT/.env"
+  else
+    printf '\nFIREBASE_CREDENTIALS=%s\n' "$FIREBASE_KEY" >> "$APP_ROOT/.env"
+  fi
+  chmod 600 "$APP_ROOT/.env"
+  export FIREBASE_CREDENTIALS="$FIREBASE_KEY"
+fi
 "$APP_ROOT/.venv/bin/flask" db upgrade
 PYTHONPATH="$APP_ROOT" "$APP_ROOT/.venv/bin/python" "$APP_ROOT/scripts/seed.py"
 

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "907469003345",
+    "project_id": "altakhfidalsh",
+    "storage_bucket": "altakhfidalsh.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:907469003345:android:e9411583b33fec0dd6f670",
+        "android_client_info": {
+          "package_name": "com.example.altakhfid_client"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZAQ69JCgldJULTCxUz5jtC_DxKevCY0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

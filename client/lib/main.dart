@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -18,8 +20,15 @@ final GlobalKey<NavigatorState> notificationNavigatorKey =
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Restore only the state needed to choose the first real screen. Heavy
-  // notification/plugin setup happens after the first frame.
+  // Firebase must be initialized before registering the FCM background
+  // handler. Web remains unchanged; push is enabled for Android only.
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    await Firebase.initializeApp();
+    await AltakhfidNotificationService.initialize(
+      tapHandler: handleNotificationTap,
+    );
+  }
+
   await Future.wait(<Future<void>>[
     api.restore(),
     state.restorePreferences(),
