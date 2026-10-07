@@ -43,7 +43,7 @@
   </div>
   <div style="margin-top:10px">
     {% if order_conversation %}
-      <a class="primary-button" href="/admin/chat/{{ order_conversation.id }}">فتح محادثة الطلب{% if order_unread_messages > 0 %} · {{ order_unread_messages }} جديدة{% endif %}</a>
+      <a class="primary-button" href="{{ url_for('admin.chat_order', order_id=order.id) }}">فتح محادثة الطلب{% if order_unread_messages > 0 %} · {{ order_unread_messages }} جديدة{% endif %}</a>
     {% else %}
       <form method="post">
         <input type="hidden" name="action" value="message">

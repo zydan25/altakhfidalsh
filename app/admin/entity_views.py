@@ -363,6 +363,41 @@ def register_entity_views(admin_bp):
             **build_admin_context(),
         )
 
+    @admin_bp.get("/chat/order/<int:order_id>")
+    def chat_order(order_id):
+        """Open the single canonical conversation belonging to an order."""
+        order = db.session.get(Order, order_id)
+        if order is None:
+            return render_template(
+                "admin/module.html",
+                title="الطلب غير موجود",
+                section="المبيعات والطلبات",
+                requested_path=request.path,
+                **build_admin_context(),
+            ), 404
+
+        conversation = (
+            Conversation.query
+            .filter(Conversation.order_id == order.id)
+            .order_by(Conversation.id.asc())
+            .first()
+        )
+        if conversation is None:
+            conversation = SupportService.create_conversation(
+                order.customer_id,
+                "order_support",
+                order.id,
+                f"الطلب {order.order_no}",
+            )
+            conversation = db.session.get(Conversation, conversation["id"])
+
+        return redirect(
+            url_for(
+                "admin.conversation_detail_page",
+                conversation_id=conversation.id,
+            )
+        )
+
     @admin_bp.get("/chat")
     def chat():
         rows = (
@@ -457,7 +492,15 @@ def register_entity_views(admin_bp):
                             files,
                             payment_proof=False,
                         )
-                        success = "تم إرسال الرسالة والمرفق." if body else "تم إرسال المرفق."
+                        success = (
+                            "تم إرسال الرسالة والمرفقات."
+                            if body and len(files) > 1
+                            else "تم إرسال الرسالة والمرفق."
+                            if body
+                            else "تم إرسال المرفقات."
+                            if len(files) > 1
+                            else "تم إرسال المرفق."
+                        )
                     else:
                         SupportService.send_message(
                             conversation.id,

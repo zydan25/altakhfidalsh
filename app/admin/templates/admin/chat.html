@@ -1,213 +1,346 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<section class="module-header">
-  <span class="eyebrow">العملاء والتواصل</span>
-  <div class="split-heading">
-    <div>
-      <h2>المحادثات</h2>
-      <p class="muted">كل بطاقة تمثل محادثة واحدة. محادثة الطلب تجمع جميع رسائل الطلب في نفس المكان.</p>
-    </div>
+<section class="module-header chat-page-head">
+  <div class="chat-head-copy">
+    <span class="eyebrow">العملاء والتواصل</span>
+    <h2>مركز المحادثات</h2>
+    <p class="muted">كل عميل وكل طلب لهما خيط محادثة واضح. محادثة الطلب تجمع الرسائل والملفات وتحديثات الطلب في نفس المكان.</p>
+  </div>
+  <div class="chat-head-stat">
+    <strong>{{ conversations|length }}</strong>
+    <span>محادثة ظاهرة</span>
   </div>
 </section>
 
-<section class="chat-toolbar" aria-label="فرز المحادثات">
-  <div class="filter-field">
-    <button type="button" class="filter-trigger" data-filter-button="customer">
-      <span>العميل</span><strong data-filter-label="customer">كل العملاء</strong><span>⌄</span>
-    </button>
-    <div class="filter-menu" data-filter-menu="customer">
-      <input class="filter-search" type="search" placeholder="ابحث عن العميل..." data-filter-search="customer">
-      <button type="button" class="filter-option active" data-value="">كل العملاء</button>
-      {% set seen_customers = [] %}
-      {% for item in conversations %}
-        {% set key = item.customer_id|string %}
-        {% if key not in seen_customers %}
-          {% set _ = seen_customers.append(key) %}
-          <button type="button" class="filter-option" data-value="{{ item.customer_id }}" data-label="{{ item.customer_name }}">
-            <span>{{ item.customer_name }}</span>
-            {% if item.customer_phone %}<small dir="ltr">{{ item.customer_phone }}</small>{% endif %}
+<section class="chat-filter-panel">
+  <div class="chat-search-wrap">
+    <span class="chat-search-icon">⌕</span>
+    <input id="chat-global-search" type="search" autocomplete="off" placeholder="ابحث باسم العميل أو الهاتف أو رقم الطلب أو نص الرسالة...">
+    <button id="chat-clear-search" type="button" class="clear-search" hidden aria-label="مسح البحث">×</button>
+  </div>
+
+  <div class="chat-filters">
+    <div class="filter-control">
+      <button type="button" class="filter-trigger" data-filter="customer" aria-expanded="false">
+        <span class="filter-icon">◎</span>
+        <span class="filter-label-wrap"><small>العميل</small><strong data-filter-label="customer">كل العملاء</strong></span>
+        <span class="filter-caret">⌄</span>
+      </button>
+      <div class="filter-popover" data-popover="customer" hidden>
+        <div class="popover-search">
+          <span>⌕</span>
+          <input type="search" placeholder="ابحث عن العميل..." data-popover-search="customer">
+        </div>
+        <div class="popover-list" data-popover-list="customer">
+          <button type="button" class="popover-option active" data-value="" data-label="كل العملاء">
+            <span>كل العملاء</span><b>الكل</b>
           </button>
-        {% endif %}
-      {% endfor %}
+          {% for customer in filter_customers %}
+          <button type="button" class="popover-option" data-value="{{ customer.id }}" data-label="{{ customer.name or customer.phone_normalized }}">
+            <span>{{ customer.name or "عميل" }}</span>
+            <small dir="ltr">{{ customer.phone_normalized or "" }}</small>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div class="filter-field">
-    <button type="button" class="filter-trigger" data-filter-button="order">
-      <span>الطلب</span><strong data-filter-label="order">كل الطلبات</strong><span>⌄</span>
-    </button>
-    <div class="filter-menu" data-filter-menu="order">
-      <input class="filter-search" type="search" placeholder="ابحث برقم الطلب..." data-filter-search="order">
-      <button type="button" class="filter-option active" data-value="">كل الطلبات</button>
-      {% set seen_orders = [] %}
-      {% for item in conversations %}
-        {% if item.order_id and item.order_id|string not in seen_orders %}
-          {% set _ = seen_orders.append(item.order_id|string) %}
-          <button type="button" class="filter-option" data-value="{{ item.order_id }}" data-label="طلب #{{ item.order_id }}">طلب #{{ item.order_id }}</button>
-        {% endif %}
-      {% endfor %}
+    <div class="filter-control">
+      <button type="button" class="filter-trigger" data-filter="order" aria-expanded="false">
+        <span class="filter-icon">▣</span>
+        <span class="filter-label-wrap"><small>الطلب</small><strong data-filter-label="order">كل الطلبات</strong></span>
+        <span class="filter-caret">⌄</span>
+      </button>
+      <div class="filter-popover" data-popover="order" hidden>
+        <div class="popover-search">
+          <span>⌕</span>
+          <input type="search" placeholder="ابحث برقم الطلب..." data-popover-search="order">
+        </div>
+        <div class="popover-list" data-popover-list="order">
+          <button type="button" class="popover-option active" data-value="" data-label="كل الطلبات">
+            <span>كل الطلبات</span><b>الكل</b>
+          </button>
+          {% for order in filter_orders %}
+          <button type="button" class="popover-option" data-value="{{ order.id }}" data-label="{{ order.order_no or ('طلب #' ~ order.id) }}">
+            <span>{{ order.order_no or ("طلب #" ~ order.id) }}</span>
+            <small>{{ order.customer.name if order.customer else "" }}</small>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div class="filter-field compact-filter">
-    <label for="chat-status-filter">الحالة</label>
-    <select id="chat-status-filter">
-      <option value="">الكل</option>
-      <option value="open">مفتوحة</option>
-      <option value="pending">معلّقة</option>
-      <option value="closed">مغلقة</option>
-    </select>
-  </div>
+    <div class="filter-control">
+      <button type="button" class="filter-trigger" data-filter="status" aria-expanded="false">
+        <span class="filter-icon">●</span>
+        <span class="filter-label-wrap"><small>الحالة</small><strong data-filter-label="status">كل الحالات</strong></span>
+        <span class="filter-caret">⌄</span>
+      </button>
+      <div class="filter-popover filter-popover-small" data-popover="status" hidden>
+        <div class="popover-list">
+          <button type="button" class="popover-option active" data-value="" data-label="كل الحالات"><span>كل الحالات</span></button>
+          <button type="button" class="popover-option" data-value="open" data-label="مفتوحة"><span>مفتوحة</span></button>
+          <button type="button" class="popover-option" data-value="pending" data-label="معلّقة"><span>معلّقة</span></button>
+          <button type="button" class="popover-option" data-value="closed" data-label="مغلقة"><span>مغلقة</span></button>
+        </div>
+      </div>
+    </div>
 
-  <div class="filter-summary"><strong id="chat-results-count">{{ conversations|length }}</strong><span>محادثة</span></div>
+    <button id="chat-reset-filters" type="button" class="chat-reset">إعادة ضبط</button>
+    <div class="chat-count"><strong id="chat-count-visible">{{ conversations|length }}</strong><span>نتيجة</span></div>
+  </div>
 </section>
 
-<section class="chat-list" id="chat-list">
+<section id="chat-list" class="conversation-list">
   {% for item in conversations %}
-  <a class="chat-card chat-row{% if item.unread_count > 0 %} has-unread{% endif %}" data-customer-id="{{ item.customer_id }}" data-order-id="{{ item.order_id or '' }}" data-status="{{ item.status }}" href="/admin/chat/{{ item.id }}">
-    <div class="chat-avatar {% if item.order_id %}order{% endif %}">
-      {% if item.order_id %}▣{% else %}◎{% endif %}
+  <a
+    class="conversation-card chat-row{% if item.unread_count > 0 %} is-unread{% endif %}"
+    href="{{ url_for('admin.conversation_detail_page', conversation_id=item.id) }}"
+    data-customer-id="{{ item.customer_id }}"
+    data-order-id="{{ item.order_id or '' }}"
+    data-status="{{ item.status or '' }}"
+    data-search="{{ (item.customer_name or '') ~ ' ' ~ (item.customer_phone or '') ~ ' ' ~ (item.subject or '') ~ ' ' ~ (item.order_id or '') ~ ' ' ~ (item.last_message or '') }}"
+  >
+    <div class="conversation-avatar{% if item.order_id %} is-order{% endif %}">
+      {% if item.order_id %}▣{% else %}{{ (item.customer_name or "ع")[:1] }}{% endif %}
     </div>
-    <div class="chat-main">
-      <div class="chat-topline">
-        <strong>{{ item.customer_name }}</strong>
-        <time>{{ item.last_message_at or "" }}</time>
+    <div class="conversation-body">
+      <div class="conversation-line top">
+        <div class="conversation-person">
+          <strong>{{ item.customer_name or "عميل" }}</strong>
+          {% if item.customer_phone %}<span dir="ltr">{{ item.customer_phone }}</span>{% endif %}
+        </div>
+        <time class="conversation-time" data-time="{{ item.last_message_at or '' }}">{{ item.last_message_at or '' }}</time>
       </div>
-      <div class="chat-subline">
-        <span class="chat-subject">{{ item.subject }}</span>
-        {% if item.order_id %}<span class="chat-order">طلب #{{ item.order_id }}</span>{% endif %}
-      </div>
-      <div class="chat-preview">
-        <span class="{% if item.last_sender_type == 'customer' %}customer-preview{% endif %}">{{ item.last_message }}</span>
-        {% if item.unread_count > 0 %}
-        <span class="unread-badge">{{ item.unread_count if item.unread_count < 100 else "99+" }}</span>
+
+      <div class="conversation-line middle">
+        <span class="conversation-subject">{{ item.subject or ("طلب #" ~ item.order_id if item.order_id else "خدمة العملاء") }}</span>
+        {% if item.order_id %}
+        <span class="conversation-order">طلب #{{ item.order_id }}</span>
         {% endif %}
+        <span class="conversation-state state-{{ item.status }}">{{ "مفتوحة" if item.status == "open" else "معلّقة" if item.status == "pending" else "مغلقة" if item.status == "closed" else item.status or "—" }}</span>
+      </div>
+
+      <div class="conversation-line preview">
+        <span class="preview-text">{% if item.last_sender_type == "customer" %}<b>العميل:</b> {% elif item.last_sender_type == "admin" %}<b>الإدارة:</b> {% elif item.last_sender_type == "system" %}<b>النظام:</b> {% endif %}{{ item.last_message or "لا توجد رسائل بعد" }}</span>
+        {% if item.unread_count > 0 %}
+        <span class="unread-count">{{ item.unread_count if item.unread_count < 100 else "99+" }}</span>
+        {% endif %}
+        <span class="conversation-arrow">‹</span>
       </div>
     </div>
-    <div class="chat-arrow">‹</div>
   </a>
   {% else %}
   <section class="empty-state panel">
     <div class="empty-icon">◎</div>
     <h3>لا توجد محادثات</h3>
-    <p class="muted">ستظهر هنا محادثات العملاء والطلبات.</p>
+    <p class="muted">ستظهر هنا محادثات العملاء والطلبات عند بدء التواصل.</p>
   </section>
+  {% endfor %}
 </section>
+
+<div id="chat-filter-empty" class="filter-empty" hidden>
+  <div>⌕</div>
+  <strong>لا توجد نتائج مطابقة</strong>
+  <span>جرّب تغيير العميل أو الطلب أو كلمة البحث.</span>
+</div>
+
+<style>
+.chat-page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px}
+.chat-head-copy{max-width:760px}
+.chat-head-stat{min-width:120px;padding:14px 16px;border:1px solid #e4e4e7;border-radius:16px;background:#fff;display:grid;gap:2px;text-align:center;box-shadow:0 5px 20px rgba(0,0,0,.04)}
+.chat-head-stat strong{font-size:25px;line-height:1}
+.chat-head-stat span{font-size:9px;color:var(--muted)}
+.chat-filter-panel{position:relative;z-index:20;padding:12px;border:1px solid #e5e5e8;border-radius:18px;background:#fafafa;box-shadow:0 6px 24px rgba(0,0,0,.035);margin-bottom:12px}
+.chat-search-wrap{position:relative;display:flex;align-items:center;height:48px;background:#fff;border:1px solid #dedee2;border-radius:13px}
+.chat-search-icon{font-size:20px;color:#83838a;padding:0 11px}
+.chat-search-wrap input{flex:1;height:100%;border:0;outline:0;background:transparent;font:inherit;font-size:11px;color:var(--text);min-width:0}
+.clear-search{border:0;background:#efeff1;color:#555;border-radius:50%;width:28px;height:28px;margin-inline-end:9px;font-size:18px;cursor:pointer}
+.chat-filters{display:flex;align-items:stretch;gap:8px;margin-top:9px;flex-wrap:wrap}
+.filter-control{position:relative;flex:1;min-width:205px}
+.filter-trigger{width:100%;min-height:52px;padding:7px 10px;border:1px solid #dedee2;border-radius:13px;background:#fff;display:flex;align-items:center;gap:8px;color:#1f1f22;cursor:pointer;text-align:right}
+.filter-trigger:hover{border-color:#c9c9ce}
+.filter-icon{width:29px;height:29px;border-radius:9px;background:#f1f1f3;display:grid;place-items:center;font-size:13px;flex:0 0 29px}
+.filter-label-wrap{min-width:0;flex:1;display:grid;gap:2px}
+.filter-label-wrap small{font-size:8px;color:#89898f}
+.filter-label-wrap strong{font-size:10px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.filter-caret{font-size:17px;color:#999}
+.filter-popover{position:absolute;z-index:100;top:calc(100% + 6px);inset-inline:0;padding:8px;background:#fff;border:1px solid #dedee2;border-radius:15px;box-shadow:0 18px 40px rgba(0,0,0,.16);overflow:hidden}
+.filter-popover-small{min-width:175px}
+.filter-popover[hidden]{display:none}
+.popover-search{display:flex;align-items:center;gap:6px;padding:0 9px;height:38px;border:1px solid #e2e2e4;border-radius:10px;background:#fafafa;margin-bottom:7px}
+.popover-search span{color:#888}
+.popover-search input{flex:1;border:0;outline:0;background:transparent;font:inherit;font-size:9.5px;min-width:0}
+.popover-list{max-height:285px;overflow:auto;display:grid;gap:2px}
+.popover-option{width:100%;min-height:40px;border:0;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;text-align:right;cursor:pointer;color:#222;font:inherit}
+.popover-option:hover,.popover-option.active{background:#f1f1f3}
+.popover-option span{font-size:9.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.popover-option small,.popover-option b{font-size:7.5px;color:#999;white-space:nowrap}
+.chat-reset{min-height:52px;padding:0 14px;border:1px solid #dedee2;border-radius:13px;background:#fff;color:#333;font:inherit;font-size:9px;font-weight:800;cursor:pointer}
+.chat-reset:hover{background:#f3f3f3}
+.chat-count{min-width:78px;padding:0 10px;border:1px solid #e4e4e6;border-radius:13px;background:#fff;display:flex;align-items:center;justify-content:center;gap:4px;color:#777}
+.chat-count strong{font-size:14px;color:#111}
+.chat-count span{font-size:8px}
+.conversation-list{display:grid;gap:0;border:1px solid #e4e4e7;border-radius:18px;background:#fff;overflow:hidden;box-shadow:0 7px 28px rgba(0,0,0,.045)}
+.conversation-card{display:flex;align-items:center;gap:12px;padding:13px 14px;text-decoration:none;color:inherit;border-bottom:1px solid #ededee;background:#fff;transition:background .15s,transform .15s}
+.conversation-card:last-child{border-bottom:0}
+.conversation-card:hover{background:#fafafa}
+.conversation-card.is-unread{background:linear-gradient(90deg,#fff 0%,#fff 92%,#f3f3f3 100%)}
+.conversation-avatar{width:52px;height:52px;flex:0 0 52px;border-radius:50%;background:#f0f0f1;color:#18181a;display:grid;place-items:center;font-size:19px;font-weight:900;border:1px solid #e7e7e8}
+.conversation-avatar.is-order{background:#111;color:#fff;border-color:#111}
+.conversation-body{min-width:0;flex:1}
+.conversation-line{display:flex;align-items:center;gap:7px;min-width:0}
+.conversation-line.top{justify-content:space-between}
+.conversation-person{min-width:0;display:flex;align-items:baseline;gap:7px}
+.conversation-person strong{font-size:12.5px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conversation-person span{font-size:7.5px;color:#999;white-space:nowrap}
+.conversation-time{font-size:7.5px;color:#939399;white-space:nowrap}
+.conversation-line.middle{margin-top:3px}
+.conversation-subject{min-width:0;flex:1;font-size:8.5px;color:#707076;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conversation-order{font-size:7.5px;color:#666;white-space:nowrap}
+.conversation-state{font-size:7px;padding:3px 6px;border-radius:99px;background:#f1f1f3;color:#777;white-space:nowrap}
+.state-open{background:#ecfdf5;color:#15803d}
+.state-pending{background:#fff7ed;color:#b45309}
+.state-closed{background:#f3f4f6;color:#6b7280}
+.conversation-line.preview{margin-top:5px}
+.preview-text{min-width:0;flex:1;font-size:9.5px;color:#777;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.preview-text b{color:#333}
+.unread-count{min-width:23px;height:23px;padding:0 4px;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;font-size:7.5px;font-weight:900}
+.conversation-arrow{font-size:24px;color:#aaa;line-height:1}
+.filter-empty{padding:55px 20px;border:1px dashed #d9d9dc;border-radius:18px;background:#fafafa;display:grid;gap:6px;text-align:center;align-items:center;justify-items:center}
+.filter-empty[hidden]{display:none}
+.filter-empty div{width:46px;height:46px;border-radius:50%;background:#eeeef0;display:grid;place-items:center;font-size:22px;color:#777}
+.filter-empty strong{font-size:12px}
+.filter-empty span{font-size:9px;color:#888}
+.chat-row[hidden]{display:none!important}
+@media(max-width:700px){
+ .chat-page-head{align-items:stretch;flex-direction:column}
+ .chat-head-stat{min-width:0;display:flex;align-items:center;justify-content:center;gap:6px}
+ .chat-filter-panel{padding:9px;border-radius:14px}
+ .filter-control{min-width:calc(50% - 4px)}
+ .chat-reset{flex:1}
+ .chat-count{flex:1;min-width:0;min-height:52px}
+ .conversation-list{border-radius:14px}
+ .conversation-card{padding:12px 9px;gap:9px}
+ .conversation-avatar{width:46px;height:46px;flex-basis:46px;font-size:17px}
+ .conversation-person strong{font-size:11.5px}
+ .conversation-person span{display:none}
+ .conversation-subject{font-size:8px}
+ .preview-text{font-size:9px}
+ .conversation-time{font-size:7px}
+ .filter-popover{inset-inline:0}
+}
+</style>
 
 <script>
 (function(){
+  const state={customer:'',order:'',status:'',query:''};
   const rows=[...document.querySelectorAll('.chat-row')];
-  const state={customer:'',order:'',status:''};
-  const menus={customer:null,order:null};
+  const count=document.getElementById('chat-count-visible');
+  const empty=document.getElementById('chat-filter-empty');
+  const search=document.getElementById('chat-global-search');
+  const clear=document.getElementById('chat-clear-search');
+
+  function closePopovers(except){
+    document.querySelectorAll('.filter-popover').forEach(p=>{
+      if(p!==except) p.hidden=true;
+    });
+    document.querySelectorAll('.filter-trigger').forEach(b=>{
+      const same=except && b.dataset.filter===except.dataset.popover;
+      b.setAttribute('aria-expanded',same?'true':'false');
+    });
+  }
 
   function apply(){
-    let count=0;
+    const q=state.query.toLocaleLowerCase().trim();
+    let visible=0;
     rows.forEach(row=>{
+      const hay=(row.dataset.search||'').toLocaleLowerCase();
       const okCustomer=!state.customer||row.dataset.customerId===state.customer;
       const okOrder=!state.order||row.dataset.orderId===state.order;
       const okStatus=!state.status||row.dataset.status===state.status;
-      const visible=okCustomer&&okOrder&&okStatus;
-      row.hidden=!visible;
-      if(visible) count++;
+      const okQuery=!q||hay.includes(q);
+      const show=okCustomer&&okOrder&&okStatus&&okQuery;
+      row.hidden=!show;
+      if(show) visible++;
     });
-    document.getElementById('chat-results-count').textContent=count;
+    count.textContent=visible;
+    empty.hidden=visible!==0||rows.length===0;
   }
 
-  function closeMenus(except){
-    document.querySelectorAll('.filter-menu.open').forEach(menu=>{
-      if(menu!==except) menu.classList.remove('open');
-    });
-  }
-
-  document.querySelectorAll('[data-filter-button]').forEach(button=>{
+  document.querySelectorAll('.filter-trigger').forEach(button=>{
     button.addEventListener('click',()=>{
-      const key=button.dataset.filterButton;
-      const menu=document.querySelector('[data-filter-menu="'+key+'"]');
-      const open=menu.classList.toggle('open');
-      closeMenus(open?menu:null);
-      if(open){
-        const input=menu.querySelector('.filter-search');
-        if(input){input.value=''; menu.querySelectorAll('.filter-option').forEach(x=>x.hidden=false); input.focus();}
+      const key=button.dataset.filter;
+      const pop=document.querySelector('[data-popover="'+key+'"]');
+      const opening=pop.hidden;
+      closePopovers(null);
+      pop.hidden=!opening;
+      button.setAttribute('aria-expanded',opening?'true':'false');
+      if(opening){
+        const input=pop.querySelector('[data-popover-search]');
+        if(input){input.value=''; pop.querySelectorAll('.popover-option').forEach(o=>o.hidden=false); input.focus();}
       }
     });
   });
 
-  document.querySelectorAll('[data-filter-search]').forEach(input=>{
+  document.querySelectorAll('[data-popover-search]').forEach(input=>{
     input.addEventListener('input',()=>{
-      const value=input.value.trim().toLowerCase();
-      input.closest('.filter-menu').querySelectorAll('.filter-option').forEach(option=>{
-        option.hidden=!!value&&!((option.dataset.label||option.textContent||'').toLowerCase().includes(value));
+      const q=input.value.toLocaleLowerCase().trim();
+      const pop=input.closest('.filter-popover');
+      pop.querySelectorAll('.popover-option').forEach(option=>{
+        const hay=((option.dataset.label||'')+' '+(option.textContent||'')).toLocaleLowerCase();
+        option.hidden=!!q&&!hay.includes(q);
       });
     });
   });
 
-  document.querySelectorAll('[data-filter-menu] .filter-option').forEach(option=>{
+  document.querySelectorAll('.popover-option').forEach(option=>{
     option.addEventListener('click',()=>{
-      const key=option.closest('.filter-menu').dataset.filterMenu;
+      const pop=option.closest('.filter-popover');
+      const key=pop.dataset.popover;
       state[key]=option.dataset.value||'';
       document.querySelector('[data-filter-label="'+key+'"]').textContent=option.dataset.label||option.textContent.trim();
-      option.closest('.filter-menu').querySelectorAll('.filter-option').forEach(x=>x.classList.remove('active'));
+      pop.querySelectorAll('.popover-option').forEach(o=>o.classList.remove('active'));
       option.classList.add('active');
-      option.closest('.filter-menu').classList.remove('open');
+      pop.hidden=true;
+      document.querySelector('[data-filter="'+key+'"]').setAttribute('aria-expanded','false');
       apply();
     });
   });
 
-  const status=document.getElementById('chat-status-filter');
-  status.addEventListener('change',()=>{state.status=status.value;apply();});
-  document.addEventListener('click',event=>{
-    if(!event.target.closest('.filter-field')) closeMenus(null);
+  search.addEventListener('input',()=>{
+    state.query=search.value;
+    clear.hidden=!search.value;
+    apply();
   });
+  clear.addEventListener('click',()=>{search.value='';state.query='';clear.hidden=true;search.focus();apply();});
+
+  document.getElementById('chat-reset-filters').addEventListener('click',()=>{
+    state.customer='';state.order='';state.status='';state.query='';
+    search.value='';clear.hidden=true;
+    ['customer','order','status'].forEach(key=>{
+      document.querySelector('[data-filter-label="'+key+'"]').textContent=
+        key==='customer'?'كل العملاء':key==='order'?'كل الطلبات':'كل الحالات';
+      document.querySelectorAll('[data-popover="'+key+'"] .popover-option').forEach((o,i)=>{
+        o.classList.toggle('active',i===0);o.hidden=false;
+      });
+    });
+    closePopovers(null);apply();
+  });
+
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('.filter-control')) closePopovers(null);
+  });
+
+  document.querySelectorAll('.conversation-time').forEach(el=>{
+    const raw=el.dataset.time;
+    if(!raw) return;
+    const d=new Date(raw);
+    if(Number.isNaN(d.getTime())) return;
+    el.textContent=new Intl.DateTimeFormat('ar-YE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}).format(d);
+  });
+
+  apply();
 })();
 </script>
-<style>
-.chat-toolbar{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;margin:0 0 10px}
-.filter-field{position:relative;min-width:190px;flex:1}
-.filter-trigger{width:100%;min-height:46px;padding:8px 11px;border:1px solid #e2e2e4;border-radius:12px;background:#fff;display:flex;align-items:center;gap:8px;color:#222;cursor:pointer;text-align:right}
-.filter-trigger span:first-child{color:#8b8b8b;font-size:8px;font-weight:800}
-.filter-trigger strong{font-size:10px;font-weight:900;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.filter-trigger span:last-child{font-size:16px;color:#999;line-height:1}
-.filter-menu{display:none;position:absolute;z-index:30;top:calc(100% + 5px);right:0;left:0;padding:8px;background:#fff;border:1px solid #dedee1;border-radius:13px;box-shadow:0 12px 30px rgba(0,0,0,.12);max-height:320px;overflow:auto}
-.filter-menu.open{display:block}
-.filter-search{width:100%;height:37px;border:1px solid #e1e1e3;border-radius:9px;padding:0 10px;margin-bottom:7px;font:inherit;font-size:10px;outline:none;background:#fafafa}
-.filter-option{width:100%;display:flex;align-items:center;justify-content:space-between;gap:7px;padding:9px 8px;border:0;border-radius:8px;background:#fff;color:#222;cursor:pointer;text-align:right;font:inherit;font-size:9.5px}
-.filter-option:hover,.filter-option.active{background:#f2f2f2}
-.filter-option small{font-size:7.5px;color:#999;white-space:nowrap}
-.compact-filter{max-width:170px;display:grid;gap:4px}
-.compact-filter label{font-size:8px;color:#777;font-weight:800;padding:0 3px}
-.compact-filter select{width:100%;height:37px;border:1px solid #e2e2e4;border-radius:10px;background:#fff;padding:0 9px;font:inherit;font-size:9.5px;color:#222}
-.filter-summary{min-width:78px;display:flex;align-items:center;justify-content:center;gap:4px;padding:0 8px;border:1px solid #e7e7e9;border-radius:12px;background:#fafafa;color:#777;font-size:8px}
-.filter-summary strong{color:#111;font-size:13px}
-.chat-list{display:grid;gap:0;background:#fff;border:1px solid #e7e7e9;border-radius:16px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.03)}
-.chat-card{display:flex;align-items:center;gap:12px;padding:14px 13px;text-decoration:none;color:inherit;border-bottom:1px solid #ededee;background:#fff;transition:background .15s ease}
-.chat-card:last-child{border-bottom:0}
-.chat-card:hover{background:#fafafa}
-.chat-card.has-unread{background:#fff}
-.chat-avatar{width:52px;height:52px;flex:0 0 52px;border-radius:50%;display:grid;place-items:center;background:#efefef;color:#111;font-size:23px;font-weight:900}
-.chat-avatar.order{background:#111;color:#fff}
-.chat-main{min-width:0;flex:1}
-.chat-topline,.chat-subline,.chat-preview{display:flex;align-items:center;gap:8px}
-.chat-topline{justify-content:space-between}
-.chat-topline strong{font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chat-topline time{font-size:8.5px;color:#8b8b8b;white-space:nowrap}
-.chat-subline{margin-top:3px}
-.chat-subject{font-size:9px;color:#6e6e6e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chat-order{font-size:8px;color:#888;white-space:nowrap}
-.chat-preview{margin-top:5px}
-.chat-preview>span:first-child{min-width:0;flex:1;font-size:9.5px;color:#777;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.chat-preview .customer-preview{color:#111;font-weight:700}
-.unread-badge{width:22px;height:22px;min-width:22px;padding:0 3px;border-radius:50%;display:grid;place-items:center;background:#111;color:#fff;font-size:8px;font-weight:900}
-.chat-arrow{font-size:25px;color:#aaa;line-height:1;transform:translateY(-1px)}
-@media(max-width:700px){
- .chat-toolbar{gap:6px}
- .filter-field{min-width:calc(50% - 3px)}
- .compact-filter{max-width:none}
- .filter-summary{min-height:42px;flex:1}
- .chat-list{border-radius:12px}
- .chat-card{padding:12px 9px;gap:10px}
- .chat-avatar{width:48px;height:48px;flex-basis:48px}
- .chat-topline strong{font-size:12px}
- .filter-menu{max-height:300px}
-}
-</style>
 {% endblock %}

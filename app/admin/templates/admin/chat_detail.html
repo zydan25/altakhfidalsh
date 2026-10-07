@@ -1,17 +1,25 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<section class="module-header">
-  <span class="eyebrow">المحادثة</span>
-  <div class="split-heading">
-    <div>
-      <h2>{{ conversation.subject or "المحادثة" }}</h2>
-      <p class="muted">
-        {{ customer.name or "عميل" }}
-        {% if customer.phone_normalized %} · <span dir="ltr">{{ customer.phone_normalized }}</span>{% endif %}
-        {% if order %} · <a class="inline-link" href="/admin/orders/{{ order.id }}">الطلب #{{ order.id }}</a>{% endif %}
-      </p>
+<section class="chat-detail-head">
+  <div class="detail-back">
+    <a class="ghost-button" href="{{ url_for('admin.chat') }}">‹ المحادثات</a>
+  </div>
+  <div class="detail-person">
+    <div class="detail-avatar{% if order %} is-order{% endif %}">{% if order %}▣{% else %}{{ (customer.name or "ع")[:1] }}{% endif %}</div>
+    <div class="detail-title">
+      <div class="eyebrow">المحادثة</div>
+      <h2>{{ customer.name or "عميل" }}</h2>
+      <div class="detail-meta">
+        {% if customer.phone_normalized %}<span dir="ltr">{{ customer.phone_normalized }}</span>{% endif %}
+        {% if order %}<span>·</span><a href="{{ url_for('admin.order_detail_page', order_id=order.id) }}">طلب {{ order.order_no or ("#" ~ order.id) }}</a>{% endif %}
+        <span>·</span>
+        <span>{{ "مفتوحة" if conversation.status == "open" else "معلّقة" if conversation.status == "pending" else "مغلقة" if conversation.status == "closed" else conversation.status }}</span>
+      </div>
     </div>
-    <a class="ghost-button" href="/admin/chat">العودة للمحادثات</a>
+  </div>
+  <div class="detail-actions">
+    {% if order %}<a class="icon-action" href="{{ url_for('admin.order_detail_page', order_id=order.id) }}" title="فتح الطلب">▣</a>{% endif %}
+    <a class="icon-action" href="{{ url_for('admin.chat') }}" title="قائمة المحادثات">☰</a>
   </div>
 </section>
 
@@ -20,108 +28,173 @@
 
 <section class="wa-wrap">
   <header class="wa-header">
-    <div class="wa-avatar {% if order %}order{% endif %}">
-      {% if order %}▣{% else %}◎{% endif %}
+    <div class="wa-header-avatar{% if order %} is-order{% endif %}">{% if order %}▣{% else %}{{ (customer.name or "ع")[:1] }}{% endif %}</div>
+    <div class="wa-header-copy">
+      <strong>{% if order %}محادثة الطلب{% else %}خدمة العملاء{% endif %}</strong>
+      <span>{% if order %}{{ order.order_no or ("طلب #" ~ order.id) }}{% else %}{{ customer.phone_normalized or "تواصل مباشر" }}{% endif %}</span>
     </div>
-    <div class="wa-title">
-      <strong>{{ customer.name or "عميل" }}</strong>
-      <span>{% if order %}محادثة الطلب #{{ order.id }}{% else %}خدمة العملاء{% endif %}</span>
-    </div>
-    <div class="wa-actions">
-      {% if order %}<a href="/admin/orders/{{ order.id }}" title="فتح الطلب">▣</a>{% endif %}
-      <a href="/admin/chat" title="المحادثات">☰</a>
-    </div>
+    {% if conversation.status == "closed" %}
+    <form method="post" class="status-form"><input type="hidden" name="action" value="open"><button class="status-toggle">فتح</button></form>
+    {% else %}
+    <form method="post" class="status-form"><input type="hidden" name="action" value="close"><button class="status-toggle">إغلاق</button></form>
+    {% endif %}
   </header>
 
-  <div class="wa-messages">
+  <div id="wa-messages" class="wa-messages">
     {% for message in messages %}
     {% set mine = message.sender_type == "admin" %}
     {% set system = message.sender_type == "system" %}
     <div class="wa-row {% if system %}system{% elif mine %}mine{% else %}customer{% endif %}">
       <article class="wa-bubble">
-        <span class="wa-meta">
-          {% if system %}النظام{% elif mine %}الإدارة{% else %}العميل{% endif %}
-          · {{ message.created_at }}
-        </span>
+        <div class="wa-meta">
+          <span>{% if system %}النظام{% elif mine %}الإدارة{% else %}العميل{% endif %}</span>
+          <time>{{ message.created_at }}</time>
+        </div>
         {% if message.body %}<div class="wa-body">{{ message.body }}</div>{% endif %}
         {% for a in message.attachments if a.url %}
           {% if a.mime_type and a.mime_type.startswith("image/") %}
-          <a href="{{ a.url }}" target="_blank" rel="noreferrer"><img class="wa-image" src="{{ a.url }}" alt="{{ a.source_name or 'مرفق' }}"></a>
+          <a href="{{ a.url }}" target="_blank" rel="noreferrer" class="wa-image-link"><img class="wa-image" src="{{ a.url }}" alt="{{ a.source_name or 'مرفق' }}"></a>
           {% else %}
-          <a class="wa-file" href="{{ a.url }}" target="_blank" rel="noreferrer">📎 {{ a.source_name or "مرفق" }}</a>
+          <a class="wa-file" href="{{ a.url }}" target="_blank" rel="noreferrer"><span>📎</span><span><b>{{ a.source_name or "مرفق" }}</b><small>{{ a.mime_type or "ملف" }}</small></span><span>↗</span></a>
           {% endif %}
         {% endfor %}
       </article>
     </div>
     {% else %}
-    <div class="wa-empty">لا توجد رسائل بعد. ابدأ المحادثة من الحقل أدناه.</div>
+    <div class="wa-empty">ابدأ المحادثة الآن. يمكنك إرسال نص أو صورة أو ملف.</div>
     {% endfor %}
   </div>
 
-  <form method="post" enctype="multipart/form-data" class="wa-compose">
+  <form method="post" enctype="multipart/form-data" id="wa-compose" class="wa-compose">
     <input type="hidden" name="action" value="message">
-    <input id="chat-file" name="files" type="file" class="wa-file-input" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
-    <label for="chat-file" class="wa-attach" title="إرفاق ملف" aria-label="إرفاق ملف">📎</label>
-    <div class="wa-compose-main">
-      <textarea name="body" rows="1" placeholder="اكتب رسالة..."></textarea>
-      <span id="wa-file-name" class="wa-file-name">لم يتم اختيار ملف</span>
+    <input id="chat-file-input" name="files" type="file" multiple hidden accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip">
+    <button type="button" id="chat-file-button" class="compose-tool attach-tool">
+      <span class="compose-tool-icon">📎</span><span>إرفاق</span>
+    </button>
+    <div class="compose-main">
+      <textarea id="chat-body" name="body" rows="1" placeholder="اكتب رسالة للعميل..."></textarea>
+      <div id="file-selection" class="file-selection" hidden></div>
     </div>
-    <button type="submit" class="wa-send" title="إرسال" aria-label="إرسال">➤</button>
+    <button type="submit" class="compose-send">
+      <span>إرسال</span><b>➤</b>
+    </button>
   </form>
-  <script>
-  (function(){
-    const input=document.getElementById('chat-file');
-    const name=document.getElementById('wa-file-name');
-    if(input) input.addEventListener('change',()=>{
-      name.textContent=input.files.length ? input.files[0].name : 'لم يتم اختيار ملف';
-      name.classList.toggle('active',input.files.length>0);
-    });
-  })();
-  </script>
 </section>
 
 <style>
-.wa-wrap{max-width:880px;margin:0 auto;border:1px solid #e2e2e4;border-radius:16px;overflow:hidden;background:#f2f2f3;box-shadow:0 8px 28px rgba(0,0,0,.05)}
-.wa-header{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border-bottom:1px solid #e5e5e6}
-.wa-avatar{width:46px;height:46px;flex:0 0 46px;border-radius:50%;display:grid;place-items:center;background:#ececec;color:#111;font-size:21px;font-weight:900}
-.wa-avatar.order{background:#111;color:#fff}
-.wa-title{min-width:0;flex:1;display:grid;gap:2px}
-.wa-title strong{font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wa-title span{font-size:8.5px;color:#858585}
-.wa-actions{display:flex;gap:5px}
-.wa-actions a{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;text-decoration:none;color:#111;background:#f3f3f3;font-size:15px}
-.wa-messages{min-height:470px;max-height:64vh;overflow:auto;padding:18px 12px;background:#f4f4f4}
-.wa-row{display:flex;margin-bottom:7px}
+.chat-detail-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.detail-back{order:3}
+.detail-person{display:flex;align-items:center;gap:11px;min-width:0;flex:1}
+.detail-avatar{width:54px;height:54px;border-radius:50%;background:#f0f0f1;border:1px solid #e6e6e8;display:grid;place-items:center;font-weight:900}
+.detail-avatar.is-order{background:#111;color:#fff;border-color:#111}
+.detail-title{min-width:0}
+.detail-title h2{margin:2px 0 3px;font-size:20px}
+.detail-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;color:#85858a;font-size:8.5px}
+.detail-meta a{color:inherit}
+.detail-actions{display:flex;gap:6px}
+.icon-action{width:38px;height:38px;border-radius:11px;border:1px solid #e1e1e3;background:#fff;color:#222;text-decoration:none;display:grid;place-items:center}
+.wa-wrap{max-width:960px;height:min(76vh,760px);min-height:520px;margin:0 auto;border:1px solid #e1e1e4;border-radius:18px;overflow:hidden;background:#f2f2f3;box-shadow:0 10px 35px rgba(0,0,0,.055);display:flex;flex-direction:column}
+.wa-header{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border-bottom:1px solid #e4e4e6;flex:0 0 auto}
+.wa-header-avatar{width:44px;height:44px;flex:0 0 44px;border-radius:50%;background:#f0f0f1;display:grid;place-items:center;font-size:18px;font-weight:900}
+.wa-header-avatar.is-order{background:#111;color:#fff}
+.wa-header-copy{min-width:0;flex:1;display:grid;gap:2px}
+.wa-header-copy strong{font-size:12.5px;font-weight:900}
+.wa-header-copy span{font-size:8px;color:#8a8a90;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status-form{margin:0}
+.status-toggle{min-height:35px;padding:0 11px;border:1px solid #dedee1;border-radius:10px;background:#fff;cursor:pointer;font:inherit;font-size:8.5px;font-weight:800}
+.wa-messages{flex:1;min-height:0;overflow:auto;padding:16px 12px;background:radial-gradient(circle at 15% 20%,rgba(0,0,0,.018),transparent 28%),#f5f5f5}
+.wa-row{display:flex;margin-bottom:8px}
 .wa-row.customer{justify-content:flex-start}
 .wa-row.mine{justify-content:flex-end}
 .wa-row.system{justify-content:center}
-.wa-bubble{max-width:min(76%,620px);padding:8px 10px 6px;border-radius:15px;background:#fff;border:1px solid #e4e4e5;box-shadow:0 1px 2px rgba(0,0,0,.04)}
-.wa-row.mine .wa-bubble{background:#111;color:#fff;border-color:#111;border-bottom-left-radius:4px}
-.wa-row.customer .wa-bubble{border-bottom-right-radius:4px}
-.wa-row.system .wa-bubble{max-width:88%;background:#ececec;border-color:#dedede;text-align:center}
-.wa-meta{display:block;font-size:7.2px;color:#969696;margin-bottom:3px}
-.wa-row.mine .wa-meta{color:#bdbdbd}
-.wa-body{font-size:11px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
-.wa-image{display:block;max-width:300px;max-height:330px;width:auto;height:auto;border-radius:10px;margin-top:5px}
-.wa-file{display:block;margin-top:5px;padding:8px 9px;background:#f0f0f0;color:#111;text-decoration:none;border-radius:9px;font-size:9px}
-.wa-row.mine .wa-file{background:#2a2a2a;color:#fff}
-.wa-empty{padding:70px 20px;text-align:center;color:#888;font-size:10px}
-.wa-compose{display:flex;align-items:flex-end;gap:7px;padding:9px;background:#fff;border-top:1px solid #e2e2e3}
-.wa-file-input{display:none}
-.wa-attach{width:43px;height:43px;flex:0 0 43px;border-radius:50%;display:grid;place-items:center;background:#f1f1f1;color:#111;border:1px solid #dddddf;font-size:20px;cursor:pointer;user-select:none}
-.wa-attach:hover{background:#e9e9e9}
-.wa-compose-main{min-width:0;flex:1;display:grid;gap:4px}
-.wa-compose textarea{width:100%;resize:vertical;min-height:42px;max-height:110px;border:1px solid #dedede;border-radius:22px;padding:11px 14px;font:inherit;font-size:11px;line-height:1.4;outline:none}
-.wa-file-name{min-height:13px;padding:0 9px;color:#9a9a9a;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.wa-file-name.active{color:#111;font-weight:800}
-.wa-send{width:43px;height:43px;flex:0 0 43px;border:0;border-radius:50%;background:#111;color:#fff;font-size:19px;cursor:pointer;display:grid;place-items:center}
-.wa-send:hover{transform:translateY(-1px)}
-
+.wa-bubble{max-width:min(74%,650px);padding:9px 10px 7px;border-radius:15px;background:#fff;border:1px solid #e2e2e4;box-shadow:0 2px 6px rgba(0,0,0,.035)}
+.wa-row.mine .wa-bubble{background:#111;color:#fff;border-color:#111;border-bottom-right-radius:4px}
+.wa-row.customer .wa-bubble{border-bottom-left-radius:4px}
+.wa-row.system .wa-bubble{max-width:86%;background:#ececee;border-color:#dedee0;text-align:center}
+.wa-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px;color:#98989d;font-size:7px}
+.wa-row.mine .wa-meta{color:#c3c3c7}
+.wa-body{font-size:10.8px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+.wa-image-link{display:block;margin-top:6px}
+.wa-image{display:block;max-width:min(340px,70vw);max-height:360px;width:auto;height:auto;border-radius:11px}
+.wa-file{display:flex;align-items:center;gap:8px;margin-top:6px;padding:9px;background:#f0f0f1;border-radius:10px;color:#222;text-decoration:none;min-width:230px}
+.wa-file>span:first-child{font-size:19px}
+.wa-file>span:nth-child(2){display:grid;gap:2px;min-width:0;flex:1}
+.wa-file b{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wa-file small{font-size:7px;color:#888}
+.wa-row.mine .wa-file{background:#292929;color:#fff}
+.wa-row.mine .wa-file small{color:#bbb}
+.wa-row.mine .wa-file>span:last-child{color:#ccc}
+.wa-empty{padding:80px 20px;text-align:center;color:#888;font-size:10px}
+.wa-compose{display:flex;align-items:flex-end;gap:7px;padding:9px;background:#fff;border-top:1px solid #e1e1e3;flex:0 0 auto}
+.compose-tool{min-height:44px;border:1px solid #dedee1;border-radius:12px;background:#f7f7f8;color:#222;padding:0 11px;display:flex;align-items:center;gap:6px;font:inherit;font-size:9px;font-weight:900;cursor:pointer;white-space:nowrap}
+.compose-tool:hover{background:#efeff1}
+.compose-tool-icon{font-size:18px;line-height:1}
+.compose-main{min-width:0;flex:1;display:grid;gap:4px}
+.compose-main textarea{width:100%;min-height:44px;max-height:130px;resize:vertical;border:1px solid #dedee1;border-radius:14px;padding:11px 13px;outline:none;font:inherit;font-size:10.5px;line-height:1.45;background:#fafafa}
+.compose-main textarea:focus{background:#fff;border-color:#bfc0c5;box-shadow:0 0 0 3px rgba(0,0,0,.04)}
+.compose-send{height:44px;min-width:78px;border:0;border-radius:12px;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font:inherit;font-size:9px;font-weight:900;cursor:pointer}
+.compose-send:hover{transform:translateY(-1px)}
+.file-selection{display:flex;gap:5px;flex-wrap:wrap;max-height:70px;overflow:auto}
+.file-selection[hidden]{display:none}
+.file-chip{display:flex;align-items:center;gap:5px;padding:4px 7px;border-radius:8px;background:#efeff1;color:#444;font-size:7.5px;max-width:100%}
+.file-chip b{max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:700px){
- .wa-wrap{border-radius:12px;margin:0}
- .wa-messages{min-height:58vh;max-height:68vh;padding:12px 8px}
+ .chat-detail-head{align-items:flex-start;flex-wrap:wrap}
+ .detail-back{order:3;width:100%}
+ .detail-person{order:1}
+ .detail-actions{order:2}
+ .detail-title h2{font-size:17px}
+ .wa-wrap{height:calc(100vh - 178px);min-height:500px;border-radius:14px}
+ .wa-messages{padding:12px 8px}
  .wa-bubble{max-width:86%}
- .wa-image{max-width:230px}
+ .wa-image{max-width:270px}
+ .compose-tool{width:47px;padding:0;justify-content:center}
+ .compose-tool span:last-child{display:none}
+ .compose-send{min-width:55px;width:55px}
+ .compose-send span{display:none}
+ .compose-main textarea{font-size:10px}
 }
 </style>
+
+<script>
+(function(){
+  const fileInput=document.getElementById('chat-file-input');
+  const fileButton=document.getElementById('chat-file-button');
+  const selection=document.getElementById('file-selection');
+  const body=document.getElementById('chat-body');
+  const form=document.getElementById('wa-compose');
+  if(fileButton&&fileInput) fileButton.addEventListener('click',()=>fileInput.click());
+
+  function paintFiles(){
+    if(!selection||!fileInput) return;
+    selection.innerHTML='';
+    const files=[...fileInput.files];
+    selection.hidden=files.length===0;
+    files.forEach(file=>{
+      const chip=document.createElement('span');
+      chip.className='file-chip';
+      chip.innerHTML='<span>📎</span><b></b>';
+      chip.querySelector('b').textContent=file.name;
+      selection.appendChild(chip);
+    });
+  }
+  if(fileInput) fileInput.addEventListener('change',paintFiles);
+
+  if(body) body.addEventListener('keydown',event=>{
+    if(event.key==='Enter'&&!event.shiftKey){
+      event.preventDefault();
+      if(body.value.trim()||fileInput.files.length) form.requestSubmit();
+    }
+  });
+
+  const messages=document.getElementById('wa-messages');
+  if(messages) requestAnimationFrame(()=>messages.scrollTop=messages.scrollHeight);
+
+  document.querySelectorAll('.wa-meta time').forEach(el=>{
+    const raw=el.textContent.trim(); if(!raw) return;
+    const d=new Date(raw); if(Number.isNaN(d.getTime())) return;
+    el.textContent=new Intl.DateTimeFormat('ar-YE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(d);
+  });
+})();
+</script>
 {% endblock %}
