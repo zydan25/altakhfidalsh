@@ -173,6 +173,13 @@ def register_entity_views(admin_bp):
             customer_id=customer.id, is_active=True
         ).order_by(CustomerPricingAssignment.priority.desc(), CustomerPricingAssignment.id.desc()).all()
         wallets = Wallet.query.filter_by(customer_id=customer.id, is_active=True).all()
+        referred_customers = (
+            Customer.query
+            .filter_by(referred_by_customer_id=customer.id)
+            .order_by(Customer.id.desc())
+            .limit(200)
+            .all()
+        )
         notifications = (
             db.session.query(CustomerNotification, Notification)
             .join(Notification, Notification.id == CustomerNotification.notification_id)
@@ -199,6 +206,7 @@ def register_entity_views(admin_bp):
             wallets=wallets,
             notifications=notifications,
             cities=cities,
+            referred_customers=referred_customers,
             error=error,
             success=success,
             **build_admin_context(),
