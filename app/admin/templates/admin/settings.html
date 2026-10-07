@@ -22,6 +22,55 @@
     <span dir="ltr">store_locations_json</span>.
   </div>
 </section>
+{% set splash = namespace(id='', value='2') %}
+{% for row in settings %}
+  {% if row.group_code == 'storefront' and row.key == 'splash_duration_seconds' %}
+    {% set splash.id = row.id %}
+    {% set splash.value = row.value or '2' %}
+  {% endif %}
+{% endfor %}
+<section class="panel" style="margin-bottom:12px">
+  <div class="panel-heading">
+    <div>
+      <span class="eyebrow">واجهة التطبيق</span>
+      <h3>مدة شاشة البداية</h3>
+    </div>
+  </div>
+  <p class="muted" style="line-height:1.7;margin-top:0">
+    تتحكم هذه القيمة في مدة ظهور الشاشة السوداء ذات الشعار عند فتح التطبيق.
+    القيمة بالثواني، والقيمة الافتراضية هي ثانيتان.
+  </p>
+  <form method="post" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+    {% if splash.id %}
+      <input type="hidden" name="action" value="update">
+      <input type="hidden" name="id" value="{{ splash.id }}">
+    {% else %}
+      <input type="hidden" name="action" value="create">
+      <input type="hidden" name="group_code" value="storefront">
+      <input type="hidden" name="key" value="splash_duration_seconds">
+      <input type="hidden" name="value_type" value="number">
+    {% endif %}
+    <label style="max-width:220px;flex:1">
+      الثواني
+      <input
+        type="number"
+        name="value"
+        value="{{ splash.value }}"
+        min="1"
+        max="30"
+        step="1"
+        required
+        dir="ltr"
+      >
+    </label>
+    {% if splash.id %}
+      <input type="hidden" name="group_code" value="storefront">
+      <input type="hidden" name="key" value="splash_duration_seconds">
+      <input type="hidden" name="value_type" value="number">
+    {% endif %}
+    <button class="primary-button">حفظ مدة شاشة البداية</button>
+  </form>
+</section>
 <section class="two-panel">
 <article class="panel">
 <div class="panel-heading"><div><span class="eyebrow">إضافة</span><h3>إعداد جديد</h3></div></div>
