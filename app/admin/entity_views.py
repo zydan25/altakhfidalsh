@@ -441,16 +441,32 @@ def register_entity_views(admin_bp):
             try:
                 if action == "message":
                     body = (request.form.get("body") or "").strip()
-                    if not body:
-                        raise ValueError("اكتب رسالة قبل الإرسال.")
-                    SupportService.send_message(
-                        conversation.id,
-                        "admin",
-                        session.get("admin_id") or 0,
-                        body,
-                        "text",
-                    )
-                    success = "تم إرسال الرسالة."
+                    files = [
+                        item
+                        for item in request.files.getlist("files")
+                        if item and item.filename
+                    ]
+                    if not body and not files:
+                        raise ValueError("اكتب رسالة أو اختر ملفًا قبل الإرسال.")
+                    if files:
+                        SupportService.send_message_with_files(
+                            conversation.id,
+                            "admin",
+                            session.get("admin_id") or 0,
+                            body,
+                            files,
+                            payment_proof=False,
+                        )
+                        success = "تم إرسال الرسالة والمرفق." if body else "تم إرسال المرفق."
+                    else:
+                        SupportService.send_message(
+                            conversation.id,
+                            "admin",
+                            session.get("admin_id") or 0,
+                            body,
+                            "text",
+                        )
+                        success = "تم إرسال الرسالة."
                 elif action == "close":
                     conversation.status = "closed"
                     db.session.commit()

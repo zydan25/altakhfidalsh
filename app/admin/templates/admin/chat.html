@@ -10,9 +10,62 @@
   </div>
 </section>
 
-<section class="chat-list">
+<section class="chat-toolbar" aria-label="فرز المحادثات">
+  <div class="filter-field">
+    <button type="button" class="filter-trigger" data-filter-button="customer">
+      <span>العميل</span><strong data-filter-label="customer">كل العملاء</strong><span>⌄</span>
+    </button>
+    <div class="filter-menu" data-filter-menu="customer">
+      <input class="filter-search" type="search" placeholder="ابحث عن العميل..." data-filter-search="customer">
+      <button type="button" class="filter-option active" data-value="">كل العملاء</button>
+      {% set seen_customers = [] %}
+      {% for item in conversations %}
+        {% set key = item.customer_id|string %}
+        {% if key not in seen_customers %}
+          {% set _ = seen_customers.append(key) %}
+          <button type="button" class="filter-option" data-value="{{ item.customer_id }}" data-label="{{ item.customer_name }}">
+            <span>{{ item.customer_name }}</span>
+            {% if item.customer_phone %}<small dir="ltr">{{ item.customer_phone }}</small>{% endif %}
+          </button>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="filter-field">
+    <button type="button" class="filter-trigger" data-filter-button="order">
+      <span>الطلب</span><strong data-filter-label="order">كل الطلبات</strong><span>⌄</span>
+    </button>
+    <div class="filter-menu" data-filter-menu="order">
+      <input class="filter-search" type="search" placeholder="ابحث برقم الطلب..." data-filter-search="order">
+      <button type="button" class="filter-option active" data-value="">كل الطلبات</button>
+      {% set seen_orders = [] %}
+      {% for item in conversations %}
+        {% if item.order_id and item.order_id|string not in seen_orders %}
+          {% set _ = seen_orders.append(item.order_id|string) %}
+          <button type="button" class="filter-option" data-value="{{ item.order_id }}" data-label="طلب #{{ item.order_id }}">طلب #{{ item.order_id }}</button>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="filter-field compact-filter">
+    <label for="chat-status-filter">الحالة</label>
+    <select id="chat-status-filter">
+      <option value="">الكل</option>
+      <option value="open">مفتوحة</option>
+      <option value="pending">معلّقة</option>
+      <option value="closed">مغلقة</option>
+    </select>
+  </div>
+
+  <div class="filter-summary"><strong id="chat-results-count">{{ conversations|length }}</strong><span>محادثة</span></div>
+</section>
+
+<section class="chat-list" id="chat-list">
+  <section class="chat-list">
   {% for item in conversations %}
-  <a class="chat-card{% if item.unread_count > 0 %} has-unread{% endif %}" href="/admin/chat/{{ item.id }}">
+  <a class="chat-card chat-row{% if item.unread_count > 0 %} has-unread{% endif %}" href="/admin/chat/{{ item.id }}">
     <div class="chat-avatar {% if item.order_id %}order{% endif %}">
       {% if item.order_id %}▣{% else %}◎{% endif %}
     </div>
@@ -40,9 +93,74 @@
     <h3>لا توجد محادثات</h3>
     <p class="muted">ستظهر هنا محادثات العملاء والطلبات.</p>
   </section>
-  {% endfor %}
 </section>
 
+<script>
+(function(){
+  const rows=[...document.querySelectorAll('.chat-row')];
+  const state={customer:'',order:'',status:''};
+  const menus={customer:null,order:null};
+
+  function apply(){
+    let count=0;
+    rows.forEach(row=>{
+      const okCustomer=!state.customer||row.dataset.customerId===state.customer;
+      const okOrder=!state.order||row.dataset.orderId===state.order;
+      const okStatus=!state.status||row.dataset.status===state.status;
+      const visible=okCustomer&&okOrder&&okStatus;
+      row.hidden=!visible;
+      if(visible) count++;
+    });
+    document.getElementById('chat-results-count').textContent=count;
+  }
+
+  function closeMenus(except){
+    document.querySelectorAll('.filter-menu.open').forEach(menu=>{
+      if(menu!==except) menu.classList.remove('open');
+    });
+  }
+
+  document.querySelectorAll('[data-filter-button]').forEach(button=>{
+    button.addEventListener('click',()=>{
+      const key=button.dataset.filterButton;
+      const menu=document.querySelector('[data-filter-menu="'+key+'"]');
+      const open=menu.classList.toggle('open');
+      closeMenus(open?menu:null);
+      if(open){
+        const input=menu.querySelector('.filter-search');
+        if(input){input.value=''; menu.querySelectorAll('.filter-option').forEach(x=>x.hidden=false); input.focus();}
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-filter-search]').forEach(input=>{
+    input.addEventListener('input',()=>{
+      const value=input.value.trim().toLowerCase();
+      input.closest('.filter-menu').querySelectorAll('.filter-option').forEach(option=>{
+        option.hidden=!!value&&!((option.dataset.label||option.textContent||'').toLowerCase().includes(value));
+      });
+    });
+  });
+
+  document.querySelectorAll('[data-filter-menu] .filter-option').forEach(option=>{
+    option.addEventListener('click',()=>{
+      const key=option.closest('.filter-menu').dataset.filterMenu;
+      state[key]=option.dataset.value||'';
+      document.querySelector('[data-filter-label="'+key+'"]').textContent=option.dataset.label||option.textContent.trim();
+      option.closest('.filter-menu').querySelectorAll('.filter-option').forEach(x=>x.classList.remove('active'));
+      option.classList.add('active');
+      option.closest('.filter-menu').classList.remove('open');
+      apply();
+    });
+  });
+
+  const status=document.getElementById('chat-status-filter');
+  status.addEventListener('change',()=>{state.status=status.value;apply();});
+  document.addEventListener('click',event=>{
+    if(!event.target.closest('.filter-field')) closeMenus(null);
+  });
+})();
+</script>
 <style>
 .chat-list{display:grid;gap:0;background:#fff;border:1px solid #e7e7e9;border-radius:16px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.03)}
 .chat-card{display:flex;align-items:center;gap:12px;padding:14px 13px;text-decoration:none;color:inherit;border-bottom:1px solid #ededee;background:#fff;transition:background .15s ease}

@@ -58,11 +58,26 @@
     {% endfor %}
   </div>
 
-  <form method="post" class="wa-compose">
+  <form method="post" enctype="multipart/form-data" class="wa-compose">
     <input type="hidden" name="action" value="message">
-    <textarea name="body" rows="1" required placeholder="اكتب رسالة..."></textarea>
-    <button type="submit" title="إرسال">➤</button>
+    <input id="chat-file" name="files" type="file" class="wa-file-input" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" />
+    <label for="chat-file" class="wa-attach" title="إرفاق ملف" aria-label="إرفاق ملف">📎</label>
+    <div class="wa-compose-main">
+      <textarea name="body" rows="1" placeholder="اكتب رسالة..."></textarea>
+      <span id="wa-file-name" class="wa-file-name">لم يتم اختيار ملف</span>
+    </div>
+    <button type="submit" class="wa-send" title="إرسال" aria-label="إرسال">➤</button>
   </form>
+  <script>
+  (function(){
+    const input=document.getElementById('chat-file');
+    const name=document.getElementById('wa-file-name');
+    if(input) input.addEventListener('change',()=>{
+      name.textContent=input.files.length ? input.files[0].name : 'لم يتم اختيار ملف';
+      name.classList.toggle('active',input.files.length>0);
+    });
+  })();
+  </script>
 </section>
 
 <style>
@@ -91,9 +106,17 @@
 .wa-file{display:block;margin-top:5px;padding:8px 9px;background:#f0f0f0;color:#111;text-decoration:none;border-radius:9px;font-size:9px}
 .wa-row.mine .wa-file{background:#2a2a2a;color:#fff}
 .wa-empty{padding:70px 20px;text-align:center;color:#888;font-size:10px}
-.wa-compose{display:flex;align-items:flex-end;gap:8px;padding:9px;background:#fff;border-top:1px solid #e2e2e3}
-.wa-compose textarea{flex:1;resize:vertical;min-height:42px;max-height:110px;border:1px solid #dedede;border-radius:22px;padding:11px 14px;font:inherit;font-size:11px;line-height:1.4;outline:none}
-.wa-compose button{width:43px;height:43px;flex:0 0 43px;border:0;border-radius:50%;background:#111;color:#fff;font-size:19px;cursor:pointer}
+.wa-compose{display:flex;align-items:flex-end;gap:7px;padding:9px;background:#fff;border-top:1px solid #e2e2e3}
+.wa-file-input{display:none}
+.wa-attach{width:43px;height:43px;flex:0 0 43px;border-radius:50%;display:grid;place-items:center;background:#f1f1f1;color:#111;border:1px solid #dddddf;font-size:20px;cursor:pointer;user-select:none}
+.wa-attach:hover{background:#e9e9e9}
+.wa-compose-main{min-width:0;flex:1;display:grid;gap:4px}
+.wa-compose textarea{width:100%;resize:vertical;min-height:42px;max-height:110px;border:1px solid #dedede;border-radius:22px;padding:11px 14px;font:inherit;font-size:11px;line-height:1.4;outline:none}
+.wa-file-name{min-height:13px;padding:0 9px;color:#9a9a9a;font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wa-file-name.active{color:#111;font-weight:800}
+.wa-send{width:43px;height:43px;flex:0 0 43px;border:0;border-radius:50%;background:#111;color:#fff;font-size:19px;cursor:pointer;display:grid;place-items:center}
+.wa-send:hover{transform:translateY(-1px)}
+
 @media(max-width:700px){
  .wa-wrap{border-radius:12px;margin:0}
  .wa-messages{min-height:58vh;max-height:68vh;padding:12px 8px}
