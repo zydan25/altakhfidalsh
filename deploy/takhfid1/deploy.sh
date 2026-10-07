@@ -119,6 +119,11 @@ managed = {
     "WHATSAPP_EXTERNAL_URL": f"https://{os.environ['DOMAIN']}",
 }
 
+if (app_root / "storage/firebase/altakhfid-fcm-sender.json").is_file():
+    managed["FIREBASE_CREDENTIALS"] = str(
+        app_root / "storage/firebase/altakhfid-fcm-sender.json"
+    )
+
 existing = {}
 if env_file.exists():
     for raw in env_file.read_text(encoding="utf-8").splitlines():
