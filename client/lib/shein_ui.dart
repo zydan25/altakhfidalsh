@@ -1394,22 +1394,29 @@ class _HomeFixedHeader extends StatelessWidget {
                       ),
                       const SizedBox(width: 7),
                       Expanded(
-                        child: GestureDetector(
-                          onTap: onSearch,
-                          child: SxSearchBar(
-                            // Keep the search field white. The search icon
-                            // switches presentation with the sticky header
-                            // state, matching the SHEIN-style header treatment.
-                            borderColor: solidBackground
-                                ? const Color(0xFF111111)
-                                : Colors.transparent,
-                            backgroundColor: Colors.white,
-                            iconColor: solidBackground
-                                ? Colors.white
-                                : Colors.black,
-                            iconBackgroundColor: solidBackground
-                                ? Colors.black
-                                : Colors.transparent,
+                        child: Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(22),
+                          child: InkWell(
+                            onTap: onSearch,
+                            borderRadius: BorderRadius.circular(22),
+                            child: AbsorbPointer(
+                              child: SxSearchBar(
+                                // On the HOME screen the visual search field is
+                                // a navigation control, exactly like the search
+                                // icon button. Do not focus/type into it here.
+                                borderColor: solidBackground
+                                    ? const Color(0xFF111111)
+                                    : Colors.transparent,
+                                backgroundColor: Colors.white,
+                                iconColor: solidBackground
+                                    ? Colors.white
+                                    : Colors.black,
+                                iconBackgroundColor: solidBackground
+                                    ? Colors.black
+                                    : Colors.transparent,
+                              ),
+                            ),
                           ),
                         ),
                       ),
