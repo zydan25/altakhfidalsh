@@ -12650,7 +12650,6 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
     final title = widget.paymentProofMode
         ? 'طلب · ' + widget.title
         : widget.title;
@@ -12738,7 +12737,7 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
                               8,
                               13,
                               8,
-                              14,
+                              18,
                             ),
                             itemCount: messages.length,
                             itemBuilder: (_, i) =>
@@ -12746,106 +12745,131 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
                           ),
                   ),
           ),
-          AnimatedPadding(
-            duration: const Duration(milliseconds: 160),
-            curve: Curves.easeOut,
-            padding: EdgeInsets.only(bottom: keyboard),
-            child: SafeArea(
-              top: false,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(6, 6, 6, 6),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(
-                    top: BorderSide(color: Color(0xFFE1E1E1)),
-                  ),
+          SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(7, 7, 7, 7),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(
+                  top: BorderSide(color: Color(0xFFE1E1E1)),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    IconButton(
-                      tooltip: 'إرفاق',
-                      onPressed: uploading ? null : sendFile,
-                      padding: const EdgeInsets.all(8),
-                      icon: uploading
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(
-                              Icons.attach_file_rounded,
-                              size: 20,
-                            ),
-                    ),
-                    Expanded(
-                      child: Container(
-                        constraints: const BoxConstraints(
-                          minHeight: 42,
-                          maxHeight: 120,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF4F4F4),
-                          borderRadius: BorderRadius.circular(21),
-                          border: Border.all(color: const Color(0xFFE2E2E2)),
-                        ),
-                        child: TextField(
-                          controller: input,
-                          minLines: 1,
-                          maxLines: 4,
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.right,
-                          textInputAction: TextInputAction.newline,
-                          style: const TextStyle(
-                            fontSize: 11.3,
-                            height: 1.35,
-                          ),
-                          decoration: const InputDecoration(
-                            hintText: 'اكتب رسالة...',
-                            hintStyle: TextStyle(
-                              fontSize: 10.2,
-                              color: ClientTheme.muted,
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.fromLTRB(
-                              13,
-                              9,
-                              13,
-                              9,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 3),
-                    Container(
-                      width: 43,
-                      height: 43,
-                      decoration: const BoxDecoration(
-                        color: Colors.black,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        onPressed: sending ? null : send,
-                        padding: EdgeInsets.zero,
-                        icon: sending
-                            ? const SizedBox(
-                                width: 17,
-                                height: 17,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
+              ),
+              child: Row(
+                textDirection: TextDirection.ltr,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Material(
+                    color: const Color(0xFFF1F1F1),
+                    shape: const CircleBorder(),
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: uploading ? null : sendFile,
+                      child: SizedBox(
+                        width: 43,
+                        height: 43,
+                        child: Center(
+                          child: uploading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.attach_file_rounded,
+                                  size: 22,
+                                  color: Color(0xFF222222),
                                 ),
-                              )
-                            : const Icon(
-                                Icons.send_rounded,
-                                color: Colors.white,
-                                size: 19,
-                              ),
+                        ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minHeight: 43,
+                        maxHeight: 122,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF7F7F7),
+                        borderRadius: BorderRadius.circular(22),
+                        border: Border.all(
+                          color: const Color(0xFFDCDCDC),
+                        ),
+                      ),
+                      child: TextField(
+                        controller: input,
+                        minLines: 1,
+                        maxLines: 4,
+                        textDirection: TextDirection.rtl,
+                        textAlign: TextAlign.right,
+                        textInputAction: TextInputAction.newline,
+                        keyboardType: TextInputType.multiline,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          height: 1.38,
+                        ),
+                        decoration: const InputDecoration(
+                          hintText: 'اكتب رسالة...',
+                          hintStyle: TextStyle(
+                            fontSize: 10.3,
+                            color: Color(0xFF8A8A8A),
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.fromLTRB(
+                            14,
+                            10,
+                            14,
+                            10,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: input,
+                    builder: (_, value, __) {
+                      final enabled =
+                          value.text.trim().isNotEmpty && !sending;
+                      return Material(
+                        color: enabled
+                            ? Colors.black
+                            : const Color(0xFFD6D6D6),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: enabled ? send : null,
+                          child: SizedBox(
+                            width: 43,
+                            height: 43,
+                            child: Center(
+                              child: sending
+                                  ? const SizedBox(
+                                      width: 17,
+                                      height: 17,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Icon(
+                                      Icons.send_rounded,
+                                      color: enabled
+                                          ? Colors.white
+                                          : const Color(0xFF8E8E8E),
+                                      size: 19,
+                                    ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
           ),
