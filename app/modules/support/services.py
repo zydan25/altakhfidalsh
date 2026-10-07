@@ -1,15 +1,54 @@
 from ...extensions import db
-from ...models import Conversation, Message, MessageAttachment
+from ...models import Conversation, Message, MessageAttachment, Order
+from sqlalchemy.exc import IntegrityError
 
 
 class SupportService:
     @staticmethod
     def create_conversation(customer_id, conversation_type, order_id=None, subject=None):
         conversation_type = (conversation_type or "customer_service").strip()[:40]
+        normalized_order_id = (
+            int(order_id) if order_id not in (None, "") else None
+        )
 
-        # Keep one ongoing support thread per customer. Order-specific
-        # conversations remain separate so each order can have its own context.
-        if conversation_type == "customer_service" and order_id is None:
+        if normalized_order_id is not None:
+            order = db.session.get(Order, normalized_order_id)
+            if order is None:
+                raise LookupError("order not found")
+            if order.customer_id != int(customer_id):
+                raise LookupError("order not found")
+
+            # An order owns exactly one conversation. Reopening the thread
+            # must never create a second conversation.
+            conversation = (
+                Conversation.query
+                .filter(Conversation.order_id == normalized_order_id)
+                .order_by(Conversation.id.asc())
+                .first()
+            )
+            if conversation is not None:
+                if conversation.type != "order_support":
+                    conversation.type = "order_support"
+                if conversation.subject is None or not conversation.subject.strip():
+                    conversation.subject = subject or ("الطلب " + order.order_no)
+                conversation.status = "open"
+                if conversation.last_message_at is None:
+                    conversation.last_message_at = db.func.now()
+                db.session.commit()
+                return {
+                    "id": conversation.id,
+                    "customer_id": conversation.customer_id,
+                    "order_id": conversation.order_id,
+                    "type": conversation.type,
+                    "subject": conversation.subject,
+                    "status": conversation.status,
+                }
+
+            conversation_type = "order_support"
+            subject = subject or ("الطلب " + order.order_no)
+
+        # Keep one ongoing support thread per customer for general support.
+        if normalized_order_id is None and conversation_type == "customer_service":
             conversation = (
                 Conversation.query
                 .filter(
@@ -33,7 +72,7 @@ class SupportService:
 
         conversation = Conversation(
             customer_id=customer_id,
-            order_id=int(order_id) if order_id not in (None, "") else None,
+            order_id=normalized_order_id,
             type=conversation_type,
             subject=(subject or "").strip()[:200] or (
                 "محادثة الدعم" if conversation_type == "customer_service" else "استفسار عن الطلب"
@@ -42,7 +81,32 @@ class SupportService:
             last_message_at=db.func.now(),
         )
         db.session.add(conversation)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            # The unique order-conversation index also protects against two
+            # simultaneous "open chat" requests racing each other.
+            db.session.rollback()
+            if normalized_order_id is not None:
+                existing = (
+                    Conversation.query
+                    .filter(Conversation.order_id == normalized_order_id)
+                    .order_by(Conversation.id.asc())
+                    .first()
+                )
+                if existing is not None:
+                    existing.type = "order_support"
+                    existing.status = "open"
+                    db.session.commit()
+                    return {
+                        "id": existing.id,
+                        "customer_id": existing.customer_id,
+                        "order_id": existing.order_id,
+                        "type": existing.type,
+                        "subject": existing.subject or subject or "استفسار عن الطلب",
+                        "status": existing.status,
+                    }
+            raise
         return {
             "id": conversation.id,
             "customer_id": conversation.customer_id,
