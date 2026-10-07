@@ -10,6 +10,7 @@ from ...extensions import db
 from ...models import AuthSession, Customer, CustomerAddress, CustomerPreference, Currency, City, CityArea, OTPRequest
 from ...services.phone import normalize_phone, phone_candidates
 from ...services.whatsapp import WhatsAppService
+from .services import CustomerService
 
 
 class CustomerAuthService:
@@ -62,12 +63,12 @@ class CustomerAuthService:
         }
 
     @staticmethod
-    def request_otp(raw_phone, purpose="login"):
+    def request_otp(raw_phone, purpose="login", customer_id=None):
         phone = normalize_phone(raw_phone)
         if not phone:
             raise ValueError("phone is required")
 
-        if purpose not in {"login", "register", "password_reset"}:
+        if purpose not in {"login", "register", "password_reset", "phone_change"}:
             purpose = "login"
 
         now = datetime.now(timezone.utc)
@@ -85,6 +86,7 @@ class CustomerAuthService:
 
         code = f"{secrets.randbelow(1_000_000):06d}"
         otp = OTPRequest(
+            customer_id=customer_id,
             phone=phone,
             purpose=purpose,
             code_hash=CustomerAuthService._hash_code(code),
@@ -173,6 +175,7 @@ class CustomerAuthService:
         )
         db.session.add(customer)
         db.session.flush()
+        CustomerService.ensure_invite_code(customer)
         db.session.add(CustomerPreference(
             customer_id=customer.id,
             locale="ar",
@@ -231,6 +234,23 @@ class CustomerAuthService:
             raise ValueError("invalid OTP")
 
         otp.status = "verified"
+
+        if otp.purpose == "phone_change":
+            customer = db.session.get(Customer, otp.customer_id) if otp.customer_id else None
+            if customer is None:
+                raise LookupError("الحساب المرتبط بطلب تغيير الرقم غير موجود.")
+            existing_customer, canonical_phone = CustomerAuthService._find_customer(otp.phone)
+            if existing_customer is not None and existing_customer.id != customer.id:
+                raise ValueError("رقم الهاتف مستخدم بالفعل من حساب آخر.")
+            customer.phone_normalized = canonical_phone
+            otp.customer_id = customer.id
+            db.session.commit()
+            return {
+                "phone_changed": True,
+                "customer_id": customer.id,
+                "phone": customer.phone_normalized,
+            }
+
         customer, canonical_phone = CustomerAuthService._find_customer(otp.phone)
         if customer is not None and customer.phone_normalized != canonical_phone:
             # Normalize legacy local records when they are successfully authenticated.
@@ -260,6 +280,7 @@ class CustomerAuthService:
                 )
                 db.session.add(customer)
                 db.session.flush()
+                CustomerService.ensure_invite_code(customer)
                 db.session.add(CustomerPreference(customer_id=customer.id, locale="ar"))
             else:
                 customer = CustomerAuthService._create_registered_customer(otp.phone, registration)
