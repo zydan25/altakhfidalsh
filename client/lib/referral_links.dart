@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 
 const String referralWebBaseUrl = 'https://takhfidsh.alattab.site/';
 const String _pendingReferralKey = 'pending_referral_code_v1';
@@ -26,7 +27,13 @@ class ReferralLinkService {
       ).replace(queryParameters: {'ref': code.toUpperCase()});
 
   static Future<void> initialize() async {
-    await _consumeUri(Uri.base);
+    // The browser already exposes the invitation URL through Uri.base.
+    // Avoid waiting for native app-link plumbing during Flutter Web startup;
+    // that keeps the first frame independent of deep-link plugin state.
+    if (kIsWeb) {
+      await _consumeUri(Uri.base);
+      return;
+    }
 
     try {
       final initial = await _links.getInitialLink();
