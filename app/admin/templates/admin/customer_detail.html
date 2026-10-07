@@ -10,6 +10,13 @@
 <section class="two-panel">
 <article class="panel">
   <div class="panel-heading"><div><span class="eyebrow">الحساب</span><h3>بيانات العميل</h3></div></div>
+  <div class="stack-list">
+    <div class="stack-row"><strong>الاسم</strong><span>{{ customer.name or "—" }}</span></div>
+    <div class="stack-row"><strong>الهاتف</strong><span dir="ltr">{{ customer.phone_normalized }}</span></div>
+    <div class="stack-row"><strong>الجنس</strong><span>{{ "ذكر" if customer.gender == "male" else "أنثى" if customer.gender == "female" else "—" }}</span></div>
+    <div class="stack-row"><strong>المدينة</strong><span>{{ customer.city_id or "—" }}</span></div>
+    <div class="stack-row"><strong>رمز الدعوة</strong><span dir="ltr">{{ customer.invite_code or "—" }}</span></div>
+  </div>
   <form method="post" class="form-stack">
     <input type="hidden" name="action" value="profile">
     <label>الاسم<input name="name" value="{{ customer.name or '' }}"></label>
@@ -71,6 +78,25 @@
   {% else %}<span class="muted">لا توجد إشعارات.</span>{% endfor %}
   </div>
 </article>
+</section>
+
+<section class="panel" style="margin-top:12px">
+<div class="panel-heading">
+  <div><span class="eyebrow">الدعوات</span><h3>الأشخاص الذين انضموا عن طريق العميل</h3></div>
+  <span class="status-pill">{{ referred_customers|length }}</span>
+</div>
+<div class="stack-list">
+{% for invited in referred_customers %}
+  <div class="stack-row">
+    <strong>{{ invited.name or "بدون اسم" }}</strong>
+    <span dir="ltr">{{ invited.phone_normalized }}</span>
+    <span>{{ "ذكر" if invited.gender == "male" else "أنثى" if invited.gender == "female" else "—" }}</span>
+    <a class="inline-link" href="/admin/customers/{{ invited.id }}">فتح</a>
+  </div>
+{% else %}
+  <span class="muted">لم ينضم أحد عن طريق رمز هذا العميل حتى الآن.</span>
+{% endfor %}
+</div>
 </section>
 
 <section class="panel" style="margin-top:12px">
