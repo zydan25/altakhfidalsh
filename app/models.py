@@ -1,5 +1,8 @@
+import secrets
+
 from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, Index, JSON
 from .extensions import db
+
 
 
 class TimestampMixin:
@@ -195,6 +198,13 @@ class PricingLocationAdjustment(TimestampMixin, ActiveMixin, db.Model):
     )
 
 
+_INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def _default_invite_code():
+    return "".join(secrets.choice(_INVITE_CODE_ALPHABET) for _ in range(8))
+
+
 class Customer(TimestampMixin, ActiveMixin, db.Model):
     __tablename__ = "customers"
 
@@ -207,7 +217,7 @@ class Customer(TimestampMixin, ActiveMixin, db.Model):
     # Stable customer-owned invitation identity. The code is safe to share
     # publicly; the referrer relation is immutable after the first successful
     # referral application.
-    invite_code = db.Column(String(20), nullable=False, unique=True, index=True)
+    invite_code = db.Column(String(20), nullable=False, unique=True, index=True, default=_default_invite_code)
     referred_by_customer_id = db.Column(
         ForeignKey("customers.id", ondelete="SET NULL"),
         index=True,
