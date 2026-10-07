@@ -469,6 +469,22 @@ class ApiService {
 
   Future<Map<String,dynamic>> me()async=>Map<String,dynamic>.from(await get('/customer/me'));
   Future<Map<String,dynamic>> updateMe(Map<String,dynamic> body)async=>Map<String,dynamic>.from(await patch('/customer/me',body));
+
+  Future<Map<String,dynamic>> requestPhoneChange({required String phone,required String password})async=>
+      Map<String,dynamic>.from(await post('/customer/me/phone/change-request',{'phone':phone,'password':password}));
+
+  Future<Map<String,dynamic>> verifyPhoneChange(int otpRequestId,String code,{String? phone})async=>
+      Map<String,dynamic>.from(await post('/customer/me/phone/verify-change',{
+        'otp_request_id':otpRequestId,
+        'code':code,
+        if(phone!=null&&phone.trim().isNotEmpty)'phone':phone.trim(),
+      }));
+
+  Future<Map<String,dynamic>> applyReferral(String code)async=>
+      Map<String,dynamic>.from(await post('/customer/me/referral',{'code':code}));
+
+  Future<Map<String,dynamic>> referrals()async=>
+      Map<String,dynamic>.from(await get('/customer/me/referrals'));
   Future<Map<String,dynamic>> acceptPrivacy()async=>Map<String,dynamic>.from(await post('/customer/me/privacy-acceptance',{}));
   Future<List<Map<String,dynamic>>> addresses()async{
     final d=await get('/customer/me/addresses');
