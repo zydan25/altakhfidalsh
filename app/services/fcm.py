@@ -107,7 +107,11 @@ class FCMService:
         if not messages:
             return {"sent": 0, "failed": 0}
 
-        response = messaging.send_each(messages, app=app)
+        try:
+            response = messaging.send_each(messages, app=app)
+        except Exception:
+            logger.exception("FCM batch delivery failed for customer %s", customer_id)
+            return {"sent": 0, "failed": len(messages)}
         sent = 0
         failed = 0
         changed = False
