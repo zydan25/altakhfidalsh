@@ -26,6 +26,12 @@ class ReferralLinkService {
         referralWebBaseUrl,
       ).replace(queryParameters: {'ref': code.toUpperCase()});
 
+  static Uri appReferralUri(String code) => Uri(
+        scheme: 'altakhfid',
+        host: 'invite',
+        queryParameters: {'ref': code.toUpperCase()},
+      );
+
   static Future<void> initialize() async {
     // The browser already exposes the invitation URL through Uri.base.
     // Avoid waiting for native app-link plumbing during Flutter Web startup;
