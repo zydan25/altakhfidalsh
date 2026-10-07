@@ -642,6 +642,25 @@ class ApiService {
   Future<void> markNotificationRead(int customerId,int notificationId)async{
     await post('/notifications/notifications/'+customerId.toString()+'/'+notificationId.toString()+'/read',{});
   }
+  Future<Map<String,dynamic>> registerPushToken({
+    required String deviceId,
+    required String pushToken,
+    String platform = 'android',
+  }) async =>
+      Map<String,dynamic>.from(
+        await post('/customer/me/push-token', {
+          'device_id': deviceId,
+          'push_token': pushToken,
+          'platform': platform,
+        }),
+      );
+
+  Future<void> unregisterPushToken({required String deviceId}) async {
+    await post('/customer/me/push-token/unregister', {
+      'device_id': deviceId,
+    });
+  }
+
   Future<List<Map<String,dynamic>>> conversations()async{
     final d=await get('/support/conversations');
     return ((d['items'] as List?)??const[]).whereType<Map>().map((e)=>Map<String,dynamic>.from(e)).toList();
