@@ -10,7 +10,7 @@ from .wishlist import CustomerEngagementService
 from ...extensions import db
 from ...services.customer_deletion import delete_customer_permanently
 from ...services.phone import normalize_phone
-from ...models import Customer, CustomerAddress, City, CityArea, Country, Region, Product, Review, OTPRequest
+from ...models import Customer, CustomerAddress, CustomerDevice, City, CityArea, Country, Region, Product, Review, OTPRequest
 
 
 def _authorized_customer_id():
@@ -236,6 +236,65 @@ def my_referrals():
         return {"item": CustomerService.referral_overview(current_customer().id)}
     except LookupError as exc:
         return {"error": "referrals_not_found", "detail": str(exc)}, 404
+
+
+@api_bp.post("/me/push-token")
+@customer_required
+def register_push_token():
+    payload = request.get_json(silent=True) or {}
+    device_id = str(payload.get("device_id") or "").strip()[:255]
+    push_token = str(payload.get("push_token") or "").strip()[:500]
+    platform = str(payload.get("platform") or "android").strip().lower()[:30]
+
+    if len(device_id) < 3:
+        return {"error": "device_id_required", "detail": "معرّف الجهاز غير صالح."}, 400
+    if not push_token:
+        return {"error": "push_token_required", "detail": "رمز الإشعارات غير موجود."}, 400
+
+    customer_id = current_customer().id
+    row = CustomerDevice.query.filter_by(
+        customer_id=customer_id,
+        device_id=device_id,
+    ).first()
+    if row is None:
+        row = CustomerDevice(
+            customer_id=customer_id,
+            device_id=device_id,
+        )
+        db.session.add(row)
+
+    row.push_token = push_token
+    row.platform = platform
+    row.is_active = True
+    row.last_seen = db.func.now()
+    db.session.commit()
+
+    return {
+        "ok": True,
+        "device_id": row.device_id,
+        "platform": row.platform,
+    }
+
+
+@api_bp.post("/me/push-token/unregister")
+@customer_required
+def unregister_push_token():
+    payload = request.get_json(silent=True) or {}
+    device_id = str(payload.get("device_id") or "").strip()[:255]
+    if len(device_id) < 3:
+        return {"error": "device_id_required", "detail": "معرّف الجهاز غير صالح."}, 400
+
+    row = CustomerDevice.query.filter_by(
+        customer_id=current_customer().id,
+        device_id=device_id,
+    ).first()
+    if row is not None:
+        row.push_token = None
+        row.is_active = False
+        row.last_seen = db.func.now()
+        db.session.commit()
+
+    return {"ok": True}
 
 
 @api_bp.post("/me/privacy-acceptance")
