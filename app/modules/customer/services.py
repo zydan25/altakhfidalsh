@@ -1,9 +1,98 @@
+import secrets
+
 from ...extensions import db
 from ...models import Customer, CustomerAddress, Country, City, CityArea, Currency, CustomerPreference, Region
 from ...services.phone import normalize_phone
 
+INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+REFERRAL_BASE_URL = "https://takhfidsh.alattab.site/"
+
 
 class CustomerService:
+    @staticmethod
+    def generate_invite_code():
+        while True:
+            code = "".join(secrets.choice(INVITE_CODE_ALPHABET) for _ in range(8))
+            exists = Customer.query.filter_by(invite_code=code).first()
+            if exists is None:
+                return code
+
+    @staticmethod
+    def ensure_invite_code(customer):
+        if getattr(customer, "invite_code", None):
+            return customer.invite_code
+        customer.invite_code = CustomerService.generate_invite_code()
+        db.session.flush()
+        return customer.invite_code
+
+    @staticmethod
+    def apply_referral(customer_id, raw_code):
+        customer = db.session.get(Customer, int(customer_id))
+        if customer is None:
+            raise LookupError("الحساب غير موجود.")
+
+        code = str(raw_code or "").strip().upper()
+        if not code:
+            raise ValueError("أدخل رمز الدعوة.")
+
+        if customer.referred_by_customer_id:
+            existing = db.session.get(Customer, customer.referred_by_customer_id)
+            return {
+                "applied": False,
+                "already_referred": True,
+                "referrer": {
+                    "id": existing.id,
+                    "name": existing.name,
+                } if existing else None,
+            }
+
+        referrer = Customer.query.filter_by(invite_code=code, status="active").first()
+        if referrer is None:
+            raise ValueError("رمز الدعوة غير صحيح.")
+        if referrer.id == customer.id:
+            raise ValueError("لا يمكنك استخدام رمز دعوة حسابك.")
+
+        customer.referred_by_customer_id = referrer.id
+        db.session.commit()
+        return {
+            "applied": True,
+            "referrer": {
+                "id": referrer.id,
+                "name": referrer.name,
+            },
+        }
+
+    @staticmethod
+    def referral_overview(customer_id):
+        customer = db.session.get(Customer, int(customer_id))
+        if customer is None:
+            raise LookupError("الحساب غير موجود.")
+
+        CustomerService.ensure_invite_code(customer)
+        invited = (
+            Customer.query
+            .filter_by(referred_by_customer_id=customer.id)
+            .order_by(Customer.id.desc())
+            .limit(500)
+            .all()
+        )
+        return {
+            "invite_code": customer.invite_code,
+            "referral_link": REFERRAL_BASE_URL + "?ref=" + customer.invite_code,
+            "invited_count": len(invited),
+            "referred_by_customer_id": customer.referred_by_customer_id,
+            "invited_users": [
+                {
+                    "id": row.id,
+                    "name": row.name or "عميل",
+                    "phone_tail": (row.phone_normalized or "")[-4:],
+                    "status": row.status,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                }
+                for row in invited
+            ],
+        }
+
     @staticmethod
     def update_profile(customer_id, payload):
         customer = db.session.get(Customer, customer_id)
@@ -241,6 +330,10 @@ class CustomerService:
             "name": customer.name,
             "email": customer.email,
             "gender": customer.gender,
+            "invite_code": customer.invite_code,
+            "referral_link": REFERRAL_BASE_URL + "?ref=" + customer.invite_code if customer.invite_code else None,
+            "referred_by_customer_id": customer.referred_by_customer_id,
+            "invited_count": Customer.query.filter_by(referred_by_customer_id=customer.id).count(),
             "onboarding_completed": bool(customer.onboarding_completed),
             "has_password": bool(customer.password_hash),
             "privacy_accepted": customer.privacy_accepted_at is not None,
