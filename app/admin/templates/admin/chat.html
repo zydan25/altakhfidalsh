@@ -1,0 +1,74 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">العملاء والتواصل</span>
+  <div class="split-heading">
+    <div>
+      <h2>المحادثات</h2>
+      <p class="muted">كل بطاقة تمثل محادثة واحدة. محادثة الطلب تجمع جميع رسائل الطلب في نفس المكان.</p>
+    </div>
+  </div>
+</section>
+
+<section class="chat-list">
+  {% for item in conversations %}
+  <a class="chat-card{% if item.unread_count > 0 %} has-unread{% endif %}" href="/admin/chat/{{ item.id }}">
+    <div class="chat-avatar {% if item.order_id %}order{% endif %}">
+      {% if item.order_id %}▣{% else %}◎{% endif %}
+    </div>
+    <div class="chat-main">
+      <div class="chat-topline">
+        <strong>{{ item.customer_name }}</strong>
+        <time>{{ item.last_message_at or "" }}</time>
+      </div>
+      <div class="chat-subline">
+        <span class="chat-subject">{{ item.subject }}</span>
+        {% if item.order_id %}<span class="chat-order">طلب #{{ item.order_id }}</span>{% endif %}
+      </div>
+      <div class="chat-preview">
+        <span class="{% if item.last_sender_type == 'customer' %}customer-preview{% endif %}">{{ item.last_message }}</span>
+        {% if item.unread_count > 0 %}
+        <span class="unread-badge">{{ item.unread_count if item.unread_count < 100 else "99+" }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="chat-arrow">‹</div>
+  </a>
+  {% else %}
+  <section class="empty-state panel">
+    <div class="empty-icon">◎</div>
+    <h3>لا توجد محادثات</h3>
+    <p class="muted">ستظهر هنا محادثات العملاء والطلبات.</p>
+  </section>
+  {% endfor %}
+</section>
+
+<style>
+.chat-list{display:grid;gap:0;background:#fff;border:1px solid #e7e7e9;border-radius:16px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.03)}
+.chat-card{display:flex;align-items:center;gap:12px;padding:14px 13px;text-decoration:none;color:inherit;border-bottom:1px solid #ededee;background:#fff;transition:background .15s ease}
+.chat-card:last-child{border-bottom:0}
+.chat-card:hover{background:#fafafa}
+.chat-card.has-unread{background:#fff}
+.chat-avatar{width:52px;height:52px;flex:0 0 52px;border-radius:50%;display:grid;place-items:center;background:#efefef;color:#111;font-size:23px;font-weight:900}
+.chat-avatar.order{background:#111;color:#fff}
+.chat-main{min-width:0;flex:1}
+.chat-topline,.chat-subline,.chat-preview{display:flex;align-items:center;gap:8px}
+.chat-topline{justify-content:space-between}
+.chat-topline strong{font-size:13px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-topline time{font-size:8.5px;color:#8b8b8b;white-space:nowrap}
+.chat-subline{margin-top:3px}
+.chat-subject{font-size:9px;color:#6e6e6e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-order{font-size:8px;color:#888;white-space:nowrap}
+.chat-preview{margin-top:5px}
+.chat-preview>span:first-child{min-width:0;flex:1;font-size:9.5px;color:#777;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-preview .customer-preview{color:#111;font-weight:700}
+.unread-badge{width:22px;height:22px;min-width:22px;padding:0 3px;border-radius:50%;display:grid;place-items:center;background:#111;color:#fff;font-size:8px;font-weight:900}
+.chat-arrow{font-size:25px;color:#aaa;line-height:1;transform:translateY(-1px)}
+@media(max-width:700px){
+ .chat-list{border-radius:12px}
+ .chat-card{padding:12px 9px;gap:10px}
+ .chat-avatar{width:48px;height:48px;flex-basis:48px}
+ .chat-topline strong{font-size:12px}
+}
+</style>
+{% endblock %}
