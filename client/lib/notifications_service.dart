@@ -1,31 +1,45 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
-import 'dart:ui';
+import 'dart:math';
 
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:web_socket_channel/web_socket_channel.dart';
 
-const String notificationAlertsChannelId = 'altakhfid_alerts_v4';
-const String notificationBackgroundChannelId = 'altakhfid_background_v2';
-const int notificationForegroundServiceId = 41001;
+import 'api.dart';
+
+const String notificationAlertsChannelId = 'altakhfid_alerts_v5';
 const String notificationLastSeenKey = 'notification_last_seen_id_v1';
 const String notificationPendingPayloadKey = 'notification_pending_payload_v1';
+const String notificationDeviceIdKey = 'notification_device_id_v1';
 
-typedef NotificationTapHandler = Future<void> Function(Map<String, dynamic> payload);
+typedef NotificationTapHandler = Future<void> Function(
+  Map<String, dynamic> payload,
+);
+
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Notification messages are displayed by Android automatically while the
+  // app is in the background/terminated. Keep this handler intentionally light.
+  // It is also invoked for data-only messages.
+}
 
 class AltakhfidNotificationService {
-  static final FlutterLocalNotificationsPlugin _local = FlutterLocalNotificationsPlugin();
-  static final FlutterBackgroundService _background = FlutterBackgroundService();
+  static final FlutterLocalNotificationsPlugin _local =
+      FlutterLocalNotificationsPlugin();
+  static final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+
   static NotificationTapHandler? onTap;
   static bool _initialized = false;
+  static StreamSubscription<RemoteMessage>? _foregroundSubscription;
+  static StreamSubscription<RemoteMessage>? _openedSubscription;
+  static StreamSubscription<String>? _tokenSubscription;
 
-  static Future<void> initialize({NotificationTapHandler? tapHandler}) async {
+  static Future<void> initialize({
+    NotificationTapHandler? tapHandler,
+  }) async {
     onTap ??= tapHandler;
     if (_initialized || kIsWeb) return;
     _initialized = true;
@@ -42,11 +56,13 @@ class AltakhfidNotificationService {
     await _local.initialize(
       settings: initialization,
       onDidReceiveNotificationResponse: _onNotificationResponse,
-      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+      onDidReceiveBackgroundNotificationResponse:
+          notificationTapBackground,
     );
 
     final android = _local.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
+
     if (android != null) {
       await android.createNotificationChannel(
         const AndroidNotificationChannel(
@@ -59,61 +75,81 @@ class AltakhfidNotificationService {
           showBadge: true,
         ),
       );
-      await android.createNotificationChannel(
-        const AndroidNotificationChannel(
-          notificationBackgroundChannelId,
-          'اتصال الإشعارات',
-          description: 'اتصال التخفيض الصح لاستقبال التنبيهات الفورية.',
-          importance: Importance.low,
-          playSound: false,
-          enableVibration: false,
-          showBadge: false,
-        ),
-      );
     }
 
-    final launch = await _local.getNotificationAppLaunchDetails();
-    if (launch?.didNotificationLaunchApp == true) {
-      await _storePendingPayload(launch?.notificationResponse?.payload);
-    }
-
-    await _background.configure(
-      androidConfiguration: AndroidConfiguration(
-        onStart: notificationBackgroundEntrypoint,
-        autoStart: false,
-        autoStartOnBoot: true,
-        isForegroundMode: true,
-        notificationChannelId: notificationBackgroundChannelId,
-        initialNotificationTitle: 'التخفيض الصح',
-        initialNotificationContent: 'اتصال الإشعارات الفوري يعمل.',
-        foregroundServiceNotificationId: notificationForegroundServiceId,
-        foregroundServiceTypes: const [AndroidForegroundType.remoteMessaging],
-      ),
-      iosConfiguration: IosConfiguration(
-        autoStart: false,
-        onForeground: notificationIosForeground,
-        onBackground: notificationIosBackground,
-      ),
+    FirebaseMessaging.onBackgroundMessage(
+      firebaseMessagingBackgroundHandler,
     );
+
+    _foregroundSubscription = FirebaseMessaging.onMessage.listen(
+      (message) async {
+        try {
+          await _showFromRemoteMessage(message);
+        } catch (_) {}
+      },
+    );
+
+    _openedSubscription = FirebaseMessaging.onMessageOpenedApp.listen(
+      (message) async {
+        await _dispatchTap(_remotePayload(message));
+      },
+    );
+
+    _tokenSubscription = _messaging.onTokenRefresh.listen(
+      (token) async {
+        try {
+          await _registerToken(token);
+        } catch (_) {}
+      },
+    );
+
+    try {
+      final initial = await _messaging.getInitialMessage();
+      if (initial != null) {
+        await _storePendingPayload(
+          jsonEncode(_remotePayload(initial)),
+        );
+      }
+    } catch (_) {}
   }
 
   static Future<bool> requestNotificationAccess() async {
     if (kIsWeb) return true;
     await initialize();
+
+    try {
+      final settings = await _messaging.requestPermission(
+        alert: true,
+        announcement: false,
+        badge: true,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+        sound: true,
+      );
+
+      final authorized =
+          settings.authorizationStatus == AuthorizationStatus.authorized ||
+              settings.authorizationStatus ==
+                  AuthorizationStatus.provisional;
+
+      if (!authorized) {
+        return false;
+      }
+    } catch (_) {}
+
     final android = _local.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     if (android == null) return true;
 
-    var enabled = await android.areNotificationsEnabled();
-    if (enabled != true) {
-      enabled = await android.requestNotificationsPermission();
-    }
-    final finalEnabled = await android.areNotificationsEnabled();
-    if (finalEnabled != true) {
-      debugPrint('Altakhfid notifications are disabled by Android.');
-      return false;
-    }
-    return enabled != false || finalEnabled == true;
+    try {
+      final enabled = await android.areNotificationsEnabled();
+      if (enabled != true) {
+        return false;
+      }
+    } catch (_) {}
+
+    return true;
   }
 
   static Future<void> openNotificationSettings() async {
@@ -126,18 +162,64 @@ class AltakhfidNotificationService {
   static Future<void> ensureStarted() async {
     if (kIsWeb) return;
     await initialize();
+
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access_token') ?? '';
-    if (token.trim().isEmpty) return;
-    if (!await _background.isRunning()) {
-      await _background.startService();
+    final token = await _messaging.getToken();
+    if (token == null || token.trim().isEmpty) return;
+
+    await _registerToken(token, prefs: prefs);
+  }
+
+  static Future<String> _deviceId(
+    SharedPreferences prefs,
+  ) async {
+    final existing = prefs.getString(notificationDeviceIdKey);
+    if (existing != null && existing.trim().isNotEmpty) {
+      return existing;
     }
+
+    const alphabet =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = Random.secure();
+    final value = StringBuffer('android-');
+    for (var i = 0; i < 24; i++) {
+      value.write(alphabet[random.nextInt(alphabet.length)]);
+    }
+    final id = value.toString();
+    await prefs.setString(notificationDeviceIdKey, id);
+    return id;
+  }
+
+  static Future<void> _registerToken(
+    String token, {
+    SharedPreferences? prefs,
+  }) async {
+    if (token.trim().isEmpty) return;
+
+    final p = prefs ?? await SharedPreferences.getInstance();
+    final accessToken = p.getString('access_token') ?? '';
+    if (accessToken.trim().isEmpty) return;
+
+    final deviceId = await _deviceId(p);
+    await api.registerPushToken(
+      token: token.trim(),
+      deviceId: deviceId,
+      platform: 'android',
+    );
   }
 
   static Future<void> stop() async {
     if (kIsWeb) return;
     try {
-      _background.invoke('stop');
+      final prefs = await SharedPreferences.getInstance();
+      final token = await _messaging.getToken();
+      final deviceId = await _deviceId(prefs);
+      if (token != null && token.trim().isNotEmpty) {
+        await api.unregisterPushToken(
+          token: token,
+          deviceId: deviceId,
+        );
+      }
     } catch (_) {}
   }
 
@@ -145,20 +227,19 @@ class AltakhfidNotificationService {
     await _storePendingPayload(raw);
   }
 
-  static Future<void> handlePendingTap() async {
-    final payload = await takePendingPayload();
-    if (payload == null) return;
-    // The app shell polls pending payloads once Navigator is ready.
-  }
+  static Future<void> handlePendingTap() async {}
 
   static Future<Map<String, dynamic>?> takePendingPayload() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(notificationPendingPayloadKey);
     if (raw == null || raw.trim().isEmpty) return null;
     await prefs.remove(notificationPendingPayloadKey);
+
     try {
       final parsed = jsonDecode(raw);
-      return parsed is Map ? Map<String, dynamic>.from(parsed) : null;
+      return parsed is Map
+          ? Map<String, dynamic>.from(parsed)
+          : null;
     } catch (_) {
       return null;
     }
@@ -170,18 +251,88 @@ class AltakhfidNotificationService {
       final data = jsonDecode(raw);
       if (data is Map) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(notificationPendingPayloadKey, jsonEncode(Map<String, dynamic>.from(data)));
+        await prefs.setString(
+          notificationPendingPayloadKey,
+          jsonEncode(Map<String, dynamic>.from(data)),
+        );
       }
     } catch (_) {}
+  }
+
+  static Map<String, dynamic> _remotePayload(RemoteMessage message) {
+    final data = <String, dynamic>{...message.data};
+    if (message.messageId != null && message.messageId!.isNotEmpty) {
+      data['fcm_message_id'] = message.messageId;
+    }
+
+    final notification = message.notification;
+    if (notification != null) {
+      data['title'] ??= notification.title ?? 'التخفيض الصح';
+      data['body'] ??= notification.body ?? '';
+    }
+    return data;
+  }
+
+  static Future<void> _showFromRemoteMessage(
+    RemoteMessage message,
+  ) async {
+    final payload = _remotePayload(message);
+    final title = (payload['title'] ?? 'التخفيض الصح').toString();
+    final body = (payload['body'] ?? '').toString();
+
+    if (title.trim().isEmpty && body.trim().isEmpty) return;
+
+    final id = int.tryParse(
+          (payload['notification_id'] ?? '').toString(),
+        ) ??
+        DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+    await _local.show(
+      id: id,
+      title: title,
+      body: body,
+      notificationDetails: const NotificationDetails(
+        android: AndroidNotificationDetails(
+          notificationAlertsChannelId,
+          'تنبيهات التخفيض الصح',
+          channelDescription: 'رسائل الطلبات والمحادثات والعروض الجديدة.',
+          importance: Importance.max,
+          priority: Priority.max,
+          category: AndroidNotificationCategory.message,
+          visibility: NotificationVisibility.public,
+          icon: 'notification_icon',
+          ticker: 'التخفيض الصح',
+          playSound: true,
+          enableVibration: true,
+          onlyAlertOnce: false,
+          autoCancel: true,
+          showWhen: true,
+        ),
+      ),
+      payload: jsonEncode(payload),
+    );
+  }
+
+  static Future<void> _dispatchTap(
+    Map<String, dynamic> payload,
+  ) async {
+    if (onTap != null) {
+      await onTap!(payload);
+    } else {
+      await _storePendingPayload(jsonEncode(payload));
+    }
   }
 
   static void _onNotificationResponse(NotificationResponse response) {
     final raw = response.payload;
     if (raw == null || raw.trim().isEmpty) return;
+
     try {
       final decoded = jsonDecode(raw);
       if (decoded is Map && onTap != null) {
-        unawaited(onTap!(Map<String, dynamic>.from(decoded)));
+        unawaited(
+          onTap!(Map<String, dynamic>.from(decoded)),
+        );
       } else {
         unawaited(_storePendingPayload(raw));
       }
@@ -189,203 +340,6 @@ class AltakhfidNotificationService {
       unawaited(_storePendingPayload(raw));
     }
   }
-}
-
-@pragma('vm:entry-point')
-Future<bool> notificationIosBackground(ServiceInstance service) async {
-  WidgetsFlutterBinding.ensureInitialized();
-  return true;
-}
-
-@pragma('vm:entry-point')
-void notificationIosForeground(ServiceInstance service) {}
-
-@pragma('vm:entry-point')
-void notificationBackgroundEntrypoint(ServiceInstance service) async {
-  DartPluginRegistrant.ensureInitialized();
-  WidgetsFlutterBinding.ensureInitialized();
-
-  final local = FlutterLocalNotificationsPlugin();
-  const initialization = InitializationSettings(
-    android: AndroidInitializationSettings('app_icon'),
-    iOS: DarwinInitializationSettings(
-      requestAlertPermission: false,
-      requestBadgePermission: false,
-      requestSoundPermission: false,
-    ),
-  );
-  try {
-    await local.initialize(
-      settings: initialization,
-      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
-    );
-  } catch (_) {}
-
-  service.on('stop').listen((_) {
-    service.stopSelf();
-  });
-  if (service is AndroidServiceInstance) {
-    service.setAsForegroundService();
-    service.setForegroundNotificationInfo(
-      title: 'التخفيض الصح',
-      content: 'اتصال الإشعارات الفوري يعمل.',
-    );
-  }
-
-  var retrySeconds = 2;
-  while (true) {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.reload();
-    final token = prefs.getString('access_token') ?? '';
-    if (token.trim().isEmpty) {
-      service.stopSelf();
-      return;
-    }
-
-    try {
-      await _syncMissedNotifications(prefs, token, local);
-      final base = _apiBaseUrl();
-      final socketScheme = base.startsWith('https://') ? 'wss://' : 'ws://';
-      final socketBase = base.replaceFirst(RegExp(r'^https?://'), socketScheme);
-      final channel = WebSocketChannel.connect(
-        Uri.parse(socketBase + '/notifications/ws'),
-      );
-
-      // The server intentionally authenticates with an application-level
-      // handshake frame because this is supported consistently by Flutter's
-      // WebSocket implementations on Android and Web.
-      channel.sink.add(
-        jsonEncode(<String, dynamic>{
-          'type': 'auth',
-          'token': token,
-        }),
-      );
-
-      final done = Completer<void>();
-      var pollBusy = false;
-
-      // WebSocket is the fast path. Keep a small durable polling safety net
-      // beside it so a broken proxy, dropped PostgreSQL NOTIFY, or a socket
-      // that remains half-open cannot leave the customer with only the
-      // foreground-service "connection works" notification.
-      final pollTimer = Timer.periodic(const Duration(seconds: 12), (_) async {
-        if (pollBusy) return;
-        pollBusy = true;
-        try {
-          await _syncMissedNotifications(prefs, token, local);
-        } finally {
-          pollBusy = false;
-        }
-      });
-
-      late StreamSubscription<dynamic> subscription;
-      subscription = channel.stream.listen(
-        (raw) async {
-          try {
-            final decoded = raw is String ? jsonDecode(raw) : raw;
-            if (decoded is! Map) return;
-            final payload = Map<String, dynamic>.from(decoded);
-            if (payload['type'] == 'heartbeat' || payload['type'] == 'connected' || payload['type'] == 'error') return;
-            final notificationId = int.tryParse((payload['notification_id'] ?? '').toString());
-            if (notificationId == null || notificationId <= 0) return;
-            // Only advance the durable cursor after Android accepted the notification.
-            // This prevents a local-notification failure from silently dropping the event.
-            await _showFromLocal(local, payload);
-            await _saveLastSeen(prefs, notificationId);
-            debugPrint('Altakhfid native notification shown: $notificationId');
-          } catch (_) {}
-        },
-        onError: (_) { if (!done.isCompleted) done.complete(); },
-        onDone: () { if (!done.isCompleted) done.complete(); },
-        cancelOnError: true,
-      );
-      await done.future.timeout(const Duration(minutes: 5), onTimeout: () {});
-      pollTimer.cancel();
-      await subscription.cancel();
-      try { await channel.sink.close(); } catch (_) {}
-      retrySeconds = 2;
-    } catch (_) {
-      retrySeconds = (retrySeconds * 2).clamp(2, 60);
-    }
-    await Future<void>.delayed(Duration(seconds: retrySeconds));
-  }
-}
-
-Future<void> _syncMissedNotifications(SharedPreferences prefs, String token, FlutterLocalNotificationsPlugin local) async {
-  try {
-    final response = await http.get(
-      Uri.parse(_apiBaseUrl() + '/notifications/notifications/me'),
-      headers: <String, String>{'Authorization': 'Bearer ' + token, 'Accept': 'application/json'},
-    ).timeout(const Duration(seconds: 15));
-    if (response.statusCode < 200 || response.statusCode >= 300) return;
-    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
-    if (decoded is! Map) return;
-    final rows = (decoded['items'] as List? ?? const [])
-        .whereType<Map>()
-        .map((x) => Map<String, dynamic>.from(x))
-        .toList()
-      ..sort((a, b) => (int.tryParse((a['id'] ?? '').toString()) ?? 0).compareTo(int.tryParse((b['id'] ?? '').toString()) ?? 0));
-    final stored = prefs.getInt(notificationLastSeenKey);
-    if (stored == null) {
-      final maxId = rows.fold<int>(0, (max, row) { final id = int.tryParse((row['id'] ?? '').toString()) ?? 0; return id > max ? id : max; });
-      if (maxId > 0) await prefs.setInt(notificationLastSeenKey, maxId);
-      return;
-    }
-    var lastSeen = stored;
-    for (final row in rows) {
-      final id = int.tryParse((row['id'] ?? '').toString()) ?? 0;
-      if (id <= lastSeen) continue;
-      try {
-        await _showFromLocal(local, row);
-        lastSeen = id;
-        await prefs.setInt(notificationLastSeenKey, lastSeen);
-      } catch (_) {
-        // Keep the cursor unchanged so this notification is retried on the next sync.
-      }
-    }
-  } catch (_) {}
-}
-
-Future<void> _showFromLocal(FlutterLocalNotificationsPlugin local, Map<String, dynamic> payload) async {
-  final id = int.tryParse((payload['notification_id'] ?? payload['id'] ?? '').toString()) ?? (DateTime.now().millisecondsSinceEpoch ~/ 1000);
-  await local.show(
-    id: id,
-    title: (payload['title'] ?? 'التخفيض الصح').toString(),
-    body: (payload['body'] ?? '').toString(),
-    notificationDetails: NotificationDetails(
-      android: AndroidNotificationDetails(
-        notificationAlertsChannelId,
-        'تنبيهات التخفيض الصح',
-        channelDescription: 'رسائل الطلبات والمحادثات والعروض الجديدة.',
-        importance: Importance.max,
-        priority: Priority.max,
-        category: AndroidNotificationCategory.message,
-        visibility: NotificationVisibility.public,
-        icon: 'notification_icon',
-        ticker: 'التخفيض الصح',
-        playSound: true,
-        enableVibration: true,
-        vibrationPattern: Int64List.fromList(<int>[0, 250, 120, 250]),
-        onlyAlertOnce: false,
-        autoCancel: true,
-        showWhen: true,
-        styleInformation: BigTextStyleInformation(
-          (payload['body'] ?? '').toString(),
-        ),
-      ),
-    ),
-    payload: jsonEncode(payload),
-  );
-}
-
-Future<void> _saveLastSeen(SharedPreferences prefs, int id) async {
-  final old = prefs.getInt(notificationLastSeenKey) ?? 0;
-  if (id > old) await prefs.setInt(notificationLastSeenKey, id);
-}
-
-String _apiBaseUrl() {
-  const value = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://takhfidsh.alattab.site/api/v1');
-  return value.replaceAll(RegExp(r'/$'), '');
 }
 
 @pragma('vm:entry-point')
