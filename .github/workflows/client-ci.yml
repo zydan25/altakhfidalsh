@@ -291,9 +291,9 @@ jobs:
               <meta-data
                   android:name="com.google.firebase.messaging.default_notification_channel_id"
                   android:value="altakhfid_alerts_v5" />'''
-              text2, count = re.subn(
-                  r"(    <application\\b[^>]*>)",
-                  r"\\1" + metadata,
+              pattern = re.compile(r"(    <application\\b[^>]*>)")
+              text2, count = pattern.subn(
+                  lambda match: match.group(1) + metadata,
                   text,
                   count=1,
               )
