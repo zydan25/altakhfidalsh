@@ -17,6 +17,38 @@ from .services import CommerceService
 
 class PaymentShippingService:
     @staticmethod
+    def _order_system_message(order, body):
+        from ..support.services import SupportService
+
+        conversation = (
+            Conversation.query
+            .filter(Conversation.order_id == order.id)
+            .order_by(Conversation.id.asc())
+            .first()
+        )
+        if conversation is None:
+            created = SupportService.create_conversation(
+                order.customer_id,
+                "order_support",
+                order.id,
+                "الطلب " + order.order_no,
+            )
+            conversation = db.session.get(
+                Conversation,
+                created["id"] if isinstance(created, dict) else created.id,
+            )
+
+        if conversation is not None:
+            SupportService.send_message(
+                conversation.id,
+                "system",
+                0,
+                body,
+                "text",
+            )
+
+
+    @staticmethod
     def ensure_default_payment_methods():
         """Create starter payment methods once without overwriting admin settings."""
         defaults = [
@@ -216,17 +248,19 @@ class PaymentShippingService:
             ))
         db.session.commit()
         if shipment.status == "shipped":
-            from ...services.notifications import NotificationService
-            NotificationService.shipping_updated(
-                order,
-                "تم شحن طلبك وبدأت رحلة التوصيل.",
-                shipment.status,
-            )
+            message = "تم شحن طلبك وبدأت رحلة التوصيل."
         elif shipment.status:
+            message = "تم تحديث حالة التوصيل إلى " + str(shipment.status) + "."
+        else:
+            message = None
+
+        if message:
+            self_message = message
+            PaymentShippingService._order_system_message(order, self_message)
             from ...services.notifications import NotificationService
             NotificationService.shipping_updated(
                 order,
-                "تم تحديث حالة التوصيل إلى " + str(shipment.status) + ".",
+                message,
                 shipment.status,
             )
         return {
@@ -259,11 +293,12 @@ class PaymentShippingService:
         db.session.add(event)
         db.session.commit()
         if order:
-            from ...services.notifications import NotificationService
             body = (
                 event.description
                 or ("تم تسليم طلبك بنجاح." if event.status == "delivered"
                     else "تم تحديث حالة التوصيل إلى " + str(event.status) + ".")
             )
+            PaymentShippingService._order_system_message(order, body)
+            from ...services.notifications import NotificationService
             NotificationService.shipping_updated(order, body, event.status)
         return {"id": event.id, "shipment_id": event.shipment_id, "status": event.status}
