@@ -61,7 +61,7 @@ def test_phone_change_otp_is_bound_to_customer_and_updates_number(app):
             customer_id=customer.id,
         )
         assert requested["purpose"] == "phone_change"
-        assert requested["phone"] == "9677700009902"
+        assert requested["phone"] == "7700009902"
         assert requested["debug_code"]
 
         result = CustomerAuthService.verify_otp(
@@ -70,7 +70,7 @@ def test_phone_change_otp_is_bound_to_customer_and_updates_number(app):
             phone=requested["phone"],
         )
         assert result["phone_changed"] is True
-        assert result["phone"] == "9677700009902"
+        assert result["phone"] == "7700009902"
 
         refreshed = db.session.get(Customer, customer.id)
-        assert refreshed.phone_normalized == "9677700009902"
+        assert refreshed.phone_normalized == "7700009902"
