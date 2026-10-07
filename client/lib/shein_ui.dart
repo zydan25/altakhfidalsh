@@ -9741,17 +9741,21 @@ Future<void> shareReferralInvitation(BuildContext context, String code) async {
   if (cleanCode.isEmpty) return;
 
   final link = ReferralLinkService.referralUri(cleanCode).toString();
+  final appLink = ReferralLinkService.appReferralUri(cleanCode).toString();
   final message = '''✨ دعوة خاصة من التخفيض الصح
 
 انضم إلى «التخفيض الصح» وتسوق العروض والمنتجات بسهولة.
 
-🔑 رمز دعوتك:
+🔑 رمز دعوة الصديق:
 $cleanCode
 
-📲 افتح الرابط ليتم تجهيز رمز الدعوة تلقائيًا عند التسجيل:
+🌐 رابط الدعوة:
 $link
 
-بعد إنشاء حسابك يمكنك تجاوز رمز الدعوة إن لم يكن لديك رمز من صديق.''';
+📱 عند وجود التطبيق المثبت يمكن فتح رابط التطبيق مباشرة:
+$appLink
+
+عند التسجيل سيظهر رمز الدعوة تلقائيًا، ويمكنك تغييره أو تخطيه.''';
 
   try {
     final box = context.findRenderObject() as RenderBox?;
