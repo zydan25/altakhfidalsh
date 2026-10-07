@@ -137,9 +137,7 @@ jobs:
 
           activity_body = match.group(2)
           if "takhfidsh.alattab.site" not in activity_body:
-              activity_body += "
-" + filters + "
-"
+              activity_body += "\n" + filters + "\n"
           text = text[:match.start(2)] + activity_body + text[match.end(2):]
           path.write_text(text, encoding="utf-8")
           print("Configured HTTPS and altakhfid://invite referral links.")
