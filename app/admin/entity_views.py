@@ -14,6 +14,9 @@ from ..models import (
     Banner,
     Campaign,
     Conversation,
+    Message,
+    MessageAttachment,
+    MediaAsset,
     Coupon,
     Customer,
     ExchangeRate,
@@ -333,11 +336,24 @@ def register_entity_views(admin_bp):
                 )
 
         detail = CommerceService.serialize_order_detail(order)
+        order_conversation = (
+            detail.get("conversations") or [None]
+        )[0]
+        order_unread_messages = 0
+        if order_conversation:
+            order_unread_messages = sum(
+                1
+                for message in order_conversation.get("messages", [])
+                if message.get("sender_type") == "customer"
+                and not message.get("read_at")
+            )
         return render_template(
             "admin/order_detail.html",
             title=f"الطلب {order.order_no}",
             order=detail,
             order_items=detail.get("items", []),
+            order_conversation=order_conversation,
+            order_unread_messages=order_unread_messages,
             status_choices=(
                 "created", "awaiting_payment", "paid", "processing",
                 "shipped", "delivered", "returned", "cancelled",
@@ -349,10 +365,174 @@ def register_entity_views(admin_bp):
 
     @admin_bp.get("/chat")
     def chat():
-        rows = Conversation.query.order_by(Conversation.last_message_at.desc(), Conversation.id.desc()).limit(200).all()
-        return _render("المحادثات", ["ID", "العميل", "الطلب", "النوع", "الحالة"],
-                       [[x.id, x.customer_id, x.order_id or "—", x.type, x.status] for x in rows],
-                       "العملاء والتواصل")
+        rows = (
+            Conversation.query
+            .order_by(Conversation.last_message_at.desc(), Conversation.id.desc())
+            .limit(200)
+            .all()
+        )
+        cards = []
+        for conversation in rows:
+            customer = db.session.get(Customer, conversation.customer_id)
+            last_message = (
+                Message.query
+                .filter_by(conversation_id=conversation.id)
+                .order_by(Message.created_at.desc(), Message.id.desc())
+                .first()
+            )
+            unread_count = (
+                Message.query
+                .filter(
+                    Message.conversation_id == conversation.id,
+                    Message.sender_type == "customer",
+                    Message.read_at.is_(None),
+                )
+                .count()
+            )
+            cards.append({
+                "id": conversation.id,
+                "customer_id": conversation.customer_id,
+                "customer_name": customer.name if customer else "عميل",
+                "customer_phone": customer.phone_normalized if customer else None,
+                "order_id": conversation.order_id,
+                "type": conversation.type,
+                "subject": conversation.subject or (
+                    "طلب #" + str(conversation.order_id)
+                    if conversation.order_id
+                    else "خدمة العملاء"
+                ),
+                "status": conversation.status,
+                "unread_count": unread_count,
+                "last_message": last_message.body if last_message and last_message.body else (
+                    "مرفق" if last_message else "لا توجد رسائل بعد"
+                ),
+                "last_message_at": (
+                    last_message.created_at.isoformat()
+                    if last_message and last_message.created_at
+                    else conversation.last_message_at.isoformat()
+                    if conversation.last_message_at
+                    else None
+                ),
+                "last_sender_type": last_message.sender_type if last_message else None,
+            })
+        return render_template(
+            "admin/chat.html",
+            title="المحادثات",
+            conversations=cards,
+            **build_admin_context(),
+        )
+
+    @admin_bp.route("/chat/<int:conversation_id>", methods=["GET", "POST"])
+    def conversation_detail_page(conversation_id):
+        conversation = db.session.get(Conversation, conversation_id)
+        if conversation is None:
+            return render_template(
+                "admin/module.html",
+                title="المحادثة غير موجودة",
+                section="العملاء والتواصل",
+                requested_path=request.path,
+                **build_admin_context(),
+            ), 404
+
+        error = None
+        success = request.args.get("success")
+        if request.method == "POST":
+            action = (request.form.get("action") or "").strip()
+            try:
+                if action == "message":
+                    body = (request.form.get("body") or "").strip()
+                    if not body:
+                        raise ValueError("اكتب رسالة قبل الإرسال.")
+                    SupportService.send_message(
+                        conversation.id,
+                        "admin",
+                        session.get("admin_id") or 0,
+                        body,
+                        "text",
+                    )
+                    success = "تم إرسال الرسالة."
+                elif action == "close":
+                    conversation.status = "closed"
+                    db.session.commit()
+                    success = "تم إغلاق المحادثة."
+                elif action == "open":
+                    conversation.status = "open"
+                    db.session.commit()
+                    success = "تم فتح المحادثة."
+                else:
+                    raise ValueError("إجراء المحادثة غير معروف.")
+            except (ValueError, LookupError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+            conversation = db.session.get(Conversation, conversation_id)
+            if success and not error:
+                return redirect(
+                    url_for(
+                        "admin.conversation_detail_page",
+                        conversation_id=conversation_id,
+                        success=success,
+                    )
+                )
+
+        # Opening the conversation in the admin counts customer messages as
+        # read, exactly like opening a WhatsApp thread.
+        Message.query.filter(
+            Message.conversation_id == conversation.id,
+            Message.sender_type == "customer",
+            Message.read_at.is_(None),
+        ).update({"read_at": db.func.now()}, synchronize_session=False)
+        db.session.commit()
+
+        customer = db.session.get(Customer, conversation.customer_id)
+        order = db.session.get(Order, conversation.order_id) if conversation.order_id else None
+        messages = (
+            Message.query
+            .filter_by(conversation_id=conversation.id)
+            .order_by(Message.created_at, Message.id)
+            .all()
+        )
+        message_rows = []
+        for message in messages:
+            attachments = []
+            for attachment in (
+                MessageAttachment.query
+                .filter_by(message_id=message.id)
+                .order_by(MessageAttachment.sort_order, MessageAttachment.id)
+                .all()
+            ):
+                asset = db.session.get(MediaAsset, attachment.asset_id)
+                attachments.append({
+                    "id": attachment.id,
+                    "url": asset.url if asset else None,
+                    "mime_type": attachment.mime_type,
+                    "source_name": (
+                        (asset.metadata_json or {}).get("source_name")
+                        if asset is not None
+                        else None
+                    ),
+                })
+            message_rows.append({
+                "id": message.id,
+                "sender_type": message.sender_type,
+                "sender_id": message.sender_id,
+                "body": message.body,
+                "message_type": message.message_type,
+                "created_at": message.created_at.isoformat() if message.created_at else None,
+                "attachments": attachments,
+            })
+
+        return render_template(
+            "admin/chat_detail.html",
+            title=conversation.subject or "المحادثة",
+            conversation=conversation,
+            customer=customer,
+            order=order,
+            messages=message_rows,
+            error=error,
+            success=success,
+            **build_admin_context(),
+        )
 
     @admin_bp.route("/payments", methods=["GET", "POST"])
     def payments():
