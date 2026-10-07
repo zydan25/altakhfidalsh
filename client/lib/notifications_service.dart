@@ -261,10 +261,10 @@ class AltakhfidNotificationService {
         DateTime.now().millisecondsSinceEpoch.remainder(2147483647);
 
     await _local.show(
-      id,
-      (payload['title'] ?? 'التخفيض الصح').toString(),
-      (payload['body'] ?? '').toString(),
-      NotificationDetails(
+      id: id,
+      title: (payload['title'] ?? 'التخفيض الصح').toString(),
+      body: (payload['body'] ?? '').toString(),
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           notificationAlertsChannelId,
           'تنبيهات التخفيض الصح',
