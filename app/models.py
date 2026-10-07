@@ -204,6 +204,14 @@ class Customer(TimestampMixin, ActiveMixin, db.Model):
     email = db.Column(String(255))
     gender = db.Column(String(20))
     password_hash = db.Column(String(255))
+    # Stable customer-owned invitation identity. The code is safe to share
+    # publicly; the referrer relation is immutable after the first successful
+    # referral application.
+    invite_code = db.Column(String(20), nullable=False, unique=True, index=True)
+    referred_by_customer_id = db.Column(
+        ForeignKey("customers.id", ondelete="SET NULL"),
+        index=True,
+    )
     city_id = db.Column(ForeignKey("cities.id"))
     city_area_id = db.Column(ForeignKey("city_areas.id"))
     privacy_accepted_at = db.Column(db.DateTime(timezone=True))
