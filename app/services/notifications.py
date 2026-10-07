@@ -5,6 +5,7 @@ from sqlalchemy import or_, text
 
 from ..extensions import db
 from ..models import Customer, CustomerNotification, CustomerPreference, Notification
+from .fcm import FCMService
 
 
 class NotificationService:
@@ -64,6 +65,15 @@ class NotificationService:
         )
         NotificationService._emit(customer_id, row.id, row)
         db.session.commit()
+        try:
+            FCMService.send_to_customer(customer_id, row.title, row.body, {
+                **dict(row.data or {}),
+                "notification_id": row.id,
+                "type": row.type,
+            })
+        except Exception:
+            # FCM delivery is best-effort; the durable in-app notification remains available.
+            pass
         return {
             "id": row.id,
             "type": row.type,
@@ -119,6 +129,19 @@ class NotificationService:
                 db.session.get(Notification, notification_id),
             )
         db.session.commit()
+        for customer_id, notification_id in created:
+            row = db.session.get(Notification, notification_id)
+            if row is None:
+                continue
+            try:
+                FCMService.send_to_customer(customer_id, row.title, row.body, {
+                    **dict(row.data or {}),
+                    "notification_id": row.id,
+                    "type": row.type,
+                })
+            except Exception:
+                # FCM delivery is best-effort; the durable rows remain the source of truth.
+                pass
         return {"count": len(created), "notification_ids": [x[1] for x in created]}
 
     @staticmethod
