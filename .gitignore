@@ -8,6 +8,7 @@ __pycache__/
 .env.*
 !.env.example
 storage/media/
+storage/firebase/
 storage/*.db
 instance/
 dist/
