@@ -262,6 +262,22 @@ void notificationBackgroundEntrypoint(ServiceInstance service) async {
       );
 
       final done = Completer<void>();
+      var pollBusy = false;
+
+      // WebSocket is the fast path. Keep a small durable polling safety net
+      // beside it so a broken proxy, dropped PostgreSQL NOTIFY, or a socket
+      // that remains half-open cannot leave the customer with only the
+      // foreground-service "connection works" notification.
+      final pollTimer = Timer.periodic(const Duration(seconds: 12), (_) async {
+        if (pollBusy) return;
+        pollBusy = true;
+        try {
+          await _syncMissedNotifications(prefs, token, local);
+        } finally {
+          pollBusy = false;
+        }
+      });
+
       late StreamSubscription<dynamic> subscription;
       subscription = channel.stream.listen(
         (raw) async {
@@ -284,6 +300,7 @@ void notificationBackgroundEntrypoint(ServiceInstance service) async {
         cancelOnError: true,
       );
       await done.future.timeout(const Duration(minutes: 5), onTimeout: () {});
+      pollTimer.cancel();
       await subscription.cancel();
       try { await channel.sink.close(); } catch (_) {}
       retrySeconds = 2;
