@@ -11151,7 +11151,7 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
   Future<void> openOrderChat() async {
     try {
       final result = await api.newConversation(
-        type: 'order',
+        type: 'order_support',
         orderId: widget.id,
         subject: 'استفسار عن الطلب ' + sxText(order['order_no'], '#'),
       );
