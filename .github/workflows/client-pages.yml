@@ -59,7 +59,7 @@ jobs:
           API_BASE_URL: https://takhfidsh.alattab.site/api/v1
         run: |
           flutter build web --release \
-            --pwa-strategy=offline-first \
+            --pwa-strategy=none \
             --base-href "/" \
             --dart-define=API_BASE_URL="$API_BASE_URL"
 
@@ -104,6 +104,7 @@ jobs:
           <meta name="application-name" content="التخفيض الصح">
           <meta name="apple-mobile-web-app-title" content="التخفيض الصح">
           <link rel="icon" type="image/png" href="favicon.png">
+          <link rel="apple-touch-icon" href="icons/Icon-192.png">
           '''.replace('BUILD_SHA_PLACEHOLDER', sha)
           s = s.replace('</head>', guard + '\n</head>')
           index.write_text(s, encoding='utf-8')
@@ -126,6 +127,9 @@ jobs:
           ]
           manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
 
+          # A real HTML fallback makes direct Pages routes and invitation
+          # links recover to the Flutter shell instead of a blank/404 page.
+          (root / '404.html').write_text(index.read_text(encoding='utf-8'), encoding='utf-8')
           (root / 'CNAME').write_text('takhfidsh.alattab.site\n', encoding='utf-8')
           PY
       - name: Upload web build artifact
