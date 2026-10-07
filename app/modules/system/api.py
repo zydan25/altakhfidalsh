@@ -90,6 +90,7 @@ def public_store_info():
             "map_url": _public_setting("store_map_url"),
             "image_url": _public_setting("store_image_url"),
             "hours": _public_setting("store_hours"),
+            "splash_duration_seconds": _public_setting("splash_duration_seconds", "2"),
         }
     }
 
