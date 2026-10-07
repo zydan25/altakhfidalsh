@@ -10,7 +10,7 @@ from .wishlist import CustomerEngagementService
 from ...extensions import db
 from ...services.customer_deletion import delete_customer_permanently
 from ...services.phone import normalize_phone
-from ...models import Customer, CustomerAddress, City, CityArea, Country, Region, Product, Review
+from ...models import Customer, CustomerAddress, City, CityArea, Country, Region, Product, Review, OTPRequest
 
 
 def _authorized_customer_id():
@@ -193,6 +193,19 @@ def request_phone_change():
 def verify_phone_change():
     payload = request.get_json(silent=True) or {}
     try:
+        request_id = int(payload.get("otp_request_id") or 0)
+        otp_request = db.session.get(OTPRequest, request_id)
+        customer = current_customer()
+        if (
+            otp_request is None
+            or otp_request.purpose != "phone_change"
+            or otp_request.customer_id != customer.id
+        ):
+            return {
+                "error": "phone_change_unauthorized",
+                "detail": "طلب تغيير الرقم لا ينتمي إلى هذا الحساب.",
+            }, 403
+
         result = CustomerAuthService.verify_otp(
             payload.get("otp_request_id"),
             str(payload.get("code") or ""),
