@@ -11158,7 +11158,7 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
       final item = result['item'] is Map ? result['item'] : result;
       final id = sxInt(item is Map ? item['id'] : 0);
       if (!mounted || id <= 0) return;
-      Navigator.push(
+      await Navigator.push(
         context,
         MaterialPageRoute(
           builder: (_) => SxConversationScreen(
@@ -11168,6 +11168,7 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
           ),
         ),
       );
+      if (mounted) await load();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(sxText(e))),
@@ -12208,13 +12209,8 @@ class _SxSupportScreenState extends State<SxSupportScreen> {
   @override
   Widget build(BuildContext context) {
     final sorted = [...rows]
-      ..sort((a, b) {
-        final au = sxInt(a['unread_count']);
-        final bu = sxInt(b['unread_count']);
-        if (au != bu) return bu.compareTo(au);
-        return sxText(b['last_message_at'])
-            .compareTo(sxText(a['last_message_at']));
-      });
+      ..sort((a, b) => sxText(b['last_message_at'])
+          .compareTo(sxText(a['last_message_at'])));
 
     return SxShellPage(
       title: 'المحادثات',
