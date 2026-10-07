@@ -8,6 +8,7 @@ import 'app_state.dart';
 import 'auth_flow.dart';
 import 'notifications_service.dart';
 import 'product_detail.dart';
+import 'referral_links.dart';
 import 'shein_ui.dart';
 import 'theme.dart';
 
@@ -22,6 +23,13 @@ Future<void> main() async {
   await AltakhfidNotificationService.initialize(
     tapHandler: handleNotificationTap,
   );
+  await ReferralLinkService.initialize();
+  // A referral URL is only meaningful to an unauthenticated/new customer.
+  // Do not keep a stale invitation code when an already logged-in account
+  // launches the app from an external link.
+  if (api.token.isNotEmpty) {
+    await ReferralLinkService.clearPendingCode();
+  }
   runApp(const AltakhfidApp());
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
