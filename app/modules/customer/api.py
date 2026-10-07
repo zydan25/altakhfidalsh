@@ -9,6 +9,7 @@ from .services import CustomerService
 from .wishlist import CustomerEngagementService
 from ...extensions import db
 from ...services.customer_deletion import delete_customer_permanently
+from ...services.phone import normalize_phone
 from ...models import Customer, CustomerAddress, City, CityArea, Country, Region, Product, Review
 
 
@@ -153,6 +154,75 @@ def delete_my_account():
 @api_bp.get("/me")
 @customer_required
 def me():    return {"item": CustomerService.serialize(current_customer())}
+
+
+@api_bp.post("/me/phone/change-request")
+@customer_required
+def request_phone_change():
+    payload = request.get_json(silent=True) or {}
+    customer = current_customer()
+    supplied_password = str(payload.get("password") or "")
+    if customer.password_hash and not check_password_hash(customer.password_hash, supplied_password):
+        return {"error": "invalid_password", "detail": "كلمة المرور الحالية غير صحيحة."}, 401
+    if not customer.password_hash:
+        return {"error": "password_required", "detail": "أنشئ كلمة مرور للحساب أولًا ثم حدّث رقم الهاتف."}, 400
+
+    new_phone = normalize_phone(payload.get("phone"))
+    if not new_phone:
+        return {"error": "phone_invalid", "detail": "أدخل رقم هاتف صحيحًا."}, 400
+    if new_phone == customer.phone_normalized:
+        return {"error": "phone_unchanged", "detail": "رقم الهاتف الجديد مطابق للرقم الحالي."}, 400
+
+    owner = Customer.query.filter_by(phone_normalized=new_phone).first()
+    if owner is not None and owner.id != customer.id:
+        return {"error": "phone_in_use", "detail": "رقم الهاتف مستخدم بالفعل من حساب آخر."}, 409
+
+    try:
+        result = CustomerAuthService.request_otp(
+            new_phone,
+            purpose="phone_change",
+            customer_id=customer.id,
+        )
+        return {"item": result}, 201
+    except ValueError as exc:
+        return {"error": "phone_change_request_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/me/phone/verify-change")
+@customer_required
+def verify_phone_change():
+    payload = request.get_json(silent=True) or {}
+    try:
+        result = CustomerAuthService.verify_otp(
+            payload.get("otp_request_id"),
+            str(payload.get("code") or ""),
+            device_id="flutter-client",
+            phone=payload.get("phone"),
+        )
+        if not result.get("phone_changed"):
+            return {"error": "phone_change_verification_failed", "detail": "طلب تغيير الهاتف غير صحيح."}, 400
+        return {"item": result}
+    except (KeyError, ValueError, LookupError) as exc:
+        return {"error": "phone_change_verification_failed", "detail": str(exc)}, 400
+
+
+@api_bp.post("/me/referral")
+@customer_required
+def apply_my_referral():
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {"item": CustomerService.apply_referral(current_customer().id, payload.get("code"))}
+    except (ValueError, LookupError) as exc:
+        return {"error": "referral_failed", "detail": str(exc)}, 400
+
+
+@api_bp.get("/me/referrals")
+@customer_required
+def my_referrals():
+    try:
+        return {"item": CustomerService.referral_overview(current_customer().id)}
+    except LookupError as exc:
+        return {"error": "referrals_not_found", "detail": str(exc)}, 404
 
 
 @api_bp.post("/me/privacy-acceptance")
