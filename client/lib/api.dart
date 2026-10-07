@@ -703,6 +703,28 @@ class ApiService {
     final item = d['item'];
     return item is Map ? Map<String, dynamic>.from(item) : d;
   }
+
+  Future<List<Map<String,dynamic>>> storeLocations() async {
+    final d = await get('/storefront/store-locations');
+    return ((d['items'] as List?) ?? const [])
+        .whereType<Map>()
+        .map((e) {
+          final item = Map<String,dynamic>.from(e);
+          final images = item['images'];
+          if (images is List) {
+            item['images'] = images.whereType<Map>().map((image) {
+              final normalized = Map<String,dynamic>.from(image);
+              final rawUrl = normalized['url']?.toString() ?? '';
+              if (rawUrl.isNotEmpty) {
+                normalized['url'] = url(rawUrl);
+              }
+              return normalized;
+            }).toList();
+          }
+          return item;
+        })
+        .toList();
+  }
   Future<void> deleteMyAccount({String? password}) async {
     await post('/customer/me/delete', {
       'confirmation': 'DELETE',
