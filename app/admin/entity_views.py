@@ -100,6 +100,17 @@ def register_entity_views(admin_bp):
     @admin_bp.get("/customers")
     def customers():
         rows = Customer.query.order_by(Customer.id.desc()).limit(200).all()
+        referral_counts = dict(
+            db.session.query(
+                Customer.referred_by_customer_id,
+                func.count(Customer.id),
+            )
+            .filter(Customer.referred_by_customer_id.isnot(None))
+            .group_by(Customer.referred_by_customer_id)
+            .all()
+        )
+        for row in rows:
+            row.invited_count = int(referral_counts.get(row.id, 0))
         return render_template(
             "admin/customers.html",
             title="العملاء",
