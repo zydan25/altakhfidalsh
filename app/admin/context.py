@@ -3,7 +3,7 @@ from sqlalchemy import func
 from flask import request
 
 from ..extensions import db
-from ..models import Conversation, Notification, Order
+from ..models import Conversation, Message, Notification, Order
 from .navigation import NAVIGATION, NavItem, NavSection
 
 
@@ -66,9 +66,7 @@ def build_admin_context():
             "orders": _safe_count(
                 Order, Order.status.in_(("created", "awaiting_payment", "paid"))
             ),
-            "unread_chats": _safe_count(
-                Conversation, Conversation.status.in_(("open", "pending"))
-            ),
+            "unread_chats": _safe_unread_conversations(),
         },
     }
 
@@ -79,6 +77,23 @@ def _safe_count(model, criterion=None):
         if criterion is not None:
             query = query.filter(criterion)
         return query.scalar() or 0
+    except Exception:
+        db.session.rollback()
+        return 0
+
+
+def _safe_unread_conversations():
+    try:
+        return (
+            db.session.query(func.count(func.distinct(Conversation.id)))
+            .join(Message, Message.conversation_id == Conversation.id)
+            .filter(
+                Message.sender_type == "customer",
+                Message.read_at.is_(None),
+            )
+            .scalar()
+            or 0
+        )
     except Exception:
         db.session.rollback()
         return 0
