@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'app_state.dart';
 import 'auth_flow.dart';
@@ -17,6 +18,7 @@ import 'order_edit.dart';
 import 'product_detail.dart';
 import 'widgets.dart';
 import 'notifications_service.dart';
+import 'referral_links.dart';
 
 String sxText(dynamic v, [String fallback = '']) {
   final raw = (v ?? fallback).toString();
@@ -9388,196 +9390,646 @@ class SxAccountScreen extends StatefulWidget {
 }
 
 class _SxAccountScreenState extends State<SxAccountScreen> {
-  Map<String,dynamic> me={}; List<Map<String,dynamic>> orders=[]; bool loading=true;
-  @override void initState(){super.initState();load();}
-  Future<void> load() async{
-    try{
-      me=Map<String,dynamic>.from((await api.me())['item']??{});
-      orders=await api.orders();
-      state.wishlist=(await api.wishlistIds()).toSet();
-      await state.restorePreferences();
-    }catch(_){}
-    if(mounted)setState(()=>loading=false);
+  Map<String, dynamic> me = {};
+  List<Map<String, dynamic>> orders = <Map<String, dynamic>>[];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
   }
-  void openOrders(String filter)=>Navigator.push(context,MaterialPageRoute(builder:(_)=>SxOrdersScreen(initialFilter:filter)));
-  int count(String filter){
-    bool match(Map<String,dynamic> x){
-      final s=sxText(x['status']); final p=sxText(x['payment_status']);
-      if(filter=='payment')return s=='awaiting_payment'||p=='unpaid';
-      if(filter=='processing')return s=='paid'||s=='processing';
-      if(filter=='shipped')return s=='shipped';
-      if(filter=='completed')return s=='delivered'||s=='returned';
+
+  Future<void> load() async {
+    try {
+      final result = await api.me();
+      final item = result['item'];
+      if (item is Map) me = Map<String, dynamic>.from(item);
+      orders = await api.orders();
+      state.wishlist = (await api.wishlistIds()).toSet();
+      await state.restorePreferences();
+    } catch (_) {}
+    if (mounted) setState(() => loading = false);
+  }
+
+  void openOrders(String filter) => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => SxOrdersScreen(initialFilter: filter)),
+      );
+
+  int count(String filter) {
+    bool match(Map<String, dynamic> x) {
+      final s = sxText(x['status']);
+      final p = sxText(x['payment_status']);
+      if (filter == 'payment') return s == 'awaiting_payment' || p == 'unpaid';
+      if (filter == 'processing') return s == 'paid' || s == 'processing';
+      if (filter == 'shipped') return s == 'shipped';
+      if (filter == 'completed') return s == 'delivered' || s == 'returned';
       return true;
     }
     return orders.where(match).length;
   }
-  Future<void> _deleteAccount() async {
-    final first = await showDialog<bool>(
+
+  Future<void> _logout() async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('حذف الحساب نهائيًا', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+        title: const Text(
+          'تسجيل الخروج',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+        ),
         content: const Text(
-          'سيتم حذف حسابك وطلباتك وعناوينك ومحفظتك ومفضلاتك وبياناتك التابعة نهائيًا من قاعدة البيانات. لا يمكن التراجع عن هذا الإجراء.',
+          'هل تريد تسجيل الخروج من حسابك على هذا الجهاز؟',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 10, height: 1.6),
         ),
+        actionsAlignment: MainAxisAlignment.spaceBetween,
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('إلغاء'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFC62828)),
-            child: const Text('متابعة'),
+            style: FilledButton.styleFrom(backgroundColor: Colors.black),
+            child: const Text('تسجيل الخروج'),
           ),
         ],
       ),
     );
-    if (first != true || !mounted) return;
-
-    final password = TextEditingController();
-    final confirm = TextEditingController();
-    final proceed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('تأكيد الحذف', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'للتأكد أنك تقصد حذف الحساب، اكتب DELETE. إذا كان للحساب كلمة مرور فأدخلها أيضًا.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 9.5, color: ClientTheme.muted, height: 1.5),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: confirm,
-              textDirection: TextDirection.ltr,
-              decoration: const InputDecoration(
-                labelText: 'اكتب DELETE',
-                prefixIcon: Icon(Icons.warning_amber_outlined),
-              ),
-            ),
-            const SizedBox(height: 9),
-            TextField(
-              controller: password,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'كلمة المرور الحالية (إن وجدت)',
-                prefixIcon: Icon(Icons.lock_outline),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, confirm.text.trim().toUpperCase() == 'DELETE'),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFC62828)),
-            child: const Text('حذف نهائي'),
-          ),
-        ],
-      ),
-    );
-    final currentPassword = password.text;
-    password.dispose();
-    confirm.dispose();
-    if (proceed != true || !mounted) return;
+    if (confirmed != true || !mounted) return;
 
     try {
-      await api.deleteMyAccount(password: currentPassword);
       await state.clearSession();
-      if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const SxAuthFlowScreen()),
-        (_) => false,
-      );
-    } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(sxText(error).replaceFirst('Exception: ', ''))),
-        );
-      }
+    } catch (_) {
+      await api.logout();
+    }
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const SxAuthFlowScreen()),
+      (_) => false,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: loading
+          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+          : RefreshIndicator(
+              onRefresh: load,
+              child: Directionality(
+                textDirection: TextDirection.rtl,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(11, 13, 11, 18),
+                  children: [
+                    SafeArea(
+                      bottom: false,
+                      child: Row(
+                        children: [
+                          const Text(
+                            'أنا',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            tooltip: 'الإعدادات',
+                            onPressed: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => SxSettingsScreen(me: me),
+                                ),
+                              );
+                              if (mounted) load();
+                            },
+                            icon: const Icon(Icons.settings_outlined),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 58,
+                            height: 58,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF4A4A4A),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.person, color: Colors.white),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  sxText(me['name'], 'مرحبًا بك'),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  sxText(me['phone_normalized']),
+                                  textDirection: TextDirection.ltr,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                                const SizedBox(height: 7),
+                                const Text(
+                                  'إدارة الحساب والعناوين والطلبات من هنا',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 8.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    _ReferralProfileCard(
+                      code: sxText(me['invite_code']),
+                      invitedCount: sxInt(me['invited_count']),
+                      onShare: sxText(me['invite_code']).isEmpty
+                          ? null
+                          : () => shareReferralInvitation(
+                                context,
+                                sxText(me['invite_code']),
+                              ),
+                      onOpen: sxText(me['invite_code']).isEmpty
+                          ? null
+                          : () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const SxReferralsScreen(),
+                                ),
+                              ),
+                    ),
+                    const SxSectionTitle(title: 'حالة طلباتك'),
+                    Row(
+                      children: [
+                        Expanded(child: _AccountMiniLink(Icons.payment_outlined, 'بانتظار الدفع', count('payment'), () => openOrders('payment'))),
+                        Expanded(child: _AccountMiniLink(Icons.inventory_2_outlined, 'قيد التجهيز', count('processing'), () => openOrders('processing'))),
+                        Expanded(child: _AccountMiniLink(Icons.local_shipping_outlined, 'تم الشحن', count('shipped'), () => openOrders('shipped'))),
+                        Expanded(child: _AccountMiniLink(Icons.rate_review_outlined, 'للمراجعة', count('completed'), () => openOrders('completed'))),
+                      ],
+                    ),
+                    const SxSectionTitle(title: 'خدماتي'),
+                    GridView.count(
+                      primary: false,
+                      shrinkWrap: true,
+                      crossAxisCount: 4,
+                      mainAxisSpacing: 6,
+                      crossAxisSpacing: 6,
+                      childAspectRatio: .94,
+                      children: [
+                        _AccountTile(Icons.receipt_long_outlined, 'طلباتي', () => openOrders('all')),
+                        _AccountTile(Icons.favorite_border, 'المفضلة', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxWishlistScreen()))),
+                        _AccountTile(Icons.location_on_outlined, 'العناوين', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxAddressesScreen()))),
+                        _AccountTile(Icons.notifications_none, 'الإشعارات', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen()))),
+                        _AccountTile(Icons.chat_bubble_outline, 'الدعم', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxSupportScreen()))),
+                        _AccountTile(Icons.privacy_tip_outlined, 'السياسات', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxPoliciesScreen()))),
+                        _AccountTile(Icons.currency_exchange, 'العملة', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCurrencyScreen()))),
+                        _AccountTile(Icons.location_city_outlined, 'المدينة', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCityScreen()))),
+                        _AccountTile(Icons.payments_outlined, 'معلومات الدفع', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxPaymentInfoScreen()))),
+                        _AccountTile(Icons.support_agent_outlined, 'تواصل معنا', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxStoreContactScreen()))),
+                        _AccountTile(Icons.storefront_outlined, 'موقعنا', () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxStoreLocationScreen()))),
+                      ],
+                    ),
+                    const SxSectionTitle(title: 'تفضيلات التسوق'),
+                    ListTile(
+                      leading: const Icon(Icons.location_on_outlined),
+                      title: const Text('العناوين', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800)),
+                      trailing: const Icon(Icons.chevron_left),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxAddressesScreen())),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: _logout,
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(49),
+                        side: const BorderSide(color: Colors.black),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      child: const Text('تسجيل الخروج', style: TextStyle(fontWeight: FontWeight.w900)),
+                    ),
+                    const SxDeveloperSignature(),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class _ReferralProfileCard extends StatelessWidget {
+  final String code;
+  final int invitedCount;
+  final VoidCallback? onShare;
+  final VoidCallback? onOpen;
+
+  const _ReferralProfileCard({
+    required this.code,
+    required this.invitedCount,
+    this.onShare,
+    this.onOpen,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F7F7),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: ClientTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.group_add_outlined, size: 21),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'مشاركة التطبيق ودعوة الأصدقاء',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                ),
+              ),
+              Text(
+                '$invitedCount مدعو',
+                style: const TextStyle(fontSize: 9, color: ClientTheme.muted, fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(9)),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text('رمز دعوتك', style: TextStyle(fontSize: 9, color: ClientTheme.muted)),
+                ),
+                Text(
+                  code.isEmpty ? '—' : code,
+                  textDirection: TextDirection.ltr,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, letterSpacing: 1.3),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 9),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onShare,
+                  icon: const Icon(Icons.share_outlined, size: 17),
+                  label: const Text('مشاركة التطبيق', style: TextStyle(fontWeight: FontWeight.w900)),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.black, minimumSize: const Size.fromHeight(42)),
+                ),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onOpen,
+                  icon: const Icon(Icons.people_outline, size: 17),
+                  label: const Text('دعواتي', style: TextStyle(fontWeight: FontWeight.w900)),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(42)),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+Future<void> shareReferralInvitation(BuildContext context, String code) async {
+  final cleanCode = code.trim().toUpperCase();
+  if (cleanCode.isEmpty) return;
+
+  final link = ReferralLinkService.referralUri(cleanCode).toString();
+  final message = '''✨ دعوة خاصة من التخفيض الصح
+
+انضم إلى «التخفيض الصح» وتسوق العروض والمنتجات بسهولة.
+
+🔑 رمز دعوتك:
+$cleanCode
+
+📲 افتح الرابط ليتم تجهيز رمز الدعوة تلقائيًا عند التسجيل:
+$link
+
+بعد إنشاء حسابك يمكنك تجاوز رمز الدعوة إن لم يكن لديك رمز من صديق.''';
+
+  try {
+    final box = context.findRenderObject() as RenderBox?;
+    await SharePlus.instance.share(
+      ShareParams(
+        title: 'دعوة إلى التخفيض الصح',
+        text: message,
+        sharePositionOrigin: box == null ? null : box.localToGlobal(Offset.zero) & box.size,
+      ),
+    );
+  } catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(error))));
+    }
+  }
+}
+
+class SxReferralOnboardingScreen extends StatefulWidget {
+  final String? initialCode;
+  const SxReferralOnboardingScreen({super.key, this.initialCode});
+
+  @override
+  State<SxReferralOnboardingScreen> createState() => _SxReferralOnboardingScreenState();
+}
+
+class _SxReferralOnboardingScreenState extends State<SxReferralOnboardingScreen> {
+  late final TextEditingController code;
+  bool busy = false;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    code = TextEditingController(text: sxText(widget.initialCode).trim().toUpperCase());
+  }
+
+  @override
+  void dispose() {
+    code.dispose();
+    super.dispose();
+  }
+
+  Future<void> apply() async {
+    final value = code.text.trim().toUpperCase();
+    if (value.isEmpty) {
+      Navigator.pop(context, false);
+      return;
+    }
+    setState(() { busy = true; error = null; });
+    try {
+      await api.applyReferral(value);
+      await ReferralLinkService.clearPendingCode();
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) setState(() { busy = false; error = sxText(e); });
     }
   }
 
-  @override Widget build(BuildContext context)=>Scaffold(
-    body:loading?const Center(child:CircularProgressIndicator(strokeWidth:2)):RefreshIndicator(
-      onRefresh:load,
-      child:ListView(padding:const EdgeInsets.fromLTRB(11,13,11,18),children:[
-        SafeArea(bottom:false,child:Row(children:[
-          const Text('أنا',style:TextStyle(fontSize:24,fontWeight:FontWeight.w900)),const Spacer(),
-          IconButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>SxSettingsScreen(me:me))),icon:const Icon(Icons.settings_outlined)),
-        ])),
-        const SizedBox(height:7),
-        Container(padding:const EdgeInsets.all(14),decoration:BoxDecoration(color:Colors.black,borderRadius:BorderRadius.circular(15)),child:Row(children:[
-          Container(width:58,height:58,decoration:const BoxDecoration(color:Color(0xFF4A4A4A),shape:BoxShape.circle),child:const Icon(Icons.person,color:Colors.white)),
-          const SizedBox(width:10),
-          Expanded(child:Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
-            Text(sxText(me['name'],'مرحبًا بك'),style:const TextStyle(color:Colors.white,fontSize:17,fontWeight:FontWeight.w900)),
-            const SizedBox(height:4),Text(sxText(me['phone_normalized']),style:const TextStyle(color:Colors.white70,fontSize:9)),
-            const SizedBox(height:7),const Text('إدارة الحساب والعناوين والطلبات من هنا',style:TextStyle(color:Colors.white70,fontSize:8.5)),
-          ])),
-        ])),
-        const SxSectionTitle(title:'حالة طلباتك'),
-        Row(children:[
-          Expanded(child:_AccountMiniLink(Icons.payment_outlined,'بانتظار الدفع',count('payment'),()=>openOrders('payment'))),
-          Expanded(child:_AccountMiniLink(Icons.inventory_2_outlined,'قيد التجهيز',count('processing'),()=>openOrders('processing'))),
-          Expanded(child:_AccountMiniLink(Icons.local_shipping_outlined,'تم الشحن',count('shipped'),()=>openOrders('shipped'))),
-          Expanded(child:_AccountMiniLink(Icons.rate_review_outlined,'للمراجعة',count('completed'),()=>openOrders('completed'))),
-        ]),
-        const SxSectionTitle(title:'خدماتي'),
-        GridView.count(primary:false,shrinkWrap:true,crossAxisCount:4,mainAxisSpacing:6,crossAxisSpacing:6,childAspectRatio:.94,children:[
-          _AccountTile(Icons.receipt_long_outlined,'طلباتي',()=>openOrders('all')),
-          _AccountTile(Icons.favorite_border,'المفضلة',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxWishlistScreen()))),
-          _AccountTile(Icons.location_on_outlined,'العناوين',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxAddressesScreen()))),
-          _AccountTile(Icons.notifications_none,'الإشعارات',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxNotificationsScreen()))),
-          _AccountTile(Icons.chat_bubble_outline,'الدعم',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxSupportScreen()))),
-          _AccountTile(Icons.privacy_tip_outlined,'السياسات',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxPoliciesScreen()))),
-          _AccountTile(Icons.currency_exchange,'العملة',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxCurrencyScreen()))),
-          _AccountTile(Icons.location_city_outlined,'المدينة',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxCityScreen()))),
-          _AccountTile(Icons.payments_outlined,'معلومات الدفع',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxPaymentInfoScreen()))),
-          _AccountTile(Icons.support_agent_outlined,'تواصل معنا',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxStoreContactScreen()))),
-          _AccountTile(Icons.storefront_outlined,'موقعنا',()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxStoreLocationScreen()))),
-        ]),
-        const SxSectionTitle(title:'تفضيلات التسوق'),
-        ListTile(leading:const Icon(Icons.location_on_outlined),title:const Text('العناوين',style:TextStyle(fontSize:12,fontWeight:FontWeight.w800)),trailing:const Icon(Icons.chevron_left),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>const SxAddressesScreen()))),
-        const SizedBox(height:8),
-        OutlinedButton(
-  onPressed: () async {
-    await state.clearSession();
-    if (context.mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const SxAuthFlowScreen()),
-        (_) => false,
-      );
-    }
-  },
-  style: OutlinedButton.styleFrom(
-    minimumSize: const Size.fromHeight(49),
-    side: const BorderSide(color: Colors.black),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-  ),
-  child: const Text('تسجيل الخروج', style: TextStyle(fontWeight: FontWeight.w900)),
-),
-        const SizedBox(height: 14),
-        const Text('الأمان', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 7),
-        OutlinedButton.icon(
-          onPressed: _deleteAccount,
-          icon: const Icon(Icons.delete_forever_outlined, color: Color(0xFFC62828), size: 19),
-          label: const Text('حذف حسابي نهائيًا', style: TextStyle(color: Color(0xFFC62828), fontSize: 10, fontWeight: FontWeight.w900)),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(46),
-            side: const BorderSide(color: Color(0xFFE0A1A1)),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF7F7F7),
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Padding(
+                padding: const EdgeInsets.all(17),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(16, 18, 16, 15),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(19),
+                    border: Border.all(color: ClientTheme.border),
+                    boxShadow: const [BoxShadow(blurRadius: 22, offset: Offset(0, 8), color: Color(0x14000000))],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
+                        child: const Icon(Icons.group_add_outlined, color: Colors.white, size: 27),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text('هل دعاك أحد إلى التخفيض الصح؟', textAlign: TextAlign.center, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'رمز الدعوة اختياري. إذا وصلك رابط من صديق، سنملأ الرمز تلقائيًا ويمكنك تعديله أو تخطي الخطوة.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 9.5, height: 1.6, color: ClientTheme.muted),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: code,
+                        autofocus: widget.initialCode != null && widget.initialCode!.trim().isNotEmpty,
+                        textDirection: TextDirection.ltr,
+                        textAlign: TextAlign.center,
+                        textCapitalization: TextCapitalization.characters,
+                        decoration: InputDecoration(
+                          labelText: 'رمز الدعوة (اختياري)',
+                          hintText: 'مثال: A7K9P2QX',
+                          prefixIcon: const Icon(Icons.confirmation_number_outlined),
+                          suffixIcon: code.text.isEmpty
+                              ? null
+                              : IconButton(
+                                  onPressed: () { code.clear(); setState(() {}); },
+                                  icon: const Icon(Icons.close),
+                                ),
+                        ),
+                        onChanged: (_) => setState(() => error = null),
+                      ),
+                      if (error != null) ...[
+                        const SizedBox(height: 8),
+                        Text(error!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 9, color: Color(0xFFC62828))),
+                      ],
+                      const SizedBox(height: 13),
+                      SizedBox(
+                        height: 46,
+                        child: FilledButton(
+                          onPressed: busy ? null : apply,
+                          style: FilledButton.styleFrom(backgroundColor: Colors.black),
+                          child: busy ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2) : const Text('تأكيد رمز الدعوة', style: TextStyle(fontWeight: FontWeight.w900)),
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      TextButton(
+                        onPressed: busy ? null : () async {
+                          await ReferralLinkService.clearPendingCode();
+                          if (context.mounted) Navigator.pop(context, false);
+                        },
+                        child: const Text('تخطي الآن', style: TextStyle(fontWeight: FontWeight.w800)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
-        const SxDeveloperSignature(),
-      ]),
-    ),
-  );
+      ),
+    );
+  }
 }
+
+class SxReferralsScreen extends StatefulWidget {
+  const SxReferralsScreen({super.key});
+  @override State<SxReferralsScreen> createState() => _SxReferralsScreenState();
+}
+
+class _SxReferralsScreenState extends State<SxReferralsScreen> {
+  Map<String, dynamic> data = <String, dynamic>{};
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final result = await api.referrals();
+      final item = result['item'];
+      if (mounted && item is Map) setState(() => data = Map<String, dynamic>.from(item));
+    } catch (_) {}
+    if (mounted) setState(() => loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final code = sxText(data['invite_code']);
+    final users = sxMaps(data['invited_users']);
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SxShellPage(
+        title: 'دعواتي',
+        back: true,
+        child: loading
+            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            : RefreshIndicator(
+                onRefresh: load,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(13, 13, 13, 80),
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(15),
+                      decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(16)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Text('دعوتك مستمرة', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'شارك رابطك، وعند التسجيل سيظهر لك من انضم عن طريقك.',
+                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+                                  decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(9)),
+                                  child: Text(
+                                    code.isEmpty ? '—' : code,
+                                    textAlign: TextAlign.center,
+                                    textDirection: TextDirection.ltr,
+                                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900, letterSpacing: 1.4),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              FilledButton(
+                                onPressed: code.isEmpty ? null : () => shareReferralInvitation(context, code),
+                                style: FilledButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black),
+                                child: const Text('مشاركة'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 13),
+                    Text(
+                      'عدد من انضموا عن طريقك: ${users.length}',
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 8),
+                    if (users.isEmpty)
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(color: const Color(0xFFF7F7F7), borderRadius: BorderRadius.circular(13), border: Border.all(color: ClientTheme.border)),
+                        child: const Text(
+                          'لم ينضم أحد عن طريقك حتى الآن. شارك رابط الدعوة وابدأ شبكتك.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 10, color: ClientTheme.muted, height: 1.6),
+                        ),
+                      )
+                    else
+                      for (final user in users)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 7),
+                          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+                          decoration: BoxDecoration(color: Colors.white, border: Border.all(color: ClientTheme.border), borderRadius: BorderRadius.circular(11)),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
+                                child: const Icon(Icons.person_outline, color: Colors.white, size: 19),
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Text(sxText(user['name'], 'عميل'), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'هاتف ينتهي بـ ${sxText(user['phone_tail'], '----')}  ·  ${sxText(user['status'], 'active')}',
+                                      style: const TextStyle(fontSize: 8, color: ClientTheme.muted),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.verified_outlined, size: 18),
+                            ],
+                          ),
+                        ),
+                    const SxDeveloperSignature(),
+                  ],
+                ),
+              ),
+      ),
+    );
+  }
+}
+
 class _AccountMiniLink extends StatelessWidget {
   final IconData icon; final String label; final int countValue; final VoidCallback tap;
   const _AccountMiniLink(this.icon,this.label,this.countValue,this.tap);
@@ -10081,24 +10533,101 @@ class _SxPaymentInfoScreenState extends State<SxPaymentInfoScreen> {
 class SxSettingsScreen extends StatefulWidget {
   final Map<String, dynamic> me;
   const SxSettingsScreen({super.key, required this.me});
-  @override State<SxSettingsScreen> createState() => _SxSettingsScreenState();
+
+  @override
+  State<SxSettingsScreen> createState() => _SxSettingsScreenState();
 }
 
 class _SxSettingsScreenState extends State<SxSettingsScreen> {
-  late TextEditingController name, email;
+  late Map<String, dynamic> me;
   bool busy = false;
-  @override void initState() {
-    super.initState();
-    name = TextEditingController(text: sxText(widget.me['name']));
-    email = TextEditingController(text: sxText(widget.me['email']));
-  }
-  @override void dispose() { name.dispose(); email.dispose(); super.dispose(); }
 
-  Future<void> save() async {
+  @override
+  void initState() {
+    super.initState();
+    me = Map<String, dynamic>.from(widget.me);
+  }
+
+  String _genderLabel(dynamic value) {
+    switch (sxText(value).trim().toLowerCase()) {
+      case 'male': return 'ذكر';
+      case 'female': return 'أنثى';
+      default: return 'غير محدد';
+    }
+  }
+
+  Future<void> _editProfile() async {
+    final name = TextEditingController(text: sxText(me['name']));
+    final email = TextEditingController(text: sxText(me['email']));
+    var gender = sxText(me['gender']).trim().toLowerCase();
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('تعديل بيانات الحساب', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'الاسم الكامل', prefixIcon: Icon(Icons.person_outline)),
+                ),
+                const SizedBox(height: 9),
+                TextField(
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.left,
+                  decoration: const InputDecoration(labelText: 'البريد الإلكتروني', prefixIcon: Icon(Icons.email_outlined)),
+                ),
+                const SizedBox(height: 11),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text('الجنس', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: Colors.grey.shade700)),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(child: ChoiceChip(label: const Text('ذكر'), selected: gender == 'male', onSelected: (_) => setDialogState(() => gender = 'male'))),
+                    const SizedBox(width: 7),
+                    Expanded(child: ChoiceChip(label: const Text('أنثى'), selected: gender == 'female', onSelected: (_) => setDialogState(() => gender = 'female'))),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actionsAlignment: MainAxisAlignment.spaceBetween,
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, {'name': name.text.trim(), 'email': email.text.trim(), 'gender': gender}),
+              style: FilledButton.styleFrom(backgroundColor: Colors.black),
+              child: const Text('حفظ'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    name.dispose();
+    email.dispose();
+    if (result == null || !mounted) return;
+
     setState(() => busy = true);
     try {
-      await api.updateMe({'name': name.text.trim(), 'email': email.text.trim()});
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ البيانات')));
+      final response = await api.updateMe(result);
+      final item = response['item'];
+      if (item is Map) {
+        me = Map<String, dynamic>.from(item);
+      } else {
+        me.addAll(result);
+      }
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث بيانات الحساب.')));
+      }
     } catch (error) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(error))));
     } finally {
@@ -10106,54 +10635,369 @@ class _SxSettingsScreenState extends State<SxSettingsScreen> {
     }
   }
 
-  @override Widget build(BuildContext context) => SxShellPage(
-    title: 'الإعدادات',
-    back: true,
-    child: ListView(
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      padding: const EdgeInsets.fromLTRB(13, 13, 13, 80),
-      children: [
-        const Text('الحساب', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 10),
-        TextField(controller: name, decoration: const InputDecoration(labelText: 'الاسم', prefixIcon: Icon(Icons.person_outline))),
-        const SizedBox(height: 8),
-        TextField(
-          controller: email,
-          keyboardType: TextInputType.emailAddress,
-          textDirection: TextDirection.ltr,
-          textAlign: TextAlign.left,
-          decoration: const InputDecoration(labelText: 'البريد الإلكتروني', prefixIcon: Icon(Icons.email_outlined)),
+  Future<void> _changePhone() async {
+    final password = TextEditingController();
+    final phone = TextEditingController();
+
+    final input = await showDialog<Map<String, String>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تحديث رقم الهاتف', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'لحماية حسابك، أدخل كلمة المرور الحالية ثم رقم الهاتف الجديد. سنرسل رمز OTP إلى الرقم الجديد قبل اعتماده.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 9.5, color: ClientTheme.muted, height: 1.55),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: password,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'كلمة المرور الحالية', prefixIcon: Icon(Icons.lock_outline)),
+            ),
+            const SizedBox(height: 9),
+            TextField(
+              controller: phone,
+              keyboardType: TextInputType.phone,
+              textDirection: TextDirection.ltr,
+              textAlign: TextAlign.left,
+              decoration: const InputDecoration(labelText: 'رقم الهاتف الجديد', prefixIcon: Icon(Icons.phone_android_outlined)),
+            ),
+          ],
         ),
-        const SizedBox(height: 11),
-        SizedBox(
-          height: 48,
-          child: FilledButton(
-            onPressed: busy ? null : save,
+        actionsAlignment: MainAxisAlignment.spaceBetween,
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          FilledButton(
+            onPressed: () {
+              if (password.text.trim().isEmpty || phone.text.trim().isEmpty) return;
+              Navigator.pop(dialogContext, {'password': password.text, 'phone': phone.text.trim()});
+            },
             style: FilledButton.styleFrom(backgroundColor: Colors.black),
-            child: busy ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2) : const Text('حفظ التعديلات', style: TextStyle(fontWeight: FontWeight.w900)),
+            child: const Text('إرسال رمز التحقق'),
           ),
+        ],
+      ),
+    );
+
+    final currentPassword = password.text;
+    final newPhone = phone.text.trim();
+    password.dispose();
+    phone.dispose();
+    if (input == null || !mounted) return;
+
+    try {
+      setState(() => busy = true);
+      final response = await api.requestPhoneChange(
+        phone: input['phone'] ?? newPhone,
+        password: input['password'] ?? currentPassword,
+      );
+      final item = response['item'];
+      final requestId = int.tryParse(((item is Map ? item['otp_request_id'] : null) ?? '').toString());
+      final normalizedPhone = (item is Map ? item['phone'] : input['phone'] ?? newPhone).toString();
+      if (requestId == null) throw Exception('تعذر إنشاء طلب تغيير رقم الهاتف.');
+
+      if (!mounted) return;
+      final verifiedCode = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) {
+          final otp = TextEditingController();
+          return AlertDialog(
+            title: const Text('تأكيد الرقم الجديد', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.verified_user_outlined, size: 34),
+                const SizedBox(height: 8),
+                Text('أدخل الرمز الذي أرسلناه إلى $normalizedPhone', textAlign: TextAlign.center, style: const TextStyle(fontSize: 9.5, color: ClientTheme.muted)),
+                const SizedBox(height: 11),
+                TextField(
+                  controller: otp,
+                  autofocus: true,
+                  keyboardType: TextInputType.number,
+                  textDirection: TextDirection.ltr,
+                  textAlign: TextAlign.center,
+                  decoration: const InputDecoration(labelText: 'رمز OTP', prefixIcon: Icon(Icons.password_outlined)),
+                ),
+              ],
+            ),
+            actionsAlignment: MainAxisAlignment.spaceBetween,
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+              FilledButton(
+                onPressed: () {
+                  if (otp.text.trim().length < 4) return;
+                  Navigator.pop(dialogContext, otp.text.trim());
+                },
+                style: FilledButton.styleFrom(backgroundColor: Colors.black),
+                child: const Text('تأكيد وتحديث الرقم'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (verifiedCode == null || !mounted) return;
+
+      final verified = await api.verifyPhoneChange(
+        requestId,
+        verifiedCode,
+        phone: normalizedPhone,
+      );
+      final verifiedItem = verified['item'];
+      final finalPhone = verifiedItem is Map ? sxText(verifiedItem['phone'], normalizedPhone) : normalizedPhone;
+      me['phone_normalized'] = finalPhone;
+      if (mounted) {
+        setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم تحديث رقم الهاتف بنجاح.')));
+      }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(error))));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final first = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف الحساب نهائيًا', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+        content: const Text(
+          'سيتم حذف حسابك وطلباتك وعناوينك ومحفظتك ومفضلاتك وبياناتك التابعة نهائيًا. لا يمكن التراجع عن هذا الإجراء.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 10, height: 1.6),
         ),
-        const SizedBox(height: 18),
-        const Text('الأمان', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-        const SizedBox(height: 8),
-        ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-          tileColor: const Color(0xFFF8F8F8),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          leading: const Icon(Icons.lock_reset_outlined),
-          title: const Text('تحديث كلمة المرور', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
-          subtitle: const Text('تغيير كلمة المرور الحالية بأمان', style: TextStyle(fontSize: 8.5, color: ClientTheme.muted)),
-          trailing: const Icon(Icons.chevron_left),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxChangePasswordScreen())),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFC62828)),
+            child: const Text('متابعة'),
+          ),
+        ],
+      ),
+    );
+    if (first != true || !mounted) return;
+
+    final password = TextEditingController();
+    final confirm = TextEditingController();
+    final proceed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تأكيد الحذف', textAlign: TextAlign.center, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'اكتب DELETE للتأكيد، وإذا كان للحساب كلمة مرور فأدخلها أيضًا.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 9.5, color: ClientTheme.muted, height: 1.5),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: confirm,
+              textDirection: TextDirection.ltr,
+              textAlign: TextAlign.left,
+              decoration: const InputDecoration(labelText: 'اكتب DELETE', prefixIcon: Icon(Icons.warning_amber_outlined)),
+            ),
+            const SizedBox(height: 9),
+            TextField(
+              controller: password,
+              obscureText: true,
+              decoration: const InputDecoration(labelText: 'كلمة المرور الحالية', prefixIcon: Icon(Icons.lock_outline)),
+            ),
+          ],
         ),
-        const SizedBox(height: 18),
-        const Text('الإعدادات السريعة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
-        ListTile(leading: const Icon(Icons.currency_exchange), title: const Text('العملة'), subtitle: Text(state.currencyCode), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCurrencyScreen()))),
-        ListTile(leading: const Icon(Icons.location_city_outlined), title: const Text('المدينة'), subtitle: Text(state.cityName ?? 'اختيار المدينة'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCityScreen()))),
-        ListTile(leading: const Icon(Icons.notifications_none), title: const Text('الإشعارات'), trailing: const Icon(Icons.chevron_left), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen()))),
-      ],
-    ),
-  );
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('إلغاء')),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, confirm.text.trim().toUpperCase() == 'DELETE'),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFC62828)),
+            child: const Text('حذف نهائي'),
+          ),
+        ],
+      ),
+    );
+
+    final currentPassword = password.text;
+    password.dispose();
+    confirm.dispose();
+    if (proceed != true || !mounted) return;
+
+    try {
+      setState(() => busy = true);
+      await api.deleteMyAccount(password: currentPassword);
+      await state.clearSession();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const SxAuthFlowScreen()),
+        (_) => false,
+      );
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sxText(error))));
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SxShellPage(
+        title: 'الإعدادات',
+        back: true,
+        child: ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.fromLTRB(13, 13, 13, 80),
+          children: [
+            Container(
+              padding: const EdgeInsets.all(15),
+              decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(16)),
+              child: Row(
+                children: [
+                  const Icon(Icons.person_outline, color: Colors.white, size: 31),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(sxText(me['name'], 'مرحبًا بك'), style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 3),
+                        Text(sxText(me['phone_normalized']), textDirection: TextDirection.ltr, style: const TextStyle(color: Colors.white70, fontSize: 9)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 13),
+            Row(
+              children: [
+                const Expanded(child: Text('بيانات الحساب', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900))),
+                FilledButton.icon(
+                  onPressed: busy ? null : _editProfile,
+                  icon: const Icon(Icons.edit_outlined, size: 17),
+                  label: const Text('تعديل', style: TextStyle(fontWeight: FontWeight.w900)),
+                  style: FilledButton.styleFrom(backgroundColor: Colors.black),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _SettingsValueTile(icon: Icons.person_outline, label: 'الاسم', value: sxText(me['name'], 'غير محدد')),
+            _SettingsValueTile(icon: Icons.email_outlined, label: 'البريد الإلكتروني', value: sxText(me['email'], 'غير مضاف')),
+            _SettingsValueTile(icon: Icons.phone_android_outlined, label: 'رقم الهاتف', value: sxText(me['phone_normalized'], 'غير محدد'), ltr: true),
+            _SettingsValueTile(icon: Icons.wc_outlined, label: 'الجنس', value: _genderLabel(me['gender'])),
+            _SettingsValueTile(icon: Icons.location_city_outlined, label: 'المدينة', value: sxText(me['city_name'], state.cityName ?? 'غير محددة')),
+            _SettingsValueTile(icon: Icons.payments_outlined, label: 'العملة', value: state.currencyCode),
+            const SizedBox(height: 6),
+            OutlinedButton.icon(
+              onPressed: busy ? null : _changePhone,
+              icon: const Icon(Icons.phone_locked_outlined, size: 18),
+              label: const Text('تحديث رقم الهاتف', style: TextStyle(fontWeight: FontWeight.w900)),
+              style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(45)),
+            ),
+            const SizedBox(height: 18),
+            const Text('الأمان', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 8),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+              tileColor: const Color(0xFFF8F8F8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              leading: const Icon(Icons.lock_reset_outlined),
+              title: const Text('تحديث كلمة المرور', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900)),
+              subtitle: const Text('تغيير كلمة المرور الحالية بأمان', style: TextStyle(fontSize: 8.5, color: ClientTheme.muted)),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxChangePasswordScreen())),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: busy ? null : _deleteAccount,
+              icon: const Icon(Icons.delete_forever_outlined, color: Color(0xFFC62828), size: 19),
+              label: const Text('حذف حسابي نهائيًا', style: TextStyle(color: Color(0xFFC62828), fontSize: 10, fontWeight: FontWeight.w900)),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(46),
+                side: const BorderSide(color: Color(0xFFE0A1A1)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text('الإعدادات السريعة', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
+            ListTile(
+              leading: const Icon(Icons.currency_exchange),
+              title: const Text('العملة'),
+              subtitle: Text(state.currencyCode),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCurrencyScreen())),
+            ),
+            ListTile(
+              leading: const Icon(Icons.location_city_outlined),
+              title: const Text('المدينة'),
+              subtitle: Text(state.cityName ?? 'اختيار المدينة'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxCityScreen())),
+            ),
+            ListTile(
+              leading: const Icon(Icons.notifications_none),
+              title: const Text('الإشعارات'),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SxNotificationsScreen())),
+            ),
+            if (busy)
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsValueTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool ltr;
+
+  const _SettingsValueTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.ltr = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(color: const Color(0xFFF8F8F8), borderRadius: BorderRadius.circular(11), border: Border.all(color: ClientTheme.border)),
+      child: Row(
+        children: [
+          Icon(icon, size: 19),
+          const SizedBox(width: 9),
+          Text(label, style: const TextStyle(fontSize: 9, color: ClientTheme.muted, fontWeight: FontWeight.w700)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              value,
+              textDirection: ltr ? TextDirection.ltr : TextDirection.rtl,
+              textAlign: ltr ? TextAlign.left : TextAlign.right,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class SxChangePasswordScreen extends StatefulWidget {
