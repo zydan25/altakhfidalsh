@@ -11,6 +11,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_BYTES", 25 * 1024 * 1024))
     APP_TIMEZONE = os.getenv("APP_TIMEZONE", "Asia/Aden")
+    FIREBASE_CREDENTIALS = os.getenv("FIREBASE_CREDENTIALS", "")
 
     MEDIA_ROOT = os.getenv(
         "MEDIA_ROOT",
