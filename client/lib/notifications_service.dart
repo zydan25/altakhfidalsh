@@ -31,6 +31,7 @@ class AltakhfidNotificationService {
   static final FlutterLocalNotificationsPlugin _local =
       FlutterLocalNotificationsPlugin();
   static NotificationTapHandler? onTap;
+  static StreamSubscription<RemoteMessage>? _messageSubscription;
   static StreamSubscription<RemoteMessage>? _openedSubscription;
   static StreamSubscription<String>? _tokenSubscription;
   static bool _initialized = false;
@@ -73,6 +74,10 @@ class AltakhfidNotificationService {
         ),
       );
     }
+
+    _messageSubscription = FirebaseMessaging.onMessage.listen((message) {
+      unawaited(showForegroundMessage(message));
+    });
 
     _openedSubscription =
         FirebaseMessaging.onMessageOpenedApp.listen((message) {
@@ -336,8 +341,10 @@ class AltakhfidNotificationService {
   }
 
   static Future<void> dispose() async {
+    await _messageSubscription?.cancel();
     await _openedSubscription?.cancel();
     await _tokenSubscription?.cancel();
+    _messageSubscription = null;
     _openedSubscription = null;
     _tokenSubscription = null;
   }
