@@ -50,10 +50,10 @@
     return data;
   };
 
-  const colors = () => (refs.colors || []).filter(x => x && (x.is_active !== false));
-  const sizes = () => (refs.sizes || []).filter(x => x && (x.is_active !== false));
   const allColorRows = () => refs.colors || [];
   const allSizeRows = () => refs.sizes || [];
+  const colors = () => allColorRows().filter(x => x && (x.is_active !== false || colorIds.has(Number(x.id))));
+  const sizes = () => allSizeRows().filter(x => x && (x.is_active !== false || sizeIds.has(Number(x.id))));
 
   const colorById = id => allColorRows().find(x => Number(x.id) === Number(id));
   const sizeById = id => allSizeRows().find(x => Number(x.id) === Number(id));
@@ -86,14 +86,16 @@
       .concat(merged);
   };
 
-  const syncLegacyWizard = () => {
+  const syncLegacyWizard = async () => {
     try {
-      window.takhfidProductWizardReload?.();
+      if (typeof window.takhfidProductWizardReload === "function") {
+        await window.takhfidProductWizardReload();
+      }
     } catch (error) {}
   };
 
   const afterMutation = async ({reloadLegacy = true} = {}) => {
-    if (reloadLegacy) syncLegacyWizard();
+    if (reloadLegacy) await syncLegacyWizard();
     await refreshData();
   };
 
@@ -233,11 +235,12 @@
               return '<button type="button" class="pro-picker-choice ' + (active ? 'is-selected' : '') + '" data-pro-picker-value="' + row.id + '">' +
                 '<span class="pro-swatch" style="background:' + escapeHtml(row.hex_code || "#e5e7eb") + '"></span>' +
                 '<strong>' + escapeHtml(row.name) + '</strong>' +
+                (row.is_active === false ? '<small>مؤرشف · مرتبط حاليًا</small>' : '') +
               '</button>';
             }
             return '<button type="button" class="pro-picker-choice ' + (active ? 'is-selected' : '') + '" data-pro-picker-value="' + row.id + '">' +
               '<span class="pro-size-badge">' + escapeHtml(row.code || row.label) + '</span>' +
-              '<strong>' + escapeHtml(row.label) + '</strong><small>' + escapeHtml(row.group || "") + '</small>' +
+              '<strong>' + escapeHtml(row.label) + '</strong><small>' + escapeHtml(row.group || "") + (row.is_active === false ? ' · مؤرشف' : '') + '</small>' +
             '</button>';
           }).join("") : '<div class="pro-picker-empty">لا توجد سجلات متاحة.</div>') +
         '</div>' +
@@ -887,7 +890,7 @@
   ["quickColorForm","quickSizeForm"].forEach(id => {
     $("#" + id)?.addEventListener("submit", () => {
       setTimeout(async () => {
-        syncLegacyWizard();
+        await syncLegacyWizard();
         await refreshData();
       }, 900);
     });
