@@ -222,12 +222,25 @@
     const rows = type === "color" ? colors() : sizes();
     const heading = type === "color" ? "اختر ألوان المنتج" : "اختر مقاسات المنتج";
     const hint = type === "color"
-      ? "اختر لونًا أو عدة ألوان. كل لون سيظهر كبطاقة مستقلة."
-      : "يمكنك اختيار أكثر من مقاس، ثم يصبح كل مقاس عمودًا في الجداول.";
+      ? "اختر من الألوان المحفوظة، أو أنشئ لونًا جديدًا مباشرة من HEX."
+      : "هذه القائمة مستقلة عن الجداول. سيتم استخدام المقاسات المحددة فقط في بطاقات الألوان.";
+
+    const colorMaker = type === "color"
+      ? '<div class="pro-color-maker">' +
+          '<div class="pro-color-maker-head"><div><strong>إنشاء لون من HEX</strong><small>اختر اللون من اللوحة أو اكتب #RRGGBB.</small></div><span class="pro-color-maker-preview" data-pro-new-color-preview></span></div>' +
+          '<div class="pro-color-maker-fields">' +
+            '<input type="color" value="#111111" data-pro-new-color-picker aria-label="لوحة اختيار اللون">' +
+            '<input type="text" value="#111111" maxlength="7" dir="ltr" data-pro-new-color-hex placeholder="#111111" inputmode="text">' +
+            '<input type="text" value="" data-pro-new-color-name placeholder="اسم اللون">' +
+            '<button type="button" class="pro-primary-btn" data-pro-create-color>إضافة اللون</button>' +
+          '</div>' +
+        '</div>'
+      : "";
 
     overlay.innerHTML =
       '<section class="pro-picker-sheet" role="dialog" aria-modal="true">' +
         '<div class="pro-picker-head"><div><h3>' + heading + '</h3><p>' + hint + '</p></div><button class="pro-picker-close" type="button" data-pro-picker-close>×</button></div>' +
+        colorMaker +
         '<div class="pro-picker-grid">' +
           (rows.length ? rows.map(row => {
             const active = selected(row.id);
@@ -244,27 +257,148 @@
             '</button>';
           }).join("") : '<div class="pro-picker-empty">لا توجد سجلات متاحة.</div>') +
         '</div>' +
-        '<div class="pro-picker-footer"><button type="button" class="pro-primary-btn" data-pro-picker-apply>تطبيق الاختيار</button></div>' +
+        '<div class="pro-picker-footer"><button type="button" class="pro-primary-btn" data-pro-picker-apply>حفظ الاختيار</button></div>' +
       '</section>';
 
     document.body.appendChild(overlay);
+
+    const colorPicker = $("[data-pro-new-color-picker]", overlay);
+    const colorHex = $("[data-pro-new-color-hex]", overlay);
+    const colorPreview = $("[data-pro-new-color-preview]", overlay);
+    const syncNewColor = value => {
+      const hex = String(value || "").trim();
+      if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+        if (colorPicker) colorPicker.value = hex;
+        if (colorHex) colorHex.value = hex.toUpperCase();
+        if (colorPreview) colorPreview.style.background = hex;
+      }
+    };
+    if (type === "color") {
+      syncNewColor(colorHex?.value || "#111111");
+      colorPicker?.addEventListener("input", () => syncNewColor(colorPicker.value));
+      colorHex?.addEventListener("input", () => {
+        if (/^#[0-9a-fA-F]{6}$/.test(colorHex.value.trim())) syncNewColor(colorHex.value.trim());
+      });
+      $("[data-pro-create-color]", overlay)?.addEventListener("click", async () => {
+        const name = String($("[data-pro-new-color-name]", overlay)?.value || "").trim();
+        const hex = String(colorHex?.value || "").trim();
+        if (!name) return notify("اكتب اسم اللون أولًا.", "error");
+        if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return notify("اكتب HEX صحيحًا مثل #FF0000.", "error");
+        const button = $("[data-pro-create-color]", overlay);
+        if (button) button.disabled = true;
+        try {
+          const created = await requestJson("/api/v1/catalog/reference/colors", {
+            method:"POST",
+            body:JSON.stringify({name,hex_code:hex.toUpperCase(),sort_order:0})
+          });
+          const item = created.item || {};
+          if (!item.id) throw new Error("تعذر إنشاء اللون.");
+          refs.colors = [...(refs.colors || []), {...item,is_active:true,selected:true}];
+          const id = Number(item.id);
+          pickerWorking.add(id);
+          await persistDimensionsWithSets(pickerWorking, sizeIds);
+          await generateMissingVariantsForSets(pickerWorking, sizeIds);
+          overlay.remove();
+          pickerType = null;
+          await afterMutation();
+          notify("تم إنشاء اللون وإضافته للمنتج.");
+        } catch (error) {
+          notify(error.message || "تعذر إنشاء اللون.","error");
+          if (button) button.disabled = false;
+        }
+      });
+    }
+
     const toggle = event => {
       const choice = event.target.closest("[data-pro-picker-value]");
       if (choice) {
         const id = Number(choice.dataset.proPickerValue);
         pickerWorking.has(id) ? pickerWorking.delete(id) : pickerWorking.add(id);
+        if (!pickerWorking.size) pickerWorking.add(id);
         choice.classList.toggle("is-selected", pickerWorking.has(id));
         return;
       }
       if (event.target.closest("[data-pro-picker-close]") || event.target === overlay) {
         overlay.remove();
         pickerType = null;
+        return;
       }
       if (event.target.closest("[data-pro-picker-apply]")) applyPicker(overlay);
     };
     overlay.addEventListener("click", toggle);
   };
 
+  const persistDimensionsWithSets = async (nextColors, nextSizes) => requestJson(
+    "/api/v1/catalog/products/" + productId + "/reference-dimensions",
+    {method:"POST",body:JSON.stringify({
+      color_ids:[...nextColors].map(Number),
+      size_ids:[...nextSizes].map(Number)
+    })}
+  );
+
+  const generateMissingVariantsForSets = async (nextColors, nextSizes) => {
+    if (!nextColors.size || !nextSizes.size) return;
+    await requestJson("/api/v1/catalog/products/" + productId + "/variants/generate", {
+      method:"POST",
+      body:JSON.stringify({
+        color_ids:[...nextColors].map(Number),
+        size_ids:[...nextSizes].map(Number)
+      })
+    });
+  };
+
+  const openSizeForColor = colorId => {
+    const availableSizes = [...sizeIds].map(sizeById).filter(Boolean);
+    const existing = new Set(activeVariants()
+      .filter(v => Number(v.color_id) === Number(colorId))
+      .map(v => Number(v.size_id)));
+    const overlay = document.createElement("div");
+    overlay.className = "pro-picker-backdrop";
+    overlay.dataset.proSizeForColor = String(colorId);
+    overlay.innerHTML =
+      '<section class="pro-picker-sheet" role="dialog" aria-modal="true">' +
+        '<div class="pro-picker-head"><div><h3>إضافة مقاس للون</h3><p>تظهر هنا المقاسات المحددة أعلى صفحة المتغيرات فقط.</p></div><button class="pro-picker-close" type="button" data-pro-size-close>×</button></div>' +
+        '<div class="pro-size-list">' +
+          (availableSizes.length ? availableSizes.map(size => {
+            const id = Number(size.id);
+            const has = existing.has(id);
+            return '<label class="pro-size-list-item ' + (has ? 'is-existing' : '') + '">' +
+              '<input type="checkbox" value="' + id + '" data-pro-size-choice' + (has ? ' disabled checked' : '') + '>' +
+              '<span class="pro-size-badge">' + escapeHtml(size.code || size.label) + '</span>' +
+              '<span><strong>' + escapeHtml(size.label) + '</strong><small>' + escapeHtml(size.group || "") + '</small></span>' +
+              '<em>' + (has ? 'مضاف' : 'متاح') + '</em>' +
+            '</label>';
+          }).join("") : '<div class="pro-picker-empty">أضف المقاسات أولًا من قائمة المقاسات في أعلى القسم.</div>') +
+        '</div>' +
+        '<div class="pro-picker-footer"><button type="button" class="pro-primary-btn" data-pro-add-selected-sizes>إضافة المقاسات المحددة</button></div>' +
+      '</section>';
+    document.body.appendChild(overlay);
+    overlay.addEventListener("click", async event => {
+      if (event.target === overlay || event.target.closest("[data-pro-size-close]")) {
+        overlay.remove();
+        return;
+      }
+      if (!event.target.closest("[data-pro-add-selected-sizes]")) return;
+      const selected = [...overlay.querySelectorAll("[data-pro-size-choice]:checked:not(:disabled)")].map(x => Number(x.value));
+      if (!selected.length) return notify("هذا اللون يحتوي بالفعل على كل المقاسات المحددة.", "error");
+      const button = event.target.closest("[data-pro-add-selected-sizes]");
+      button.disabled = true;
+      try {
+        for (const sizeId of selected) {
+          await requestJson("/api/v1/catalog/products/" + productId + "/variants", {
+            method:"POST",
+            body:JSON.stringify({color_id:Number(colorId),size_id:sizeId})
+          });
+        }
+        overlay.remove();
+        await afterMutation();
+        notify("تمت إضافة المقاسات المحددة لهذا اللون.");
+      } catch (error) {
+        button.disabled = false;
+        notify(error.message || "تعذر إضافة المقاسات.","error");
+      }
+    });
+  };
   const applyPicker = async overlay => {
     const next = pickerWorking;
     if (!next.size) {
@@ -525,8 +659,8 @@
           '</div>' +
         '</section>' +
         '<div class="pro-variant-table-wrap"><table class="pro-variant-table">' +
-          '<thead><tr><th class="pro-first-col">المقاس / الكمية</th>' + headerCells + '<th class="pro-add-col">إضافة</th></tr></thead>' +
-          '<tbody><tr><th class="pro-size-label"><span class="pro-qty-label"><strong>الكمية</strong><small>الحفظ تلقائي عند التعديل</small></span></th>' + cells +
+          '<thead><tr>' + headerCells + '<th class="pro-add-col">إضافة</th></tr></thead>' +
+          '<tbody><tr>' + cells +
             '<td class="pro-add-size-cell">' +
               (missingSizes.length
                 ? '<button type="button" class="pro-add-size-button" data-pro-add-size-column="' + color.id + '">＋ إضافة مقاس</button>'
@@ -534,7 +668,7 @@
             '</td>' +
           '</tr></tbody>' +
         '</table></div>' +
-        '<footer class="pro-card-footer"><small>يمكن تعديل الباركود والوزن والأرشفة من ⋯ داخل الخلية.</small><button type="button" class="pro-outline-btn" data-pro-add-color-image="' + color.id + '">إضافة صور</button></footer>' +
+        '<footer class="pro-card-footer"><small>الباركود والوزن والأرشفة من ⋯ داخل الخلية.</small></footer>' +
       '</article>';
     }).join("");
   };
@@ -722,7 +856,7 @@
 
     const addSize = event.target.closest("[data-pro-add-size-column]");
     if (addSize) {
-      openPicker("size");
+      openSizeForColor(Number(addSize.dataset.proAddSizeColumn));
       return;
     }
 
@@ -905,7 +1039,99 @@
     if (event.key === "Enter") event.preventDefault();
   });
 
+  const decorateCategoryTree = () => {
+    const root = $("#categorySelection");
+    if (!root) return;
+    const nodes = $(".category-picker-node", root);
+    nodes.forEach(node => {
+      if (node.dataset.proTreeReady === "1") return;
+      node.dataset.proTreeReady = "1";
+      const children = [...node.children].filter(child => child.classList.contains("category-picker-node"));
+      if (!children.length) return;
+      const marker = $(".category-picker-marker", node);
+      if (marker) {
+        marker.textContent = "›";
+        marker.setAttribute("role","button");
+        marker.setAttribute("tabindex","0");
+        marker.setAttribute("aria-expanded","false");
+      }
+      node.classList.add("is-collapsed");
+    });
+    const selected = $(".category-picker-node", root).filter(node => $("input[data-category-checkbox]:checked", node));
+    selected.forEach(node => {
+      let current = node;
+      while (current && current !== root) {
+        if (current.classList.contains("category-picker-node")) {
+          current.classList.remove("is-collapsed");
+          const marker = $(".category-picker-marker", current);
+          if (marker) {
+            marker.textContent = "⌄";
+            marker.setAttribute("aria-expanded","true");
+          }
+        }
+        current = current.parentElement?.closest?.(".category-picker-node");
+      }
+    });
+  };
+
+  const filterCategoryTree = () => {
+    const root = $("#categorySelection");
+    if (!root) return;
+    const query = String($("#categorySearch")?.value || "").trim().toLocaleLowerCase();
+    const nodes = $(".category-picker-node", root);
+    nodes.forEach(node => node.classList.remove("is-filter-hidden"));
+    if (!query) {
+      decorateCategoryTree();
+      return;
+    }
+    const matchNode = node => {
+      const text = String(node.textContent || "").toLocaleLowerCase();
+      const ownMatch = text.includes(query);
+      const childMatch = [...node.children]
+        .filter(child => child.classList.contains("category-picker-node"))
+        .some(child => matchNode(child));
+      if (!ownMatch && !childMatch) node.classList.add("is-filter-hidden");
+      if (childMatch) node.classList.remove("is-collapsed");
+      const marker = $(".category-picker-marker", node);
+      if (marker && childMatch) { marker.textContent = "⌄"; marker.setAttribute("aria-expanded","true"); }
+      return ownMatch || childMatch;
+    };
+    $(".category-picker-node", root).filter(node => !node.parentElement.closest(".category-picker-node")).forEach(matchNode);
+  };
+
+  $("#categorySelection")?.addEventListener("click", event => {
+    const marker = event.target.closest(".category-picker-marker");
+    if (!marker) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const node = marker.closest(".category-picker-node");
+    if (!node) return;
+    const collapsed = node.classList.toggle("is-collapsed");
+    marker.textContent = collapsed ? "›" : "⌄";
+    marker.setAttribute("aria-expanded", String(!collapsed));
+  });
+
+  $("#categorySelection")?.addEventListener("keydown", event => {
+    if ((event.key === "Enter" || event.key === " ") && event.target.closest(".category-picker-marker")) {
+      event.preventDefault();
+      event.target.click();
+    }
+  });
+
+  $("#categorySearch")?.addEventListener("input", filterCategoryTree);
+
+  const categoryObserver = new MutationObserver(() => {
+    requestAnimationFrame(() => {
+      decorateCategoryTree();
+      filterCategoryTree();
+    });
+  });
+  if ($("#categorySelection")) categoryObserver.observe($("#categorySelection"), {childList:true,subtree:true});
+
   renderLocation();
   handleNavigation("basics");
-  setTimeout(refreshData, 30);
+  setTimeout(() => {
+    refreshData();
+    setTimeout(decorateCategoryTree, 120);
+  }, 30);
 })();

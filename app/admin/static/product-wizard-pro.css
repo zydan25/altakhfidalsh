@@ -882,3 +882,169 @@
 }
 
 body.pro-modal-open{overflow:hidden!important}
+
+/* Collapsible category tree */
+.category-picker-tree{padding:12px 14px;background:#fafbfc}
+.category-picker-node{position:relative;margin:3px 0}
+.category-picker-node>.category-picker-node{
+  margin-inline-start:18px;
+  border-inline-start:1px dashed #d7dce5;
+  padding-inline-start:7px;
+}
+.category-picker-choice{
+  display:grid!important;
+  grid-template-columns:18px 22px minmax(0,1fr);
+  align-items:center;
+  gap:7px;
+  margin:4px 0;
+  min-height:48px;
+  padding:8px 10px!important;
+  border:1px solid var(--pro-line);
+  border-radius:12px;
+  background:#fff;
+}
+.category-picker-choice input{width:18px;height:18px;accent-color:var(--pro-accent)}
+.category-picker-marker{
+  width:22px;height:22px;
+  display:grid;place-items:center;
+  border:1px solid #dfe3ea;
+  border-radius:7px;
+  background:#f7f8fb;
+  color:#4b5563;
+  font-size:10px;
+  font-weight:1000;
+  cursor:pointer;
+  user-select:none;
+}
+.category-picker-node.is-collapsed>.category-picker-node{display:none!important}
+.category-picker-node.is-collapsed>.category-picker-choice .category-picker-marker{background:#eef2ff;color:var(--pro-accent)}
+.category-picker-choice.is-selected{border-color:color-mix(in srgb,var(--pro-accent) 32%,#e5e7eb);background:var(--pro-accent-soft)}
+.category-picker-copy{min-width:0}
+.category-picker-copy strong{display:block;font-size:11px}
+.category-picker-copy small{display:block;margin-top:2px;color:var(--pro-muted);font-size:8px}
+.category-picker-node.is-filter-hidden{display:none!important}
+
+/* Same visual language as the previous side-category selector, but inside Pro. */
+.side-circle-picker{display:grid;gap:12px;padding:13px 14px}
+.side-circle-picker-group{
+  border:1px solid var(--pro-line);
+  border-radius:15px;
+  background:#fff;
+  overflow:hidden;
+}
+.side-circle-picker-heading{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:11px;border-bottom:1px solid var(--pro-line);background:#fafbfc;
+}
+.side-circle-picker-heading .eyebrow{font-size:8px;color:var(--pro-muted)}
+.side-circle-picker-heading strong{display:block;margin-top:2px;font-size:11px}
+.side-circle-picker-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;padding:10px;
+}
+.side-circle-picker-card{
+  position:relative;
+  min-width:0;
+  display:grid;
+  justify-items:center;
+  gap:6px;
+  padding:8px 6px 9px;
+  border:1px solid var(--pro-line);
+  border-radius:13px;
+  background:#fff;
+  cursor:pointer;
+  text-align:center;
+}
+.side-circle-picker-card.is-selected{
+  border-color:var(--pro-accent);
+  background:var(--pro-accent-soft);
+  box-shadow:inset 0 0 0 1px var(--pro-accent);
+}
+.side-circle-picker-card input{position:absolute;opacity:0;pointer-events:none}
+.side-circle-picker-media{
+  width:56px;height:56px;border-radius:50%;
+  overflow:hidden;display:grid;place-items:center;
+  border:1px solid #dfe3ea;background:#f5f7fa;
+}
+.side-circle-picker-media img{width:100%;height:100%;object-fit:cover;display:block}
+.side-circle-picker-media>span{color:#94a3b8;font-size:24px}
+.side-circle-picker-copy{min-width:0;max-width:100%}
+.side-circle-picker-copy strong{display:block;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-circle-picker-copy small{display:block;margin-top:2px;color:var(--pro-muted);font-size:7.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.side-circle-picker-check{
+  position:absolute;top:5px;inset-inline-end:5px;
+  width:20px;height:20px;border-radius:7px;
+  display:grid;place-items:center;background:#fff;border:1px solid #dfe3ea;
+  font-size:10px;font-weight:1000;color:#9aa3b2;
+}
+.side-circle-picker-card.is-selected .side-circle-picker-check{background:var(--pro-accent);color:#fff;border-color:var(--pro-accent)}
+
+/* Live appearance editors reused by Pro without reverting their layout. */
+.pro-live-editor{border-top:1px solid var(--pro-line);background:#fff}
+.pro-live-editor:empty{display:none}
+.pro-section-link{padding:0 14px 14px}
+.pro-section-link .pro-outline-btn{display:flex;align-items:center;justify-content:center;width:100%;text-decoration:none}
+
+/* Pro color creator and per-color selected-size modal. */
+.pro-color-maker{
+  margin:12px 0 2px;
+  padding:12px;
+  border:1px solid var(--pro-line);
+  border-radius:15px;
+  background:#fafbfc;
+}
+.pro-color-maker-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pro-color-maker-head strong{display:block;font-size:11px}
+.pro-color-maker-head small{display:block;margin-top:3px;color:var(--pro-muted);font-size:8px}
+.pro-color-maker-preview{width:38px;height:38px;border-radius:11px;border:1px solid #d9dde5;background:#111}
+.pro-color-maker-fields{
+  display:grid;
+  grid-template-columns:48px minmax(0,1fr) minmax(0,1fr);
+  gap:7px;
+  margin-top:9px;
+}
+.pro-color-maker-fields input[type=color]{
+  width:48px;height:48px;padding:4px;border:1px solid var(--pro-line);border-radius:12px;background:#fff;
+}
+.pro-color-maker-fields input[type=text]{
+  min-width:0;min-height:48px;border:1px solid var(--pro-line);border-radius:12px;background:#fff;padding:0 9px;font-size:12px;
+}
+.pro-color-maker-fields .pro-primary-btn{grid-column:1/-1}
+.pro-size-list{display:grid;gap:7px;padding:12px 0}
+.pro-size-list-item{
+  display:grid;
+  grid-template-columns:22px 32px minmax(0,1fr) auto;
+  align-items:center;
+  gap:8px;
+  min-height:54px;
+  padding:7px 9px;
+  border:1px solid var(--pro-line);
+  border-radius:12px;
+  background:#fff;
+}
+.pro-size-list-item input{width:18px;height:18px;accent-color:var(--pro-accent)}
+.pro-size-list-item>span:nth-of-type(2){min-width:0}
+.pro-size-list-item strong{display:block;font-size:11px}
+.pro-size-list-item small{display:block;margin-top:2px;color:var(--pro-muted);font-size:8px}
+.pro-size-list-item em{font-style:normal;font-size:8px;font-weight:900;color:var(--pro-muted)}
+.pro-size-list-item.is-existing{background:#f5f7fa;color:#7a8494}
+
+/* Better policy/review presentation */
+.pro-policy-grid{display:grid;gap:10px;padding:14px}
+.pro-policy-card,.pro-review-card{
+  border:1px solid var(--pro-line);
+  border-radius:15px;
+  background:#fff;
+  overflow:hidden;
+}
+.pro-policy-card-head,.pro-review-card-head{padding:11px 12px;background:#fafbfc;border-bottom:1px solid var(--pro-line)}
+.pro-policy-card-head strong,.pro-review-card-head strong{display:block;font-size:11px}
+.pro-policy-card-head small,.pro-review-card-head small{display:block;margin-top:3px;color:var(--pro-muted);font-size:8px}
+.pro-policy-card .form-stack{padding:12px}
+@media(max-width:430px){
+  .side-circle-picker-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .pro-color-maker-fields{grid-template-columns:46px minmax(0,1fr)}
+  .pro-color-maker-fields input[name="name"],.pro-color-maker-fields .pro-primary-btn{grid-column:1/-1}
+  .pro-size-list-item{grid-template-columns:20px 30px minmax(0,1fr) auto}
+}

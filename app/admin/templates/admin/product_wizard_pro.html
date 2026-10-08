@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('admin.static', filename='product-wizard-pro.css') }}?v=20261008-4">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='product-wizard-pro.css') }}?v=20261008-5">
 <div class="pro-pagebar" dir="rtl">
   <a class="pro-pagebar-back" href="/admin/products/{{ product_id }}" aria-label="العودة إلى تفاصيل المنتج">‹</a>
   <div class="pro-pagebar-title">
@@ -15,7 +15,7 @@
 
 <script id="wizardReferenceSeed" type="application/json">{{ wizard_references|tojson }}</script>
 
-<section class="pro-editor" dir="rtl" data-product-pro-editor data-product-id="{{ product_id }}">
+<section class="pro-editor wizard-shell" dir="rtl" data-product-pro-editor data-product-id="{{ product_id }}">
   <header class="pro-hero">
     <div class="pro-hero-top">
       <div class="pro-hero-copy"><span class="eyebrow">Edit Pro · {{ product.sku }}</span><h2>{{ product.name }}</h2><p>الألوان والمقاسات والمتغيرات والمخزون في شاشة واحدة، والصور العامة منفصلة عن صور الألوان.</p></div>
@@ -79,7 +79,7 @@
   <section class="pro-section" data-pro-panel="marketing" data-panel="marketing" hidden>
     <div class="pro-section-head"><div><strong>التسويق</strong><small>الشارات والهاشتاجات وشرائط العروض والحملات كما في النظام الحالي.</small></div><span class="pro-section-number">05</span></div>
     <div class="two-panel">
-      <article class="panel marketing-card"><div class="panel-heading"><div><span class="eyebrow">الشارات</span><strong>شارات المنتج</strong></div><button class="ghost-button quick-add-button" type="button" data-open-modal="quickBadgeModal">＋ إنشاء شارة</button></div><div class="card-inherit-note"><strong>المحرر المستقل</strong><span>التخصيص التفصيلي للشارات بقي في شاشة المظهر المستقلة.</span><a class="primary-button" href="/admin/products/{{ product_id }}/presentation">فتح محرر الشارات</a></div><div id="badgeSelection" class="selection-list" hidden></div></article>
+      <article class="panel marketing-card"><div class="panel-heading"><div><span class="eyebrow">الشارات</span><strong>شارات المنتج</strong></div><button class="ghost-button quick-add-button" type="button" data-open-modal="quickBadgeModal">＋ إنشاء شارة</button></div><div class="card-inherit-note"><strong>المحرر المستقل</strong><span>التخصيص التفصيلي للشارات بقي في شاشة المظهر المستقلة.</span><a class="primary-button" href="/admin/products/{{ product_id }}/presentation">فتح محرر الشارات</a></div><div id="badgeSelection" class="selection-list"></div></article>
       <article class="panel marketing-card"><div class="panel-heading"><div><span class="eyebrow">الهاشتاجات</span><strong>الترند والبحث</strong></div><button class="ghost-button quick-add-button" type="button" data-open-modal="quickHashtagModal">＋ إضافة هاشتاج</button></div><div id="hashtagSelection" class="selection-list"></div></article>
     </div>
     <div class="two-panel marketing-reference-grid">
@@ -90,8 +90,11 @@
   </section>
 
   <section class="pro-section" data-pro-panel="presentation" data-panel="presentation" hidden>
-    <div class="pro-section-head"><div><strong>الشارات والمظهر والتوصيات</strong><small>تظل هذه الوظائف في الفورم المستقل الحالي.</small></div><span class="pro-section-number">06</span></div>
-    <div class="pro-option-section"><div class="pro-subhead"><div><strong>محرر المظهر</strong><small>بطاقة المنتج، الشارات الفردية، شارات التوصيل والتوصيات.</small></div></div><div style="padding:0 12px 12px"><a class="pro-primary-btn" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="/admin/products/{{ product_id }}/presentation">فتح محرر الشارات والمظهر والتوصيات</a></div></div>
+    <div class="pro-section-head"><div><strong>المظهر والشارات والتوصيات</strong><small>كل إعدادات العرض الخاصة بالمنتج تظهر هنا مباشرة، مع بقاء شاشة المظهر المستقلة متاحة.</small></div><span class="pro-section-number">06</span></div>
+    <div class="pro-live-editor" id="productCardEditor"></div>
+    <div class="pro-live-editor" id="deliveryBadgeEditor"></div>
+    <div class="pro-live-editor" id="recommendationEditor"></div>
+    <div class="pro-section-link"><a class="pro-outline-btn" href="/admin/products/{{ product_id }}/presentation">فتح محرر المظهر المتقدم الكامل</a></div>
   </section>
 
   <section class="pro-section" data-pro-panel="variants" data-panel="variants" hidden>
@@ -146,7 +149,7 @@
     <span id="productColorCount"></span><span id="availableSizeCount"></span><span id="colorSelectionSummary"></span><span id="sizeSelectionSummary"></span><button id="saveDimensions" type="button">حفظ</button>
     <input id="sizeGuideSearch" type="search"><div id="sizeGuideSelection"></div><button id="saveSizeGuides" type="button">حفظ</button>
     <form id="optionForm"><input name="name"><select name="option_type"><option value="custom">custom</option></select><textarea name="values_text"></textarea><input name="required" type="checkbox"></form><div id="optionsList"></div>
-    <span id="mediaTotalCount"></span><span id="sizeGuideCount"></span><span id="variantCount"></span><span id="sizeGuideSelectionSummary"></span><div id="deliveryBadgeEditor"></div><div id="productCardEditor"></div><div id="recommendationEditor"></div><button id="saveDeliveryBadges"></button><button id="addDeliveryBadge"></button><button id="saveProductCard"></button><button id="resetProductCardOverrides"></button><button id="saveRecommendations"></button>
+    <span id="mediaTotalCount"></span><span id="sizeGuideCount"></span><span id="variantCount"></span><span id="sizeGuideSelectionSummary"></span><button id="saveDeliveryBadges"></button><button id="addDeliveryBadge"></button><button id="saveProductCard"></button><button id="resetProductCardOverrides"></button><button id="saveRecommendations"></button>
     <select id="variantInventoryLocation"></select><select id="inventoryLocationGlobal"></select><div id="variantManualPanel"></div><select id="variantManualColor"></select><div id="variantManualSizes"></div><span id="variantManualSizeHint"></span><button id="closeVariantManual" type="button"></button><form id="variantManualForm"><input name="barcode"><input name="weight"><input name="size_ids" type="checkbox"><button id="cancelVariantManual" type="button"></button></form><button id="toggleVariantManual"></button><button id="generateVariants"></button>
   </div>
 </section>
@@ -407,5 +410,5 @@
 </div>
 
 <script src="{{ url_for('admin.static', filename='product-wizard.js') }}?v=20261008-3" defer></script>
-<script src="{{ url_for('admin.static', filename='product-wizard-pro.js') }}?v=20261008-2" defer></script>
+<script src="{{ url_for('admin.static', filename='product-wizard-pro.js') }}?v=20261008-3" defer></script>
 {% endblock %}
