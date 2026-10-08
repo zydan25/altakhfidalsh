@@ -5441,11 +5441,21 @@ class _SizeGuideButton extends StatelessWidget {
 
 class _SizeGuideDialog extends StatefulWidget {
   final Map<String, dynamic> guide;
+  final List<Map<String, dynamic>> guides;
   final int? initialSizeId;
+  final String navigationMode;
+  final bool showProductMeasurements;
+  final bool showBodyMeasurements;
+  final Map<String, dynamic> settings;
 
   const _SizeGuideDialog({
     required this.guide,
+    this.guides = const <Map<String, dynamic>>[],
     this.initialSizeId,
+    this.navigationMode = 'tabs',
+    this.showProductMeasurements = true,
+    this.showBodyMeasurements = true,
+    this.settings = const <String, dynamic>{},
   });
 
   @override
@@ -5453,20 +5463,72 @@ class _SizeGuideDialog extends StatefulWidget {
 }
 
 class _SizeGuideDialogState extends State<_SizeGuideDialog> {
+  late final PageController _pageController;
+  late List<Map<String, dynamic>> _guides;
+  int activeGuideIndex = 0;
   int? selectedIndex;
 
   @override
   void initState() {
     super.initState();
-    final rawRows = widget.guide['rows'];
-    if (widget.initialSizeId != null && rawRows is List) {
-      for (var i = 0; i < rawRows.length; i++) {
-        final row = rawRows[i];
-        if (row is Map && sxInt(row['size_id']) == widget.initialSizeId) {
-          selectedIndex = i;
-          break;
-        }
-      }
+
+    _guides = widget.guides.isNotEmpty
+        ? widget.guides.map((x) => Map<String, dynamic>.from(x)).toList()
+        : <Map<String, dynamic>>[Map<String, dynamic>.from(widget.guide)];
+
+    if (_guides.isEmpty) {
+      _guides = <Map<String, dynamic>>[<String, dynamic>{}];
+    }
+
+    if (widget.initialSizeId != null) {
+      final preferredIndex = _guides.indexWhere(
+        (guide) => _rows(guide).any(
+          (row) => sxInt(row['size_id']) == widget.initialSizeId,
+        ),
+      );
+      if (preferredIndex >= 0) activeGuideIndex = preferredIndex;
+    }
+
+    selectedIndex = _findInitialRow(_guides[activeGuideIndex]);
+    _pageController = PageController(initialPage: activeGuideIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  List<Map<String, dynamic>> _rows(Map<String, dynamic> guide) {
+    final rawRows = guide['rows'];
+    if (rawRows is! List) return <Map<String, dynamic>>[];
+    return rawRows
+        .whereType<Map>()
+        .map((x) => Map<String, dynamic>.from(x))
+        .toList();
+  }
+
+  int? _findInitialRow(Map<String, dynamic> guide) {
+    if (widget.initialSizeId == null) return null;
+    final rows = _rows(guide);
+    final index = rows.indexWhere(
+      (row) => sxInt(row['size_id']) == widget.initialSizeId,
+    );
+    return index >= 0 ? index : null;
+  }
+
+  void _setGuide(int index, {bool animate = true}) {
+    if (index < 0 || index >= _guides.length) return;
+    setState(() {
+      activeGuideIndex = index;
+      selectedIndex = _findInitialRow(_guides[index]);
+    });
+    if (animate && _pageController.hasClients) {
+      _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+      );
     }
   }
 
@@ -5476,10 +5538,11 @@ class _SizeGuideDialogState extends State<_SizeGuideDialog> {
   }
 
   List<Map<String, String>> _columns(
+    Map<String, dynamic> guide,
     String scope,
     List<Map<String, dynamic>> rows,
   ) {
-    final raw = widget.guide[scope];
+    final raw = guide[scope];
     if (raw is List) {
       final result = <Map<String, String>>[];
       for (final item in raw) {
@@ -5497,17 +5560,23 @@ class _SizeGuideDialogState extends State<_SizeGuideDialog> {
 
     final keySet = <String>{};
     for (final row in rows) {
-      final values = _asMap(row[scope == 'product_columns'
-          ? 'product_measurements'
-          : 'body_measurements']);
+      final values = _asMap(
+        row[scope == 'product_columns'
+            ? 'product_measurements'
+            : 'body_measurements'],
+      );
       keySet.addAll(values.keys.map((x) => x.toString()));
     }
 
-    return keySet.map((key) => <String, String>{
-      'key': key,
-      'label': key,
-      'unit': '',
-    }).toList();
+    return keySet
+        .map(
+          (key) => <String, String>{
+            'key': key,
+            'label': key,
+            'unit': '',
+          },
+        )
+        .toList();
   }
 
   Widget _table({
@@ -5639,28 +5708,136 @@ class _SizeGuideDialogState extends State<_SizeGuideDialog> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final rows = widget.guide['rows'] is List
-        ? (widget.guide['rows'] as List)
-            .whereType<Map>()
-            .map((x) => Map<String, dynamic>.from(x))
-            .toList()
-        : <Map<String, dynamic>>[];
-
-    final productColumns = _columns('product_columns', rows);
-    final bodyColumns = _columns('body_columns', rows);
+  Widget _guidePage(Map<String, dynamic> guide) {
+    final rows = _rows(guide);
+    final productColumns = _columns(guide, 'product_columns', rows);
+    final bodyColumns = _columns(guide, 'body_columns', rows);
 
     final selected =
         selectedIndex == null || selectedIndex! >= rows.length
             ? null
             : rows[selectedIndex!];
 
+    final showProduct =
+        widget.showProductMeasurements && productColumns.isNotEmpty;
+    final showBody = widget.showBodyMeasurements && bodyColumns.isNotEmpty;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (sxText(guide['intro_text']).isNotEmpty)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  sxText(guide['intro_text']),
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    height: 1.5,
+                    color: ClientTheme.muted,
+                  ),
+                ),
+              ),
+            ),
+          if (rows.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: Center(
+                child: Text(
+                  'لا توجد بيانات جدول المقاسات لهذا المنتج حاليًا.',
+                ),
+              ),
+            )
+          else ...[
+            if (showProduct)
+              _table(
+                title: 'قياسات المنتج',
+                rows: rows,
+                columns: productColumns,
+                valueKey: 'product_measurements',
+              ),
+            if (showBody)
+              _table(
+                title: 'قياسات الجسم',
+                rows: rows,
+                columns: bodyColumns,
+                valueKey: 'body_measurements',
+              ),
+            if (selected != null && (showProduct || showBody))
+              Container(
+                margin: const EdgeInsets.only(top: 3),
+                padding: const EdgeInsets.fromLTRB(
+                  10,
+                  10,
+                  10,
+                  11,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F7F7),
+                  borderRadius: BorderRadius.circular(7),
+                  border: Border.all(
+                    color: ClientTheme.border,
+                    width: .7,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'تفاصيل المقاس ' +
+                          sxText(
+                            selected['size_label'],
+                            sxText(selected['size_code'], ''),
+                          ),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (widget.showProductMeasurements)
+                      _MeasurementPanel(
+                        title: 'قياسات المنتج',
+                        values: _asMap(selected['product_measurements']),
+                      ),
+                    if (widget.showBodyMeasurements) ...[
+                      if (widget.showProductMeasurements)
+                        const SizedBox(height: 7),
+                      _MeasurementPanel(
+                        title: 'قياسات الجسم',
+                        values: _asMap(selected['body_measurements']),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final background = sxColor(
+      sxText(widget.settings['size_guide_background_color']),
+      Colors.white,
+    );
+    final activeGuide = _guides[activeGuideIndex];
+    final hasMultiple = _guides.length > 1;
+    final navigationMode =
+        widget.navigationMode == 'swipe' ? 'swipe' : 'tabs';
+
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(
         horizontal: 8,
         vertical: 20,
       ),
+      backgroundColor: background,
       child: ConstrainedBox(
         constraints: const BoxConstraints(
           maxWidth: 760,
@@ -5678,116 +5855,108 @@ class _SizeGuideDialogState extends State<_SizeGuideDialog> {
                     const SizedBox(width: 7),
                     Expanded(
                       child: Text(
-                        sxText(
-                          widget.guide['name'],
-                          'دليل المقاسات',
-                        ),
+                        hasMultiple
+                            ? 'مرجع المقاس'
+                            : sxText(
+                                activeGuide['name'],
+                                'دليل المقاسات',
+                              ),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
                     ),
+                    if (hasMultiple)
+                      Flexible(
+                        child: Text(
+                          sxText(activeGuide['name']),
+                          textAlign: TextAlign.right,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            color: ClientTheme.muted,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     IconButton(
                       onPressed: () => Navigator.pop(context),
                       icon: const Icon(Icons.close, size: 19),
                     ),
                   ],
                 ),
-                if (sxText(widget.guide['intro_text']).isNotEmpty)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        sxText(widget.guide['intro_text']),
-                        style: const TextStyle(
-                          fontSize: 9.5,
-                          height: 1.5,
-                          color: ClientTheme.muted,
-                        ),
+                if (hasMultiple)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        textDirection: TextDirection.rtl,
+                        children: [
+                          for (var index = 0;
+                              index < _guides.length;
+                              index++)
+                            Padding(
+                              padding: EdgeInsets.only(
+                                left: index == _guides.length - 1 ? 0 : 6,
+                              ),
+                              child: InkWell(
+                                onTap: () => _setGuide(index),
+                                borderRadius: BorderRadius.circular(7),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 140),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 7,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: index == activeGuideIndex
+                                        ? Colors.black
+                                        : const Color(0xFFF5F5F5),
+                                    borderRadius: BorderRadius.circular(7),
+                                    border: Border.all(
+                                      color: index == activeGuideIndex
+                                          ? Colors.black
+                                          : ClientTheme.border,
+                                      width: .7,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    sxText(
+                                      _guides[index]['name'],
+                                      'جدول ' + (index + 1).toString(),
+                                    ),
+                                    style: TextStyle(
+                                      color: index == activeGuideIndex
+                                          ? Colors.white
+                                          : Colors.black,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ),
                 Expanded(
-                  child: rows.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'لا توجد بيانات جدول المقاسات لهذا المنتج حاليًا.',
-                          ),
-                        )
-                      : SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              _table(
-                                title: 'قياسات المنتج',
-                                rows: rows,
-                                columns: productColumns,
-                                valueKey: 'product_measurements',
-                              ),
-                              _table(
-                                title: 'قياسات الجسم',
-                                rows: rows,
-                                columns: bodyColumns,
-                                valueKey: 'body_measurements',
-                              ),
-                              if (selected != null)
-                                Container(
-                                  margin: const EdgeInsets.only(top: 3),
-                                  padding: const EdgeInsets.fromLTRB(
-                                    10,
-                                    10,
-                                    10,
-                                    11,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF7F7F7),
-                                    borderRadius: BorderRadius.circular(7),
-                                    border: Border.all(
-                                      color: ClientTheme.border,
-                                      width: .7,
-                                    ),
-                                  ),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      Text(
-                                        'تفاصيل المقاس ' +
-                                            sxText(
-                                              selected['size_label'],
-                                              sxText(
-                                                selected['size_code'],
-                                                '',
-                                              ),
-                                            ),
-                                        textAlign: TextAlign.right,
-                                        style: const TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w900,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      _MeasurementPanel(
-                                        title: 'قياسات المنتج',
-                                        values: _asMap(
-                                          selected['product_measurements'],
-                                        ),
-                                      ),
-                                      const SizedBox(height: 7),
-                                      _MeasurementPanel(
-                                        title: 'قياسات الجسم',
-                                        values: _asMap(
-                                          selected['body_measurements'],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
+                  child: PageView.builder(
+                    controller: _pageController,
+                    itemCount: _guides.length,
+                    physics: navigationMode == 'swipe'
+                        ? const BouncingScrollPhysics()
+                        : const NeverScrollableScrollPhysics(),
+                    onPageChanged: (index) {
+                      setState(() {
+                        activeGuideIndex = index;
+                        selectedIndex = _findInitialRow(_guides[index]);
+                      });
+                    },
+                    itemBuilder: (_, index) => _guidePage(_guides[index]),
+                  ),
                 ),
               ],
             ),
