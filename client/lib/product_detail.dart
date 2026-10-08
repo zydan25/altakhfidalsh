@@ -993,8 +993,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
                     elevation: 0,
                     backgroundColor: Colors.white,
                     automaticallyImplyLeading: false,
-                    toolbarHeight: 52,
-                    titleSpacing: 4,
+                    toolbarHeight: 56,
+                    titleSpacing: 8,
                     title: Row(
                       children: [
                         _iconButton(
@@ -1077,8 +1077,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
         tooltip: tooltip,
         onPressed: onTap,
         visualDensity: VisualDensity.compact,
-        constraints: const BoxConstraints.tightFor(width: 40, height: 40),
-        icon: Icon(icon, size: 20, color: iconColor),
+        constraints: const BoxConstraints.tightFor(width: 48, height: 48),
+        icon: Icon(icon, size: 21, color: iconColor),
       );
 
   Future<void> _share(BuildContext context, String name) async {
@@ -3424,7 +3424,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: sxDouble(detailSettings['color_label_font_size'], 9),
+                      fontSize: sxDouble(detailSettings['color_label_font_size'], 11),
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -3544,12 +3544,12 @@ class _DetailVariantSelectionBox extends StatelessWidget {
     final rows = colors.take(maxVisible).toList();
     final imageSize = sxDouble(
       detailSettings['color_image_size'],
-      48,
-    ).clamp(30, 72).toDouble();
+      56,
+    ).clamp(36, 76).toDouble();
     final swatchSize = sxDouble(
       detailSettings['color_swatches_size'],
-      30,
-    ).clamp(18, 64).toDouble();
+      38,
+    ).clamp(24, 64).toDouble();
     final gap = sxDouble(
       detailSettings['color_gap'],
       8,
@@ -3590,9 +3590,9 @@ class _DetailVariantSelectionBox extends StatelessWidget {
 
   Widget _sizeRow(BuildContext context) {
     if (!showSizes || sizes.isEmpty) return const SizedBox.shrink();
-    final sizeHeight = sxDouble(detailSettings['size_height'], 48).clamp(34, 68).toDouble();
-    final minWidth = sxDouble(detailSettings['size_min_width'], 56).clamp(38, 110).toDouble();
-    final radius = sxDouble(detailSettings['size_border_radius'], 2).clamp(0, 16).toDouble();
+    final sizeHeight = sxDouble(detailSettings['size_height'], 52).clamp(42, 72).toDouble();
+    final minWidth = sxDouble(detailSettings['size_min_width'], 64).clamp(46, 120).toDouble();
+    final radius = sxDouble(detailSettings['size_border_radius'], 10).clamp(4, 18).toDouble();
     final gap = sxDouble(detailSettings['size_row_gap'], 7).clamp(0, 18).toDouble();
     final threshold = sxInt(detailSettings['size_inventory_threshold'], 7);
     final badgeShow = detailSettings['size_inventory_badge_show'] != false;
@@ -3670,8 +3670,8 @@ class _DetailVariantSelectionBox extends StatelessWidget {
     if (availableGuides.isEmpty) return const SizedBox.shrink();
     final guide = availableGuides.first;
     final color = _color(detailSettings['size_tools_color'], Colors.black);
-    final font = sxDouble(detailSettings['size_tools_font_size'], 10);
-    final icon = sxDouble(detailSettings['size_tools_icon_size'], 16);
+    final font = sxDouble(detailSettings['size_tools_font_size'], 12);
+    final icon = sxDouble(detailSettings['size_tools_icon_size'], 18);
     final gap = sxDouble(detailSettings['size_tools_gap'], 12);
     final children = <Widget>[
       InkWell(
@@ -3828,10 +3828,26 @@ class _DetailVariantSelectionBox extends StatelessWidget {
     if (parts.isEmpty) return const SizedBox.shrink();
 
     return Container(
-      color: _color(
-        detailSettings['variant_background_color'],
-        Colors.white,
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: _color(
+          detailSettings['variant_background_color'],
+          Colors.white,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFEAEAEA),
+          width: .8,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
+      clipBehavior: Clip.antiAlias,
       padding: EdgeInsets.symmetric(
         horizontal: paddingH,
         vertical: paddingV,
@@ -5283,7 +5299,7 @@ class _ProductBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
+    padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
     decoration: const BoxDecoration(
       color: Colors.white,
       border: Border(
@@ -5305,7 +5321,7 @@ class _ProductBottomBar extends StatelessWidget {
               backgroundColor: availableQty > 0 ? Colors.black : const Color(0xFFBDBDBD),
               disabledBackgroundColor: const Color(0xFFBDBDBD),
               minimumSize: const Size.fromHeight(48),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),
             label: Text(
               availableQty > 0
@@ -5313,7 +5329,7 @@ class _ProductBottomBar extends StatelessWidget {
                   : 'غير متوفر حاليًا',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
             ),
           ),
         ),
