@@ -357,51 +357,94 @@
   </div>
 
   <div class="wizard-panel" data-panel="variants" hidden>
-    <div class="panel-heading"><div><span class="eyebrow">SKU فعلي</span><h3>المتغيرات والمخزون</h3></div></div>
-    <div class="variant-context-bar">
+    <div class="panel-heading variant-panel-heading">
       <div>
-        <span class="eyebrow">يبنى من خصائص المنتج</span>
-        <strong>الألوان والمقاسات المختارة تظهر هنا فقط للاختيار داخل الـVariant.</strong>
+        <span class="eyebrow">SKU فعلي</span>
+        <h3>المتغيرات</h3>
+        <small class="muted">كل بطاقة تمثل اختيارًا واحدًا من اللون والمقاس، مع SKU تلقائي ومخزون واضح.</small>
       </div>
-      <button class="ghost-button" type="button" data-go-step="options">تعديل الألوان والمقاسات</button>
+      <span id="variantCount" class="status-pill">0 متغير</span>
     </div>
-    <form id="variantForm" class="form-stack">
-      <div class="form-grid">
-        <label>SKU للمتغير<input name="sku" required dir="ltr" placeholder="SHP-10001-BLK-M"></label>
-        <label>Barcode<input name="barcode" dir="ltr"></label>
+
+    <div class="variant-toolbar panel">
+      <div>
+        <strong>أدوات المتغيرات السريعة</strong>
+        <small class="muted">ولّد كل التركيبات الناقصة تلقائيًا أو أضف متغيرًا واحدًا يدويًا.</small>
       </div>
-      <div class="form-grid">
+      <div class="variant-toolbar-actions">
+        <button id="generateVariants" class="primary-button" type="button">توليد التركيبات</button>
+        <button id="focusVariantForm" class="ghost-button" type="button">＋ متغير يدوي</button>
+        <button class="ghost-button" type="button" data-go-step="options">الألوان والمقاسات</button>
+      </div>
+    </div>
+
+    <div id="variantQuickAdd" class="variant-quick-add panel">
+      <div class="variant-quick-add-head">
+        <div>
+          <span class="eyebrow">إضافة سريعة</span>
+          <strong>متغير جديد</strong>
+          <small>اترك SKU فارغًا ليُنشأ تلقائيًا من SKU المنتج + اللون + المقاس.</small>
+        </div>
+      </div>
+      <form id="variantForm" class="variant-quick-form">
         <label>اللون<select id="variantColor" name="color_id"><option value="">بدون لون</option></select></label>
         <label>المقاس<select id="variantSize" name="size_id"><option value="">بدون مقاس</option></select></label>
-      </div>
-      <label>الوزن<input name="weight" type="number" min="0" step="0.0001" inputmode="decimal"></label>
-      <button class="primary-button" type="submit">إضافة Variant</button>
-    </form>
-    <div id="variantsList" class="stack-list"></div>
+        <label>SKU <input id="variantSku" name="sku" dir="ltr" placeholder="تلقائي عند الحفظ"></label>
+        <label>Barcode<input name="barcode" dir="ltr" placeholder="اختياري"></label>
+        <label>الوزن<input name="weight" type="number" min="0" step="0.0001" inputmode="decimal" placeholder="0"></label>
+        <div class="variant-auto-preview">
+          <span>SKU المتوقع</span>
+          <strong id="variantAutoSkuHint" dir="ltr">سيظهر بعد اختيار اللون والمقاس</strong>
+        </div>
+        <button class="primary-button variant-add-button" type="submit">إضافة المتغير</button>
+      </form>
+    </div>
+
+    <div id="variantsList" class="variant-card-list"></div>
   </div>
 
   <div class="wizard-panel" data-panel="inventory" hidden>
-    <div class="panel-heading"><div><span class="eyebrow">المخزون</span><h3>مواقع التخزين والكميات</h3></div></div>
-    <form id="inventoryForm" class="form-stack">
-      <label>المتغير<select id="inventoryVariant" name="variant_id" required></select></label>
-      <label>موقع التخزين<select id="inventoryLocation" name="location_id" required></select></label>
-      <label>الكمية الفعلية<input name="on_hand" type="number" min="0" value="0" required inputmode="numeric"></label>
-      <label>المحجوز<input name="reserved" type="number" min="0" value="0" required inputmode="numeric"></label>
-      <label>حد إعادة الطلب<input name="reorder_level" type="number" min="0" value="0" required inputmode="numeric"></label>
-      <button class="primary-button" type="submit">حفظ المخزون</button>
-    </form>
-    <div class="split-heading inventory-location-heading"><div><span class="eyebrow">موقع جديد</span><strong>أضف مخزنًا أو فرعًا</strong></div></div>
-    <form id="locationForm" class="form-stack compact-form">
-      <label>اسم الموقع<input name="name" required placeholder="المخزن الرئيسي"></label>
-      <label>الكود<input name="code" required dir="ltr" placeholder="MAIN"></label>
-      <label>City ID<input name="city_id" type="number" min="1"></label>
-      <button class="ghost-button" type="submit">إضافة الموقع</button>
-    </form>
+    <div class="panel-heading">
+      <div>
+        <span class="eyebrow">المخزون</span>
+        <h3>الكميات حسب المتغير والموقع</h3>
+        <small class="muted">المخزون محفوظ لكل Variant وموقع تخزين، والمتاح يحسب من الفعلي والمحجوز.</small>
+      </div>
+    </div>
+
+    <div class="inventory-quick-card panel">
+      <div class="inventory-quick-head">
+        <div>
+          <strong>تحديث مخزون متغير</strong>
+          <small class="muted">اختر المتغير والموقع ثم احفظ الأرقام.</small>
+        </div>
+        <span class="status-pill">سريع</span>
+      </div>
+      <form id="inventoryForm" class="inventory-form-grid">
+        <label>المتغير<select id="inventoryVariant" name="variant_id" required></select></label>
+        <label>موقع التخزين<select id="inventoryLocation" name="location_id" required></select></label>
+        <label>الكمية الفعلية<input name="on_hand" type="number" min="0" value="0" required inputmode="numeric"></label>
+        <label>المحجوز<input name="reserved" type="number" min="0" value="0" required inputmode="numeric"></label>
+        <label>حد إعادة الطلب<input name="reorder_level" type="number" min="0" value="0" required inputmode="numeric"></label>
+        <button class="primary-button" type="submit">حفظ المخزون</button>
+      </form>
+    </div>
+
+    <details class="inventory-location-card panel">
+      <summary><strong>إدارة مواقع التخزين</strong><span class="muted">إضافة مخزن أو فرع جديد</span></summary>
+      <form id="locationForm" class="form-stack compact-form" style="margin-top:12px">
+        <label>اسم الموقع<input name="name" required placeholder="المخزن الرئيسي"></label>
+        <label>الكود<input name="code" required dir="ltr" placeholder="MAIN"></label>
+        <label>City ID<input name="city_id" type="number" min="1"></label>
+        <button class="ghost-button" type="submit">إضافة الموقع</button>
+      </form>
+    </details>
+
     <div class="inventory-help panel">
       <strong>المخزون مرتبط بالـVariant</strong>
-      <span class="muted">أنشئ المتغيرات أولًا من الألوان والمقاسات المحددة، ثم أدخل كميات كل متغير وموقع.</span>
+      <span class="muted">يمكنك فتح «إدارة المخزون» مباشرة من بطاقة المتغير، وستنتقل القيم إلى هذا النموذج تلقائيًا.</span>
     </div>
-    <div id="inventoryList" class="stack-list"></div>
+    <div id="inventoryList" class="inventory-summary-list"></div>
   </div>
 
   <div class="wizard-panel" data-panel="policies" hidden>
