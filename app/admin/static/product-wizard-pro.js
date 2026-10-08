@@ -415,38 +415,44 @@
       return;
     }
 
+    const mode = pickerType;
     const previous = new Set([...previousIds].map(Number));
     const newlyAdded = [...next].filter(id => !previous.has(Number(id))).map(Number);
+    const addToAll = mode === "size" ? Boolean($("[data-pro-add-size-all]", overlay)?.checked) : false;
 
     try {
-      if (pickerType === "color") {
+      if (mode === "color") {
         colorIds = new Set([...next].map(Number));
         await persistDimensions();
         if (newlyAdded.length) {
           await generateMissingVariantsForSets(new Set(newlyAdded), sizeIds);
         }
       } else {
-        const addToAll = Boolean($("[data-pro-add-size-all]")?.checked);
         sizeIds = new Set([...next].map(Number));
         await persistDimensions();
         if (addToAll && newlyAdded.length) {
           await generateMissingVariantsForSets(colorIds, new Set(newlyAdded));
         }
       }
+
       overlay.remove();
       pickerType = null;
       await afterMutation();
-      if (pickerType === "size") {
-        notify(newlyAdded.length
-          ? "تم حفظ المقاسات الجديدة" + ($("[data-pro-add-size-all]")?.checked ? " وإضافتها إلى جميع الألوان." : "، ويمكن إضافتها لكل لون بشكل مستقل.") 
-          : "تم حفظ اختيار المقاسات.");
+
+      if (mode === "size") {
+        notify(
+          newlyAdded.length
+            ? (addToAll
+              ? "تم حفظ المقاسات الجديدة وإضافتها إلى جميع الألوان."
+              : "تم حفظ المقاسات الجديدة. يمكنك إضافتها لكل لون بشكل مستقل من زر «إضافة».")
+            : "تم حفظ اختيار المقاسات."
+        );
       } else {
-        notify(newlyAdded.length ? "تم حفظ الألوان وإعداد متغيراتها الجديدة." : "تم حفظ اختيار الألوان.");
+        notify(newlyAdded.length ? "تم حفظ الألوان وتجهيز متغيراتها الجديدة." : "تم حفظ اختيار الألوان.");
       }
     } catch (error) {
       notify(error.message, "error");
     }
-    pickerType = null;
   };
 
 
