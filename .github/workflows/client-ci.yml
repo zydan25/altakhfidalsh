@@ -290,7 +290,7 @@ jobs:
               metadata = '''
               <meta-data
                   android:name="com.google.firebase.messaging.default_notification_channel_id"
-                  android:value="altakhfid_alerts_v6" />'''
+                  android:value="altakhfid_alerts_v7" />'''
               pattern = re.compile(r"(    <application\b[^>]*>)")
               text2, count = pattern.subn(
                   lambda match: match.group(1) + metadata,
@@ -304,7 +304,7 @@ jobs:
           print("Firebase Google Services plugin and FCM default channel configured.")
           PY
 
-          grep -n -E "google-services|default_notification_channel_id|altakhfid_alerts_v6"             android/settings.gradle android/settings.gradle.kts             android/app/build.gradle android/app/build.gradle.kts             android/app/src/main/AndroidManifest.xml 2>/dev/null || true
+          grep -n -E "google-services|default_notification_channel_id|altakhfid_alerts_v7"             android/settings.gradle android/settings.gradle.kts             android/app/build.gradle android/app/build.gradle.kts             android/app/src/main/AndroidManifest.xml 2>/dev/null || true
 
       - name: Set Android application name
         working-directory: client
