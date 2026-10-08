@@ -199,6 +199,49 @@ class ApiService {
     return d;
   }
 
+  Future<Map<String, dynamic>?> cachedHome({int? rootCategoryId}) async {
+    final value = await _readJson(
+      _homeCachePrefix + _scopeCacheKey(rootCategoryId),
+    );
+    if (value is Map) return Map<String, dynamic>.from(value);
+    return null;
+  }
+
+  Future<List<ProductModel>> cachedFeed({
+    int? category,
+    List<int>? categoryIds,
+    int? circleId,
+    int? hashtagId,
+    List<int>? hashtagIds,
+    int? sideCategoryId,
+    String q='',
+    List<int>? filterValueIds,
+    String sort='recommended',
+    String? minPrice,
+    String? maxPrice,
+    int? currencyId,
+    String? discoveryTab,
+    String? minRating,
+  }) async {
+    final cacheKey = _feedCachePrefix + _feedCacheKey(
+      category: category,
+      categoryIds: categoryIds,
+      circleId: circleId,
+      hashtagId: hashtagId,
+      hashtagIds: hashtagIds,
+      sideCategoryId: sideCategoryId,
+      q: q,
+      filterValueIds: filterValueIds,
+      sort: sort,
+      minPrice: minPrice,
+      maxPrice: maxPrice,
+      currencyId: currencyId,
+      discoveryTab: discoveryTab,
+      minRating: minRating,
+    );
+    return _decodeProducts(await _readJson(cacheKey));
+  }
+
   Future<Map<String,dynamic>> home({int? rootCategoryId}) async {
     final q = <String,String>{
       '_home_ts': DateTime.now().millisecondsSinceEpoch.toString(),
