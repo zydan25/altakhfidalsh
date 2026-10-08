@@ -34,6 +34,7 @@ from ...models import (
     ReturnPolicy,
     WarrantyPolicy,
     VariantOptionValue,
+    VariantMedia,
     ProductBadge,
     Badge,
     Brand,
@@ -1728,10 +1729,32 @@ class CatalogService:
         variant = db.session.get(ProductVariant, variant_id)
         if variant is None or variant.product_id != product_id:
             raise LookupError("variant not found")
+
+        # Removing a Variant from the Pro editor is a soft-delete at the
+        # Variant level so historical cart/order references remain safe.
+        # Operational data that belongs exclusively to the variant must not
+        # remain visible or consume inventory after the removal.
+        db.session.query(StockInventory).filter(
+            StockInventory.variant_id == variant.id
+        ).delete(synchronize_session=False)
+        db.session.query(VariantOptionValue).filter(
+            VariantOptionValue.variant_id == variant.id
+        ).delete(synchronize_session=False)
+        db.session.query(VariantMedia).filter(
+            VariantMedia.variant_id == variant.id
+        ).delete(synchronize_session=False)
+
         variant.is_active = False
         variant.status = "archived"
         db.session.commit()
-        return {"id": variant.id, "status": variant.status, "is_active": variant.is_active}
+        return {
+            "id": variant.id,
+            "status": variant.status,
+            "is_active": variant.is_active,
+            "inventory_removed": True,
+            "variant_media_removed": True,
+            "option_links_removed": True,
+        }
 
     @staticmethod
     def update_option(product_id, option_id, payload):
@@ -2625,6 +2648,7 @@ class CatalogService:
                 "barcode": variant.barcode,
                 "weight": str(variant.weight) if variant.weight is not None else None,
                 "status": variant.status,
+                "is_active": bool(variant.is_active),
                 "available_qty": int(stock_available_by_variant.get(variant.id, 0)),
                 "on_hand_qty": int(stock_on_hand_by_variant.get(variant.id, 0)),
                 "reserved_qty": int(stock_reserved_by_variant.get(variant.id, 0)),

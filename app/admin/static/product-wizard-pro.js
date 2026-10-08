@@ -58,9 +58,10 @@
   const colorById = id => allColorRows().find(x => Number(x.id) === Number(id));
   const sizeById = id => allSizeRows().find(x => Number(x.id) === Number(id));
 
-  const activeVariants = () => (snapshot?.variants || []).filter(v =>
-    v.status === "active" || v.is_active !== false
-  );
+  const activeVariants = () => (snapshot?.variants || []).filter(v => {
+    if (v.is_active === false) return false;
+    return v.status == null || v.status === "active";
+  });
 
   const variantFor = (colorId, sizeId) => activeVariants().find(v =>
     Number(v.color_id) === Number(colorId) && Number(v.size_id) === Number(sizeId)
