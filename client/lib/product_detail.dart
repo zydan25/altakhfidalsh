@@ -828,6 +828,11 @@ class _SxProductScreenState extends State<SxProductScreen> {
       }
     }
 
+    final sizeGuides = _sizeGuides();
+    final sizeGuide = sizeGuides.isNotEmpty
+        ? sizeGuides.first
+        : <String, dynamic>{};
+
     final orderedSections = <Widget>[];
     final variantKeys = <String>{'thumbs', 'sizes', 'colors', 'size_guide'};
     final policyKeys = <String>{'delivery', 'policies'};
