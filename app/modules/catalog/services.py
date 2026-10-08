@@ -55,6 +55,7 @@ from ...models import (
     Size,
     ProductColorReference,
     ProductSizeReference,
+    ProductSizeGuideReference,
     AppSetting,
     Review,
 )
@@ -1189,6 +1190,41 @@ class CatalogService:
         return CatalogService._serialize_product(product)
 
     @staticmethod
+    @staticmethod
+    def set_product_size_guides(product_id, guide_ids):
+        if db.session.get(Product, product_id) is None:
+            raise LookupError("product not found")
+
+        normalized_ids = []
+        for raw in guide_ids or []:
+            try:
+                guide_id = int(raw.get("id") if isinstance(raw, dict) else raw)
+            except (TypeError, ValueError):
+                raise ValueError("معرف جدول المقاسات غير صحيح.")
+            if guide_id <= 0:
+                raise ValueError("معرف جدول المقاسات غير صحيح.")
+            guide = db.session.get(SizeGuide, guide_id)
+            if guide is None:
+                raise ValueError(f"size guide {guide_id} not found")
+            if not guide.is_active:
+                raise ValueError("لا يمكن اختيار جدول مقاسات مؤرشف.")
+            if guide_id not in normalized_ids:
+                normalized_ids.append(guide_id)
+
+        ProductSizeGuideReference.query.filter_by(product_id=product_id).delete()
+        for position, guide_id in enumerate(normalized_ids):
+            db.session.add(
+                ProductSizeGuideReference(
+                    product_id=product_id,
+                    guide_id=guide_id,
+                    sort_order=position,
+                )
+            )
+
+        db.session.commit()
+        return {"guide_ids": normalized_ids}
+
+
     def set_product_reference_dimensions(product_id, color_ids, size_ids):
         if db.session.get(Product, product_id) is None:
             raise LookupError("product not found")
@@ -2029,6 +2065,7 @@ class CatalogService:
         current_side_circle_ids = set(CatalogService.list_product_side_category_circles(product_id)) if product_id else set()
         current_color_ids = {int(x.color_id) for x in ProductColorReference.query.filter_by(product_id=product_id).all()} if product_id else set()
         current_size_ids = {int(x.size_id) for x in ProductSizeReference.query.filter_by(product_id=product_id).all()} if product_id else set()
+        current_size_guide_ids = {int(x.guide_id) for x in ProductSizeGuideReference.query.filter_by(product_id=product_id).all()} if product_id else set()
 
         # Products created before product-level dimension references are backfilled
         # from their variants the first time this endpoint is read.
@@ -2157,6 +2194,16 @@ class CatalogService:
                 for row in rows
             ]
 
+        size_guide_reference_rows = (
+            db.session.query(ProductSizeGuideReference, SizeGuide)
+            .join(SizeGuide, SizeGuide.id == ProductSizeGuideReference.guide_id)
+            .filter(
+                ProductSizeGuideReference.product_id == product_id,
+                SizeGuide.is_active.is_(True),
+            )
+            .order_by(ProductSizeGuideReference.sort_order, ProductSizeGuide.id)
+            .all()
+        )
         size_guides = SizeGuide.query.filter_by(is_active=True).order_by(SizeGuide.name).all()
         return {
             "categories": [
@@ -2226,7 +2273,24 @@ class CatalogService:
             "selected_side_category_circle_ids": sorted(current_side_circle_ids),
             "policies": policies,
             "size_guides": [
-                {"id": row.id, "name": row.name, "guide_type": row.guide_type, "fit_type": row.fit_type}
+                {
+                    "id": row.id,
+                    "name": row.name,
+                    "guide_type": row.guide_type,
+                    "fit_type": row.fit_type,
+                    "intro_text": row.intro_text,
+                    "product_columns": row.product_columns_json or [],
+                    "body_columns": row.body_columns_json or [],
+                    "selected": row.id in current_size_guide_ids,
+                    "sort_order": next(
+                        (
+                            int(ref.sort_order)
+                            for ref, guide in size_guide_reference_rows
+                            if int(guide.id) == int(row.id)
+                        ),
+                        999999,
+                    ),
+                }
                 for row in size_guides
             ],
         }
