@@ -880,3 +880,5 @@
   .pro-section-head{padding:17px 19px}
   .pro-builder-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+body.pro-modal-open{overflow:hidden!important}
