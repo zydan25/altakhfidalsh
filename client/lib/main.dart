@@ -31,7 +31,7 @@ Future<void> main() async {
 
   await Future.wait(<Future<void>>[
     api.restore(),
-    state.restorePreferences(),
+    state.restorePreferences(fetchServer: false),
     ReferralLinkService.initialize(),
   ]);
 
@@ -42,6 +42,7 @@ Future<void> main() async {
   runApp(const AltakhfidApp());
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(state.restorePreferences());
     unawaited(_prepareNotificationService());
   });
 }
