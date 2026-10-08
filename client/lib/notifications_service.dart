@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api.dart';
 
-const String notificationAlertsChannelId = 'altakhfid_alerts_v6';
+const String notificationAlertsChannelId = 'altakhfid_alerts_v7';
 const String notificationDeviceIdKey = 'altakhfid_fcm_device_id_v1';
 const String notificationPendingPayloadKey = 'notification_pending_payload_v1';
 
@@ -67,11 +67,17 @@ class AltakhfidNotificationService {
           notificationAlertsChannelId,
           'تنبيهات التخفيض الصح',
           description: 'رسائل الطلبات والمحادثات والعروض الجديدة.',
-          importance: Importance.max,
+          importance: Importance.high,
           playSound: true,
           enableVibration: true,
           showBadge: true,
         ),
+      );
+      // Match the official Firebase Flutter pattern for foreground presentation.
+      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
       );
     }
 
@@ -284,7 +290,7 @@ class AltakhfidNotificationService {
           channelDescription:
               'رسائل الطلبات والمحادثات والعروض الجديدة.',
           importance: Importance.max,
-          priority: Priority.max,
+          priority: Priority.high,
           category: AndroidNotificationCategory.message,
           visibility: NotificationVisibility.public,
           icon: 'notification_icon',
