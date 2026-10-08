@@ -70,7 +70,7 @@ class FCMService:
             android=messaging.AndroidConfig(
                 priority="high",
                 notification=messaging.AndroidNotification(
-                    channel_id="altakhfid_alerts_v5",
+                    channel_id="altakhfid_alerts_v6",
                     sound="default",
                     priority="max",
                     visibility="public",
