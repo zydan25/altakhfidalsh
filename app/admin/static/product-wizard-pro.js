@@ -618,6 +618,7 @@
     const modal = $("[data-pro-image-modal]");
     if (!modal) return;
     modal.hidden = false;
+    document.body.classList.add("pro-modal-open");
     $("[data-pro-modal-title]", modal).textContent = item.color_id
       ? "صور " + (colorById(item.color_id)?.name || item.color_name || "اللون")
       : "صورة عامة للمنتج";
@@ -633,6 +634,7 @@
   const closeImage = () => {
     const modal = $("[data-pro-image-modal]");
     if (modal) modal.hidden = true;
+    document.body.classList.remove("pro-modal-open");
     previewItem = null;
   };
 
@@ -816,6 +818,9 @@
     const colorId = previewItem?.color_id ? Number(previewItem.color_id) : null;
     pendingImageColorId = colorId;
     $("#proColorImageInput")?.click();
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") closeImage();
   });
 
   $("#proSizeGuideSearch")?.addEventListener("input", renderSizeGuides);
