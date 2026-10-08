@@ -147,7 +147,7 @@ class SupportService:
         # Every administrative/system reply is also a durable customer
         # notification. The message itself remains the source of truth for
         # the conversation; notification creation is intentionally separate.
-        if sender_type == "admin":
+        if str(sender_type or "").strip().lower() in {"admin", "staff", "employee"}:
             from ...services.notifications import NotificationService
             NotificationService.message_received(
                 conversation,
