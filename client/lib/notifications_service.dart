@@ -13,6 +13,8 @@ import 'api.dart';
 const String notificationAlertsChannelId = 'altakhfid_alerts_v7';
 const String notificationDeviceIdKey = 'altakhfid_fcm_device_id_v1';
 const String notificationPendingPayloadKey = 'notification_pending_payload_v1';
+const String notificationFcmLastErrorKey = 'altakhfid_fcm_last_error_v1';
+const String notificationFcmLastStatusKey = 'altakhfid_fcm_last_status_v1';
 
 typedef NotificationTapHandler = Future<void> Function(
   Map<String, dynamic> payload,
@@ -213,9 +215,23 @@ class AltakhfidNotificationService {
   static Future<void> _registerCurrentToken() async {
     try {
       final token = await FirebaseMessaging.instance.getToken();
-      if (token == null || token.trim().isEmpty) return;
+      if (token == null || token.trim().isEmpty) {
+        await _saveFcmDiagnostic(
+          status: 'token_empty',
+          error: 'FirebaseMessaging.getToken() returned null/empty.',
+        );
+        return;
+      }
+      await _saveFcmDiagnostic(
+        status: 'token_obtained',
+        error: '',
+      );
       await _registerToken(token);
     } catch (error) {
+      await _saveFcmDiagnostic(
+        status: 'token_error',
+        error: error.toString(),
+      );
       debugPrint('FCM token registration failed: $error');
     }
   }
@@ -226,7 +242,13 @@ class AltakhfidNotificationService {
 
     final client = ApiService();
     await client.restore();
-    if (client.token.isEmpty) return;
+    if (client.token.isEmpty) {
+      await _saveFcmDiagnostic(
+        status: 'server_registration_skipped',
+        error: 'Access token is empty while registering FCM token.',
+      );
+      return;
+    }
 
     try {
       await client.registerPushToken(
@@ -234,9 +256,81 @@ class AltakhfidNotificationService {
         pushToken: cleanToken,
         platform: 'android',
       );
+      await _saveFcmDiagnostic(
+        status: 'server_registered',
+        error: '',
+      );
     } catch (error) {
+      await _saveFcmDiagnostic(
+        status: 'server_registration_error',
+        error: error.toString(),
+      );
       debugPrint('FCM server registration failed: $error');
     }
+  }
+
+  static Future<void> _saveFcmDiagnostic({
+    required String status,
+    required String error,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(notificationFcmLastStatusKey, status);
+      if (error.trim().isEmpty) {
+        await prefs.remove(notificationFcmLastErrorKey);
+      } else {
+        await prefs.setString(notificationFcmLastErrorKey, error);
+      }
+    } catch (_) {}
+  }
+
+  static Future<Map<String, dynamic>> fcmDiagnostics() async {
+    if (!_isAndroid) {
+      return <String, dynamic>{
+        'platform': defaultTargetPlatform.name,
+        'supported': false,
+      };
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    String authorization = 'unknown';
+    try {
+      final settings =
+          await FirebaseMessaging.instance.getNotificationSettings();
+      authorization = settings.authorizationStatus.name;
+    } catch (error) {
+      authorization = 'error:' + error.runtimeType.toString();
+    }
+
+    String tokenState = 'unknown';
+    String tokenPreview = '';
+    String tokenError = '';
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token == null || token.trim().isEmpty) {
+        tokenState = 'empty';
+      } else {
+        tokenState = 'available';
+        final clean = token.trim();
+        tokenPreview = clean.length <= 12
+            ? clean
+            : clean.substring(0, 6) + '…' + clean.substring(clean.length - 4);
+      }
+    } catch (error) {
+      tokenState = 'error';
+      tokenError = error.toString();
+    }
+
+    return <String, dynamic>{
+      'platform': defaultTargetPlatform.name,
+      'supported': true,
+      'authorization': authorization,
+      'token_state': tokenState,
+      'token_preview': tokenPreview,
+      'token_error': tokenError,
+      'last_status': prefs.getString(notificationFcmLastStatusKey) ?? '',
+      'last_error': prefs.getString(notificationFcmLastErrorKey) ?? '',
+    };
   }
 
   static Map<String, dynamic> _payloadFromRemote(RemoteMessage message) {
