@@ -938,6 +938,38 @@
     syncVariantSelectors();
   });
 
+  document.getElementById("sizeGuideSelection")?.addEventListener("change", (event) => {
+    const input = event.target.closest("[data-size-guide-checkbox]");
+    if (!input) return;
+    const id = Number(input.value);
+    if (!Number.isFinite(id) || id <= 0) return;
+
+    if (input.checked) {
+      if (!draftSizeGuideIds.includes(id)) draftSizeGuideIds.push(id);
+    } else {
+      draftSizeGuideIds = draftSizeGuideIds.filter(item => Number(item) !== id);
+    }
+    renderSizeGuideChoices();
+  });
+
+  document.getElementById("sizeGuideSelection")?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-size-guide-move]");
+    if (!button) return;
+
+    const id = Number(button.dataset.sizeGuideId);
+    const direction = button.dataset.sizeGuideMove;
+    const index = draftSizeGuideIds.indexOf(id);
+    if (index < 0) return;
+
+    const nextIndex = direction === "up" ? index - 1 : index + 1;
+    if (nextIndex < 0 || nextIndex >= draftSizeGuideIds.length) return;
+
+    const reordered = [...draftSizeGuideIds];
+    [reordered[index], reordered[nextIndex]] = [reordered[nextIndex], reordered[index]];
+    draftSizeGuideIds = reordered;
+    renderSizeGuideChoices();
+  });
+
   const dimensionAction = (type) => {
     const rows = type.startsWith("colors")
       ? (configRefs?.colors || []).filter(x => x.is_active)
@@ -1234,6 +1266,7 @@
 
   document.getElementById("colorSearch").addEventListener("input", renderDimensionChoices);
   document.getElementById("sizeSearch").addEventListener("input", renderDimensionChoices);
+  document.getElementById("sizeGuideSearch")?.addEventListener("input", renderSizeGuideChoices);
   document.getElementById("categorySearch").addEventListener("input", () => {
     document.getElementById("categorySelection").innerHTML = renderCategoryTree(configRefs?.categories || [], draftCategoryIds);
   });
