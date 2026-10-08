@@ -89,12 +89,42 @@
     <button id="saveMarketing" class="pro-primary-btn" type="button">حفظ التسويق</button>
   </section>
 
-  <section class="pro-section" data-pro-panel="presentation" data-panel="presentation" hidden>
-    <div class="pro-section-head"><div><strong>المظهر والشارات والتوصيات</strong><small>كل إعدادات العرض الخاصة بالمنتج تظهر هنا مباشرة، مع بقاء شاشة المظهر المستقلة متاحة.</small></div><span class="pro-section-number">06</span></div>
-    <div class="pro-live-editor" id="productCardEditor"></div>
-    <div class="pro-live-editor" id="deliveryBadgeEditor"></div>
-    <div class="pro-live-editor" id="recommendationEditor"></div>
-    <div class="pro-section-link"><a class="pro-outline-btn" href="/admin/products/{{ product_id }}/presentation">فتح محرر المظهر المتقدم الكامل</a></div>
+  <section class="pro-section pro-appearance-section" data-pro-panel="presentation" data-panel="presentation" hidden>
+    <div class="pro-section-head">
+      <div>
+        <strong>المظهر والشارات والتوصيات</strong>
+        <small>تحكم بصري مرتب داخل نفس الشاشة، مع الاحتفاظ بالمحرر المتقدم الكامل.</small>
+      </div>
+      <span class="pro-section-number">06</span>
+    </div>
+
+    <div class="pro-appearance-intro">
+      <span class="pro-appearance-icon">✦</span>
+      <div><strong>مظهر المنتج</strong><small>الإعدادات التي لم تخصصها تبقى موروثة من الإعداد العام.</small></div>
+      <a href="/admin/products/{{ product_id }}/presentation" class="pro-outline-btn">فتح المتقدم</a>
+    </div>
+
+    <article class="pro-live-block">
+      <header class="pro-live-block-head"><div><span class="eyebrow">01</span><strong>بطاقة المنتج</strong><small>الألوان، الخطوط، السعر، الترند والأجزاء المرئية في البطاقة.</small></div></header>
+      <div class="pro-live-editor" id="productCardEditor"></div>
+    </article>
+
+    <article class="pro-live-block">
+      <header class="pro-live-block-head"><div><span class="eyebrow">02</span><strong>شارات التوصيل</strong><small>رتبها، عدّل النص والألوان والحجم وفعّل أو أخفِ أي شارة.</small></div></header>
+      <div class="pro-live-editor" id="deliveryBadgeEditor"></div>
+      <div class="pro-live-block-actions"><button id="addDeliveryBadge" class="pro-outline-btn" type="button">＋ إضافة شارة توصيل</button><button id="saveDeliveryBadges" class="pro-primary-btn" type="button">حفظ شارات التوصيل</button></div>
+    </article>
+
+    <article class="pro-live-block">
+      <header class="pro-live-block-head"><div><span class="eyebrow">03</span><strong>التوصيات</strong><small>حدد مصدر المنتجات وعددها كما في النظام السابق.</small></div></header>
+      <div class="pro-live-editor" id="recommendationEditor"></div>
+      <div class="pro-live-block-actions"><button id="saveRecommendations" class="pro-primary-btn" type="button">حفظ التوصيات</button></div>
+    </article>
+
+    <div class="pro-appearance-footer">
+      <button id="saveProductCard" class="pro-primary-btn" type="button">حفظ تخصيص بطاقة المنتج</button>
+      <button id="resetProductCardOverrides" class="pro-outline-btn" type="button">إلغاء تخصيصات المنتج</button>
+    </div>
   </section>
 
   <section class="pro-section" data-pro-panel="variants" data-panel="variants" hidden>
