@@ -625,7 +625,8 @@
 
   const colorOptionsHtml = (selectedId, includeBlank = true) => {
     const colors = (configRefs?.colors || optionRefs?.colors || []).filter(
-      row => row.is_active || Number(row.id) === Number(selectedId)
+      row => (draftColorIds.has(Number(row.id)) || Number(row.id) === Number(selectedId)) &&
+        (row.is_active || Number(row.id) === Number(selectedId))
     );
     return (includeBlank ? '<option value="">اختر اللون</option>' : "") +
       colors.map(row =>
@@ -639,7 +640,8 @@
 
   const sizeOptionsHtml = (selectedId, includeBlank = true) => {
     const sizes = (configRefs?.sizes || optionRefs?.sizes || []).filter(
-      row => row.is_active || Number(row.id) === Number(selectedId)
+      row => (draftSizeIds.has(Number(row.id)) || Number(row.id) === Number(selectedId)) &&
+        (row.is_active || Number(row.id) === Number(selectedId))
     );
     return (includeBlank ? '<option value="">بدون مقاس</option>' : "") +
       sizes.map(row =>
@@ -763,7 +765,9 @@
     const draftCards = variantDrafts.map(draft => {
       const sourceStocks = draft.inventory || [];
       const colorsForDraft = (configRefs?.colors || optionRefs?.colors || []).filter(x =>
-        x.is_active && !variants.some(v => Number(v.color_id) === Number(x.id) && Number(v.size_id || 0) === Number(draft.sizeId || 0))
+        draftColorIds.has(Number(x.id)) &&
+        x.is_active &&
+        !variants.some(v => Number(v.color_id) === Number(x.id) && Number(v.size_id || 0) === Number(draft.sizeId || 0))
       );
       return '<article class="variant-card is-draft" data-variant-draft-card="' + draft.id + '">' +
         '<header class="variant-card-head">' +
