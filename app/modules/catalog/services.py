@@ -34,6 +34,7 @@ from ...models import (
     ReturnPolicy,
     WarrantyPolicy,
     VariantOptionValue,
+    VariantMedia,
     ProductBadge,
     Badge,
     Brand,
