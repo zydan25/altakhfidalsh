@@ -659,8 +659,8 @@
           '</div>' +
         '</section>' +
         '<div class="pro-variant-table-wrap"><table class="pro-variant-table">' +
-          '<thead><tr><th class="pro-first-col">المقاس / الكمية</th>' + headerCells + '<th class="pro-add-col">إضافة</th></tr></thead>' +
-          '<tbody><tr><th class="pro-size-label"><span class="pro-qty-label"><strong>الكمية</strong><small>الحفظ تلقائي عند التعديل</small></span></th>' + cells +
+          '<thead><tr>' + headerCells + '<th class="pro-add-col">إضافة</th></tr></thead>' +
+          '<tbody><tr>' + cells +
             '<td class="pro-add-size-cell">' +
               (missingSizes.length
                 ? '<button type="button" class="pro-add-size-button" data-pro-add-size-column="' + color.id + '">＋ إضافة مقاس</button>'
@@ -668,7 +668,7 @@
             '</td>' +
           '</tr></tbody>' +
         '</table></div>' +
-        '<footer class="pro-card-footer"><small>يمكن تعديل الباركود والوزن والأرشفة من ⋯ داخل الخلية.</small><button type="button" class="pro-outline-btn" data-pro-add-color-image="' + color.id + '">إضافة صور</button></footer>' +
+        '<footer class="pro-card-footer"><small>الباركود والوزن والأرشفة من ⋯ داخل الخلية.</small></footer>' +
       '</article>';
     }).join("");
   };
@@ -856,7 +856,7 @@
 
     const addSize = event.target.closest("[data-pro-add-size-column]");
     if (addSize) {
-      openPicker("size");
+      openSizeForColor(Number(addSize.dataset.proAddSizeColumn));
       return;
     }
 
