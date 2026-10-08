@@ -619,6 +619,7 @@ def register_admin_routes(admin_bp):
     @admin_bp.get("/products/<int:product_id>/edit-pro")
     def product_edit_pro(product_id):
         context = _navigation_context()
+        from ..models import AppSetting
         product = db.session.get(Product, product_id)
         if product is None:
             return render_template(
@@ -636,6 +637,15 @@ def register_admin_routes(admin_bp):
             .order_by(ProductCategory.is_primary.desc(), ProductCategory.id)
             .all()
         ]
+        general_images_setting = AppSetting.query.filter_by(
+            group_code="storefront",
+            key="product_general_images_enabled",
+        ).first()
+        general_images_enabled = True
+        if general_images_setting is not None:
+            general_images_enabled = str(general_images_setting.value or "").strip().lower() in {
+                "1", "true", "yes", "on"
+            }
         return render_template(
             "admin/product_wizard_pro.html",
             title=f"تعديل برو · {product.name}",
@@ -646,6 +656,7 @@ def register_admin_routes(admin_bp):
             selected_category_ids=selected_category_ids,
             wizard_references=CatalogService.product_reference_data(product_id=product.id),
             pro_mode=True,
+            general_images_enabled=general_images_enabled,
             **context,
         )
 

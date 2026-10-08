@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('admin.static', filename='product-wizard-pro.css') }}?v=20261008-9">
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='product-wizard-pro.css') }}?v=20261008-10">
 <div class="pro-pagebar" dir="rtl">
   <a class="pro-pagebar-back" href="/admin/products/{{ product_id }}" aria-label="العودة إلى تفاصيل المنتج">‹</a>
   <div class="pro-pagebar-title">
@@ -25,8 +25,8 @@
       <button class="pro-step wizard-step is-active" type="button" data-pro-step="basics" data-step="basics">الأساس</button>
       <button class="pro-step wizard-step" type="button" data-pro-step="categories" data-step="categories">التصنيفات</button>
       <button class="pro-step wizard-step" type="button" data-pro-step="side-categories" data-step="side-categories">الفئات الجانبية</button>
-      <button class="pro-step wizard-step" type="button" data-pro-step="media" data-step="media">الصور العامة</button>
-      <button class="pro-step wizard-step" type="button" data-pro-step="marketing" data-step="marketing">التسويق</button>
+{% if general_images_enabled %}      <button class="pro-step wizard-step" type="button" data-pro-step="media" data-step="media">الصور العامة</button>
+    {% endif %}      <button class="pro-step wizard-step" type="button" data-pro-step="marketing" data-step="marketing">التسويق</button>
       <button class="pro-step wizard-step" type="button" data-pro-step="presentation" data-step="presentation">المظهر</button>
       <button class="pro-step wizard-step" type="button" data-pro-step="variants" data-step="variants">المتغيرات</button>
       <button class="pro-step wizard-step" type="button" data-pro-step="policies" data-step="policies">السياسات</button>
@@ -70,11 +70,15 @@
     <button id="saveSideCategoryCircles" class="pro-primary-btn" type="button">حفظ الفئات الجانبية</button>
   </section>
 
+  {% if general_images_enabled %}
   <section class="pro-section" data-pro-panel="media" data-panel="media" hidden>
     <div class="pro-section-head"><div><strong>صور عامة للمنتج</strong><small>لا ترتبط بلون. صور الألوان تُضاف من بطاقة اللون في قسم المتغيرات.</small></div><span id="proGeneralMediaCount" class="pro-section-number">0</span></div>
     <div class="pro-upload-card"><label for="proGeneralMediaInput"><span class="pro-upload-icon">＋</span><strong>إضافة صور عامة</strong><small>حدد عدة صور من الهاتف مرة واحدة.</small><input id="proGeneralMediaInput" type="file" accept="image/*" multiple></label><button id="proUploadGeneralMedia" class="pro-primary-btn" type="button">رفع الصور العامة</button></div>
     <div id="proGeneralMediaGrid" class="pro-general-grid"></div><div id="proGeneralMediaEmpty" class="pro-general-meta">لا توجد صور عامة بعد.</div>
+  {% endif %}
+
   </section>
+  {% endif %}
 
   <section class="pro-section" data-pro-panel="marketing" data-panel="marketing" hidden>
     <div class="pro-section-head"><div><strong>التسويق</strong><small>الشارات والهاشتاجات وشرائط العروض والحملات كما في النظام الحالي.</small></div><span class="pro-section-number">05</span></div>
@@ -440,5 +444,5 @@
 </div>
 
 <script src="{{ url_for('admin.static', filename='product-wizard.js') }}?v=20261008-3" defer></script>
-<script src="{{ url_for('admin.static', filename='product-wizard-pro.js') }}?v=20261008-7" defer></script>
+<script src="{{ url_for('admin.static', filename='product-wizard-pro.js') }}?v=20261008-8" defer></script>
 {% endblock %}
