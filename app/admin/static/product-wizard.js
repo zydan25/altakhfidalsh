@@ -981,6 +981,7 @@
     if (snapshot.product?.brand_id) brand.value = String(snapshot.product.brand_id);
 
     syncVariantSelectors();
+    if (typeof updateVariantAutoSkuHint === "function") updateVariantAutoSkuHint();
     const mediaColor = document.getElementById("mediaColor");
     if (mediaColor) {
       const mediaColors = (configRefs?.colors || optionRefs?.colors || []).filter(x => x.is_active && (draftColorIds.has(Number(x.id)) || (snapshot.media || []).some(m => Number(m.color_id) === Number(x.id))));
@@ -1180,7 +1181,6 @@
     rows.forEach(row => target ? set.add(Number(row.id)) : set.delete(Number(row.id)));
     renderDimensionChoices();
     syncVariantSelectors();
-    updateVariantAutoSkuHint();
   };
 
   document.getElementById("mediaColorGroups").addEventListener("click", async (event) => {
