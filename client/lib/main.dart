@@ -21,7 +21,7 @@ final GlobalKey<NavigatorState> notificationNavigatorKey =
 // always receives a valid API key, even if generated Gradle resources are
 // unavailable or stale in a build.
 const FirebaseOptions _androidFirebaseOptions = FirebaseOptions(
-  apiKey: 'AIzaSyAZAQ69JCgldJULTCxUz5jtC_DxKevCY0',
+  apiKey: 'AIzaSyAZAQ69JCgldJdULTCxUz5jtC_DxKevCY0',
   appId: '1:907469003345:android:e9411583b33fec0dd6f670',
   messagingSenderId: '907469003345',
   projectId: 'altakhfidalsh',
