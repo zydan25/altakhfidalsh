@@ -2648,6 +2648,7 @@ class CatalogService:
                 "barcode": variant.barcode,
                 "weight": str(variant.weight) if variant.weight is not None else None,
                 "status": variant.status,
+                "is_active": bool(variant.is_active),
                 "available_qty": int(stock_available_by_variant.get(variant.id, 0)),
                 "on_hand_qty": int(stock_on_hand_by_variant.get(variant.id, 0)),
                 "reserved_qty": int(stock_reserved_by_variant.get(variant.id, 0)),
