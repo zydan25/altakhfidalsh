@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import or_, text
@@ -6,6 +7,8 @@ from sqlalchemy import or_, text
 from ..extensions import db
 from ..models import Customer, CustomerNotification, CustomerPreference, Notification
 from .fcm import FCMService
+
+logger = logging.getLogger(__name__)
 
 
 class NotificationService:
@@ -66,14 +69,20 @@ class NotificationService:
         NotificationService._emit(customer_id, row.id, row)
         db.session.commit()
         try:
-            FCMService.send_to_customer(customer_id, row.title, row.body, {
+            result = FCMService.send_to_customer(customer_id, row.title, row.body, {
                 **dict(row.data or {}),
                 "notification_id": row.id,
                 "type": row.type,
             })
+            logger.info(
+                "FCM customer notification id=%s customer_id=%s result=%s",
+                row.id, customer_id, result,
+            )
         except Exception:
-            # FCM delivery is best-effort; the durable in-app notification remains available.
-            pass
+            logger.exception(
+                "FCM customer notification failed id=%s customer_id=%s",
+                row.id, customer_id,
+            )
         return {
             "id": row.id,
             "type": row.type,
@@ -134,14 +143,20 @@ class NotificationService:
             if row is None:
                 continue
             try:
-                FCMService.send_to_customer(customer_id, row.title, row.body, {
+                result = FCMService.send_to_customer(customer_id, row.title, row.body, {
                     **dict(row.data or {}),
                     "notification_id": row.id,
                     "type": row.type,
                 })
+                logger.info(
+                    "FCM broadcast notification id=%s customer_id=%s result=%s",
+                    row.id, customer_id, result,
+                )
             except Exception:
-                # FCM delivery is best-effort; the durable rows remain the source of truth.
-                pass
+                logger.exception(
+                    "FCM broadcast notification failed id=%s customer_id=%s",
+                    row.id, customer_id,
+                )
         return {"count": len(created), "notification_ids": [x[1] for x in created]}
 
     @staticmethod
