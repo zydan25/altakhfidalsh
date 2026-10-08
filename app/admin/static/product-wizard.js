@@ -27,6 +27,9 @@
   let variantDrafts = [];
   let variantDraftSequence = 0;
   let draftsInitialized = false;
+  let selectedInventoryLocationId = null;
+  const inventorySaveTimers = new Map();
+  const inventorySaveRequests = new Map();
 
   const notify = (text, type = "success") => {
     message.textContent = text;
@@ -437,30 +440,40 @@
     if (summary) summary.textContent = draftSizeGuideIds.length + " محدد";
   };
 
-  const syncVariantSelectors = () => {
-    const colors = (configRefs?.colors || optionRefs?.colors || []).filter(x =>
-      x.is_active && draftColorIds.has(Number(x.id))
+  const renderManualVariantChoices = () => {
+    const colors = (configRefs?.colors || optionRefs?.colors || []).filter(
+      row => row.is_active && draftColorIds.has(Number(row.id))
     );
-    const sizes = (configRefs?.sizes || optionRefs?.sizes || []).filter(x =>
-      x.is_active && draftSizeIds.has(Number(x.id))
+    const sizes = (configRefs?.sizes || optionRefs?.sizes || []).filter(
+      row => row.is_active && draftSizeIds.has(Number(row.id))
     );
-
-    const colorOptions = colors.map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("");
-    const sizeOptions = sizes.map(x => '<option value="' + x.id + '">' + escapeHtml(x.label) + ' · ' + escapeHtml(x.group) + '</option>').join("");
-
-    const colorSelect = document.getElementById("variantColor");
-    const sizeSelect = document.getElementById("variantSize");
+    const colorSelect = document.getElementById("variantManualColor");
+    const currentColor = colorSelect?.value || "";
     if (colorSelect) {
-      const current = colorSelect.value;
-      colorSelect.innerHTML = '<option value="">' + (colors.length ? "اختر اللون" : "لا توجد ألوان مختارة — اذهب إلى خطوة الألوان") + '</option>' + colorOptions;
-      if (current && colors.some(x => String(x.id) === current)) colorSelect.value = current;
+      colorSelect.innerHTML = '<option value="">' +
+        (colors.length ? "اختر اللون" : "لا توجد ألوان مرتبطة بالمنتج") +
+        '</option>' +
+        colors.map(row => '<option value="' + row.id + '">' + escapeHtml(row.name) + '</option>').join("");
+      if (currentColor && colors.some(row => String(row.id) === currentColor)) colorSelect.value = currentColor;
     }
-    if (sizeSelect) {
-      const current = sizeSelect.value;
-      sizeSelect.innerHTML = '<option value="">' + (sizes.length ? "اختر المقاس" : "لا توجد مقاسات مختارة — اذهب إلى خطوة المقاسات") + '</option>' + sizeOptions;
-      if (current && sizes.some(x => String(x.id) === current)) sizeSelect.value = current;
-    }
+    const selectedColorId = Number(colorSelect?.value || 0);
+    const variants = snapshot?.variants || [];
+    const root = document.getElementById("variantManualSizes");
+    if (!root) return;
+    root.innerHTML = sizes.length ? sizes.map(size => {
+      const exists = variants.some(v =>
+        Number(v.color_id) === selectedColorId &&
+        Number(v.size_id) === Number(size.id) &&
+        (v.status === "active" || v.is_active !== false)
+      );
+      return '<label class="variant-size-chip' + (exists ? ' is-existing' : '') + '">' +
+        '<input type="checkbox" name="size_ids" value="' + size.id + '"' + (exists ? ' disabled' : '') + '>' +
+        '<span><b>' + escapeHtml(size.label) + '</b><small>' + escapeHtml(size.code || size.group || "") +
+        (exists ? ' · موجود' : '') + '</small></span></label>';
+    }).join("") : '<div class="variant-size-empty">أضف مقاسًا من خطوة «الألوان والمقاسات» أولًا.</div>';
   };
+
+  const syncVariantSelectors = () => renderManualVariantChoices();
 
   const cardLabels = {
     card_background_color:"لون خلفية البطاقة",card_background_opacity:"شفافية خلفية البطاقة",card_radius:"نصف قطر البطاقة",
@@ -629,13 +642,10 @@
         (row.is_active || Number(row.id) === Number(selectedId))
     );
     return (includeBlank ? '<option value="">اختر اللون</option>' : "") +
-      colors.map(row =>
-        '<option value="' + row.id + '"' +
+      colors.map(row => '<option value="' + row.id + '"' +
         (Number(row.id) === Number(selectedId) ? ' selected' : '') +
         (!row.is_active ? ' disabled' : '') + '>' +
-        escapeHtml(row.name) + (!row.is_active ? ' · مؤرشف' : '') +
-        '</option>'
-      ).join("");
+        escapeHtml(row.name) + (!row.is_active ? ' · مؤرشف' : '') + '</option>').join("");
   };
 
   const sizeOptionsHtml = (selectedId, includeBlank = true) => {
@@ -644,18 +654,18 @@
         (row.is_active || Number(row.id) === Number(selectedId))
     );
     return (includeBlank ? '<option value="">بدون مقاس</option>' : "") +
-      sizes.map(row =>
-        '<option value="' + row.id + '"' +
+      sizes.map(row => '<option value="' + row.id + '"' +
         (Number(row.id) === Number(selectedId) ? ' selected' : '') +
         (!row.is_active ? ' disabled' : '') + '>' +
         escapeHtml(row.label) + ' · ' + escapeHtml(row.group) +
-        (!row.is_active ? ' · مؤرشف' : '') +
-        '</option>'
-      ).join("");
+        (!row.is_active ? ' · مؤرشف' : '') + '</option>').join("");
   };
 
   const stockRowsForVariant = variantId =>
     (snapshot?.inventory || []).filter(row => Number(row.variant_id) === Number(variantId));
+
+  const stockRowForVariantLocation = (variantId, locationId = selectedInventoryLocationId) =>
+    stockRowsForVariant(variantId).find(row => Number(row.location_id) === Number(locationId)) || null;
 
   const stockTotalsForVariant = variantId =>
     stockRowsForVariant(variantId).reduce((totals, row) => ({
@@ -664,156 +674,215 @@
       available: totals.available + Number(row.available || 0),
     }), { onHand: 0, reserved: 0, available: 0 });
 
-  const focusInventoryVariant = (variantId, locationId = null) => {
-    const variantSelect = document.getElementById("inventoryVariant");
-    const locationSelect = document.getElementById("inventoryLocation");
-    const onHand = document.querySelector('#inventoryForm [name="on_hand"]');
-    const reserved = document.querySelector('#inventoryForm [name="reserved"]');
-    const reorder = document.querySelector('#inventoryForm [name="reorder_level"]');
-    if (!variantSelect || !locationSelect) return;
-
-    variantSelect.value = String(variantId);
-    const rows = stockRowsForVariant(variantId);
-    const row = rows.find(x => Number(x.location_id) === Number(locationId)) || rows[0];
-    if (row) {
-      locationSelect.value = String(row.location_id);
-      if (onHand) onHand.value = Number(row.on_hand || 0);
-      if (reserved) reserved.value = Number(row.reserved || 0);
-      if (reorder) reorder.value = Number(row.reorder_level || 0);
+  const renderInventoryLocationSelectors = () => {
+    const locations = snapshot?.locations || [];
+    if (!locations.length) {
+      selectedInventoryLocationId = null;
+    } else {
+      let stored = 0;
+      try { stored = Number(localStorage.getItem("takhfid:product-stock-location:" + productId) || 0); } catch (error) {}
+      const validStored = stored && locations.some(x => Number(x.id) === stored) ? stored : null;
+      const common = locations.map(location => ({
+        location,
+        count: (snapshot.inventory || []).filter(row => Number(row.location_id) === Number(location.id)).length
+      })).sort((a,b) => b.count - a.count || String(a.location.name).localeCompare(String(b.location.name), "ar"))[0]?.location?.id;
+      selectedInventoryLocationId = selectedInventoryLocationId && locations.some(x => Number(x.id) === Number(selectedInventoryLocationId))
+        ? selectedInventoryLocationId : (validStored || common || locations[0].id);
     }
-    activate("inventory");
-    document.getElementById("inventoryForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const options = locations.map(location =>
+      '<option value="' + location.id + '"' + (Number(location.id) === Number(selectedInventoryLocationId) ? ' selected' : '') + '>' +
+      escapeHtml(location.name) + ' · ' + escapeHtml(location.code || "") + '</option>'
+    ).join("");
+    ["variantInventoryLocation","inventoryLocationGlobal"].forEach(id => {
+      const select = document.getElementById(id);
+      if (!select) return;
+      select.innerHTML = locations.length ? options : '<option value="">أضف موقع تخزين أولًا</option>';
+      if (selectedInventoryLocationId) select.value = String(selectedInventoryLocationId);
+    });
+  };
+
+  const persistInventoryLocation = value => {
+    const id = Number(value || 0);
+    if (!id) return;
+    selectedInventoryLocationId = id;
+    try { localStorage.setItem("takhfid:product-stock-location:" + productId, String(id)); } catch (error) {}
+    renderVariants();
+  };
+
+  const mergeStockSnapshot = item => {
+    if (!item) return;
+    const old = (snapshot.inventory || []).find(row =>
+      Number(row.variant_id) === Number(item.variant_id) && Number(row.location_id) === Number(item.location_id)
+    );
+    const merged = { ...(old || {}), ...item };
+    if (old?.reorder_level != null && merged.reorder_level == null) merged.reorder_level = old.reorder_level;
+    snapshot.inventory = (snapshot.inventory || []).filter(row =>
+      !(Number(row.variant_id) === Number(item.variant_id) && Number(row.location_id) === Number(item.location_id))
+    ).concat(merged);
+  };
+
+  const saveStockCell = async input => {
+    const variantId = Number(input.dataset.variantId || 0);
+    const locationId = Number(selectedInventoryLocationId || 0);
+    if (!variantId || !locationId) return;
+    const row = stockRowForVariantLocation(variantId, locationId);
+    const reserved = Number(row?.reserved || 0);
+    const reorderLevel = Number(row?.reorder_level || 0);
+    const onHand = Math.max(0, Number(input.value || 0));
+    const cell = input.closest(".variant-stock-cell");
+    const state = cell?.querySelector("[data-stock-save-state]");
+    if (onHand < reserved) {
+      input.setCustomValidity("لا يمكن أن يكون المخزون أقل من المحجوز.");
+      if (state) { state.textContent = "أقل من المحجوز"; state.className = "stock-save-state is-error"; }
+      input.reportValidity();
+      return;
+    }
+    input.setCustomValidity("");
+    if (state) { state.textContent = "جارٍ الحفظ…"; state.className = "stock-save-state is-saving"; }
+    const key = variantId + ":" + locationId;
+    const previous = inventorySaveRequests.get(key);
+    if (previous) await previous;
+    const request = requestJson("/api/v1/catalog/products/" + productId + "/inventory", {
+      method: "POST",
+      body: JSON.stringify({
+        variant_id: variantId, location_id: locationId,
+        on_hand: onHand, reserved, reorder_level: reorderLevel
+      })
+    });
+    inventorySaveRequests.set(key, request);
+    try {
+      const result = await request;
+      mergeStockSnapshot(result.item);
+      input.value = Number(result.item.on_hand || 0);
+      if (state) { state.textContent = "تم الحفظ"; state.className = "stock-save-state is-saved"; }
+      const available = cell?.querySelector("[data-stock-available]");
+      if (available) available.textContent = "متاح " + Number(result.item.available || 0);
+    } catch (error) {
+      if (state) { state.textContent = error.message || "تعذر الحفظ"; state.className = "stock-save-state is-error"; }
+    } finally {
+      if (inventorySaveRequests.get(key) === request) inventorySaveRequests.delete(key);
+    }
+  };
+
+  const queueStockSave = input => {
+    const key = input.dataset.variantId;
+    clearTimeout(inventorySaveTimers.get(key));
+    const state = input.closest(".variant-stock-cell")?.querySelector("[data-stock-save-state]");
+    if (state) { state.textContent = "في انتظار الحفظ…"; state.className = "stock-save-state is-saving"; }
+    inventorySaveTimers.set(key, setTimeout(() => {
+      inventorySaveTimers.delete(key);
+      saveStockCell(input);
+    }, 650));
+  };
+
+  const missingSizeOptionsHtml = () => {
+    const sizes = (configRefs?.sizes || optionRefs?.sizes || []).filter(row =>
+      row.is_active && !draftSizeIds.has(Number(row.id))
+    );
+    return '<option value="">＋ إضافة مقاس…</option>' +
+      sizes.map(row => '<option value="' + row.id + '">' + escapeHtml(row.label) + ' · ' + escapeHtml(row.group) + '</option>').join("");
+  };
+
+  const addProductSizeColumn = async sizeId => {
+    const id = Number(sizeId || 0);
+    if (!id || draftSizeIds.has(id)) return;
+    const colorIds = [...draftColorIds];
+    const nextSizes = [...draftSizeIds, id];
+    try {
+      await requestJson("/api/v1/catalog/products/" + productId + "/reference-dimensions", {
+        method: "POST",
+        body: JSON.stringify({ color_ids: colorIds, size_ids: nextSizes })
+      });
+      if (colorIds.length) {
+        await requestJson("/api/v1/catalog/products/" + productId + "/variants/generate", {
+          method: "POST",
+          body: JSON.stringify({ color_ids: colorIds, size_ids: nextSizes })
+        });
+      }
+      await load();
+      notify("تمت إضافة المقاس وإنشاء التركيبات الناقصة تلقائيًا.");
+    } catch (error) {
+      notify(error.message, "error");
+    }
   };
 
   const renderVariants = () => {
     const root = document.getElementById("variantsList");
     if (!root) return;
     const variants = snapshot?.variants || [];
-    const colors = configRefs?.colors || optionRefs?.colors || [];
-    const sizes = configRefs?.sizes || optionRefs?.sizes || [];
-    const colorMap = new Map(colors.map(x => [Number(x.id), x]));
-    const sizeMap = new Map(sizes.map(x => [Number(x.id), x]));
+    const colors = (configRefs?.colors || optionRefs?.colors || []).filter(row => row.is_active && draftColorIds.has(Number(row.id)));
+    const sizes = (configRefs?.sizes || optionRefs?.sizes || []).filter(row => row.is_active && draftSizeIds.has(Number(row.id)));
+    const activeVariants = variants.filter(v => v.status === "active" || v.is_active !== false);
 
-    const savedCards = variants.map((variant, index) => {
-      const color = colorMap.get(Number(variant.color_id));
-      const size = sizeMap.get(Number(variant.size_id));
-      const stocks = stockRowsForVariant(variant.id);
-      const totals = stockTotalsForVariant(variant.id);
-      const stockState = totals.available > 0
-        ? '<span class="variant-status is-in-stock">متوفر</span>'
-        : '<span class="variant-status is-out-stock">نفد</span>';
-      const stockDetails = stocks.length
-        ? stocks.map(row => {
-            const location = (snapshot.locations || []).find(x => Number(x.id) === Number(row.location_id));
-            return '<div class="variant-location-row">' +
-              '<span><strong>' + escapeHtml(location?.name || ("موقع #" + row.location_id)) + '</strong><small>' +
-              escapeHtml(location?.code || "") + '</small></span>' +
-              '<span class="variant-location-nums"><b>' + Number(row.on_hand || 0) + '</b><small>فعلي</small><b>' +
-              Number(row.reserved || 0) + '</b><small>محجوز</small><b>' + Number(row.available || 0) +
-              '</b><small>متاح</small></span>' +
-              '<button type="button" class="variant-icon-button" data-variant-inventory="' + variant.id +
-              '" data-variant-location="' + row.location_id + '" aria-label="تعديل المخزون">✎</button></div>';
-          }).join("")
-        : '<div class="variant-empty-stock">لا يوجد مخزون مسجل لهذا المتغير.</div>';
+    const cards = colors.map((color,index) => {
+      const colorVariants = activeVariants.filter(v => Number(v.color_id) === Number(color.id));
+      const headerCells = sizes.map(size =>
+        '<th scope="col"><div class="size-column-head"><b>' + escapeHtml(size.label) + '</b><small>' +
+        escapeHtml(size.code || size.group || "") + '</small></div></th>'
+      ).join("");
+      const bodyCells = sizes.map(size => {
+        const variant = colorVariants.find(v => Number(v.size_id) === Number(size.id));
+        if (!variant) {
+          return '<td class="variant-stock-cell is-missing"><button type="button" class="missing-variant-button" data-create-variant-color="' + color.id +
+            '" data-create-variant-size="' + size.id + '">＋ إنشاء</button></td>';
+        }
+        const row = stockRowForVariantLocation(variant.id);
+        const onHand = Number(row?.on_hand || 0);
+        const reserved = Number(row?.reserved || 0);
+        const available = Number(row?.available || (onHand - reserved));
+        return '<td class="variant-stock-cell" data-variant-cell="' + variant.id + '">' +
+          '<div class="stock-cell-main"><input class="stock-direct-input" type="number" min="0" inputmode="numeric" value="' + onHand +
+          '" data-stock-input data-variant-id="' + variant.id + '" aria-label="مخزون ' + escapeHtml(color.name) + ' ' + escapeHtml(size.label) + '">' +
+          '<span class="stock-unit">مخزون</span></div>' +
+          '<div class="stock-cell-meta"><span data-stock-available>متاح ' + available + '</span><span>محجوز ' + reserved + '</span></div>' +
+          '<div class="stock-cell-tools"><button type="button" class="tiny-action" data-variant-copy="' + variant.id + '" title="نسخ المتغير">⧉</button>' +
+          '<details class="variant-mini-editor"><summary title="تعديل">⋯</summary>' +
+          '<form class="variant-grid-edit-form" data-variant-id="' + variant.id + '">' +
+          '<label>Barcode<input name="barcode" value="' + escapeHtml(variant.barcode || "") + '" dir="ltr"></label>' +
+          '<label>الوزن<input name="weight" type="number" min="0" step="0.0001" value="' + escapeHtml(variant.weight || "") + '" inputmode="decimal"></label>' +
+          '<div class="tiny-action-row"><button class="primary-button compact" type="submit">حفظ</button><button type="button" class="danger-button compact" data-archive-variant="' + variant.id + '">أرشفة</button></div>' +
+          '</form></details><span class="stock-save-state" data-stock-save-state>محفوظ</span></div></td>';
+      }).join("");
 
-      return '<article class="variant-card' + (variant.status !== "active" || variant.is_active === false ? ' is-archived' : '') + '" data-variant-card-id="' + variant.id + '">' +
-        '<header class="variant-card-head">' +
-          '<div class="variant-card-identity">' +
-            '<span class="variant-number">' + (index + 1) + '</span>' +
-            '<div><strong dir="ltr">' + escapeHtml(variant.sku) + '</strong><small>' +
-              escapeHtml(color?.name || "بدون لون") + ' · ' + escapeHtml(size?.label || "بدون مقاس") +
-            '</small></div>' +
-          '</div>' +
-          '<div class="variant-card-actions">' +
-            '<button type="button" class="variant-action-button is-copy" data-variant-copy="' + variant.id + '">نسخ</button>' +
-            '<button type="button" class="variant-action-button" data-variant-edit="' + variant.id + '">تعديل</button>' +
-          '</div>' +
-        '</header>' +
-        '<div class="variant-tags">' +
-          '<span class="variant-tag">اللون: <b>' + escapeHtml(color?.name || "—") + '</b></span>' +
-          '<span class="variant-tag">المقاس: <b>' + escapeHtml(size?.label || "—") + '</b></span>' +
-          stockState +
-        '</div>' +
-        '<div class="variant-metrics">' +
-          '<div><strong>' + totals.onHand + '</strong><span>فعلي</span></div>' +
-          '<div><strong>' + totals.reserved + '</strong><span>محجوز</span></div>' +
-          '<div><strong>' + totals.available + '</strong><span>متاح</span></div>' +
-        '</div>' +
-        '<details class="variant-edit-details" data-variant-details="' + variant.id + '">' +
-          '<summary>تفاصيل وتعديل المتغير</summary>' +
-          '<form class="variant-edit-form variant-card-form" data-variant-id="' + variant.id + '">' +
-            '<div class="variant-form-grid">' +
-              '<label>SKU<div class="variant-sku-control"><input name="sku" value="' + escapeHtml(variant.sku) + '" dir="ltr"><button type="button" class="variant-auto-button" data-variant-auto-sku="' + variant.id + '">تلقائي</button></div><small>اتركه فارغًا لتوليد SKU آليًا من المنتج واللون والمقاس.</small></label>' +
-              '<label>اللون<select name="color_id" data-current="' + (variant.color_id || "") + '">' + colorOptionsHtml(variant.color_id, true) + '</select></label>' +
-              '<label>المقاس<select name="size_id" data-current="' + (variant.size_id || "") + '">' + sizeOptionsHtml(variant.size_id, true) + '</select></label>' +
-              '<label>Barcode<input name="barcode" value="' + escapeHtml(variant.barcode || "") + '" dir="ltr" placeholder="اختياري"></label>' +
-              '<label>الوزن<input name="weight" type="number" min="0" step="0.0001" value="' + escapeHtml(variant.weight || "") + '" inputmode="decimal"></label>' +
-            '</div>' +
-            '<div class="variant-edit-actions">' +
-              '<button class="primary-button" type="submit">حفظ التعديلات</button>' +
-              '<button type="button" class="ghost-button" data-variant-inventory="' + variant.id + '">إدارة المخزون</button>' +
-              '<button type="button" class="danger-button" data-archive-variant="' + variant.id + '">أرشفة</button>' +
-            '</div>' +
-          '</form>' +
-        '</details>' +
-        '<div class="variant-stock-block"><div class="variant-section-title"><strong>المخزون حسب الموقع</strong><small>' + stocks.length + ' موقع</small></div>' +
-          stockDetails +
-        '</div>' +
-      '</article>';
-    }).join("");
-
-    const draftCards = variantDrafts.map(draft => {
-      const sourceStocks = draft.inventory || [];
-      const colorsForDraft = (configRefs?.colors || optionRefs?.colors || []).filter(x =>
-        draftColorIds.has(Number(x.id)) &&
-        x.is_active &&
-        !variants.some(v => Number(v.color_id) === Number(x.id) && Number(v.size_id || 0) === Number(draft.sizeId || 0))
+      const draftsForColor = variantDrafts.filter(draft =>
+        colorVariants.some(v => Number(v.id) === Number(draft.sourceVariantId))
       );
-      return '<article class="variant-card is-draft" data-variant-draft-card="' + draft.id + '">' +
-        '<header class="variant-card-head">' +
-          '<div class="variant-card-identity">' +
-            '<span class="variant-number is-draft">+</span>' +
-            '<div><strong>متغير منسوخ</strong><small>نسخ من ' + escapeHtml(draft.sourceSku) + ' · المقاس محفوظ</small></div>' +
-          '</div>' +
-          '<button type="button" class="variant-action-button" data-variant-draft-cancel="' + draft.id + '">إلغاء</button>' +
-        '</header>' +
-        '<form class="variant-draft-form" data-draft-id="' + draft.id + '">' +
-          '<div class="variant-form-grid">' +
-            '<label>اللون <select name="color_id" required><option value="">اختر اللون لإكمال النسخة</option>' +
-              colorsForDraft.map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + '</option>').join("") +
-            '</select></label>' +
-            '<label>المقاس <div class="variant-readonly-value">' + escapeHtml(draft.sizeLabel || "بدون مقاس") + '</div></label>' +
-            '<label>SKU تلقائي <div class="variant-auto-sku-preview" dir="ltr">' + escapeHtml(variantSkuPreview("", draft.sizeId)) + '</div></label>' +
-            '<label>الوزن <div class="variant-readonly-value">' + escapeHtml(draft.weight || "—") + '</div></label>' +
-          '</div>' +
-          '<div class="variant-copy-stock-note"><span>سيتم نسخ المخزون الحالي كما هو</span><b>' +
-            sourceStocks.reduce((sum, row) => sum + Number(row.available || 0), 0) + ' متاح</b></div>' +
-          '<div class="variant-copy-stock-list">' +
-            (sourceStocks.length ? sourceStocks.map(row => {
-              const loc = (snapshot.locations || []).find(x => Number(x.id) === Number(row.location_id));
-              return '<span>' + escapeHtml(loc?.name || ("موقع #" + row.location_id)) + ': <b>' +
-                Number(row.on_hand || 0) + '</b></span>';
-            }).join("") : '<span>لا يوجد مخزون حالي؛ سيُنشأ المتغير بدون مخزون.</span>') +
-          '</div>' +
-          '<div class="variant-edit-actions">' +
-            '<button class="primary-button" type="submit">حفظ النسخة</button>' +
-            '<button type="button" class="ghost-button" data-variant-draft-cancel="' + draft.id + '">إلغاء</button>' +
-          '</div>' +
-        '</form>' +
-      '</article>';
+      const draftRows = draftsForColor.map(draft => {
+        const sourceSize = (configRefs?.sizes || optionRefs?.sizes || []).find(row => Number(row.id) === Number(draft.sizeId));
+        const colorsForDraft = (configRefs?.colors || optionRefs?.colors || []).filter(row =>
+          row.is_active && draftColorIds.has(Number(row.id)) &&
+          !activeVariants.some(v => Number(v.color_id) === Number(row.id) && Number(v.size_id || 0) === Number(draft.sizeId || 0))
+        );
+        const copiedAvailable = (draft.inventory || []).reduce((sum,row)=>sum+Number(row.available||0),0);
+        return '<div class="variant-copy-draft" data-variant-draft-card="' + draft.id + '">' +
+          '<div class="variant-copy-draft-main"><span class="draft-badge">نسخة</span><strong>نسخ من مقاس ' +
+          escapeHtml(sourceSize?.label || draft.sizeLabel || "—") + '</strong><small>المخزون والوزن محفوظان من الأصل.</small></div>' +
+          '<form class="variant-draft-inline-form" data-draft-id="' + draft.id + '"><select name="color_id" required><option value="">اختر اللون</option>' +
+          colorsForDraft.map(row=>'<option value="' + row.id + '">' + escapeHtml(row.name) + '</option>').join("") +
+          '</select><span class="draft-inventory-summary">' + copiedAvailable + ' متاح</span>' +
+          '<button class="primary-button compact" type="submit">إضافة</button><button type="button" class="ghost-button compact" data-variant-draft-cancel="' + draft.id + '">إلغاء</button></form></div>';
+      }).join("");
+
+      const state = colorVariants.some(v => Number(stockRowForVariantLocation(v.id)?.available || 0) > 0)
+        ? '<span class="color-stock-state is-in">متوفر</span>' : '<span class="color-stock-state">بدون متاح</span>';
+
+      return '<article class="color-variant-card' + (!colorVariants.length ? ' is-empty' : '') + '" data-color-card="' + color.id + '">' +
+        '<header class="color-variant-card-head"><div class="color-identity">' +
+        '<span class="color-index">' + (index+1) + '</span><span class="color-swatch-large" style="background:' + escapeHtml(color.hex_code || "#e5e7eb") + '"></span>' +
+        '<div><strong>' + escapeHtml(color.name) + '</strong><small>' + colorVariants.length + ' مقاس</small></div></div>' +
+        '<div class="color-header-actions">' + state + '</div></header>' +
+        '<div class="variant-size-table-wrap"><table class="variant-size-table"><thead><tr>' +
+        '<th class="size-table-sticky-head"><span>المخزون</span></th>' + headerCells +
+        '<th class="size-add-head"><select class="size-add-select" data-add-size-column aria-label="إضافة مقاس">' + missingSizeOptionsHtml() + '</select></th>' +
+        '</tr></thead><tbody><tr><th class="size-table-sticky-label">الكمية</th>' + bodyCells +
+        '<td class="size-add-cell">＋</td></tr></tbody></table></div>' + draftRows + '</article>';
     }).join("");
 
-    root.innerHTML = (savedCards + draftCards) ||
-      '<div class="empty-state compact"><strong>لا توجد متغيرات بعد.</strong><span class="muted">اختر الألوان والمقاسات ثم ولّد التركيبات أو أضف متغيرًا يدويًا.</span></div>';
-
-    variantDrafts.forEach(draft => {
-      const source = root.querySelector('[data-variant-card-id="' + draft.sourceVariantId + '"]');
-      const draftCard = root.querySelector('[data-variant-draft-card="' + draft.id + '"]');
-      if (source && draftCard) source.after(draftCard);
-    });
-
+    root.innerHTML = cards || '<div class="empty-state compact"><strong>لا توجد ألوان مرتبطة بالمنتج.</strong><span class="muted">اختر لونًا من خطوة الألوان والمقاسات.</span></div>';
     const count = document.getElementById("variantCount");
-    if (count) count.textContent = variants.filter(x => x.status === "active" || x.is_active !== false).length + " متغير";
+    if (count) count.textContent = activeVariants.length + " متغير";
+    renderInventoryLocationSelectors();
+    renderManualVariantChoices();
   };
 
   const hydrate = () => {
@@ -896,42 +965,8 @@
         }).join("")
       : '<div class="empty-state compact"><strong>أضف لونًا أولًا.</strong><span class="muted">بعد إضافة اللون ستظهر له بطاقة رفع الصور هنا.</span></div>';
 
-    const variantSelect = document.getElementById("inventoryVariant");
-    variantSelect.innerHTML = (snapshot.variants || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.sku) + '</option>').join("");
-    const locationSelect = document.getElementById("inventoryLocation");
-    locationSelect.innerHTML = (snapshot.locations || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + ' · ' + escapeHtml(x.code) + '</option>').join("");
-    const variantMap = new Map((snapshot.variants || []).map(x => [Number(x.id), x]));
-    const inventoryGroups = new Map();
-    (snapshot.inventory || []).forEach(row => {
-      const key = Number(row.variant_id);
-      if (!inventoryGroups.has(key)) inventoryGroups.set(key, []);
-      inventoryGroups.get(key).push(row);
-    });
-    document.getElementById("inventoryList").innerHTML = (snapshot.variants || []).map((variant, index) => {
-      const rows = inventoryGroups.get(Number(variant.id)) || [];
-      const totals = rows.reduce((sum, row) => ({
-        onHand: sum.onHand + Number(row.on_hand || 0),
-        reserved: sum.reserved + Number(row.reserved || 0),
-        available: sum.available + Number(row.available || 0),
-      }), { onHand: 0, reserved: 0, available: 0 });
-      const locations = rows.map(row => {
-        const location = (snapshot.locations || []).find(x => Number(x.id) === Number(row.location_id));
-        return '<span class="inventory-summary-location">' + escapeHtml(location?.name || ("موقع #" + row.location_id)) +
-          ': <b>' + Number(row.available || 0) + '</b></span>';
-      }).join("");
-      return '<article class="inventory-summary-card">' +
-        '<div class="inventory-summary-head"><div><span class="variant-number">' + (index + 1) + '</span>' +
-          '<strong dir="ltr">' + escapeHtml(variant.sku) + '</strong><small>' +
-          (rows.length ? rows.length + ' موقع' : 'بدون مخزون مسجل') + '</small></div>' +
-          '<button type="button" class="ghost-button compact" data-variant-inventory="' + variant.id + '">تعديل</button></div>' +
-        '<div class="inventory-summary-metrics">' +
-          '<div><b>' + totals.onHand + '</b><span>فعلي</span></div>' +
-          '<div><b>' + totals.reserved + '</b><span>محجوز</span></div>' +
-          '<div><b>' + totals.available + '</b><span>متاح</span></div>' +
-        '</div>' +
-        '<div class="inventory-summary-locations">' + (locations || '<span>لا توجد كميات مضافة بعد.</span>') + '</div>' +
-      '</article>';
-    }).join("") || '<div class="empty-state compact"><strong>لا توجد متغيرات يمكن إدارتها.</strong><span class="muted">أنشئ متغيرًا أولًا.</span></div>';
+    renderInventoryLocationSelectors();
+    renderVariants();
 
     document.getElementById("showRating").checked = snapshot.display?.show_rating ?? true;
     document.getElementById("showSoldBadge").checked = snapshot.display?.show_sold_badge ?? true;
@@ -1631,27 +1666,34 @@
     } catch (error) { notify(error.message, "error"); }
   });
 
-  const updateVariantAutoSkuHint = () => {
-    const colorId = document.getElementById("variantColor")?.value || "";
-    const sizeId = document.getElementById("variantSize")?.value || "";
-    const hint = document.getElementById("variantAutoSkuHint");
-    if (!hint) return;
-    hint.textContent = variantSkuPreview(colorId, sizeId);
+  const openVariantManual = open => {
+    const panel = document.getElementById("variantManualPanel");
+    const button = document.getElementById("toggleVariantManual");
+    if (panel) panel.hidden = !open;
+    if (button) {
+      button.setAttribute("aria-expanded", String(Boolean(open)));
+      button.textContent = open ? "إخفاء الإضافة" : "＋ إضافة متغير";
+    }
+    if (open) {
+      renderManualVariantChoices();
+      document.getElementById("variantManualColor")?.focus();
+    }
   };
 
-  document.getElementById("variantColor")?.addEventListener("change", updateVariantAutoSkuHint);
-  document.getElementById("variantSize")?.addEventListener("change", updateVariantAutoSkuHint);
+  document.getElementById("toggleVariantManual")?.addEventListener("click", () => {
+    openVariantManual(document.getElementById("variantManualPanel")?.hidden !== false);
+  });
+  document.getElementById("closeVariantManual")?.addEventListener("click", () => openVariantManual(false));
+  document.getElementById("cancelVariantManual")?.addEventListener("click", () => openVariantManual(false));
+  document.getElementById("variantManualColor")?.addEventListener("change", renderManualVariantChoices);
 
-  document.getElementById("focusVariantForm")?.addEventListener("click", () => {
-    const target = document.getElementById("variantQuickAdd");
-    activate("variants");
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
-    document.getElementById("variantColor")?.focus();
+  ["variantInventoryLocation","inventoryLocationGlobal"].forEach(id => {
+    document.getElementById(id)?.addEventListener("change", event => persistInventoryLocation(event.currentTarget.value));
   });
 
   document.getElementById("generateVariants")?.addEventListener("click", async () => {
-    if (!draftColorIds.size && !draftSizeIds.size) {
-      notify("اختر لونًا أو مقاسًا واحدًا على الأقل أولًا.", "error");
+    if (!draftColorIds.size || !draftSizeIds.size) {
+      notify(!draftColorIds.size ? "اختر لونًا واحدًا على الأقل أولًا." : "اختر مقاسًا واحدًا على الأقل أولًا.", "error");
       activate("options");
       return;
     }
@@ -1660,18 +1702,11 @@
     try {
       const result = await requestJson("/api/v1/catalog/products/" + productId + "/variants/generate", {
         method: "POST",
-        body: JSON.stringify({
-          color_ids: [...draftColorIds],
-          size_ids: [...draftSizeIds],
-        }),
+        body: JSON.stringify({ color_ids: [...draftColorIds], size_ids: [...draftSizeIds] })
       });
       await load();
       const item = result.item || {};
-      notify(
-        item.created_count
-          ? "تم إنشاء " + item.created_count + " متغير جديد" + (item.skipped_count ? " وتجاوز " + item.skipped_count + " تركيبة موجودة." : ".")
-          : "جميع التركيبات المطلوبة موجودة بالفعل."
-      );
+      notify(item.created_count ? "تم إنشاء " + item.created_count + " متغير جديد." : "جميع التركيبات المطلوبة موجودة بالفعل.");
     } catch (error) {
       notify(error.message, "error");
     } finally {
@@ -1679,30 +1714,108 @@
     }
   });
 
-  document.getElementById("variantForm").addEventListener("submit", async (event) => {
+  document.getElementById("variantManualForm")?.addEventListener("submit", async event => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const colorId = Number(form.get("color_id") || 0);
+    const sizeIds = [...document.querySelectorAll('#variantManualSizes input[name="size_ids"]:checked')].map(input => Number(input.value));
+    const barcode = String(form.get("barcode") || "").trim();
+    const weight = form.get("weight") || null;
+    if (!colorId) {
+      notify("اختر اللون أولًا.", "error");
+      return;
+    }
+    if (!sizeIds.length) {
+      document.getElementById("variantManualSizeHint")?.classList.add("is-error");
+      notify("يجب اختيار مقاس واحد على الأقل.", "error");
+      return;
+    }
+    if (barcode && sizeIds.length > 1) {
+      notify("الباركود يجب أن يكون فريدًا؛ استخدمه عند اختيار مقاس واحد فقط.", "error");
+      return;
+    }
+    const button = event.currentTarget.querySelector('button[type="submit"]');
+    if (button) button.disabled = true;
+    let created = 0, skipped = 0;
     try {
-      await requestJson("/api/v1/catalog/products/" + productId + "/variants", {
-        method: "POST",
-        body: JSON.stringify({
-          sku: String(form.get("sku") || "").trim(),
-          color_id: form.get("color_id") ? Number(form.get("color_id")) : null,
-          size_id: form.get("size_id") ? Number(form.get("size_id")) : null,
-          barcode: String(form.get("barcode") || "").trim(),
-          weight: form.get("weight") || null,
-        }),
-      });
-      event.currentTarget.reset();
-      updateVariantAutoSkuHint();
+      for (const sizeId of sizeIds) {
+        try {
+          await requestJson("/api/v1/catalog/products/" + productId + "/variants", {
+            method: "POST",
+            body: JSON.stringify({
+              color_id: colorId, size_id: sizeId,
+              barcode: sizeIds.length === 1 ? barcode : "", weight
+            })
+          });
+          created += 1;
+        } catch (error) {
+          if (String(error.message || "").includes("موجودة بالفعل")) skipped += 1;
+          else throw error;
+        }
+      }
       await load();
-      notify("تمت إضافة المتغير وتم إنشاء SKU تلقائيًا إن لم تدخل SKU يدويًا.");
+      event.currentTarget.reset();
+      openVariantManual(false);
+      notify(created ? "تم إنشاء " + created + " متغير، وSKU أنشئ تلقائيًا." : "المتغيرات المختارة موجودة بالفعل.");
     } catch (error) {
       notify(error.message, "error");
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+
+  document.getElementById("variantsList")?.addEventListener("change", event => {
+    const addSize = event.target.closest("[data-add-size-column]");
+    if (addSize) {
+      const value = addSize.value;
+      addSize.value = "";
+      if (value) addProductSizeColumn(value);
+      return;
+    }
+  });
+
+  document.getElementById("variantsList")?.addEventListener("input", event => {
+    const input = event.target.closest("[data-stock-input]");
+    if (input) queueStockSave(input);
+  });
+
+  document.getElementById("variantsList")?.addEventListener("blur", event => {
+    const input = event.target.closest("[data-stock-input]");
+    if (input) {
+      const key = input.dataset.variantId;
+      clearTimeout(inventorySaveTimers.get(key));
+      inventorySaveTimers.delete(key);
+      saveStockCell(input);
+    }
+  }, true);
+
+  document.getElementById("variantsList")?.addEventListener("keydown", event => {
+    const input = event.target.closest("[data-stock-input]");
+    if (input && event.key === "Enter") {
+      event.preventDefault();
+      input.blur();
     }
   });
 
   document.getElementById("variantsList")?.addEventListener("click", async event => {
+    const createButton = event.target.closest("[data-create-variant-color]");
+    if (createButton) {
+      try {
+        await requestJson("/api/v1/catalog/products/" + productId + "/variants", {
+          method: "POST",
+          body: JSON.stringify({
+            color_id: Number(createButton.dataset.createVariantColor),
+            size_id: Number(createButton.dataset.createVariantSize)
+          })
+        });
+        await load();
+        notify("تم إنشاء المقاس لهذا اللون وSKU تلقائي.");
+      } catch (error) {
+        notify(error.message, "error");
+      }
+      return;
+    }
+
     const copyButton = event.target.closest("[data-variant-copy]");
     if (copyButton) {
       const sourceId = Number(copyButton.dataset.variantCopy);
@@ -1710,61 +1823,28 @@
       if (!source) return;
       const draftId = "variant-draft-" + (++variantDraftSequence);
       const size = (configRefs?.sizes || optionRefs?.sizes || []).find(row => Number(row.id) === Number(source.size_id));
+      variantDrafts = variantDrafts.filter(row => row.sourceVariantId !== source.id);
       variantDrafts.push({
-        id: draftId,
-        sourceVariantId: source.id,
-        sourceSku: source.sku,
-        sizeId: source.size_id,
-        sizeLabel: size?.label || "بدون مقاس",
-        weight: source.weight || "",
-        inventory: stockRowsForVariant(source.id).map(row => ({ ...row })),
+        id: draftId, sourceVariantId: source.id, sourceSku: source.sku,
+        sizeId: source.size_id, sizeLabel: size?.label || "بدون مقاس",
+        weight: source.weight || "", inventory: stockRowsForVariant(source.id).map(row => ({ ...row }))
       });
       renderVariants();
-      const draftCard = document.querySelector('[data-variant-draft-card="' + draftId + '"]');
-      draftCard?.scrollIntoView({ behavior: "smooth", block: "center" });
-      draftCard?.querySelector('select[name="color_id"]')?.focus();
+      document.querySelector('[data-variant-draft-card="' + draftId + '"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
     const cancelButton = event.target.closest("[data-variant-draft-cancel]");
     if (cancelButton) {
-      const draftId = cancelButton.dataset.variantDraftCancel;
-      variantDrafts = variantDrafts.filter(draft => draft.id !== draftId);
+      variantDrafts = variantDrafts.filter(row => row.id !== cancelButton.dataset.variantDraftCancel);
       renderVariants();
-      return;
-    }
-
-    const editButton = event.target.closest("[data-variant-edit]");
-    if (editButton) {
-      const details = document.querySelector('[data-variant-details="' + editButton.dataset.variantEdit + '"]');
-      if (details) {
-        details.open = true;
-        details.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      }
-      return;
-    }
-
-    const autoSkuButton = event.target.closest("[data-variant-auto-sku]");
-    if (autoSkuButton) {
-      const form = autoSkuButton.closest(".variant-edit-form");
-      const sku = form?.querySelector('input[name="sku"]');
-      if (sku) sku.value = "";
-      return;
-    }
-
-    const inventoryButton = event.target.closest("[data-variant-inventory]");
-    if (inventoryButton) {
-      focusInventoryVariant(
-        Number(inventoryButton.dataset.variantInventory),
-        inventoryButton.dataset.variantLocation || null,
-      );
       return;
     }
 
     const archiveButton = event.target.closest("[data-archive-variant]");
     if (archiveButton) {
       const variantId = Number(archiveButton.dataset.archiveVariant);
-      if (!window.confirm("هل تريد أرشفة هذا المتغير؟ سيختفي من الاختيارات الجديدة ولن يحذف سجل الطلبات السابق.")) return;
+      if (!window.confirm("هل تريد أرشفة هذا المقاس لهذا اللون؟ سيختفي من الاختيارات الجديدة ولن يحذف سجل الطلبات السابق.")) return;
       try {
         await requestJson("/api/v1/catalog/products/" + productId + "/variants/" + variantId, { method: "DELETE" });
         await load();
@@ -1772,105 +1852,77 @@
       } catch (error) {
         notify(error.message, "error");
       }
+      return;
     }
   });
 
-  document.getElementById("variantsList")?.addEventListener("change", event => {
-    const draftForm = event.target.closest(".variant-draft-form");
-    if (!draftForm) return;
-    const colorId = Number(event.target.value || 0);
-    if (!colorId) return;
-    const draft = variantDrafts.find(row => row.id === draftForm.dataset.draftId);
-    if (!draft) return;
-    const preview = draftForm.querySelector(".variant-auto-sku-preview");
-    if (preview) preview.textContent = variantSkuPreview(colorId, draft.sizeId);
-  });
-
   document.getElementById("variantsList")?.addEventListener("submit", async event => {
-    const draftForm = event.target.closest(".variant-draft-form");
+    const draftForm = event.target.closest(".variant-draft-inline-form");
     if (draftForm) {
       event.preventDefault();
       const draftId = draftForm.dataset.draftId;
       const draft = variantDrafts.find(row => row.id === draftId);
       const colorId = Number(new FormData(draftForm).get("color_id") || 0);
       if (!draft || !colorId) {
-        notify("اختر اللون لإكمال المتغير المنسوخ.", "error");
+        notify("اختر لونًا لإكمال النسخة.", "error");
         return;
       }
       try {
-        await requestJson(
-          "/api/v1/catalog/products/" + productId + "/variants/" + draft.sourceVariantId + "/copy",
-          { method: "POST", body: JSON.stringify({ color_id: colorId }) },
-        );
+        await requestJson("/api/v1/catalog/products/" + productId + "/variants/" + draft.sourceVariantId + "/copy", {
+          method: "POST",
+          body: JSON.stringify({ color_id: colorId })
+        });
         variantDrafts = variantDrafts.filter(row => row.id !== draftId);
         await load();
-        notify("تم نسخ المتغير مع مقاسه وبيانات مخزونه، وإنشاء SKU تلقائي.");
+        notify("تم نسخ المقاس مع الوزن والمخزون، وإنشاء SKU تلقائي.");
       } catch (error) {
         notify(error.message, "error");
       }
       return;
     }
 
-    const editForm = event.target.closest(".variant-edit-form");
+    const editForm = event.target.closest(".variant-grid-edit-form");
     if (!editForm) return;
     event.preventDefault();
+    const variantId = Number(editForm.dataset.variantId);
+    const source = (snapshot?.variants || []).find(row => Number(row.id) === variantId);
+    if (!source) return;
     const form = new FormData(editForm);
     try {
-      await requestJson(
-        "/api/v1/catalog/products/" + productId + "/variants/" + editForm.dataset.variantId,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            sku: String(form.get("sku") || "").trim(),
-            color_id: form.get("color_id") ? Number(form.get("color_id")) : null,
-            size_id: form.get("size_id") ? Number(form.get("size_id")) : null,
-            barcode: String(form.get("barcode") || "").trim(),
-            weight: form.get("weight") || null,
-          }),
-        },
-      );
+      await requestJson("/api/v1/catalog/products/" + productId + "/variants/" + variantId, {
+        method: "PATCH",
+        body: JSON.stringify({
+          sku: source.sku,
+          color_id: source.color_id || null,
+          size_id: source.size_id || null,
+          barcode: String(form.get("barcode") || "").trim(),
+          weight: form.get("weight") || null
+        })
+      });
       await load();
-      notify("تم حفظ تعديلات المتغير.");
+      notify("تم حفظ تفاصيل المتغير.");
     } catch (error) {
       notify(error.message, "error");
     }
   });
 
-  document.getElementById("inventoryForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    try {
-      await requestJson("/api/v1/catalog/products/" + productId + "/inventory", {
-        method: "POST",
-        body: JSON.stringify({
-          variant_id: Number(form.get("variant_id")),
-          location_id: Number(form.get("location_id")),
-          on_hand: Number(form.get("on_hand")),
-          reserved: Number(form.get("reserved")),
-          reorder_level: Number(form.get("reorder_level")),
-        }),
-      });
-      await load();
-      notify("تم حفظ المخزون.");
-    } catch (error) { notify(error.message, "error"); }
-  });
-
-  document.getElementById("locationForm").addEventListener("submit", async (event) => {
+  document.getElementById("locationForm")?.addEventListener("submit", async event => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     try {
       await requestJson("/api/v1/catalog/inventory-locations", {
         method: "POST",
         body: JSON.stringify({
-          name: form.get("name"),
-          code: form.get("code"),
-          city_id: form.get("city_id") ? Number(form.get("city_id")) : null,
-        }),
+          name: form.get("name"), code: form.get("code"),
+          city_id: form.get("city_id") ? Number(form.get("city_id")) : null
+        })
       });
       event.currentTarget.reset();
       await load();
       notify("تم إنشاء موقع التخزين.");
-    } catch (error) { notify(error.message, "error"); }
+    } catch (error) {
+      notify(error.message, "error");
+    }
   });
 
   document.getElementById("saveDisplay").addEventListener("click", async () => {
