@@ -1039,7 +1039,99 @@
     if (event.key === "Enter") event.preventDefault();
   });
 
+  const decorateCategoryTree = () => {
+    const root = $("#categorySelection");
+    if (!root) return;
+    const nodes = $(".category-picker-node", root);
+    nodes.forEach(node => {
+      if (node.dataset.proTreeReady === "1") return;
+      node.dataset.proTreeReady = "1";
+      const children = [...node.children].filter(child => child.classList.contains("category-picker-node"));
+      if (!children.length) return;
+      const marker = $(".category-picker-marker", node);
+      if (marker) {
+        marker.textContent = "›";
+        marker.setAttribute("role","button");
+        marker.setAttribute("tabindex","0");
+        marker.setAttribute("aria-expanded","false");
+      }
+      node.classList.add("is-collapsed");
+    });
+    const selected = $(".category-picker-node", root).filter(node => $("input[data-category-checkbox]:checked", node));
+    selected.forEach(node => {
+      let current = node;
+      while (current && current !== root) {
+        if (current.classList.contains("category-picker-node")) {
+          current.classList.remove("is-collapsed");
+          const marker = $(".category-picker-marker", current);
+          if (marker) {
+            marker.textContent = "⌄";
+            marker.setAttribute("aria-expanded","true");
+          }
+        }
+        current = current.parentElement?.closest?.(".category-picker-node");
+      }
+    });
+  };
+
+  const filterCategoryTree = () => {
+    const root = $("#categorySelection");
+    if (!root) return;
+    const query = String($("#categorySearch")?.value || "").trim().toLocaleLowerCase();
+    const nodes = $(".category-picker-node", root);
+    nodes.forEach(node => node.classList.remove("is-filter-hidden"));
+    if (!query) {
+      decorateCategoryTree();
+      return;
+    }
+    const matchNode = node => {
+      const text = String(node.textContent || "").toLocaleLowerCase();
+      const ownMatch = text.includes(query);
+      const childMatch = [...node.children]
+        .filter(child => child.classList.contains("category-picker-node"))
+        .some(child => matchNode(child));
+      if (!ownMatch && !childMatch) node.classList.add("is-filter-hidden");
+      if (childMatch) node.classList.remove("is-collapsed");
+      const marker = $(".category-picker-marker", node);
+      if (marker && childMatch) { marker.textContent = "⌄"; marker.setAttribute("aria-expanded","true"); }
+      return ownMatch || childMatch;
+    };
+    $(".category-picker-node", root).filter(node => !node.parentElement.closest(".category-picker-node")).forEach(matchNode);
+  };
+
+  $("#categorySelection")?.addEventListener("click", event => {
+    const marker = event.target.closest(".category-picker-marker");
+    if (!marker) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const node = marker.closest(".category-picker-node");
+    if (!node) return;
+    const collapsed = node.classList.toggle("is-collapsed");
+    marker.textContent = collapsed ? "›" : "⌄";
+    marker.setAttribute("aria-expanded", String(!collapsed));
+  });
+
+  $("#categorySelection")?.addEventListener("keydown", event => {
+    if ((event.key === "Enter" || event.key === " ") && event.target.closest(".category-picker-marker")) {
+      event.preventDefault();
+      event.target.click();
+    }
+  });
+
+  $("#categorySearch")?.addEventListener("input", filterCategoryTree);
+
+  const categoryObserver = new MutationObserver(() => {
+    requestAnimationFrame(() => {
+      decorateCategoryTree();
+      filterCategoryTree();
+    });
+  });
+  if ($("#categorySelection")) categoryObserver.observe($("#categorySelection"), {childList:true,subtree:true});
+
   renderLocation();
   handleNavigation("basics");
-  setTimeout(refreshData, 30);
+  setTimeout(() => {
+    refreshData();
+    setTimeout(decorateCategoryTree, 120);
+  }, 30);
 })();
