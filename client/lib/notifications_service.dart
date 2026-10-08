@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api.dart';
 
-const String notificationAlertsChannelId = 'altakhfid_alerts_v5';
+const String notificationAlertsChannelId = 'altakhfid_alerts_v6';
 const String notificationDeviceIdKey = 'altakhfid_fcm_device_id_v1';
 const String notificationPendingPayloadKey = 'notification_pending_payload_v1';
 
@@ -119,6 +119,19 @@ class AltakhfidNotificationService {
         criticalAlert: false,
         provisional: false,
       );
+
+      // Ask the Android local-notification plugin explicitly too. This is
+      // especially important on Android 13+ for POST_NOTIFICATIONS.
+      final android = _local.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        final localGranted = await android.requestNotificationsPermission();
+        if (localGranted == false) {
+          _permissionRequested = true;
+          return false;
+        }
+      }
+
       _permissionRequested = true;
 
       final granted =
@@ -134,7 +147,6 @@ class AltakhfidNotificationService {
       return false;
     }
   }
-
   static Future<void> openNotificationSettings() async {
     if (!_isAndroid) return;
     try {
@@ -260,7 +272,8 @@ class AltakhfidNotificationService {
         ) ??
         DateTime.now().millisecondsSinceEpoch.remainder(2147483647);
 
-    await _local.show(
+    try {
+      await _local.show(
       id: id,
       title: (payload['title'] ?? 'التخفيض الصح').toString(),
       body: (payload['body'] ?? '').toString(),
@@ -287,7 +300,10 @@ class AltakhfidNotificationService {
         ),
       ),
       payload: jsonEncode(payload),
-    );
+      );
+    } catch (error) {
+      debugPrint('Foreground notification display failed: $error');
+    }
   }
 
   static Future<void> storePendingPayload(String? raw) async {
