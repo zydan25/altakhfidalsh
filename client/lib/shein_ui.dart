@@ -743,7 +743,37 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
 
   Future<void> load() async {
     final int requestSerial = ++_loadSerial;
-    if (mounted) {
+    final cacheResult = await Future.wait<dynamic>([
+      api.cachedHome(),
+      api.cachedFeed(
+        sort: 'random',
+        currencyId: state.currencyId,
+      ),
+    ]);
+
+    final cachedHome = cacheResult[0] is Map
+        ? Map<String, dynamic>.from(cacheResult[0] as Map)
+        : null;
+    final cachedProducts = cacheResult[1] is List<ProductModel>
+        ? List<ProductModel>.from(cacheResult[1] as List<ProductModel>)
+        : <ProductModel>[];
+
+    // Show the last successful storefront immediately. Network refresh runs
+    // afterwards and replaces the UI only when newer data is available.
+    if (mounted && requestSerial == _loadSerial &&
+        (cachedHome != null || cachedProducts.isNotEmpty)) {
+      _applyHomePayload(cachedHome);
+      setState(() {
+        if (cachedProducts.isNotEmpty) {
+          _allStoreProducts = cachedProducts;
+          products = _filterVisibleProducts(cachedProducts);
+        }
+        loading = false;
+        _activeBannerIndex = 0;
+        _pullExtent = 0;
+        _headerIsSolid = false;
+      });
+    } else if (mounted) {
       setState(() {
         loading = true;
         _activeBannerIndex = 0;
@@ -752,42 +782,36 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
       });
     }
 
+    unawaited(_refreshHomeInBackground(requestSerial));
+  }
+
+  void _applyHomePayload(Map<String, dynamic>? payload) {
+    if (payload == null) return;
+    home = payload;
+    unawaited(_saveBannerColorCache(-1, sxMaps(payload['banners'])));
+    looks = sxMaps(payload['looks']);
+    allCategories =
+        sxMaps(payload['categories']).map(CategoryModel.fromJson).toList();
+    roots = allCategories.where((x) => x.parentId == null).toList()
+      ..sort((a, b) => a.sortOrder == b.sortOrder
+          ? a.id.compareTo(b.id)
+          : a.sortOrder.compareTo(b.sortOrder));
+  }
+
+  Future<void> _refreshHomeInBackground(int requestSerial) async {
     Map<String, dynamic>? nextHome;
-    List<Map<String, dynamic>>? nextLooks;
-    List<CategoryModel>? nextAllCategories;
-    List<CategoryModel>? nextRoots;
     List<ProductModel>? nextProducts;
-    Object? homeError;
-    Object? productsError;
-
-    // Start shell and product requests together. A failed/slow shell request
-    // must never prevent products from reaching the grid.
-    final homeFuture = api.home();
-    final productsFuture = api.feed(
-      sort: 'random',
-      currencyId: state.currencyId,
-    );
 
     try {
-      final h = await homeFuture;
-      nextHome = h;
-      unawaited(_saveBannerColorCache(-1, sxMaps(h['banners'])));
-      nextLooks = sxMaps(h['looks']);
-      nextAllCategories =
-          sxMaps(h['categories']).map(CategoryModel.fromJson).toList();
-      nextRoots = nextAllCategories.where((x) => x.parentId == null).toList()
-        ..sort((a, b) => a.sortOrder == b.sortOrder
-            ? a.id.compareTo(b.id)
-            : a.sortOrder.compareTo(b.sortOrder));
-    } catch (e) {
-      homeError = e;
-    }
+      nextHome = await api.home();
+    } catch (_) {}
 
     try {
-      nextProducts = await productsFuture;
-    } catch (e) {
-      productsError = e;
-    }
+      nextProducts = await api.feed(
+        sort: 'random',
+        currencyId: state.currencyId,
+      );
+    } catch (_) {}
 
     try {
       final c = await api.cart(currencyId: state.currencyId);
@@ -796,30 +820,20 @@ class _SxHomeScreenState extends State<SxHomeScreen> {
 
     if (!mounted || requestSerial != _loadSerial) return;
 
-    setState(() {
-      if (nextHome != null) {
-        home = nextHome!;
-        looks = nextLooks ?? looks;
-        allCategories = nextAllCategories ?? allCategories;
-        roots = nextRoots ?? roots;
-      }
-      if (nextProducts != null) {
-        _allStoreProducts = nextProducts!;
-        products = _filterVisibleProducts(nextProducts!);
-      }
-      loading = false;
-    });
-
-    if (homeError != null && productsError != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(sxText(productsError ?? homeError))),
-      );
-    } else if (productsError != null && mounted && products.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(sxText(productsError))),
-      );
+    if (nextHome != null || nextProducts != null) {
+      setState(() {
+        if (nextHome != null) _applyHomePayload(nextHome);
+        if (nextProducts != null) {
+          _allStoreProducts = nextProducts!;
+          products = _filterVisibleProducts(nextProducts!);
+        }
+        loading = false;
+      });
+    } else if (mounted && products.isEmpty && home.isEmpty) {
+      setState(() => loading = false);
     }
   }
+
   Set<int> _categoryScopeIds(int rootId) {
     final ids = <int>{rootId};
     var changed = true;
