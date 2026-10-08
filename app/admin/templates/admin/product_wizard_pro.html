@@ -70,11 +70,14 @@
     <button id="saveSideCategoryCircles" class="pro-primary-btn" type="button">حفظ الفئات الجانبية</button>
   </section>
 
+  {% if general_images_enabled %}
   <section class="pro-section" data-pro-panel="media" data-panel="media" hidden>
     <div class="pro-section-head"><div><strong>صور عامة للمنتج</strong><small>لا ترتبط بلون. صور الألوان تُضاف من بطاقة اللون في قسم المتغيرات.</small></div><span id="proGeneralMediaCount" class="pro-section-number">0</span></div>
     <div class="pro-upload-card"><label for="proGeneralMediaInput"><span class="pro-upload-icon">＋</span><strong>إضافة صور عامة</strong><small>حدد عدة صور من الهاتف مرة واحدة.</small><input id="proGeneralMediaInput" type="file" accept="image/*" multiple></label><button id="proUploadGeneralMedia" class="pro-primary-btn" type="button">رفع الصور العامة</button></div>
     <div id="proGeneralMediaGrid" class="pro-general-grid"></div><div id="proGeneralMediaEmpty" class="pro-general-meta">لا توجد صور عامة بعد.</div>
-  </section>
+  {% endif %}
+
+/section>
 
   <section class="pro-section" data-pro-panel="marketing" data-panel="marketing" hidden>
     <div class="pro-section-head"><div><strong>التسويق</strong><small>الشارات والهاشتاجات وشرائط العروض والحملات كما في النظام الحالي.</small></div><span class="pro-section-number">05</span></div>
