@@ -645,25 +645,29 @@
     if (count) count.textContent = String(total);
 
     if (!selectedColors.length) {
-      target.innerHTML = '<div class="pro-picker-empty">ابدأ من أعلى القسم: أضف لونًا، ثم أضف مقاسًا واحدًا على الأقل.</div>';
+      target.innerHTML = '<div class="pro-picker-empty">ابدأ بإضافة لون واحد على الأقل.</div>';
       return;
     }
 
     target.innerHTML = selectedColors.map((color,index) => {
-      const colorVariants = variants.filter(v => Number(v.color_id) === Number(color.id) && sizeIds.has(Number(v.size_id)));
-      const stockAvailable = colorVariants.reduce((sum,v) => sum + Number(stockForLocation(v.id)?.available || 0), 0);
+      const allColorVariants = variants.filter(v => Number(v.color_id) === Number(color.id));
+      const colorVariants = allColorVariants.filter(v => sizeIds.has(Number(v.size_id)));
+      const legacyVariants = allColorVariants.filter(v => !sizeIds.has(Number(v.size_id)));
+      const colorSizeIds = [
+        ...selectedSizes.filter(size => colorVariants.some(v => Number(v.size_id) === Number(size.id))).map(size => Number(size.id)),
+        ...legacyVariants.map(v => Number(v.size_id)).filter(id => id && !selectedSizes.some(size => Number(size.id) === id))
+      ];
+      const colorSizes = colorSizeIds.map(sizeById).filter(Boolean);
+      const stockAvailable = allColorVariants.reduce((sum,v) => sum + Number(stockForLocation(v.id)?.available || 0), 0);
       const colorMedia = (snapshot.media || []).filter(m => Number(m.color_id) === Number(color.id));
-      const missingSizes = selectedSizes.filter(size => !variantFor(color.id, size.id));
-
-      const headerCells = selectedSizes.map(size =>
+      const missingSizes = selectedSizes.filter(size => !allColorVariants.some(v => Number(v.size_id) === Number(size.id)));
+      const headerCells = colorSizes.map(size =>
         '<th scope="col"><div class="pro-size-head"><strong>' + escapeHtml(size.label) + '</strong><small>' + escapeHtml(size.code || size.group || "") + '</small></div></th>'
       ).join("");
 
-      const cells = selectedSizes.map(size => {
-        const variant = variantFor(color.id, size.id);
-        if (!variant) {
-          return '<td class="pro-missing-cell"><button type="button" class="pro-create-variant" data-pro-create-variant-color="' + color.id + '" data-pro-create-variant-size="' + size.id + '">＋ إنشاء</button></td>';
-        }
+      const cells = colorSizes.map(size => {
+        const variant = variantFor(color.id, size.id) || allColorVariants.find(v => Number(v.size_id) === Number(size.id));
+        if (!variant) return '';
         const stock = stockForLocation(variant.id);
         const onHand = Number(stock?.on_hand || 0);
         const reserved = Number(stock?.reserved || 0);
@@ -676,34 +680,52 @@
         '</td>';
       }).join("");
 
+      const addButton = '<button type="button" class="pro-add-size-button pro-inline-add" data-pro-add-size-column="' + color.id + '">＋ إضافة</button>';
+
+      if (!colorSizes.length) {
+        return '<article class="pro-color-card" data-pro-color-card="' + color.id + '">' +
+          '<header class="pro-color-card-head">' +
+            '<div class="pro-color-identity"><span class="pro-swatch" style="background:' + escapeHtml(color.hex_code || "#e5e7eb") + '"></span><div class="pro-color-title"><strong>' + escapeHtml(color.name) + '</strong><small>لا توجد مقاسات مضافة لهذا اللون</small></div></div>' +
+            '<div style="display:flex;align-items:center;gap:6px"><span class="pro-color-status ' + (stockAvailable > 0 ? 'is-good' : '') + '">' + (stockAvailable > 0 ? ('متوفر · ' + stockAvailable) : 'بدون متاح') + '</span><button type="button" class="pro-card-menu-button" data-pro-remove-color-card="' + color.id + '" aria-label="إزالة اللون">⋯</button></div>' +
+          '</header>' +
+          '<section class="pro-color-images">' +
+            '<div class="pro-color-images-head"><div><strong>صور ' + escapeHtml(color.name) + '</strong><small>' + colorMedia.length + ' صورة</small></div><button type="button" class="pro-outline-btn" data-pro-add-color-image="' + color.id + '">＋ إضافة</button></div>' +
+            '<div class="pro-image-rail">' +
+              colorMedia.map(item =>
+                '<div class="pro-image-item"><img src="' + escapeHtml(item.url || "") + '" alt="' + escapeHtml(color.name) + '" loading="lazy">' +
+                  '<button class="pro-image-x" type="button" data-pro-color-image-delete="' + item.id + '" aria-label="حذف الصورة">×</button>' +
+                  '<button class="pro-image-view" type="button" data-pro-color-image-view="' + item.id + '">⌕</button>' +
+                '</div>'
+              ).join("") +
+              '<button type="button" class="pro-image-add" data-pro-add-color-image="' + color.id + '"><span>＋</span>إضافة صورة</button>' +
+            '</div>' +
+          '</section>' +
+          '<div class="pro-no-sizes"><div><strong>لا يوجد مقاس لهذا اللون حتى الآن.</strong><small>زر «إضافة» يعرض المقاسات المحددة أعلى القسم فقط.</small></div>' + addButton + '</div>' +
+        '</article>';
+      }
+
       return '<article class="pro-color-card" data-pro-color-card="' + color.id + '">' +
         '<header class="pro-color-card-head">' +
-          '<div class="pro-color-identity"><span class="pro-swatch" style="background:' + escapeHtml(color.hex_code || "#e5e7eb") + '"></span><div class="pro-color-title"><strong>' + escapeHtml(color.name) + '</strong><small>' + colorVariants.length + ' مقاسات · ' + (colorMedia.length ? colorMedia.length + ' صور' : 'بدون صور') + '</small></div></div>' +
+          '<div class="pro-color-identity"><span class="pro-swatch" style="background:' + escapeHtml(color.hex_code || "#e5e7eb") + '"></span><div class="pro-color-title"><strong>' + escapeHtml(color.name) + '</strong><small>' + colorSizes.length + ' مقاسات · ' + (colorMedia.length ? colorMedia.length + ' صور' : 'بدون صور') + '</small></div></div>' +
           '<div style="display:flex;align-items:center;gap:6px"><span class="pro-color-status ' + (stockAvailable > 0 ? 'is-good' : '') + '">' + (stockAvailable > 0 ? ('متوفر · ' + stockAvailable) : 'بدون متاح') + '</span><button type="button" class="pro-card-menu-button" data-pro-remove-color-card="' + color.id + '" aria-label="إزالة اللون">⋯</button></div>' +
         '</header>' +
         '<section class="pro-color-images">' +
           '<div class="pro-color-images-head"><div><strong>صور ' + escapeHtml(color.name) + '</strong><small>' + colorMedia.length + ' صورة</small></div><button type="button" class="pro-outline-btn" data-pro-add-color-image="' + color.id + '">＋ إضافة</button></div>' +
           '<div class="pro-image-rail">' +
-            (colorMedia.map(item =>
+            colorMedia.map(item =>
               '<div class="pro-image-item"><img src="' + escapeHtml(item.url || "") + '" alt="' + escapeHtml(color.name) + '" loading="lazy">' +
                 '<button class="pro-image-x" type="button" data-pro-color-image-delete="' + item.id + '" aria-label="حذف الصورة">×</button>' +
                 '<button class="pro-image-view" type="button" data-pro-color-image-view="' + item.id + '">⌕</button>' +
               '</div>'
-            ).join("")) +
+            ).join("") +
             '<button type="button" class="pro-image-add" data-pro-add-color-image="' + color.id + '"><span>＋</span>إضافة صورة</button>' +
           '</div>' +
         '</section>' +
         '<div class="pro-variant-table-wrap"><table class="pro-variant-table">' +
-          '<thead><tr>' + headerCells + '<th class="pro-add-col">إضافة</th></tr></thead>' +
-          '<tbody><tr>' + cells +
-            '<td class="pro-add-size-cell">' +
-              (missingSizes.length
-                ? '<button type="button" class="pro-add-size-button" data-pro-add-size-column="' + color.id + '">＋ إضافة مقاس</button>'
-                : '<div style="font-size:9px;color:var(--pro-muted);text-align:center;padding:12px 4px">كل المقاسات مضافة</div>') +
-            '</td>' +
-          '</tr></tbody>' +
+          '<thead><tr>' + headerCells + '<th class="pro-add-col" rowspan="2">' + addButton + '</th></tr></thead>' +
+          '<tbody><tr>' + cells + '</tr></tbody>' +
         '</table></div>' +
-        '<footer class="pro-card-footer"><small>الباركود والوزن والأرشفة من ⋯ داخل الخلية.</small></footer>' +
+        '<footer class="pro-card-footer"><small>الباركود والوزن والأرشفة من ⋯ داخل كل متغير.</small></footer>' +
       '</article>';
     }).join("");
   };
