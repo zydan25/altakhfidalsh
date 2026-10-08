@@ -29,6 +29,8 @@ from ...models import (
     ProductOptionValue,
     ProductColorReference,
     ProductSizeReference,
+    SizeGuide,
+    ProductSizeGuideReference,
     Size,
     Brand,
     Hashtag,
@@ -1303,6 +1305,21 @@ def set_product_reference_dimensions(product_id):
         return {"error": "not_found", "detail": str(exc)}, 404
     except ValueError as exc:
         return {"error": "invalid_reference_dimensions", "detail": str(exc)}, 400
+
+
+@api_bp.post("/products/<int:product_id>/size-guides")
+@admin_api_required("product.edit")
+def set_product_size_guides(product_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        guide_ids = payload.get("guide_ids")
+        if guide_ids is None:
+            guide_ids = payload.get("size_guide_ids", [])
+        return {"item": CatalogService.set_product_size_guides(product_id, guide_ids)}
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_size_guides", "detail": str(exc)}, 400
 
 
 @api_bp.post("/products/<int:product_id>/badges")
