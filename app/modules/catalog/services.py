@@ -1555,16 +1555,70 @@ class CatalogService:
         return {"id": int(media_id), "product_id": int(product_id)}
 
     @staticmethod
+    def _variant_sku_token(value):
+        value = (value or "").strip().upper()
+        value = re.sub(r"[^A-Z0-9]+", "-", value).strip("-")
+        return value[:24]
+
+    @staticmethod
+    def _variant_combination_exists(product_id, color_id, size_id, exclude_variant_id=None):
+        query = ProductVariant.query.filter(
+            ProductVariant.product_id == product_id,
+            ProductVariant.color_id.is_(color_id) if color_id is None else ProductVariant.color_id == color_id,
+            ProductVariant.size_id.is_(size_id) if size_id is None else ProductVariant.size_id == size_id,
+        )
+        if exclude_variant_id is not None:
+            query = query.filter(ProductVariant.id != exclude_variant_id)
+        return query.first() is not None
+
+    @staticmethod
+    def _generate_variant_sku(product_id, color_id=None, size_id=None, exclude_variant_id=None):
+        product = db.session.get(Product, product_id)
+        if product is None:
+            raise LookupError("product not found")
+
+        parts = [CatalogService._variant_sku_token(product.sku)]
+        if color_id is not None:
+            color = db.session.get(Color, int(color_id))
+            if color is None:
+                raise ValueError("color not found")
+            parts.append(CatalogService._variant_sku_token(color.code if hasattr(color, "code") else color.name))
+        if size_id is not None:
+            size = db.session.get(Size, int(size_id))
+            if size is None:
+                raise ValueError("size not found")
+            parts.append(CatalogService._variant_sku_token(size.code or size.label))
+
+        base = "-".join(x for x in parts if x)[:112].rstrip("-")
+        if not base:
+            base = f"PRODUCT-{product_id}"
+        if color_id is None and size_id is None:
+            base = f"{base}-V"
+
+        candidate = base
+        suffix = 2
+        while ProductVariant.query.filter(
+            ProductVariant.sku == candidate,
+            ProductVariant.id != (exclude_variant_id or 0),
+        ).first() is not None:
+            suffix_text = f"-{suffix}"
+            candidate = f"{base[:120-len(suffix_text)]}{suffix_text}"
+            suffix += 1
+        return candidate
+
+    @staticmethod
+    def _validate_variant_combination(product_id, color_id, size_id, exclude_variant_id=None):
+        if CatalogService._variant_combination_exists(
+            product_id, color_id, size_id, exclude_variant_id=exclude_variant_id
+        ):
+            raise ValueError("تركيبة اللون والمقاس لهذا المنتج موجودة بالفعل.")
+
+    @staticmethod
     def update_variant(product_id, variant_id, payload):
         variant = db.session.get(ProductVariant, variant_id)
         if variant is None or variant.product_id != product_id:
             raise LookupError("variant not found")
-        sku = (payload.get("sku") or "").strip().upper()
-        if not sku:
-            raise ValueError("variant sku is required")
-        duplicate = ProductVariant.query.filter(ProductVariant.id != variant_id, ProductVariant.sku == sku).first()
-        if duplicate:
-            raise ValueError("variant sku already exists")
+        requested_sku = (payload.get("sku") or "").strip().upper()
         color_id = int(payload["color_id"]) if payload.get("color_id") not in (None, "") else None
         size_id = int(payload["size_id"]) if payload.get("size_id") not in (None, "") else None
         color_ref = ProductColorReference.query.filter_by(product_id=product_id, color_id=color_id).first() if color_id else None
@@ -1573,6 +1627,24 @@ class CatalogService:
             raise ValueError("اختر اللون أولًا ضمن ألوان المنتج.")
         if size_id and size_ref is None and size_id != variant.size_id:
             raise ValueError("اختر المقاس أولًا ضمن مقاسات المنتج.")
+        CatalogService._validate_variant_combination(
+            product_id,
+            color_id,
+            size_id,
+            exclude_variant_id=variant_id,
+        )
+        sku = requested_sku or CatalogService._generate_variant_sku(
+            product_id,
+            color_id,
+            size_id,
+            exclude_variant_id=variant_id,
+        )
+        duplicate = ProductVariant.query.filter(
+            ProductVariant.id != variant_id,
+            ProductVariant.sku == sku,
+        ).first()
+        if duplicate:
+            raise ValueError("variant sku already exists")
         variant.sku = sku
         variant.color_id = color_id
         variant.size_id = size_id
@@ -1633,11 +1705,7 @@ class CatalogService:
     def add_variant(product_id, payload):
         if db.session.get(Product, product_id) is None:
             raise LookupError("product not found")
-        sku = (payload.get("sku") or "").strip().upper()
-        if not sku:
-            raise ValueError("variant sku is required")
-        if ProductVariant.query.filter_by(sku=sku).first():
-            raise ValueError("variant sku already exists")
+        requested_sku = (payload.get("sku") or "").strip().upper()
         color_id = int(payload["color_id"]) if payload.get("color_id") not in (None, "") else None
         size_id = int(payload["size_id"]) if payload.get("size_id") not in (None, "") else None
         selected_color_count = ProductColorReference.query.filter_by(product_id=product_id).count()
@@ -1650,6 +1718,10 @@ class CatalogService:
             raise ValueError("اللون المختار غير مرتبط بهذا المنتج.")
         if size_id and ProductSizeReference.query.filter_by(product_id=product_id, size_id=size_id).first() is None:
             raise ValueError("المقاس المختار غير مرتبط بهذا المنتج.")
+        CatalogService._validate_variant_combination(product_id, color_id, size_id)
+        sku = requested_sku or CatalogService._generate_variant_sku(product_id, color_id, size_id)
+        if ProductVariant.query.filter_by(sku=sku).first():
+            raise ValueError("variant sku already exists")
         variant = ProductVariant(
             product_id=product_id,
             sku=sku,
@@ -1667,6 +1739,68 @@ class CatalogService:
             "color_id": variant.color_id,
             "size_id": variant.size_id,
             "barcode": variant.barcode,
+        }
+
+    @staticmethod
+    def generate_variants(product_id, color_ids=None, size_ids=None):
+        if db.session.get(Product, product_id) is None:
+            raise LookupError("product not found")
+
+        colors = []
+        for raw in color_ids or []:
+            color_id = int(raw)
+            if color_id not in colors:
+                colors.append(color_id)
+        sizes = []
+        for raw in size_ids or []:
+            size_id = int(raw)
+            if size_id not in sizes:
+                sizes.append(size_id)
+
+        selected_colors = [
+            cid for cid in colors
+            if ProductColorReference.query.filter_by(product_id=product_id, color_id=cid).first()
+        ]
+        selected_sizes = [
+            sid for sid in sizes
+            if ProductSizeReference.query.filter_by(product_id=product_id, size_id=sid).first()
+        ]
+        if colors and len(selected_colors) != len(colors):
+            raise ValueError("بعض الألوان ليست مرتبطة بالمنتج.")
+        if sizes and len(selected_sizes) != len(sizes):
+            raise ValueError("بعض المقاسات ليست مرتبطة بالمنتج.")
+
+        color_values = selected_colors or [None]
+        size_values = selected_sizes or [None]
+        created = []
+        skipped = 0
+
+        for color_id in color_values:
+            for size_id in size_values:
+                if CatalogService._variant_combination_exists(product_id, color_id, size_id):
+                    skipped += 1
+                    continue
+                variant = ProductVariant(
+                    product_id=product_id,
+                    sku=CatalogService._generate_variant_sku(product_id, color_id, size_id),
+                    color_id=color_id,
+                    size_id=size_id,
+                    status="active",
+                )
+                db.session.add(variant)
+                db.session.flush()
+                created.append({
+                    "id": variant.id,
+                    "sku": variant.sku,
+                    "color_id": variant.color_id,
+                    "size_id": variant.size_id,
+                })
+
+        db.session.commit()
+        return {
+            "created": created,
+            "created_count": len(created),
+            "skipped_count": skipped,
         }
 
     @staticmethod
