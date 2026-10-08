@@ -15,7 +15,7 @@
 
 <script id="wizardReferenceSeed" type="application/json">{{ wizard_references|tojson }}</script>
 
-<section class="pro-editor" dir="rtl" data-product-pro-editor data-product-id="{{ product_id }}">
+<section class="pro-editor wizard-shell" dir="rtl" data-product-pro-editor data-product-id="{{ product_id }}">
   <header class="pro-hero">
     <div class="pro-hero-top">
       <div class="pro-hero-copy"><span class="eyebrow">Edit Pro · {{ product.sku }}</span><h2>{{ product.name }}</h2><p>الألوان والمقاسات والمتغيرات والمخزون في شاشة واحدة، والصور العامة منفصلة عن صور الألوان.</p></div>
@@ -79,7 +79,7 @@
   <section class="pro-section" data-pro-panel="marketing" data-panel="marketing" hidden>
     <div class="pro-section-head"><div><strong>التسويق</strong><small>الشارات والهاشتاجات وشرائط العروض والحملات كما في النظام الحالي.</small></div><span class="pro-section-number">05</span></div>
     <div class="two-panel">
-      <article class="panel marketing-card"><div class="panel-heading"><div><span class="eyebrow">الشارات</span><strong>شارات المنتج</strong></div><button class="ghost-button quick-add-button" type="button" data-open-modal="quickBadgeModal">＋ إنشاء شارة</button></div><div class="card-inherit-note"><strong>المحرر المستقل</strong><span>التخصيص التفصيلي للشارات بقي في شاشة المظهر المستقلة.</span><a class="primary-button" href="/admin/products/{{ product_id }}/presentation">فتح محرر الشارات</a></div><div id="badgeSelection" class="selection-list" hidden></div></article>
+      <article class="panel marketing-card"><div class="panel-heading"><div><span class="eyebrow">الشارات</span><strong>شارات المنتج</strong></div><button class="ghost-button quick-add-button" type="button" data-open-modal="quickBadgeModal">＋ إنشاء شارة</button></div><div class="card-inherit-note"><strong>المحرر المستقل</strong><span>التخصيص التفصيلي للشارات بقي في شاشة المظهر المستقلة.</span><a class="primary-button" href="/admin/products/{{ product_id }}/presentation">فتح محرر الشارات</a></div><div id="badgeSelection" class="selection-list"></div></article>
       <article class="panel marketing-card"><div class="panel-heading"><div><span class="eyebrow">الهاشتاجات</span><strong>الترند والبحث</strong></div><button class="ghost-button quick-add-button" type="button" data-open-modal="quickHashtagModal">＋ إضافة هاشتاج</button></div><div id="hashtagSelection" class="selection-list"></div></article>
     </div>
     <div class="two-panel marketing-reference-grid">
@@ -90,8 +90,11 @@
   </section>
 
   <section class="pro-section" data-pro-panel="presentation" data-panel="presentation" hidden>
-    <div class="pro-section-head"><div><strong>الشارات والمظهر والتوصيات</strong><small>تظل هذه الوظائف في الفورم المستقل الحالي.</small></div><span class="pro-section-number">06</span></div>
-    <div class="pro-option-section"><div class="pro-subhead"><div><strong>محرر المظهر</strong><small>بطاقة المنتج، الشارات الفردية، شارات التوصيل والتوصيات.</small></div></div><div style="padding:0 12px 12px"><a class="pro-primary-btn" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="/admin/products/{{ product_id }}/presentation">فتح محرر الشارات والمظهر والتوصيات</a></div></div>
+    <div class="pro-section-head"><div><strong>المظهر والشارات والتوصيات</strong><small>كل إعدادات العرض الخاصة بالمنتج تظهر هنا مباشرة، مع بقاء شاشة المظهر المستقلة متاحة.</small></div><span class="pro-section-number">06</span></div>
+    <div class="pro-live-editor" id="productCardEditor"></div>
+    <div class="pro-live-editor" id="deliveryBadgeEditor"></div>
+    <div class="pro-live-editor" id="recommendationEditor"></div>
+    <div class="pro-section-link"><a class="pro-outline-btn" href="/admin/products/{{ product_id }}/presentation">فتح محرر المظهر المتقدم الكامل</a></div>
   </section>
 
   <section class="pro-section" data-pro-panel="variants" data-panel="variants" hidden>
