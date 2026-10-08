@@ -13,6 +13,8 @@ from app.models import (
     ProductFilterValue,
     ProductMedia,
     ProductVariant,
+    ProductColorReference,
+    ProductSizeReference,
     ProductCategory,
     StockInventory,
     MediaAsset,
@@ -815,3 +817,116 @@ def test_product_detail_uses_customer_pricing_group_and_selected_currency(app):
         assert Decimal(priced["display_price"]) == Decimal("80500")
         assert priced["display_currency"]["code"] == "YER"
 
+
+
+def test_variant_auto_sku_generation_and_combination_guard(app):
+    with app.app_context():
+        currency = Currency(code="SAR", symbol="ر.س", name_ar="ريال سعودي", decimals=2, is_base=True)
+        product = Product(
+            sku="VAR-001",
+            name="منتج متغير",
+            slug="variant-001",
+            base_currency_id=currency.id,
+            base_price=100,
+            status="draft",
+        )
+        color = Color(name="أسود", hex_code="#000000")
+        color_two = Color(name="أبيض", hex_code="#ffffff")
+        size_m = Size(group="EU", code="M", label="متوسط")
+        size_l = Size(group="EU", code="L", label="كبير")
+        db.session.add_all([currency, product, color, color_two, size_m, size_l])
+        db.session.flush()
+        db.session.add_all([
+            ProductColorReference(product_id=product.id, color_id=color.id, sort_order=0),
+            ProductColorReference(product_id=product.id, color_id=color_two.id, sort_order=1),
+            ProductSizeReference(product_id=product.id, size_id=size_m.id, sort_order=0),
+            ProductSizeReference(product_id=product.id, size_id=size_l.id, sort_order=1),
+        ])
+        db.session.commit()
+
+        created = CatalogService.add_variant(
+            product.id,
+            {"color_id": color.id, "size_id": size_m.id},
+        )
+        assert created["sku"] == "VAR-001-C1-M"
+
+        try:
+            CatalogService.add_variant(
+                product.id,
+                {"color_id": color.id, "size_id": size_m.id},
+            )
+            assert False, "expected duplicate variant combination guard"
+        except ValueError as exc:
+            assert "موجودة بالفعل" in str(exc)
+
+        generated = CatalogService.generate_variants(
+            product.id,
+            [color.id, color_two.id],
+            [size_m.id, size_l.id],
+        )
+        assert generated["created_count"] == 3
+        assert generated["skipped_count"] == 1
+
+
+def test_copy_variant_copies_size_weight_and_inventory(app):
+    with app.app_context():
+        currency = Currency(code="SAR", symbol="ر.س", name_ar="ريال سعودي", decimals=2, is_base=True)
+        product = Product(
+            sku="COPY-001",
+            name="منتج نسخ",
+            slug="copy-001",
+            base_currency_id=currency.id,
+            base_price=100,
+            status="draft",
+        )
+        color = Color(name="أسود", hex_code="#000000")
+        target_color = Color(name="أبيض", hex_code="#ffffff")
+        size = Size(group="EU", code="M", label="متوسط")
+        location = InventoryLocation(name="الرئيسي", code="MAIN")
+        db.session.add_all([currency, product, color, target_color, size, location])
+        db.session.flush()
+        db.session.add_all([
+            ProductColorReference(product_id=product.id, color_id=color.id, sort_order=0),
+            ProductColorReference(product_id=product.id, color_id=target_color.id, sort_order=1),
+            ProductSizeReference(product_id=product.id, size_id=size.id, sort_order=0),
+        ])
+        db.session.commit()
+
+        source = CatalogService.add_variant(
+            product.id,
+            {
+                "color_id": color.id,
+                "size_id": size.id,
+                "barcode": "SRC-001",
+                "weight": "0.45",
+            },
+        )
+        source_variant = db.session.get(ProductVariant, source["id"])
+        db.session.add(
+            StockInventory(
+                location_id=location.id,
+                variant_id=source_variant.id,
+                on_hand=10,
+                reserved=2,
+                available=8,
+                reorder_level=3,
+            )
+        )
+        db.session.commit()
+
+        copied = CatalogService.copy_variant(product.id, source_variant.id, target_color.id)
+        copied_variant = db.session.get(ProductVariant, copied["variant"]["id"])
+        copied_stock = StockInventory.query.filter_by(
+            variant_id=copied_variant.id,
+            location_id=location.id,
+        ).first()
+
+        assert copied_variant.size_id == source_variant.size_id
+        assert copied_variant.color_id == target_color.id
+        assert copied_variant.weight == source_variant.weight
+        assert copied_variant.barcode is None
+        assert copied_stock is not None
+        assert copied_stock.on_hand == 10
+        assert copied_stock.reserved == 2
+        assert copied_stock.available == 8
+        assert copied_stock.reorder_level == 3
