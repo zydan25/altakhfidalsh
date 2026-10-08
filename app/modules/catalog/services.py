@@ -3137,6 +3137,9 @@ class CatalogService:
             "size_guide_font_size": 10,
             "size_guide_color": "#111111",
             "size_guide_background_color": "#ffffff",
+            "size_guide_navigation_mode": "tabs",
+            "size_guide_show_product_measurements": True,
+            "size_guide_show_body_measurements": True,
 
             "details_show": True,
             "details_title_font_size": 13,
@@ -3430,6 +3433,8 @@ class CatalogService:
         merged["colors_show"] = flag("colors_show")
         merged["sizes_show"] = flag("sizes_show")
         merged["size_guide_show"] = flag("size_guide_show")
+        merged["size_guide_show_product_measurements"] = flag("size_guide_show_product_measurements")
+        merged["size_guide_show_body_measurements"] = flag("size_guide_show_body_measurements")
         merged["details_show"] = flag("details_show")
         merged["stock_show"] = flag("stock_show")
         merged["delivery_show"] = flag("delivery_show")
@@ -3446,6 +3451,11 @@ class CatalogService:
             else defaults["compare_price_text_decoration"]
         )
         merged["layout_mode"] = merged.get("layout_mode") if merged.get("layout_mode") in {"shein", "boxed"} else "shein"
+        merged["size_guide_navigation_mode"] = (
+            merged.get("size_guide_navigation_mode")
+            if merged.get("size_guide_navigation_mode") in {"tabs", "swipe"}
+            else "tabs"
+        )
         merged["group_divider"] = merged.get("group_divider") if merged.get("group_divider") in {"none", "subtle", "strong"} else "subtle"
         merged["color_presentation"] = merged.get("color_presentation") if merged.get("color_presentation") in {"image", "circle", "image_circle"} else "image_circle"
         merged["color_shape"] = merged.get("color_shape") if merged.get("color_shape") in {"circle", "square"} else "circle"
