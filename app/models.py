@@ -605,6 +605,19 @@ class ProductSizeReference(TimestampMixin, db.Model):
     )
 
 
+class ProductSizeGuideReference(TimestampMixin, db.Model):
+    __tablename__ = "product_size_guide_references"
+
+    id = db.Column(Integer, primary_key=True)
+    product_id = db.Column(ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    guide_id = db.Column(ForeignKey("size_guides.id", ondelete="RESTRICT"), nullable=False)
+    sort_order = db.Column(Integer, nullable=False, default=0)
+    __table_args__ = (
+        UniqueConstraint("product_id", "guide_id", name="uq_product_size_guide_reference"),
+        Index("ix_product_size_guide_reference_product", "product_id", "sort_order"),
+    )
+
+
 class ProductCategory(TimestampMixin, db.Model):
     __tablename__ = "product_categories"
 
