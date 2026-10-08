@@ -1127,6 +1127,24 @@ def update_product_variant(product_id, variant_id):
         return {"error": "invalid_variant", "detail": str(exc)}, 400
 
 
+@api_bp.post("/products/<int:product_id>/variants/<int:variant_id>/copy")
+@admin_api_required("product.edit")
+def copy_product_variant(product_id, variant_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {
+            "item": CatalogService.copy_variant(
+                product_id,
+                variant_id,
+                payload.get("color_id"),
+            )
+        }, 201
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_variant_copy", "detail": str(exc)}, 400
+
+
 @api_bp.delete("/products/<int:product_id>/variants/<int:variant_id>")
 @admin_api_required("product.edit")
 def archive_product_variant(product_id, variant_id):
