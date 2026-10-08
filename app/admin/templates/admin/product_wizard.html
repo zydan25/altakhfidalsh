@@ -120,23 +120,41 @@
 
   <div class="wizard-panel is-active" data-panel="basics">
     <div class="panel-heading"><div><span class="eyebrow">الهوية والسعر</span><h3>بيانات المنتج الأساسية</h3></div></div>
-    <form id="basicsForm" class="form-stack" data-slug-form>
-      <label>SKU<input id="productSku" name="sku" value="{{ product.sku or '' }}" required dir="ltr"></label>
-      <label>الاسم<input id="productName" name="name" value="{{ product.name or '' }}" required></label>
-      <label>Slug <small class="muted">(يُولد تلقائيًا ويمكن تعديله)</small><input id="productSlug" name="slug" value="{{ product.slug or '' }}" dir="ltr" data-slug-manual></label>
-      <label>الوصف<textarea id="productDescription" name="description" rows="5">{{ product.description or '' }}</textarea></label>
-      <label>السعر الأساسي SAR<input id="productPrice" name="base_price" value="{{ product.base_price }}" required type="number" min="0" step="0.0001" inputmode="decimal"></label>
-      <label>السعر قبل الخصم<input id="productCompareAtPrice" name="compare_at_price" value="{{ product.compare_at_price or '' }}" type="number" min="0" step="0.0001" inputmode="decimal"></label>
-      <label>العلامة التجارية
-        <div class="reference-field">
-          <select id="productBrand" name="brand_id"><option value="">بدون علامة تجارية</option></select>
-          <button class="ghost-button reference-add-button" type="button" data-open-modal="quickBrandModal">＋ إضافة علامة جديدة</button>
+    <form id="basicsForm" class="form-stack product-basics-form" data-slug-form>
+      <section class="product-editor-section">
+        <div class="product-editor-section-head"><div><span class="eyebrow">الهوية</span><strong>هوية المنتج</strong></div><span class="product-editor-step">01</span></div>
+        <div class="product-editor-grid product-editor-grid-identity">
+          <label>SKU<input id="productSku" name="sku" value="{{ product.sku or '' }}" required dir="ltr"></label>
+          <label>الاسم<input id="productName" name="name" value="{{ product.name or '' }}" required></label>
+          <label>Slug <small class="muted">(يُولد تلقائيًا ويمكن تعديله)</small><input id="productSlug" name="slug" value="{{ product.slug or '' }}" dir="ltr" data-slug-manual></label>
+          <label>العلامة التجارية
+            <div class="reference-field">
+              <select id="productBrand" name="brand_id"><option value="">بدون علامة تجارية</option></select>
+              <button class="ghost-button reference-add-button" type="button" data-open-modal="quickBrandModal">＋ إضافة علامة</button>
+            </div>
+          </label>
         </div>
-      </label>
-      <label>نوع المنتج<input id="productType" name="product_type" value="{{ product.product_type or '' }}" placeholder="قميص / فستان / إلكترونيات"></label>
-      <label>المادة<input id="productMaterial" name="material" value="{{ product.material or '' }}"></label>
-      <label>تعليمات الغسيل<textarea id="productCare" name="care_instructions" rows="3">{{ product.care_instructions or '' }}</textarea></label>
-      <button class="primary-button" type="submit">حفظ البيانات الأساسية</button>
+      </section>
+      <section class="product-editor-section">
+        <div class="product-editor-section-head"><div><span class="eyebrow">التسعير</span><strong>السعر والعرض</strong></div><span class="product-editor-step">02</span></div>
+        <div class="product-editor-grid product-editor-grid-pricing">
+          <label>السعر الأساسي SAR<input id="productPrice" name="base_price" value="{{ product.base_price }}" required type="number" min="0" step="0.0001" inputmode="decimal"></label>
+          <label>السعر قبل الخصم<input id="productCompareAtPrice" name="compare_at_price" value="{{ product.compare_at_price or '' }}" type="number" min="0" step="0.0001" inputmode="decimal"></label>
+        </div>
+      </section>
+      <section class="product-editor-section">
+        <div class="product-editor-section-head"><div><span class="eyebrow">تفاصيل</span><strong>وصف المنتج ومواصفاته</strong></div><span class="product-editor-step">03</span></div>
+        <div class="product-editor-grid product-editor-grid-details">
+          <label>نوع المنتج<input id="productType" name="product_type" value="{{ product.product_type or '' }}" placeholder="قميص / فستان / إلكترونيات"></label>
+          <label>المادة<input id="productMaterial" name="material" value="{{ product.material or '' }}"></label>
+          <label class="span-full">الوصف<textarea id="productDescription" name="description" rows="5">{{ product.description or '' }}</textarea></label>
+          <label class="span-full">تعليمات الغسيل<textarea id="productCare" name="care_instructions" rows="3">{{ product.care_instructions or '' }}</textarea></label>
+        </div>
+      </section>
+      <div class="product-editor-savebar">
+        <div><strong>البيانات الأساسية</strong><small class="muted">احفظ البيانات الأساسية دون التأثير على الألوان والمتغيرات والمخزون.</small></div>
+        <button class="primary-button" type="submit">حفظ البيانات الأساسية</button>
+      </div>
     </form>
   </div>
 
@@ -379,81 +397,70 @@
     </a>
   </div>
 
-  <div class="wizard-panel" data-panel="variants" hidden>
+  <div class="wizard-panel variant-management-panel" data-panel="variants" hidden>
     <div class="panel-heading variant-panel-heading">
       <div>
-        <span class="eyebrow">SKU فعلي</span>
-        <h3>المتغيرات</h3>
-        <small class="muted">كل بطاقة تمثل اختيارًا واحدًا من اللون والمقاس، مع SKU تلقائي ومخزون واضح.</small>
+        <span class="eyebrow">إدارة المتغيرات</span>
+        <h3>الألوان والمقاسات والمخزون</h3>
+        <small class="muted">كل بطاقة تمثل لونًا. المقاس هو العمود، والخلية نفسها تمثل Variant حقيقيًا في النظام.</small>
       </div>
       <span id="variantCount" class="status-pill">0 متغير</span>
     </div>
-
-    <div class="variant-toolbar panel">
-      <div>
-        <strong>أدوات المتغيرات السريعة</strong>
-        <small class="muted">ولّد كل التركيبات الناقصة تلقائيًا أو أضف متغيرًا واحدًا يدويًا.</small>
+    <div class="variant-control-strip panel">
+      <div class="variant-control-main">
+        <div>
+          <span class="eyebrow">المخزون</span>
+          <strong>موقع المخزون للمنتج</strong>
+          <small class="muted">اختر الموقع مرة واحدة، وستستخدمه كل خلايا المخزون في هذا المنتج.</small>
+        </div>
+        <div class="variant-global-location">
+          <select id="variantInventoryLocation" aria-label="موقع مخزون المنتج"></select>
+          <button class="ghost-button compact" type="button" data-go-step="inventory">إدارة المواقع</button>
+        </div>
       </div>
       <div class="variant-toolbar-actions">
         <button id="generateVariants" class="primary-button" type="button">توليد التركيبات</button>
-        <button id="focusVariantForm" class="ghost-button" type="button">＋ متغير يدوي</button>
+        <button id="toggleVariantManual" class="ghost-button" type="button" aria-expanded="false">＋ إضافة متغير</button>
         <button class="ghost-button" type="button" data-go-step="options">الألوان والمقاسات</button>
       </div>
     </div>
-
-    <div id="variantQuickAdd" class="variant-quick-add panel">
-      <div class="variant-quick-add-head">
-        <div>
-          <span class="eyebrow">إضافة سريعة</span>
-          <strong>متغير جديد</strong>
-          <small>اترك SKU فارغًا ليُنشأ تلقائيًا من SKU المنتج + اللون + المقاس.</small>
-        </div>
+    <div id="variantManualPanel" class="variant-manual-panel panel" hidden>
+      <div class="variant-manual-head">
+        <div><span class="eyebrow">إضافة سريعة</span><strong>متغير جديد</strong><small class="muted">اختر اللون ثم مقاسًا واحدًا على الأقل. SKU ينشأ تلقائيًا ولا يظهر هنا.</small></div>
+        <button id="closeVariantManual" class="icon-button" type="button" aria-label="إغلاق">×</button>
       </div>
-      <form id="variantForm" class="variant-quick-form">
-        <label>اللون<select id="variantColor" name="color_id"><option value="">بدون لون</option></select></label>
-        <label>المقاس<select id="variantSize" name="size_id"><option value="">بدون مقاس</option></select></label>
-        <label>SKU <input id="variantSku" name="sku" dir="ltr" placeholder="تلقائي عند الحفظ"></label>
-        <label>Barcode<input name="barcode" dir="ltr" placeholder="اختياري"></label>
-        <label>الوزن<input name="weight" type="number" min="0" step="0.0001" inputmode="decimal" placeholder="0"></label>
-        <div class="variant-auto-preview">
-          <span>SKU المتوقع</span>
-          <strong id="variantAutoSkuHint" dir="ltr">سيظهر بعد اختيار اللون والمقاس</strong>
+      <form id="variantManualForm" class="variant-manual-form">
+        <label>اللون<select id="variantManualColor" name="color_id" required></select></label>
+        <div class="variant-manual-size-field">
+          <div class="variant-manual-size-head"><label>المقاسات</label><small class="muted">اختر واحدًا أو أكثر</small></div>
+          <div id="variantManualSizes" class="variant-size-chips"></div>
+          <small id="variantManualSizeHint" class="variant-field-hint">يجب اختيار مقاس واحد على الأقل.</small>
         </div>
-        <button class="primary-button variant-add-button" type="submit">إضافة المتغير</button>
+        <label>الباركود <input name="barcode" dir="ltr" placeholder="اختياري — استخدمه عند اختيار مقاس واحد"></label>
+        <label>الوزن <input name="weight" type="number" min="0" step="0.0001" inputmode="decimal" placeholder="اختياري"></label>
+        <div class="variant-manual-actions"><button class="primary-button" type="submit">إنشاء المتغيرات</button><button id="cancelVariantManual" class="ghost-button" type="button">إلغاء</button></div>
       </form>
     </div>
-
-    <div id="variantsList" class="variant-card-list"></div>
+    <div id="variantsList" class="color-variant-card-list"></div>
   </div>
 
-  <div class="wizard-panel" data-panel="inventory" hidden>
+  <div class="wizard-panel inventory-management-panel" data-panel="inventory" hidden>
     <div class="panel-heading">
       <div>
         <span class="eyebrow">المخزون</span>
-        <h3>الكميات حسب المتغير والموقع</h3>
-        <small class="muted">المخزون محفوظ لكل Variant وموقع تخزين، والمتاح يحسب من الفعلي والمحجوز.</small>
+        <h3>إعدادات مخزون المنتج</h3>
+        <small class="muted">المخزون الفعلي يُعدّل مباشرة من بطاقات الألوان والمقاسات. هنا تختار الموقع وتدير مواقع التخزين.</small>
       </div>
     </div>
-
-    <div class="inventory-quick-card panel">
-      <div class="inventory-quick-head">
-        <div>
-          <strong>تحديث مخزون متغير</strong>
-          <small class="muted">اختر المتغير والموقع ثم احفظ الأرقام.</small>
-        </div>
-        <span class="status-pill">سريع</span>
+    <section class="inventory-location-focus panel">
+      <div>
+        <span class="eyebrow">الموقع الافتراضي لهذا المنتج</span>
+        <strong>موقع المخزون</strong>
+        <small class="muted">هذا الاختيار يستخدمه جدول المخزون كاملًا عند تعديل الكميات وحفظها تلقائيًا.</small>
       </div>
-      <form id="inventoryForm" class="inventory-form-grid">
-        <label>المتغير<select id="inventoryVariant" name="variant_id" required></select></label>
-        <label>موقع التخزين<select id="inventoryLocation" name="location_id" required></select></label>
-        <label>الكمية الفعلية<input name="on_hand" type="number" min="0" value="0" required inputmode="numeric"></label>
-        <label>المحجوز<input name="reserved" type="number" min="0" value="0" required inputmode="numeric"></label>
-        <label>حد إعادة الطلب<input name="reorder_level" type="number" min="0" value="0" required inputmode="numeric"></label>
-        <button class="primary-button" type="submit">حفظ المخزون</button>
-      </form>
-    </div>
-
-    <details class="inventory-location-card panel">
+      <select id="inventoryLocationGlobal" aria-label="موقع مخزون المنتج"></select>
+    </section>
+    <details class="inventory-location-card panel" open>
       <summary><strong>إدارة مواقع التخزين</strong><span class="muted">إضافة مخزن أو فرع جديد</span></summary>
       <form id="locationForm" class="form-stack compact-form" style="margin-top:12px">
         <label>اسم الموقع<input name="name" required placeholder="المخزن الرئيسي"></label>
@@ -462,12 +469,11 @@
         <button class="ghost-button" type="submit">إضافة الموقع</button>
       </form>
     </details>
-
     <div class="inventory-help panel">
-      <strong>المخزون مرتبط بالـVariant</strong>
-      <span class="muted">يمكنك فتح «إدارة المخزون» مباشرة من بطاقة المتغير، وستنتقل القيم إلى هذا النموذج تلقائيًا.</span>
+      <strong>ماذا يحفظ النظام؟</strong>
+      <span class="muted">كل خانة في الجدول مرتبطة بمتغير لون + مقاس حقيقي في الخلفية. الحجز والمتاح يبقيان تحت منطق التجارة الحالي، بينما رقم المخزون الفعلي يُحفظ تلقائيًا عند تغييره.</span>
     </div>
-    <div id="inventoryList" class="inventory-summary-list"></div>
+    <button class="primary-button inventory-back-to-variants" type="button" data-go-step="variants">العودة إلى جدول المخزون</button>
   </div>
 
   <div class="wizard-panel" data-panel="policies" hidden>
@@ -753,5 +759,5 @@
     </form>
   </section>
 </div>
-<script src="{{ url_for('admin.static', filename='product-wizard.js') }}?v=20261008-2" defer></script>
+<script src="{{ url_for('admin.static', filename='product-wizard.js') }}?v=20261008-3" defer></script>
 {% endblock %}
