@@ -723,7 +723,17 @@ class _SxProductScreenState extends State<SxProductScreen> {
                         context: context,
                         builder: (_) => _SizeGuideDialog(
                           guide: sizeGuide,
+                          guides: allSizeGuides,
                           initialSizeId: sizeId,
+                          navigationMode: sxText(
+                            detailSettings['size_guide_navigation_mode'],
+                            'tabs',
+                          ),
+                          showProductMeasurements:
+                              detailSettings['size_guide_show_product_measurements'] != false,
+                          showBodyMeasurements:
+                              detailSettings['size_guide_show_body_measurements'] != false,
+                          settings: detailSettings,
                         ),
                       ),
                       child: Text(
@@ -3646,8 +3656,16 @@ class _DetailVariantSelectionBox extends StatelessWidget {
     if (!showSizes || !showSizeGuide || detailSettings['size_tools_show'] == false) {
       return const SizedBox.shrink();
     }
-    final guideRows = sizeGuide['rows'] is List ? (sizeGuide['rows'] as List) : const <dynamic>[];
-    if (guideRows.isEmpty) return const SizedBox.shrink();
+    final availableGuides = (sizeGuides.isNotEmpty
+            ? sizeGuides
+            : <Map<String, dynamic>>[sizeGuide])
+        .where((guide) {
+          final rows = guide['rows'] is List ? guide['rows'] as List : const <dynamic>[];
+          return rows.isNotEmpty;
+        })
+        .toList();
+    if (availableGuides.isEmpty) return const SizedBox.shrink();
+    final guide = availableGuides.first;
     final color = _color(detailSettings['size_tools_color'], Colors.black);
     final font = sxDouble(detailSettings['size_tools_font_size'], 10);
     final icon = sxDouble(detailSettings['size_tools_icon_size'], 16);
@@ -3657,8 +3675,18 @@ class _DetailVariantSelectionBox extends StatelessWidget {
         onTap: () => showDialog<void>(
           context: context,
           builder: (_) => _SizeGuideDialog(
-            guide: sizeGuide,
+            guide: guide,
+            guides: availableGuides,
             initialSizeId: selectedSizeId,
+            navigationMode: sxText(
+              detailSettings['size_guide_navigation_mode'],
+              'tabs',
+            ),
+            showProductMeasurements:
+                detailSettings['size_guide_show_product_measurements'] != false,
+            showBodyMeasurements:
+                detailSettings['size_guide_show_body_measurements'] != false,
+            settings: detailSettings,
           ),
         ),
         child: Row(
@@ -3681,7 +3709,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
       InkWell(
         onTap: () => showDialog<void>(
           context: context,
-          builder: (_) => _SizeFitDialog(guide: sizeGuide),
+          builder: (_) => _SizeFitDialog(guide: guide),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -5417,7 +5445,15 @@ class _SizeGuideButton extends StatelessWidget {
         child: OutlinedButton.icon(
           onPressed: () => showDialog<void>(
             context: context,
-            builder: (_) => _SizeGuideDialog(guide: guide),
+            builder: (_) => _SizeGuideDialog(
+              guide: guide,
+              navigationMode: sxText(settings['size_guide_navigation_mode'], 'tabs'),
+              showProductMeasurements:
+                  settings['size_guide_show_product_measurements'] != false,
+              showBodyMeasurements:
+                  settings['size_guide_show_body_measurements'] != false,
+              settings: settings,
+            ),
           ),
           icon: Icon(Icons.straighten_outlined, size: font + 5, color: fg),
           label: Text(
