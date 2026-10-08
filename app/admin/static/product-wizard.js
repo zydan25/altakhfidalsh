@@ -897,11 +897,37 @@
     const locationSelect = document.getElementById("inventoryLocation");
     locationSelect.innerHTML = (snapshot.locations || []).map(x => '<option value="' + x.id + '">' + escapeHtml(x.name) + ' · ' + escapeHtml(x.code) + '</option>').join("");
     const variantMap = new Map((snapshot.variants || []).map(x => [Number(x.id), x]));
-    document.getElementById("inventoryList").innerHTML = (snapshot.inventory || []).map(x => {
-      const variant = variantMap.get(Number(x.variant_id));
-      return '<div class="stack-row"><strong>' + escapeHtml(variant?.sku || ("Variant #" + x.variant_id)) +
-        '</strong><span>المتاح ' + x.available + ' · الفعلي ' + x.on_hand + ' · محجوز ' + x.reserved + '</span></div>';
-    }).join("");
+    const inventoryGroups = new Map();
+    (snapshot.inventory || []).forEach(row => {
+      const key = Number(row.variant_id);
+      if (!inventoryGroups.has(key)) inventoryGroups.set(key, []);
+      inventoryGroups.get(key).push(row);
+    });
+    document.getElementById("inventoryList").innerHTML = (snapshot.variants || []).map((variant, index) => {
+      const rows = inventoryGroups.get(Number(variant.id)) || [];
+      const totals = rows.reduce((sum, row) => ({
+        onHand: sum.onHand + Number(row.on_hand || 0),
+        reserved: sum.reserved + Number(row.reserved || 0),
+        available: sum.available + Number(row.available || 0),
+      }), { onHand: 0, reserved: 0, available: 0 });
+      const locations = rows.map(row => {
+        const location = (snapshot.locations || []).find(x => Number(x.id) === Number(row.location_id));
+        return '<span class="inventory-summary-location">' + escapeHtml(location?.name || ("موقع #" + row.location_id)) +
+          ': <b>' + Number(row.available || 0) + '</b></span>';
+      }).join("");
+      return '<article class="inventory-summary-card">' +
+        '<div class="inventory-summary-head"><div><span class="variant-number">' + (index + 1) + '</span>' +
+          '<strong dir="ltr">' + escapeHtml(variant.sku) + '</strong><small>' +
+          (rows.length ? rows.length + ' موقع' : 'بدون مخزون مسجل') + '</small></div>' +
+          '<button type="button" class="ghost-button compact" data-variant-inventory="' + variant.id + '">تعديل</button></div>' +
+        '<div class="inventory-summary-metrics">' +
+          '<div><b>' + totals.onHand + '</b><span>فعلي</span></div>' +
+          '<div><b>' + totals.reserved + '</b><span>محجوز</span></div>' +
+          '<div><b>' + totals.available + '</b><span>متاح</span></div>' +
+        '</div>' +
+        '<div class="inventory-summary-locations">' + (locations || '<span>لا توجد كميات مضافة بعد.</span>') + '</div>' +
+      '</article>';
+    }).join("") || '<div class="empty-state compact"><strong>لا توجد متغيرات يمكن إدارتها.</strong><span class="muted">أنشئ متغيرًا أولًا.</span></div>';
 
     document.getElementById("showRating").checked = snapshot.display?.show_rating ?? true;
     document.getElementById("showSoldBadge").checked = snapshot.display?.show_sold_badge ?? true;
@@ -1154,6 +1180,7 @@
     rows.forEach(row => target ? set.add(Number(row.id)) : set.delete(Number(row.id)));
     renderDimensionChoices();
     syncVariantSelectors();
+    updateVariantAutoSkuHint();
   };
 
   document.getElementById("mediaColorGroups").addEventListener("click", async (event) => {
