@@ -1188,6 +1188,19 @@ class CommerceService:
             )
 
         db.session.commit()
+        from ...services.notifications import NotificationService
+        NotificationService.create(
+            order.customer_id,
+            "order_updated",
+            "تم تحديث طلبك",
+            "تم تحديث محتويات طلبك وإعادة احتساب الإجمالي. راجع تفاصيل الطلب للتأكد.",
+            {
+                "order_id": order.id,
+                "order_no": order.order_no,
+                "target": "order",
+                "screen_type": "order_details",
+            },
+        )
         return CommerceService.serialize_order_detail(order)
 
     @staticmethod
@@ -1359,6 +1372,7 @@ class CommerceService:
         db.session.commit()
 
         message_by_status = {
+            "paid": "تم تأكيد دفع طلبك بنجاح، وسيبدأ المتجر تجهيز الطلب.",
             "awaiting_payment": (
                 "تم تأكيد طلبك من المتجر. أصبح الطلب بانتظار الدفع ويمكنك اختيار طريقة الدفع من صفحة الطلب."
                 if order.shipping_rate_id or order.shipping_override is not None
