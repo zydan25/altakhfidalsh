@@ -23,6 +23,7 @@
   let draftSizeIds = new Set();
   let draftCategoryIds = new Set();
   let draftSideCircleIds = new Set();
+  let draftSizeGuideIds = [];
   let draftsInitialized = false;
 
   const notify = (text, type = "success") => {
@@ -384,6 +385,56 @@
     if (sizeSummary) sizeSummary.textContent = draftSizeIds.size + " محدد";
   };
 
+  const renderSizeGuideChoices = () => {
+    const root = document.getElementById("sizeGuideSelection");
+    if (!root) return;
+    const query = (document.getElementById("sizeGuideSearch")?.value || "").trim().toLocaleLowerCase();
+    const guides = (configRefs?.size_guides || []).slice();
+
+    guides.sort((a, b) => {
+      const ai = draftSizeGuideIds.indexOf(Number(a.id));
+      const bi = draftSizeGuideIds.indexOf(Number(b.id));
+      if (ai >= 0 && bi >= 0) return ai - bi;
+      if (ai >= 0) return -1;
+      if (bi >= 0) return 1;
+      return String(a.name || "").localeCompare(String(b.name || ""), "ar");
+    });
+
+    const filtered = guides.filter(guide =>
+      !query ||
+      String(guide.name || "").toLocaleLowerCase().includes(query) ||
+      String(guide.guide_type || "").toLocaleLowerCase().includes(query) ||
+      String(guide.fit_type || "").toLocaleLowerCase().includes(query)
+    );
+
+    root.innerHTML = filtered.length
+      ? filtered.map(guide => {
+          const id = Number(guide.id);
+          const selected = draftSizeGuideIds.includes(id);
+          const order = selected ? draftSizeGuideIds.indexOf(id) + 1 : 0;
+          return '<article class="reference-choice-card ' + (selected ? "is-selected" : "") + '">' +
+            '<label style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">' +
+              '<input type="checkbox" value="' + id + '" data-size-guide-checkbox ' + (selected ? "checked" : "") + '>' +
+              '<span class="size-choice-badge">' + (selected ? order : "—") + '</span>' +
+              '<span class="reference-choice-copy"><strong>' + escapeHtml(guide.name || "جدول مقاسات") +
+              '</strong><small>' + escapeHtml(guide.fit_type || guide.guide_type || "جدول عام") + '</small></span>' +
+            '</label>' +
+            '<span style="display:flex;gap:4px;flex:0 0 auto">' +
+              '<button type="button" class="ghost-button quick-add-button" data-size-guide-move="up" data-size-guide-id="' + id + '"' +
+                (!selected || order <= 1 ? " disabled" : "") + '>↑</button>' +
+              '<button type="button" class="ghost-button quick-add-button" data-size-guide-move="down" data-size-guide-id="' + id + '"' +
+                (!selected || order >= draftSizeGuideIds.length ? " disabled" : "") + '>↓</button>' +
+            '</span>' +
+          '</article>';
+        }).join("")
+      : '<div class="empty-state compact"><strong>لا توجد جداول مقاسات مطابقة.</strong><span class="muted">أنشئ جدولًا من إدارة جداول المقاسات ثم سيظهر هنا.</span></div>';
+
+    const count = document.getElementById("sizeGuideCount");
+    const summary = document.getElementById("sizeGuideSelectionSummary");
+    if (count) count.textContent = draftSizeGuideIds.length + " محدد";
+    if (summary) summary.textContent = draftSizeGuideIds.length + " محدد";
+  };
+
   const syncVariantSelectors = () => {
     const colors = (configRefs?.colors || optionRefs?.colors || []).filter(x =>
       x.is_active && draftColorIds.has(Number(x.id))
@@ -617,9 +668,17 @@
       if (!draftSizeIds.size) {
         draftSizeIds = new Set((configRefs.sizes || []).filter(x => x.selected).map(x => Number(x.id)));
       }
+      const configuredGuides = (configRefs?.size_guides || [])
+        .filter(x => x.selected)
+        .sort((a, b) =>
+          (Number(a.sort_order ?? 999999) - Number(b.sort_order ?? 999999)) ||
+          String(a.name || "").localeCompare(String(b.name || ""), "ar")
+        );
+      draftSizeGuideIds = configuredGuides.map(x => Number(x.id));
       draftsInitialized = true;
     }
     renderDimensionChoices();
+    renderSizeGuideChoices();
 
     const mediaColors = (configRefs?.colors || optionRefs?.colors || []).filter(color =>
       color.is_active && (draftColorIds.has(Number(color.id)) || mediaRows.some(x => Number(x.color_id) === Number(color.id)))
@@ -1195,6 +1254,23 @@
       }),
     }
   );
+
+  document.getElementById("saveSizeGuides")?.addEventListener("click", async () => {
+    try {
+      await requestJson("/api/v1/catalog/products/" + productId + "/size-guides", {
+        method: "POST",
+        body: JSON.stringify({ guide_ids: draftSizeGuideIds }),
+      });
+      await load();
+      notify(
+        draftSizeGuideIds.length
+          ? "تم حفظ جداول المقاسات وترتيب ظهورها."
+          : "تم إلغاء ربط جداول المقاسات بهذا المنتج."
+      );
+    } catch (error) {
+      notify(error.message, "error");
+    }
+  });
 
   document.getElementById("saveDimensions").addEventListener("click", async () => {
     try {
