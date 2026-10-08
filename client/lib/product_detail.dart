@@ -157,6 +157,13 @@ class _SxProductScreenState extends State<SxProductScreen> {
     return value.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
   }
 
+  List<Map<String, dynamic>> _sizeGuides() {
+    final configured = _maps(data['size_guides']);
+    if (configured.isNotEmpty) return configured;
+    final legacy = _asMap(data['size_guide']);
+    return legacy.isEmpty ? <Map<String, dynamic>>[] : <Map<String, dynamic>>[legacy];
+  }
+
   List<Map<String, dynamic>> _media() {
     final rows = _maps(data['media']);
     if (rows.isEmpty) return const <Map<String, dynamic>>[];
@@ -564,6 +571,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
     }
 
     Widget? detailSection(String key) {
+      final sizeGuides = _sizeGuides();
+      final sizeGuide = sizeGuides.isNotEmpty ? sizeGuides.first : <String, dynamic>{};
       switch (key) {
         case 'badges':
           return detailSettings['badges_show'] == false
@@ -674,8 +683,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
             showSizes: false,
           );
         case 'sizes':
-          final sizeGuide = _asMap(data['size_guide']);
-          final guideRows = sizeGuide['rows'] is List
+                    final guideRows = sizeGuide['rows'] is List
         ? (sizeGuide['rows'] as List)
             .whereType<Map>()
             .map((x) => Map<String, dynamic>.from(x))
@@ -835,7 +843,7 @@ class _SxProductScreenState extends State<SxProductScreen> {
           showSizes: detailSettings['sizes_show'] != false,
           showColors: detailSettings['colors_show'] != false,
           sizeGuide: (() {
-            final guide = _asMap(data['size_guide']);
+            final guide = sizeGuides.isNotEmpty ? sizeGuides.first : <String, dynamic>{};
             if (guide.isNotEmpty) return guide;
             return <String, dynamic>{
               'name': 'دليل المقاسات',
@@ -857,7 +865,8 @@ class _SxProductScreenState extends State<SxProductScreen> {
               }).toList(),
             };
           })(),
-          showSizeGuide: detailSettings['size_guide_show'] != false,
+          sizeGuides: sizeGuides,
+           showSizeGuide: detailSettings['size_guide_show'] != false,
           onGalleryChanged: _onGalleryPageChanged,
           onColor: _selectColor,
           onSize: (value) => setState(() => sizeId = value),
@@ -3250,6 +3259,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
   final bool showSizes;
   final bool showColors;
   final Map<String, dynamic> sizeGuide;
+  final List<Map<String, dynamic>> sizeGuides;
   final bool showSizeGuide;
   final ValueChanged<int> onGalleryChanged;
   final ValueChanged<int> onColor;
@@ -3270,6 +3280,7 @@ class _DetailVariantSelectionBox extends StatelessWidget {
     required this.showSizes,
     required this.showColors,
     required this.sizeGuide,
+    this.sizeGuides = const <Map<String, dynamic>>[],
     required this.showSizeGuide,
     required this.onGalleryChanged,
     required this.onColor,
