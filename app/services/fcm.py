@@ -17,6 +17,14 @@ class FCMService:
 
     _app = None
 
+    # FCM reserves specific data-payload keys, including message_type.
+    # Namespace reserved keys instead of sending them as-is so Firebase
+    # accepts the notification and the original application data is retained.
+    _reserved_data_key_names = frozenset({
+        "from",
+        "message_type",
+    })
+
     @classmethod
     def _firebase_app(cls):
         if cls._app is not None:
@@ -45,11 +53,29 @@ class FCMService:
             logger.exception("FCM initialization failed.")
             return None
 
-    @staticmethod
-    def _string_data(data):
+    @classmethod
+    def _safe_data_key(cls, key):
+        key = str(key)
+        lowered = key.lower()
+        if (
+            lowered in cls._reserved_data_key_names
+            or lowered.startswith("google.")
+            or lowered.startswith("gcm.")
+        ):
+            return "data_" + key
+        return key
+
+    @classmethod
+    def _string_data(cls, data):
         result = {}
-        for key, value in dict(data or {}).items():
-            key = str(key)
+        for raw_key, value in dict(data or {}).items():
+            key = cls._safe_data_key(raw_key)
+            if key != str(raw_key):
+                logger.debug(
+                    "Renamed reserved FCM data key %r to %r",
+                    str(raw_key),
+                    key,
+                )
             if value is None:
                 result[key] = ""
             elif isinstance(value, str):
