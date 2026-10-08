@@ -309,6 +309,19 @@ def register_entity_views(admin_bp):
                             "customer_note": request.form.get("customer_note"),
                         },
                     )
+                    from ..services.notifications import NotificationService
+                    NotificationService.create(
+                        order.customer_id,
+                        "order_updated",
+                        "تم تحديث طلبك",
+                        "تم تحديث محتويات طلبك من المتجر وإعادة احتساب الإجمالي.",
+                        {
+                            "order_id": order.id,
+                            "order_no": order.order_no,
+                            "target": "order",
+                            "screen_type": "order_details",
+                        },
+                    )
                     success = "تم تحديث محتويات الطلب وإعادة احتساب السعر."
                 elif action == "shipping_fee":
                     CommerceService.set_shipping_override(
