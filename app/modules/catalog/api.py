@@ -1169,6 +1169,24 @@ def add_product_variant(product_id):
         return {"error": "invalid_variant", "detail": str(exc)}, 400
 
 
+@api_bp.post("/products/<int:product_id>/variants/generate")
+@admin_api_required("product.edit")
+def generate_product_variants(product_id):
+    payload = request.get_json(silent=True) or {}
+    try:
+        return {
+            "item": CatalogService.generate_variants(
+                product_id,
+                payload.get("color_ids"),
+                payload.get("size_ids"),
+            )
+        }, 201
+    except LookupError as exc:
+        return {"error": "not_found", "detail": str(exc)}, 404
+    except ValueError as exc:
+        return {"error": "invalid_variant_generation", "detail": str(exc)}, 400
+
+
 @api_bp.post("/products/<int:product_id>/inventory")
 @admin_api_required("inventory.manage")
 def set_inventory(product_id):
