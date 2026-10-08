@@ -1771,6 +1771,17 @@
     }
   });
 
+  document.getElementById("variantsList")?.addEventListener("change", event => {
+    const draftForm = event.target.closest(".variant-draft-form");
+    if (!draftForm) return;
+    const colorId = Number(event.target.value || 0);
+    if (!colorId) return;
+    const draft = variantDrafts.find(row => row.id === draftForm.dataset.draftId);
+    if (!draft) return;
+    const preview = draftForm.querySelector(".variant-auto-sku-preview");
+    if (preview) preview.textContent = variantSkuPreview(colorId, draft.sizeId);
+  });
+
   document.getElementById("variantsList")?.addEventListener("submit", async event => {
     const draftForm = event.target.closest(".variant-draft-form");
     if (draftForm) {
