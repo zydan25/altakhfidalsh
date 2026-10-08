@@ -2385,6 +2385,9 @@ def register_entity_views(admin_bp):
                     ("sizes_gap", "المسافة بين المقاسات", "number", 0, 16, 1, True),
                     ("size_guide_show", "إظهار دليل المقاسات", "checkbox"),
                     ("size_guide_font_size", "حجم زر دليل المقاسات", "number", 7, 18, .5, False),
+                    ("size_guide_navigation_mode", "طريقة الانتقال بين الجداول", "select", ["tabs", "swipe"]),
+                    ("size_guide_show_product_measurements", "إظهار قياسات المنتج", "checkbox"),
+                    ("size_guide_show_body_measurements", "إظهار قياسات الجسم", "checkbox"),
                 ],
             },
             {
