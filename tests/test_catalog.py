@@ -834,7 +834,10 @@ def test_variant_auto_sku_generation_and_combination_guard(app):
         color_two = Color(name="أبيض", hex_code="#ffffff")
         size_m = Size(group="EU", code="M", label="متوسط")
         size_l = Size(group="EU", code="L", label="كبير")
-        db.session.add_all([currency, product, color, color_two, size_m, size_l])
+        db.session.add(currency)
+        db.session.flush()
+        product.base_currency_id = currency.id
+        db.session.add_all([product, color, color_two, size_m, size_l])
         db.session.flush()
         db.session.add_all([
             ProductColorReference(product_id=product.id, color_id=color.id, sort_order=0),
@@ -883,7 +886,10 @@ def test_copy_variant_copies_size_weight_and_inventory(app):
         target_color = Color(name="أبيض", hex_code="#ffffff")
         size = Size(group="EU", code="M", label="متوسط")
         location = InventoryLocation(name="الرئيسي", code="MAIN")
-        db.session.add_all([currency, product, color, target_color, size, location])
+        db.session.add(currency)
+        db.session.flush()
+        product.base_currency_id = currency.id
+        db.session.add_all([product, color, target_color, size, location])
         db.session.flush()
         db.session.add_all([
             ProductColorReference(product_id=product.id, color_id=color.id, sort_order=0),
