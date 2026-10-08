@@ -2600,14 +2600,42 @@ class CatalogService:
             for circle_id in CatalogService.list_product_side_category_circles(product_id)
         ]
 
-        from ...models import SizeGuide, SizeGuideRow
-        product_size_ids = {int(row.size_id) for row, _size in size_reference_rows}
-        guide_payload = None
-        guides = SizeGuide.query.filter_by(is_active=True).order_by(SizeGuide.id).all()
-        best_guide = None
-        best_rows = []
-        best_score = -1
-        for guide in guides:
+        from ...models import SizeGuideRow
+
+        def serialize_size_guide(guide, rows):
+            return {
+                "id": guide.id,
+                "name": guide.name,
+                "guide_type": guide.guide_type,
+                "fit_type": guide.fit_type,
+                "intro_text": guide.intro_text,
+                "product_columns": guide.product_columns_json or [],
+                "body_columns": guide.body_columns_json or [],
+                "rows": [
+                    {
+                        "size_id": row.size_id,
+                        "size_label": size.label,
+                        "size_code": size.code,
+                        "product_measurements": row.product_measurements or {},
+                        "body_measurements": row.body_measurements or {},
+                    }
+                    for row, size in rows
+                ],
+            }
+
+        selected_guide_rows = (
+            db.session.query(ProductSizeGuideReference, SizeGuide)
+            .join(SizeGuide, SizeGuide.id == ProductSizeGuideReference.guide_id)
+            .filter(
+                ProductSizeGuideReference.product_id == product_id,
+                SizeGuide.is_active.is_(True),
+            )
+            .order_by(ProductSizeGuideReference.sort_order, ProductSizeGuide.id)
+            .all()
+        )
+
+        size_guides = []
+        for _ref, guide in selected_guide_rows:
             guide_rows = (
                 db.session.query(SizeGuideRow, Size)
                 .join(Size, Size.id == SizeGuideRow.size_id)
@@ -2618,31 +2646,41 @@ class CatalogService:
                 .order_by(SizeGuideRow.id)
                 .all()
             )
-            score = sum(1 for row, _size in guide_rows if int(row.size_id) in product_size_ids)
-            if guide_rows and (score > best_score or (best_guide is None and score == best_score)):
-                best_guide = guide
-                best_rows = guide_rows
-                best_score = score
-        if best_guide is not None:
-            guide_payload = {
-                "id": best_guide.id,
-                "name": best_guide.name,
-                "guide_type": best_guide.guide_type,
-                "fit_type": best_guide.fit_type,
-                "intro_text": best_guide.intro_text,
-                "product_columns": best_guide.product_columns_json or [],
-                "body_columns": best_guide.body_columns_json or [],
-                "rows": [
-                    {
-                        "size_id": row.size_id,
-                        "size_label": size.label,
-                        "size_code": size.code,
-                        "product_measurements": row.product_measurements or {},
-                        "body_measurements": row.body_measurements or {},
-                    }
-                    for row, size in best_rows
-                ],
-            }
+            size_guides.append(serialize_size_guide(guide, guide_rows))
+
+        # Backward compatibility: products that predate explicit guide assignment
+        # still receive the best matching public guide rather than losing their
+        # existing size-guide UI.
+        if not size_guides:
+            product_size_ids = {int(row.size_id) for row, _size in size_reference_rows}
+            guides = SizeGuide.query.filter_by(is_active=True).order_by(SizeGuide.id).all()
+            best_guide = None
+            best_rows = []
+            best_score = -1
+            for guide in guides:
+                guide_rows = (
+                    db.session.query(SizeGuideRow, Size)
+                    .join(Size, Size.id == SizeGuideRow.size_id)
+                    .filter(
+                        SizeGuideRow.guide_id == guide.id,
+                        Size.is_active.is_(True),
+                    )
+                    .order_by(SizeGuideRow.id)
+                    .all()
+                )
+                score = sum(1 for row, _size in guide_rows if int(row.size_id) in product_size_ids)
+                if guide_rows and (
+                    score > best_score
+                    or (best_guide is None and score == best_score)
+                ):
+                    best_guide = guide
+                    best_rows = guide_rows
+                    best_score = score
+            if best_guide is not None:
+                size_guides.append(serialize_size_guide(best_guide, best_rows))
+
+        guide_payload = size_guides[0] if size_guides else None
+
 
         inventory = [
             {
@@ -2735,6 +2773,7 @@ class CatalogService:
             "campaigns": campaigns,
             "reference_colors": reference_colors,
             "reference_sizes": reference_sizes,
+            "size_guides": size_guides,
             "size_guide": guide_payload,
             "side_category_circles": side_category_circle_ids,
             "rating_summary": rating_summary,
