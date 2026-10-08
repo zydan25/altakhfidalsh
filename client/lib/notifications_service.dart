@@ -214,6 +214,12 @@ class AltakhfidNotificationService {
 
   static Future<void> _registerCurrentToken() async {
     try {
+      // Explicitly enable and register the Firebase installation before
+      // requesting its FCM registration token. This removes any dependency on
+      // background auto-initialization timing.
+      await FirebaseMessaging.instance.setAutoInitEnabled(true);
+      await FirebaseMessaging.instance.register();
+
       final token = await FirebaseMessaging.instance.getToken();
       if (token == null || token.trim().isEmpty) {
         await _saveFcmDiagnostic(
