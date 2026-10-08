@@ -2201,7 +2201,7 @@ class CatalogService:
                 ProductSizeGuideReference.product_id == product_id,
                 SizeGuide.is_active.is_(True),
             )
-            .order_by(ProductSizeGuideReference.sort_order, ProductSizeGuide.id)
+            .order_by(ProductSizeGuideReference.sort_order, SizeGuide.id)
             .all()
         )
         size_guides = SizeGuide.query.filter_by(is_active=True).order_by(SizeGuide.name).all()
@@ -2630,7 +2630,7 @@ class CatalogService:
                 ProductSizeGuideReference.product_id == product_id,
                 SizeGuide.is_active.is_(True),
             )
-            .order_by(ProductSizeGuideReference.sort_order, ProductSizeGuide.id)
+            .order_by(ProductSizeGuideReference.sort_order, SizeGuide.id)
             .all()
         )
 
