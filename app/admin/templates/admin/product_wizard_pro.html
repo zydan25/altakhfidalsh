@@ -90,10 +90,11 @@
 }
 
 </style>
+<link rel="stylesheet" href="{{ url_for('admin.static', filename='product-wizard-pro.css') }}?v=20261008-2">
 <section class="module-header">
-  <span class="eyebrow">معالج المنتج</span>
+  <span class="eyebrow">تعديل برو · لوحة الإدارة</span>
   <h2>{{ product.name }}</h2>
-  <p class="muted">احفظ كل مرحلة مستقلة. لا تنتقل للنشر قبل اكتمال المتطلبات الأساسية.</p>
+  <p class="muted">واجهة هاتف حديثة لإدارة المنتج كاملًا مع نفس بيانات الحفظ الحالية.</p>
 </section>
 
 <div id="wizardMessage" class="alert" hidden></div>
