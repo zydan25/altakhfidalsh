@@ -1656,6 +1656,74 @@ class CatalogService:
         return {"id": variant.id, "sku": variant.sku, "color_id": variant.color_id, "size_id": variant.size_id, "barcode": variant.barcode, "status": variant.status}
 
     @staticmethod
+    def copy_variant(product_id, source_variant_id, color_id):
+        source = db.session.get(ProductVariant, int(source_variant_id))
+        if source is None or source.product_id != product_id:
+            raise LookupError("source variant not found")
+        if not source.is_active:
+            raise ValueError("لا يمكن نسخ متغير مؤرشف.")
+
+        target_color_id = int(color_id) if color_id not in (None, "") else None
+        if target_color_id is None:
+            raise ValueError("اختر لونًا لإكمال نسخ المتغير.")
+
+        if ProductColorReference.query.filter_by(
+            product_id=product_id,
+            color_id=target_color_id,
+        ).first() is None:
+            raise ValueError("اللون المختار غير مرتبط بهذا المنتج.")
+
+        CatalogService._validate_variant_combination(
+            product_id,
+            target_color_id,
+            source.size_id,
+        )
+
+        variant = ProductVariant(
+            product_id=product_id,
+            sku=CatalogService._generate_variant_sku(
+                product_id,
+                target_color_id,
+                source.size_id,
+            ),
+            color_id=target_color_id,
+            size_id=source.size_id,
+            barcode=None,
+            weight=source.weight,
+            status="active",
+        )
+        db.session.add(variant)
+        db.session.flush()
+
+        source_stock_rows = StockInventory.query.filter_by(
+            variant_id=source.id
+        ).all()
+        for row in source_stock_rows:
+            db.session.add(
+                StockInventory(
+                    location_id=row.location_id,
+                    variant_id=variant.id,
+                    on_hand=int(row.on_hand or 0),
+                    reserved=int(row.reserved or 0),
+                    available=int(row.available or 0),
+                    reorder_level=int(row.reorder_level or 0),
+                )
+            )
+
+        db.session.commit()
+        return {
+            "variant": {
+                "id": variant.id,
+                "sku": variant.sku,
+                "color_id": variant.color_id,
+                "size_id": variant.size_id,
+                "barcode": variant.barcode,
+                "weight": str(variant.weight) if variant.weight is not None else None,
+            },
+            "copied_stock_count": len(source_stock_rows),
+        }
+
+    @staticmethod
     def archive_variant(product_id, variant_id):
         variant = db.session.get(ProductVariant, variant_id)
         if variant is None or variant.product_id != product_id:
