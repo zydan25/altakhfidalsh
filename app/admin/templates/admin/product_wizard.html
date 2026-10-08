@@ -66,6 +66,29 @@
  .dimension-grid{display:grid!important;grid-template-columns:1fr!important}
  .mobile-action-bar,.save-bar,.dimension-save-bar{position:sticky;bottom:8px;z-index:20;background:rgba(255,255,255,.97);box-shadow:0 12px 26px rgba(0,0,0,.1)}
 }
+
+/* Mobile-first product editor overrides */
+.wizard-shell,
+.wizard-shell * { box-sizing:border-box; }
+.wizard-panel .form-stack label,
+.wizard-panel .variant-quick-form label,
+.wizard-panel .variant-form-grid label,
+.wizard-panel .inventory-form-grid label { font-size:13px!important; line-height:1.45; }
+.wizard-panel .form-stack input,
+.wizard-panel .form-stack select,
+.wizard-panel .form-stack textarea { font-size:14px!important; min-height:48px!important; }
+.wizard-panel .panel-heading h3 { font-size:18px!important; }
+.wizard-panel .panel-heading small,
+.wizard-panel .muted { font-size:12px!important; line-height:1.55; }
+.wizard-panel .quick-add-button { min-height:42px!important; font-size:12px!important; }
+@media(max-width:650px){
+  .wizard-panel { padding:14px!important; }
+  .wizard-panel>.panel-heading { top:47px; }
+  .wizard-panel .form-stack label { font-size:13px!important; }
+  .wizard-steps { padding:8px 4px 10px; gap:6px; }
+  .wizard-step { min-height:44px; padding-inline:12px; font-size:12px; }
+}
+
 </style>
 <section class="module-header">
   <span class="eyebrow">معالج المنتج</span>
