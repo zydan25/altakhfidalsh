@@ -529,6 +529,7 @@ def register_admin_routes(admin_bp):
                     category_tree=category_tree,
                     selected_category_ids=list(dict.fromkeys(category_ids)),
                     wizard_references=CatalogService.product_reference_data(product_id=product.id),
+                    pro_mode=False,
                     **context,
                 )
 
@@ -611,6 +612,40 @@ def register_admin_routes(admin_bp):
             category_tree=category_tree,
             selected_category_ids=selected_category_ids,
             wizard_references=CatalogService.product_reference_data(product_id=product.id),
+            pro_mode=False,
+            **context,
+        )
+
+    @admin_bp.get("/products/<int:product_id>/edit-pro")
+    def product_edit_pro(product_id):
+        context = _navigation_context()
+        product = db.session.get(Product, product_id)
+        if product is None:
+            return render_template(
+                "admin/module.html",
+                title="المنتج غير موجود",
+                section="الكتالوج",
+                requested_path=request.path,
+                **context,
+            ), 404
+        categories = Category.query.filter_by(is_active=True).order_by(Category.name).all()
+        category_tree = _category_tree_rows()
+        selected_category_ids = [
+            row.category_id
+            for row in ProductCategory.query.filter_by(product_id=product.id)
+            .order_by(ProductCategory.is_primary.desc(), ProductCategory.id)
+            .all()
+        ]
+        return render_template(
+            "admin/product_wizard_pro.html",
+            title=f"تعديل برو · {product.name}",
+            product_id=product.id,
+            product=product,
+            categories=categories,
+            category_tree=category_tree,
+            selected_category_ids=selected_category_ids,
+            wizard_references=CatalogService.product_reference_data(product_id=product.id),
+            pro_mode=True,
             **context,
         )
 
