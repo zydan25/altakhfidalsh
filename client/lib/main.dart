@@ -17,13 +17,24 @@ import 'theme.dart';
 final GlobalKey<NavigatorState> notificationNavigatorKey =
     GlobalKey<NavigatorState>();
 
+// Keep Android Firebase configuration explicit so Firebase Installations/FCM
+// always receives a valid API key, even if generated Gradle resources are
+// unavailable or stale in a build.
+const FirebaseOptions _androidFirebaseOptions = FirebaseOptions(
+  apiKey: 'AIzaSyAZAQ69JCgldJULTCxUz5jtC_DxKevCY0',
+  appId: '1:907469003345:android:e9411583b33fec0dd6f670',
+  messagingSenderId: '907469003345',
+  projectId: 'altakhfidalsh',
+  storageBucket: 'altakhfidalsh.firebasestorage.app',
+);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Firebase must be initialized before registering the FCM background
   // handler. Web remains unchanged; push is enabled for Android only.
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(options: _androidFirebaseOptions);
     await AltakhfidNotificationService.initialize(
       tapHandler: handleNotificationTap,
     );
