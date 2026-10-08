@@ -213,33 +213,38 @@
 
   const openPicker = type => {
     pickerType = type;
-    pickerWorking = new Set(type === "color" ? [...colorIds] : [...sizeIds]);
+    const previousIds = new Set(type === "color" ? [...colorIds] : [...sizeIds]);
+    pickerWorking = new Set(previousIds);
     const overlay = document.createElement("div");
     overlay.className = "pro-picker-backdrop";
     overlay.dataset.proPicker = "1";
 
     const selected = id => pickerWorking.has(Number(id));
     const rows = type === "color" ? colors() : sizes();
-    const heading = type === "color" ? "اختر ألوان المنتج" : "اختر مقاسات المنتج";
+    const heading = type === "color" ? "ألوان المنتج" : "مقاسات المنتج";
     const hint = type === "color"
-      ? "اختر من الألوان المحفوظة، أو أنشئ لونًا جديدًا مباشرة من HEX."
-      : "هذه القائمة مستقلة عن الجداول. سيتم استخدام المقاسات المحددة فقط في بطاقات الألوان.";
+      ? "اختر لونًا من القائمة، أو أنشئ لونًا جديدًا من لوحة اللون أو HEX."
+      : "اختر المقاسات التي تعتبر متاحة لهذا المنتج. بعد ذلك يمكنك إضافة كل مقاس إلى لون محدد فقط.";
 
     const colorMaker = type === "color"
       ? '<div class="pro-color-maker">' +
-          '<div class="pro-color-maker-head"><div><strong>إنشاء لون من HEX</strong><small>اختر اللون من اللوحة أو اكتب #RRGGBB.</small></div><span class="pro-color-maker-preview" data-pro-new-color-preview></span></div>' +
+          '<div class="pro-color-maker-head"><div><strong>إنشاء لون جديد</strong><small>لوحة اللون أو اكتب قيمة HEX ثم احفظها.</small></div><span class="pro-color-maker-preview" data-pro-new-color-preview></span></div>' +
           '<div class="pro-color-maker-fields">' +
             '<input type="color" value="#111111" data-pro-new-color-picker aria-label="لوحة اختيار اللون">' +
             '<input type="text" value="#111111" maxlength="7" dir="ltr" data-pro-new-color-hex placeholder="#111111" inputmode="text">' +
             '<input type="text" value="" data-pro-new-color-name placeholder="اسم اللون">' +
-            '<button type="button" class="pro-primary-btn" data-pro-create-color>إضافة اللون</button>' +
+            '<button type="button" class="pro-primary-btn" data-pro-create-color>إنشاء وإضافة</button>' +
           '</div>' +
         '</div>'
+      : '';
+
+    const allSizesSwitch = type === "size"
+      ? '<label class="pro-all-size-switch"><input type="checkbox" data-pro-add-size-all><span><strong>إضافة المقاس الجديد إلى جميع الألوان</strong><small>عند التفعيل سيتم إنشاء المتغيرات الناقصة لكل لون. عند الإيقاف يبقى المقاس متاحًا في قائمة الإضافة الخاصة بكل لون فقط.</small></span></label>'
       : "";
 
     overlay.innerHTML =
       '<section class="pro-picker-sheet" role="dialog" aria-modal="true">' +
-        '<div class="pro-picker-head"><div><h3>' + heading + '</h3><p>' + hint + '</p></div><button class="pro-picker-close" type="button" data-pro-picker-close>×</button></div>' +
+        '<div class="pro-picker-head"><div><span class="pro-sheet-eyebrow">' + (type === "color" ? "مرجع اللون" : "مرجع المقاس") + '</span><h3>' + heading + '</h3><p>' + hint + '</p></div><button class="pro-picker-close" type="button" data-pro-picker-close>×</button></div>' +
         colorMaker +
         '<div class="pro-picker-grid">' +
           (rows.length ? rows.map(row => {
@@ -257,6 +262,7 @@
             '</button>';
           }).join("") : '<div class="pro-picker-empty">لا توجد سجلات متاحة.</div>') +
         '</div>' +
+        allSizesSwitch +
         '<div class="pro-picker-footer"><button type="button" class="pro-primary-btn" data-pro-picker-apply>حفظ الاختيار</button></div>' +
       '</section>';
 
@@ -297,11 +303,11 @@
           const id = Number(item.id);
           pickerWorking.add(id);
           await persistDimensionsWithSets(pickerWorking, sizeIds);
-          await generateMissingVariantsForSets(pickerWorking, sizeIds);
+          await generateMissingVariantsForSets(new Set([id]), sizeIds);
           overlay.remove();
           pickerType = null;
           await afterMutation();
-          notify("تم إنشاء اللون وإضافته للمنتج.");
+          notify("تم إنشاء اللون وإضافته للمنتج دون تغيير متغيرات الألوان الأخرى.");
         } catch (error) {
           notify(error.message || "تعذر إنشاء اللون.","error");
           if (button) button.disabled = false;
@@ -313,7 +319,11 @@
       const choice = event.target.closest("[data-pro-picker-value]");
       if (choice) {
         const id = Number(choice.dataset.proPickerValue);
-        pickerWorking.has(id) ? pickerWorking.delete(id) : pickerWorking.add(id);
+        if (pickerWorking.has(id)) {
+          pickerWorking.delete(id);
+        } else {
+          pickerWorking.add(id);
+        }
         if (!pickerWorking.size) pickerWorking.add(id);
         choice.classList.toggle("is-selected", pickerWorking.has(id));
         return;
@@ -323,11 +333,10 @@
         pickerType = null;
         return;
       }
-      if (event.target.closest("[data-pro-picker-apply]")) applyPicker(overlay);
+      if (event.target.closest("[data-pro-picker-apply]")) applyPicker(overlay, previousIds);
     };
     overlay.addEventListener("click", toggle);
   };
-
   const persistDimensionsWithSets = async (nextColors, nextSizes) => requestJson(
     "/api/v1/catalog/products/" + productId + "/reference-dimensions",
     {method:"POST",body:JSON.stringify({
@@ -399,27 +408,53 @@
       }
     });
   };
-  const applyPicker = async overlay => {
+  const applyPicker = async (overlay, previousIds = new Set()) => {
     const next = pickerWorking;
     if (!next.size) {
       notify(pickerType === "color" ? "اختر لونًا واحدًا على الأقل." : "اختر مقاسًا واحدًا على الأقل.", "error");
       return;
     }
 
-    if (pickerType === "color") colorIds = new Set([...next].map(Number));
-    else sizeIds = new Set([...next].map(Number));
+    const mode = pickerType;
+    const previous = new Set([...previousIds].map(Number));
+    const newlyAdded = [...next].filter(id => !previous.has(Number(id))).map(Number);
+    const addToAll = mode === "size" ? Boolean($("[data-pro-add-size-all]", overlay)?.checked) : false;
 
-    overlay.remove();
     try {
-      await persistDimensions();
-      await generateMissingVariants();
+      if (mode === "color") {
+        colorIds = new Set([...next].map(Number));
+        await persistDimensions();
+        if (newlyAdded.length) {
+          await generateMissingVariantsForSets(new Set(newlyAdded), sizeIds);
+        }
+      } else {
+        sizeIds = new Set([...next].map(Number));
+        await persistDimensions();
+        if (addToAll && newlyAdded.length) {
+          await generateMissingVariantsForSets(colorIds, new Set(newlyAdded));
+        }
+      }
+
+      overlay.remove();
+      pickerType = null;
       await afterMutation();
-      notify("تم حفظ الاختيار وتحديث التركيبات الناقصة.");
+
+      if (mode === "size") {
+        notify(
+          newlyAdded.length
+            ? (addToAll
+              ? "تم حفظ المقاسات الجديدة وإضافتها إلى جميع الألوان."
+              : "تم حفظ المقاسات الجديدة. يمكنك إضافتها لكل لون بشكل مستقل من زر «إضافة».")
+            : "تم حفظ اختيار المقاسات."
+        );
+      } else {
+        notify(newlyAdded.length ? "تم حفظ الألوان وتجهيز متغيراتها الجديدة." : "تم حفظ اختيار الألوان.");
+      }
     } catch (error) {
       notify(error.message, "error");
     }
-    pickerType = null;
   };
+
 
   const removeDimension = async (type, id) => {
     const set = type === "color" ? colorIds : sizeIds;
@@ -610,25 +645,29 @@
     if (count) count.textContent = String(total);
 
     if (!selectedColors.length) {
-      target.innerHTML = '<div class="pro-picker-empty">ابدأ من أعلى القسم: أضف لونًا، ثم أضف مقاسًا واحدًا على الأقل.</div>';
+      target.innerHTML = '<div class="pro-picker-empty">ابدأ بإضافة لون واحد على الأقل.</div>';
       return;
     }
 
     target.innerHTML = selectedColors.map((color,index) => {
-      const colorVariants = variants.filter(v => Number(v.color_id) === Number(color.id) && sizeIds.has(Number(v.size_id)));
-      const stockAvailable = colorVariants.reduce((sum,v) => sum + Number(stockForLocation(v.id)?.available || 0), 0);
+      const allColorVariants = variants.filter(v => Number(v.color_id) === Number(color.id));
+      const colorVariants = allColorVariants.filter(v => sizeIds.has(Number(v.size_id)));
+      const legacyVariants = allColorVariants.filter(v => !sizeIds.has(Number(v.size_id)));
+      const colorSizeIds = [
+        ...selectedSizes.filter(size => colorVariants.some(v => Number(v.size_id) === Number(size.id))).map(size => Number(size.id)),
+        ...legacyVariants.map(v => Number(v.size_id)).filter(id => id && !selectedSizes.some(size => Number(size.id) === id))
+      ];
+      const colorSizes = colorSizeIds.map(sizeById).filter(Boolean);
+      const stockAvailable = allColorVariants.reduce((sum,v) => sum + Number(stockForLocation(v.id)?.available || 0), 0);
       const colorMedia = (snapshot.media || []).filter(m => Number(m.color_id) === Number(color.id));
-      const missingSizes = selectedSizes.filter(size => !variantFor(color.id, size.id));
-
-      const headerCells = selectedSizes.map(size =>
+      const missingSizes = selectedSizes.filter(size => !allColorVariants.some(v => Number(v.size_id) === Number(size.id)));
+      const headerCells = colorSizes.map(size =>
         '<th scope="col"><div class="pro-size-head"><strong>' + escapeHtml(size.label) + '</strong><small>' + escapeHtml(size.code || size.group || "") + '</small></div></th>'
       ).join("");
 
-      const cells = selectedSizes.map(size => {
-        const variant = variantFor(color.id, size.id);
-        if (!variant) {
-          return '<td class="pro-missing-cell"><button type="button" class="pro-create-variant" data-pro-create-variant-color="' + color.id + '" data-pro-create-variant-size="' + size.id + '">＋ إنشاء</button></td>';
-        }
+      const cells = colorSizes.map(size => {
+        const variant = variantFor(color.id, size.id) || allColorVariants.find(v => Number(v.size_id) === Number(size.id));
+        if (!variant) return '';
         const stock = stockForLocation(variant.id);
         const onHand = Number(stock?.on_hand || 0);
         const reserved = Number(stock?.reserved || 0);
@@ -641,34 +680,52 @@
         '</td>';
       }).join("");
 
+      const addButton = '<button type="button" class="pro-add-size-button pro-inline-add" data-pro-add-size-column="' + color.id + '">＋ إضافة</button>';
+
+      if (!colorSizes.length) {
+        return '<article class="pro-color-card" data-pro-color-card="' + color.id + '">' +
+          '<header class="pro-color-card-head">' +
+            '<div class="pro-color-identity"><span class="pro-swatch" style="background:' + escapeHtml(color.hex_code || "#e5e7eb") + '"></span><div class="pro-color-title"><strong>' + escapeHtml(color.name) + '</strong><small>لا توجد مقاسات مضافة لهذا اللون</small></div></div>' +
+            '<div style="display:flex;align-items:center;gap:6px"><span class="pro-color-status ' + (stockAvailable > 0 ? 'is-good' : '') + '">' + (stockAvailable > 0 ? ('متوفر · ' + stockAvailable) : 'بدون متاح') + '</span><button type="button" class="pro-card-menu-button" data-pro-remove-color-card="' + color.id + '" aria-label="إزالة اللون">⋯</button></div>' +
+          '</header>' +
+          '<section class="pro-color-images">' +
+            '<div class="pro-color-images-head"><div><strong>صور ' + escapeHtml(color.name) + '</strong><small>' + colorMedia.length + ' صورة</small></div><button type="button" class="pro-outline-btn" data-pro-add-color-image="' + color.id + '">＋ إضافة</button></div>' +
+            '<div class="pro-image-rail">' +
+              colorMedia.map(item =>
+                '<div class="pro-image-item"><img src="' + escapeHtml(item.url || "") + '" alt="' + escapeHtml(color.name) + '" loading="lazy">' +
+                  '<button class="pro-image-x" type="button" data-pro-color-image-delete="' + item.id + '" aria-label="حذف الصورة">×</button>' +
+                  '<button class="pro-image-view" type="button" data-pro-color-image-view="' + item.id + '">⌕</button>' +
+                '</div>'
+              ).join("") +
+              '<button type="button" class="pro-image-add" data-pro-add-color-image="' + color.id + '"><span>＋</span>إضافة صورة</button>' +
+            '</div>' +
+          '</section>' +
+          '<div class="pro-no-sizes"><div><strong>لا يوجد مقاس لهذا اللون حتى الآن.</strong><small>زر «إضافة» يعرض المقاسات المحددة أعلى القسم فقط.</small></div>' + addButton + '</div>' +
+        '</article>';
+      }
+
       return '<article class="pro-color-card" data-pro-color-card="' + color.id + '">' +
         '<header class="pro-color-card-head">' +
-          '<div class="pro-color-identity"><span class="pro-swatch" style="background:' + escapeHtml(color.hex_code || "#e5e7eb") + '"></span><div class="pro-color-title"><strong>' + escapeHtml(color.name) + '</strong><small>' + colorVariants.length + ' مقاسات · ' + (colorMedia.length ? colorMedia.length + ' صور' : 'بدون صور') + '</small></div></div>' +
+          '<div class="pro-color-identity"><span class="pro-swatch" style="background:' + escapeHtml(color.hex_code || "#e5e7eb") + '"></span><div class="pro-color-title"><strong>' + escapeHtml(color.name) + '</strong><small>' + colorSizes.length + ' مقاسات · ' + (colorMedia.length ? colorMedia.length + ' صور' : 'بدون صور') + '</small></div></div>' +
           '<div style="display:flex;align-items:center;gap:6px"><span class="pro-color-status ' + (stockAvailable > 0 ? 'is-good' : '') + '">' + (stockAvailable > 0 ? ('متوفر · ' + stockAvailable) : 'بدون متاح') + '</span><button type="button" class="pro-card-menu-button" data-pro-remove-color-card="' + color.id + '" aria-label="إزالة اللون">⋯</button></div>' +
         '</header>' +
         '<section class="pro-color-images">' +
           '<div class="pro-color-images-head"><div><strong>صور ' + escapeHtml(color.name) + '</strong><small>' + colorMedia.length + ' صورة</small></div><button type="button" class="pro-outline-btn" data-pro-add-color-image="' + color.id + '">＋ إضافة</button></div>' +
           '<div class="pro-image-rail">' +
-            (colorMedia.map(item =>
+            colorMedia.map(item =>
               '<div class="pro-image-item"><img src="' + escapeHtml(item.url || "") + '" alt="' + escapeHtml(color.name) + '" loading="lazy">' +
                 '<button class="pro-image-x" type="button" data-pro-color-image-delete="' + item.id + '" aria-label="حذف الصورة">×</button>' +
                 '<button class="pro-image-view" type="button" data-pro-color-image-view="' + item.id + '">⌕</button>' +
               '</div>'
-            ).join("")) +
+            ).join("") +
             '<button type="button" class="pro-image-add" data-pro-add-color-image="' + color.id + '"><span>＋</span>إضافة صورة</button>' +
           '</div>' +
         '</section>' +
         '<div class="pro-variant-table-wrap"><table class="pro-variant-table">' +
-          '<thead><tr>' + headerCells + '<th class="pro-add-col">إضافة</th></tr></thead>' +
-          '<tbody><tr>' + cells +
-            '<td class="pro-add-size-cell">' +
-              (missingSizes.length
-                ? '<button type="button" class="pro-add-size-button" data-pro-add-size-column="' + color.id + '">＋ إضافة مقاس</button>'
-                : '<div style="font-size:9px;color:var(--pro-muted);text-align:center;padding:12px 4px">كل المقاسات مضافة</div>') +
-            '</td>' +
-          '</tr></tbody>' +
+          '<thead><tr>' + headerCells + '<th class="pro-add-col" rowspan="2">' + addButton + '</th></tr></thead>' +
+          '<tbody><tr>' + cells + '</tr></tbody>' +
         '</table></div>' +
-        '<footer class="pro-card-footer"><small>الباركود والوزن والأرشفة من ⋯ داخل الخلية.</small></footer>' +
+        '<footer class="pro-card-footer"><small>الباركود والوزن والأرشفة من ⋯ داخل كل متغير.</small></footer>' +
       '</article>';
     }).join("");
   };
