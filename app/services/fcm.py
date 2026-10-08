@@ -60,21 +60,56 @@ class FCMService:
 
     @classmethod
     def _message(cls, title, body, data, token):
+        data_map = cls._string_data(data)
+        notification_id = (
+            data_map.get("notification_id")
+            or data_map.get("id")
+            or "notification"
+        )
+        notification_type = (
+            data_map.get("type")
+            or data_map.get("notification_type")
+            or "general"
+        )
+
+        # These events are time-sensitive and should be presented as a distinct,
+        # user-visible Android notification instead of being proxied/replaced.
+        interactive_types = {
+            "message",
+            "order_status",
+            "order_updated",
+            "payment",
+            "shipping",
+        }
+        interactive = notification_type in interactive_types
+        tag = f"altakhfid_{notification_type}_{notification_id}"
+
+        title_text = str(title or "التخفيض الصح")[:240]
+        body_text = str(body or "")[:1000]
+
         return messaging.Message(
             notification=messaging.Notification(
-                title=str(title or "التخفيض الصح")[:240],
-                body=str(body or "")[:1000],
+                title=title_text,
+                body=body_text,
             ),
-            data=cls._string_data(data),
+            data=data_map,
             token=token,
             android=messaging.AndroidConfig(
                 priority="high",
+                ttl=86400,
                 notification=messaging.AndroidNotification(
+                    title=title_text,
+                    body=body_text,
                     channel_id="altakhfid_alerts_v7",
                     sound="default",
+                    default_sound=True,
+                    default_vibrate_timings=True,
                     priority="max",
                     visibility="public",
                     icon="notification_icon",
+                    tag=tag,
+                    ticker=title_text,
+                    proxy="deny" if interactive else None,
                 ),
             ),
         )
