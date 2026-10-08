@@ -211,6 +211,8 @@
               <option value="{{ option }}" {% if product_detail_settings[key]==option %}selected{% endif %}>
                 {% if key=="delivery_location_mode" and option=="fixed" %}موقع ثابت من إعدادات الإدارة
                 {% elif key=="delivery_location_mode" and option=="customer_city" %}مدينة وعنوان العميل الافتراضي
+                {% elif key=="size_guide_navigation_mode" and option=="tabs" %}تبويبات أفقية
+                {% elif key=="size_guide_navigation_mode" and option=="swipe" %}سحب أفقي بين الجداول
                 {% elif option=="line_through" %}خط على السعر
                 {% elif option=="none" %}بدون خط
                 {% else %}{{ option }}{% endif %}
