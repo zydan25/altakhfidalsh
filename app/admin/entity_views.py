@@ -3781,7 +3781,25 @@ def register_entity_views(admin_bp):
         if request.method=="POST":
             try:
                 action=(request.form.get("action") or "save").strip(); row=db.session.get(AppSetting,request.form.get("id",type=int))
-                if action=="create":
+                if action=="save_general_product_images":
+                    enabled = request.form.get("enabled") == "on"
+                    row = AppSetting.query.filter_by(
+                        group_code="storefront",
+                        key="product_general_images_enabled",
+                    ).first()
+                    if row is None:
+                        row = AppSetting(
+                            group_code="storefront",
+                            key="product_general_images_enabled",
+                            value="true" if enabled else "false",
+                            value_type="boolean",
+                        )
+                        db.session.add(row)
+                    else:
+                        row.value = "true" if enabled else "false"
+                        row.value_type = "boolean"
+                    success = "تم حفظ إعداد الصور العامة للمنتجات."
+                elif action=="create":
                     group=(request.form.get("group_code") or "").strip(); key=(request.form.get("key") or "").strip()
                     if not group or not key: raise ValueError("المجموعة والمفتاح مطلوبان.")
                     if AppSetting.query.filter_by(group_code=group,key=key).first(): raise ValueError("هذا الإعداد موجود مسبقًا.")
@@ -3797,7 +3815,24 @@ def register_entity_views(admin_bp):
                 db.session.commit()
             except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
         rows=AppSetting.query.order_by(AppSetting.group_code,AppSetting.key).limit(500).all()
-        return render_template("admin/settings.html",title="الإعدادات",settings=rows,success=success,error=error,**build_admin_context())
+        general_images_setting = AppSetting.query.filter_by(
+            group_code="storefront",
+            key="product_general_images_enabled",
+        ).first()
+        general_images_enabled = True
+        if general_images_setting is not None:
+            general_images_enabled = str(general_images_setting.value or "").strip().lower() in {
+                "1", "true", "yes", "on"
+            }
+        return render_template(
+            "admin/settings.html",
+            title="الإعدادات",
+            settings=rows,
+            success=success,
+            error=error,
+            general_images_enabled=general_images_enabled,
+            **build_admin_context(),
+        )
 
 
     @admin_bp.route("/system/features", methods=["GET", "POST"])
