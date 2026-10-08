@@ -1,0 +1,495 @@
+{% extends "admin/base.html" %}
+
+{% block content %}
+<style>
+.card-inherit-note{display:grid;gap:5px;padding:10px;margin-bottom:10px;background:#fafafa;border:1px dashed #dedede;border-radius:12px;font-size:9px;line-height:1.55}
+.product-card-editor{display:grid;gap:9px}
+.card-setting-group{background:#fff;border:1px solid #e9e9e9;border-radius:12px;overflow:hidden}
+.card-setting-group>summary{list-style:none;cursor:pointer;padding:11px 12px;font-weight:900;font-size:11px;display:flex;justify-content:space-between;align-items:center}
+.card-setting-group>summary::-webkit-details-marker{display:none}
+.card-setting-group>summary small{font-weight:500;color:#888}
+.card-setting-body{padding:10px;border-top:1px solid #efefef;display:grid;gap:9px}
+.card-setting-row{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;align-items:center}
+.card-setting-row>label{font-size:9px;font-weight:800}
+.card-setting-control{display:flex;gap:6px;align-items:center}
+.card-setting-control input[type=text],.card-setting-control input[type=number],.card-setting-control select{width:100%;box-sizing:border-box}
+.card-setting-control input,.card-setting-control select{min-height:38px;border-radius:9px}
+.inherit-toggle{display:flex;gap:5px;align-items:center;font-size:8px;color:#777;white-space:nowrap}
+.inherit-toggle input{margin:0}
+.card-setting-control.is-inherited .setting-value{opacity:.45}
+.card-color-row{display:grid;grid-template-columns:40px minmax(0,1fr);gap:6px;width:100%}
+.card-color-row input[type=color]{width:40px;height:38px;padding:3px}
+.delivery-badge-editor{display:grid;gap:8px}
+.delivery-badge-card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;padding:10px}
+.delivery-badge-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.delivery-badge-preview{padding:4px 7px;border-radius:6px;font-weight:900}
+.delivery-badge-actions{display:flex;gap:4px}
+.delivery-badge-card-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:9px}
+.delivery-badge-card-body label{font-size:9px;font-weight:800}
+.delivery-badge-card-body input,.delivery-badge-card-body select{margin-top:4px;width:100%;min-height:36px;box-sizing:border-box}
+.delivery-badge-card-body .full{grid-column:1/-1}
+.recommendation-editor{display:grid;gap:9px}
+.recommendation-choice{display:flex;gap:9px;align-items:flex-start;border:1px solid #e7e7e7;background:#fff;border-radius:12px;padding:11px}
+.recommendation-choice.is-selected{border-color:#111;background:#fafafa}
+.recommendation-choice input{margin-top:2px}
+.recommendation-choice strong{display:block;font-size:11px}.recommendation-choice small{display:block;margin-top:3px;font-size:8.5px;color:#888;line-height:1.45}
+.recommendation-limit{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:3px}
+@media(max-width:600px){.card-setting-row{grid-template-columns:1fr}.delivery-badge-card-body{grid-template-columns:1fr}.delivery-badge-card-body .full{grid-column:auto}.recommendation-limit{grid-template-columns:1fr}}
+.wizard-shell{overflow:visible}
+.wizard-steps{display:flex;gap:5px;overflow-x:auto;padding:4px 1px 9px;scrollbar-width:thin;position:sticky;top:0;z-index:15;background:rgba(255,255,255,.97)}
+.wizard-step{flex:0 0 auto;min-height:34px;padding:7px 10px;border:1px solid #e8e8e8;background:#fff;border-radius:999px;font-size:9px;font-weight:800;white-space:nowrap}
+.wizard-step.is-active{background:#111;color:#fff;border-color:#111}
+.wizard-panel{padding:12px!important;border-radius:14px!important}
+.wizard-panel>.panel-heading{position:sticky;top:48px;z-index:10;padding:8px 0;background:rgba(255,255,255,.97)}
+.wizard-panel .form-stack label{font-size:10px;font-weight:800}
+.wizard-panel .form-stack input,.wizard-panel .form-stack select,.wizard-panel .form-stack textarea{min-height:42px;border-radius:10px}
+.wizard-panel .primary-button{min-height:42px}
+.selection-toolbar,.media-global-upload,.dimension-save-bar{border-radius:12px!important}
+.media-grid,.media-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(116px,1fr));gap:8px}
+.media-thumb{position:relative;min-width:0;background:#fff;border:1px solid #e7e7e7;border-radius:12px;padding:7px;display:grid;gap:6px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+ .media-delete-overlay{position:absolute;top:10px;right:10px;z-index:3;width:30px!important;height:30px!important;min-height:30px!important;padding:0!important;display:flex!important;align-items:center;justify-content:center;border:1px solid #d92d20!important;border-radius:50%!important;background:#fff!important;color:#b42318!important;font-size:20px!important;line-height:1!important;font-weight:900!important;cursor:pointer;box-shadow:0 2px 7px rgba(0,0,0,.18)!important}
+ .media-delete-overlay:hover{background:#fff1f0!important;color:#8e1f16!important;transform:scale(1.04)}
+.media-thumb img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:9px;background:#f6f6f6;display:block}
+.media-thumb-meta{display:flex;align-items:center;justify-content:space-between;gap:6px;font-size:8px;color:#777;min-width:0}
+.media-thumb-meta small:first-child{font-weight:800;color:#333;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.media-delete-button{width:100%;min-height:34px!important;padding:6px 8px!important;font-size:9px!important;border:1px solid #d92d20!important;color:#b42318!important;background:#fff5f4!important;border-radius:8px!important;font-weight:900!important;cursor:pointer}
+.media-delete-button:hover{background:#fee4e2!important}
+.quick-add-button{min-height:32px!important;padding:6px 8px!important;font-size:9px!important}
+@media(max-width:650px){
+ .wizard-shell{padding:7px!important}
+ .wizard-panel>.panel-heading{top:47px}
+ .wizard-panel .panel-heading h3{font-size:14px}
+ .wizard-panel .panel-heading small,.wizard-panel .panel-heading .muted{font-size:8.5px;line-height:1.5}
+ .wizard-panel .form-stack input,.wizard-panel .form-stack select,.wizard-panel .form-stack textarea{font-size:14px}
+ .reference-actions{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:5px}
+ .reference-actions .inline-search{grid-column:1/-1}
+ .dimension-grid{display:grid!important;grid-template-columns:1fr!important}
+ .mobile-action-bar,.save-bar,.dimension-save-bar{position:sticky;bottom:8px;z-index:20;background:rgba(255,255,255,.97);box-shadow:0 12px 26px rgba(0,0,0,.1)}
+}
+
+/* Mobile-first product editor overrides */
+.wizard-shell,
+.wizard-shell * { box-sizing:border-box; }
+.wizard-panel .form-stack label,
+.wizard-panel .variant-quick-form label,
+.wizard-panel .variant-form-grid label,
+.wizard-panel .inventory-form-grid label { font-size:13px!important; line-height:1.45; }
+.wizard-panel .form-stack input,
+.wizard-panel .form-stack select,
+.wizard-panel .form-stack textarea { font-size:14px!important; min-height:48px!important; }
+.wizard-panel .panel-heading h3 { font-size:18px!important; }
+.wizard-panel .panel-heading small,
+.wizard-panel .muted { font-size:12px!important; line-height:1.55; }
+.wizard-panel .quick-add-button { min-height:42px!important; font-size:12px!important; }
+@media(max-width:650px){
+  .wizard-panel { padding:14px!important; }
+  .wizard-panel>.panel-heading { top:47px; }
+  .wizard-panel .form-stack label { font-size:13px!important; }
+  .wizard-steps { padding:8px 4px 10px; gap:6px; }
+  .wizard-step { min-height:44px; padding-inline:12px; font-size:12px; }
+}
+
+</style>
+<section class="module-header">
+  <span class="eyebrow">معالج المنتج</span>
+  <h2>{{ product.name }}</h2>
+  <p class="muted">احفظ كل مرحلة مستقلة. لا تنتقل للنشر قبل اكتمال المتطلبات الأساسية.</p>
+</section>
+
+<div id="wizardMessage" class="alert" hidden></div>
+
+<script id="wizardReferenceSeed" type="application/json">{{ wizard_references|tojson }}</script>
+
+<section class="pro-editor" dir="rtl" data-product-pro-editor data-product-id="{{ product_id }}">
+  <header class="pro-hero">
+    <div class="pro-hero-top">
+      <div class="pro-hero-copy"><span class="eyebrow">Edit Pro · {{ product.sku }}</span><h2>{{ product.name }}</h2><p>الألوان والمقاسات والمتغيرات والمخزون في شاشة واحدة، والصور العامة منفصلة عن صور الألوان.</p></div>
+      <span class="pro-hero-badge">PRO</span>
+    </div>
+    <nav class="pro-steps" id="proSteps" aria-label="أقسام تعديل المنتج">
+      <button class="pro-step is-active" type="button" data-pro-step="basics">الأساس</button>
+      <button class="pro-step" type="button" data-pro-step="categories">التصنيفات</button>
+      <button class="pro-step" type="button" data-pro-step="side-categories">الفئات الجانبية</button>
+      <button class="pro-step" type="button" data-pro-step="media">الصور العامة</button>
+      <button class="pro-step" type="button" data-pro-step="marketing">التسويق</button>
+      <button class="pro-step" type="button" data-pro-step="presentation">المظهر</button>
+      <button class="pro-step" type="button" data-pro-step="variants">المتغيرات</button>
+      <button class="pro-step" type="button" data-pro-step="policies">السياسات</button>
+      <button class="pro-step" type="button" data-pro-step="publish">المراجعة</button>
+    </nav>
+  </header>
+  <div id="proWizardMessage" class="alert" hidden></div>
+
+  <section class="pro-section" data-pro-panel="basics">
+    <div class="pro-section-head"><div><strong>بيانات المنتج الأساسية</strong><small>الهوية، السعر، الوصف، المادة والعلامة التجارية.</small></div><span class="pro-section-number">01</span></div>
+    <form id="basicsForm" class="form-stack">
+      <div class="pro-builder-grid">
+        <label>SKU<input id="productSku" name="sku" value="{{ product.sku or '' }}" required dir="ltr"></label>
+        <label>اسم المنتج<input id="productName" name="name" value="{{ product.name or '' }}" required></label>
+        <label>Slug<input id="productSlug" name="slug" value="{{ product.slug or '' }}" dir="ltr"></label>
+        <label>العلامة التجارية<div class="reference-field"><select id="productBrand" name="brand_id"><option value="">بدون علامة</option></select><button class="ghost-button reference-add-button" type="button" data-open-modal="quickBrandModal">＋ إضافة</button></div></label>
+      </div>
+      <div class="pro-builder-grid">
+        <label>السعر الأساسي SAR<input id="productPrice" name="base_price" value="{{ product.base_price }}" required type="number" min="0" step="0.0001" inputmode="decimal"></label>
+        <label>السعر قبل الخصم<input id="productCompareAtPrice" name="compare_at_price" value="{{ product.compare_at_price or '' }}" type="number" min="0" step="0.0001" inputmode="decimal"></label>
+      </div>
+      <label>نوع المنتج<input id="productType" name="product_type" value="{{ product.product_type or '' }}"></label>
+      <label>المادة<input id="productMaterial" name="material" value="{{ product.material or '' }}"></label>
+      <label>الوصف<textarea id="productDescription" name="description" rows="5">{{ product.description or '' }}</textarea></label>
+      <label>تعليمات الغسيل<textarea id="productCare" name="care_instructions" rows="3">{{ product.care_instructions or '' }}</textarea></label>
+      <button class="pro-primary-btn" type="submit">حفظ البيانات الأساسية</button>
+    </form>
+  </section>
+
+  <section class="pro-section" data-pro-panel="categories" hidden>
+    <div class="pro-section-head"><div><strong>التصنيفات</strong><small>نفس شجرة التصنيفات الحالية للمنتج.</small></div><span class="pro-section-number">02</span></div>
+    <div class="selection-toolbar"><div><strong>التصنيفات المرتبطة</strong><small class="muted">ابحث داخل الشجرة أو أضف تصنيفًا جديدًا.</small></div><div class="reference-actions"><input id="categorySearch" type="search" class="inline-search" placeholder="بحث…"><button class="ghost-button" type="button" data-open-modal="quickCategoryModal">＋ إضافة</button></div></div>
+    <div id="categorySelection" class="category-picker-tree">{% for category, depth in category_tree %}<label class="category-picker-choice" style="--depth:{{ depth }}"><input type="checkbox" value="{{ category.id }}" data-category-checkbox{% if category.id in selected_category_ids %} checked{% endif %}><span class="category-picker-marker">{{ "▾" if depth == 0 else "•" }}</span><span class="category-picker-copy"><strong>{{ category.name }}</strong><small>{{ category.slug }}</small></span></label>{% endfor %}</div>
+    <button id="saveCategories" class="pro-primary-btn" type="button">حفظ التصنيفات</button>
+  </section>
+
+  <section class="pro-section" data-pro-panel="side-categories" hidden>
+    <div class="pro-section-head"><div><strong>الفئات الجانبية ودوائرها</strong><small>تظهر بحسب التصنيفات الأساسية المرتبطة بالمنتج.</small></div><span id="sideCategoryCircleCount" class="pro-section-number">0</span></div>
+    <div class="selection-toolbar"><div><strong>دوائر الفئات</strong><small class="muted">نفس نظام الدوائر الحالي دون تغيير المنطق.</small></div><div class="reference-actions"><input id="sideCategoryCircleSearch" type="search" class="inline-search" placeholder="بحث…"><a class="ghost-button" href="/admin/side-categories" target="_blank" rel="noreferrer">إدارة الفئات</a></div></div>
+    <div id="sideCategoryCircleSelection" class="side-circle-picker"></div>
+    <button id="saveSideCategoryCircles" class="pro-primary-btn" type="button">حفظ الفئات الجانبية</button>
+  </section>
+
+  <section class="pro-section" data-pro-panel="media" hidden>
+    <div class="pro-section-head"><div><strong>صور عامة للمنتج</strong><small>لا ترتبط بلون. صور الألوان تُضاف من بطاقة اللون في قسم المتغيرات.</small></div><span id="proGeneralMediaCount" class="pro-section-number">0</span></div>
+    <div class="pro-upload-card"><label for="proGeneralMediaInput"><span class="pro-upload-icon">＋</span><strong>إضافة صور عامة</strong><small>حدد عدة صور من الهاتف مرة واحدة.</small><input id="proGeneralMediaInput" type="file" accept="image/*" multiple></label><button id="proUploadGeneralMedia" class="pro-primary-btn" type="button">رفع الصور العامة</button></div>
+    <div id="proGeneralMediaGrid" class="pro-general-grid"></div><div id="proGeneralMediaEmpty" class="pro-general-meta">لا توجد صور عامة بعد.</div>
+  </section>
+
+  <section class="pro-section" data-pro-panel="marketing" hidden>
+    <div class="pro-section-head"><div><strong>التسويق</strong><small>الشارات والهاشتاجات وشرائط العروض والحملات كما في النظام الحالي.</small></div><span class="pro-section-number">05</span></div>
+    <div class="two-panel">
+      <article class="panel marketing-card"><div class="panel-heading"><div><span class="eyebrow">الشارات</span><strong>شارات المنتج</strong></div><button class="ghost-button quick-add-button" type="button" data-open-modal="quickBadgeModal">＋ إنشاء شارة</button></div><div class="card-inherit-note"><strong>المحرر المستقل</strong><span>التخصيص التفصيلي للشارات بقي في شاشة المظهر المستقلة.</span><a class="primary-button" href="/admin/products/{{ product_id }}/presentation">فتح محرر الشارات</a></div><div id="badgeSelection" class="selection-list" hidden></div></article>
+      <article class="panel marketing-card"><div class="panel-heading"><div><span class="eyebrow">الهاشتاجات</span><strong>الترند والبحث</strong></div><button class="ghost-button quick-add-button" type="button" data-open-modal="quickHashtagModal">＋ إضافة هاشتاج</button></div><div id="hashtagSelection" class="selection-list"></div></article>
+    </div>
+    <div class="two-panel marketing-reference-grid">
+      <article class="panel marketing-card"><div class="panel-heading"><div><span class="eyebrow">شرائط العروض</span><strong>جديدنا والعروض</strong></div><button class="ghost-button quick-add-button" type="button" data-open-modal="quickStripModal">＋ إضافة</button></div><div id="stripSelection" class="selection-list"></div></article>
+      <article class="panel marketing-card"><div class="panel-heading"><div><span class="eyebrow">الحملات</span><strong>حملات الترويج</strong></div><button class="ghost-button quick-add-button" type="button" data-open-modal="quickCampaignModal">＋ إضافة</button></div><div id="campaignSelection" class="selection-list"></div></article>
+    </div>
+    <button id="saveMarketing" class="pro-primary-btn" type="button">حفظ التسويق</button>
+  </section>
+
+  <section class="pro-section" data-pro-panel="presentation" hidden>
+    <div class="pro-section-head"><div><strong>الشارات والمظهر والتوصيات</strong><small>تظل هذه الوظائف في الفورم المستقل الحالي.</small></div><span class="pro-section-number">06</span></div>
+    <div class="pro-option-section"><div class="pro-subhead"><div><strong>محرر المظهر</strong><small>بطاقة المنتج، الشارات الفردية، شارات التوصيل والتوصيات.</small></div></div><div style="padding:0 12px 12px"><a class="pro-primary-btn" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="/admin/products/{{ product_id }}/presentation">فتح محرر الشارات والمظهر والتوصيات</a></div></div>
+  </section>
+
+  <section class="pro-section" data-pro-panel="variants" hidden>
+    <div class="pro-section-head"><div><strong>المتغيرات · لون + مقاس + مخزون</strong><small>هذا هو مكان اختيار الألوان والمقاسات وإنشاء variants وتعديل الكميات.</small></div><span id="proVariantCount" class="pro-section-number">0</span></div>
+    <div class="pro-builder">
+      <div class="pro-builder-grid">
+        <article class="pro-builder-card"><div class="pro-builder-card-head"><div><strong>ألوان المنتج</strong><small>كل لون = بطاقة مستقلة.</small></div><button id="proAddColor" class="pro-primary-btn" type="button">＋ إضافة لون</button></div><div id="proSelectedColors" class="pro-selected-chips"></div></article>
+        <article class="pro-builder-card"><div class="pro-builder-card-head"><div><strong>المقاسات</strong><small>أضف مقاسًا واحدًا على الأقل.</small></div><button id="proAddSize" class="pro-primary-btn" type="button">＋ إضافة مقاس</button></div><div id="proSelectedSizes" class="pro-selected-chips"></div></article>
+      </div>
+      <article class="pro-builder-card"><div class="pro-builder-card-head"><div><strong>موقع المخزون</strong><small>يطبق على كل خلايا الكميات.</small></div><select id="proInventoryLocation" aria-label="موقع المخزون"></select></div>
+        <details><summary style="margin-top:9px;cursor:pointer;font-size:11px;font-weight:900">إضافة أو إدارة موقع تخزين</summary>
+          <form id="locationForm" class="form-stack" style="margin-top:10px"><label>اسم الموقع<input name="name" required placeholder="المخزن الرئيسي"></label><label>الكود<input name="code" required dir="ltr" placeholder="MAIN"></label><label>City ID<input name="city_id" type="number" min="1"></label><button class="ghost-button" type="submit">＋ إضافة موقع</button></form>
+        </details>
+      </article>
+    </div>
+    <div id="proVariantsList"></div>
+
+    <section class="pro-size-guide-section"><div class="pro-subhead"><div><strong>جدول المقاسات للعميل</strong><small>اختر جدولًا واحدًا أو عدة جداول ورتبها.</small></div><span class="pro-size-badge">مقاسات</span></div><input id="proSizeGuideSearch" type="search" placeholder="بحث في جداول المقاسات…"><div id="proSizeGuideSelection"></div><div class="pro-size-guide-actions"><button id="proSaveSizeGuides" class="pro-primary-btn" type="button">حفظ جداول المقاسات</button></div></section>
+
+    <section class="pro-option-section"><div class="pro-subhead"><div><strong>خيار مخصص للمنتج</strong><small>الخامة أو التصميم أو أي اختيار إضافي. لا نخلطه مع اللون والمقاس.</small></div></div>
+      <form id="proOptionForm" class="pro-variant-form" style="padding:0 12px 12px"><label>اسم الخيار<input name="name" required placeholder="الخامة / التصميم"></label><label>القيم <small class="muted">قيمة في كل سطر</small><textarea name="values_text" rows="4" placeholder="قطن&#10;كتان&#10;مخلوط"></textarea></label><label class="check-row"><input name="required" type="checkbox"><span><strong>إجباري</strong><small>يجب اختيار القيمة قبل إضافة المنتج للعربة.</small></span></label><button class="pro-primary-btn" type="submit">＋ إضافة الخيار</button></form>
+      <div id="proOptionsList"></div>
+    </section>
+  </section>
+
+  <section class="pro-section" data-pro-panel="policies" hidden>
+    <div class="pro-section-head"><div><strong>السياسات والعرض</strong><small>إعدادات الظهور وسياسات الشحن والإرجاع والضمان.</small></div><span class="pro-section-number">08</span></div>
+    <div class="settings-list">
+      <label class="check-row"><input id="showRating" type="checkbox" checked><span><strong>إظهار التقييم</strong><small>عرض التقييم وعدد المراجعات.</small></span></label>
+      <label class="check-row"><input id="showSoldBadge" type="checkbox" checked><span><strong>إظهار شارة تم البيع</strong></span></label>
+      <label class="check-row"><input id="showShipping" type="checkbox" checked><span><strong>إظهار شريط الشحن</strong></span></label>
+      <label class="check-row"><input id="showReturn" type="checkbox" checked><span><strong>إظهار الإرجاع</strong></span></label>
+    </div>
+    <div class="form-stack">
+      <label>سياسة الشحن<div class="reference-field"><select id="shippingPolicyId"><option value="">بدون سياسة</option></select><button class="ghost-button reference-add-button" type="button" data-open-modal="quickShippingPolicyModal">＋ إضافة</button></div></label>
+      <label>سياسة الإرجاع<div class="reference-field"><select id="returnPolicyId"><option value="">بدون سياسة</option></select><button class="ghost-button reference-add-button" type="button" data-open-modal="quickReturnPolicyModal">＋ إضافة</button></div></label>
+      <label>سياسة الضمان<div class="reference-field"><select id="warrantyPolicyId"><option value="">بدون سياسة</option></select><button class="ghost-button reference-add-button" type="button" data-open-modal="quickWarrantyPolicyModal">＋ إضافة</button></div></label>
+    </div>
+    <button id="saveDisplay" class="pro-primary-btn" type="button">حفظ العرض والسياسات</button>
+  </section>
+
+  <section class="pro-section" data-pro-panel="publish" hidden>
+    <div class="pro-section-head"><div><strong>مراجعة قبل النشر</strong><small>نفس شروط النشر الحالية.</small></div><span class="pro-section-number">09</span></div>
+    <div id="publishChecklist" class="checklist"></div><button id="publishProduct" class="pro-primary-btn" type="button">نشر المنتج</button>
+  </section>
+
+  <!-- Compatibility island: keeps the existing product-wizard.js functional for shared modules. -->
+  <div class="pro-compat" aria-hidden="true">
+    <div id="variantsList"></div><div id="mediaColorGroups"></div><div id="mediaPreview"></div>
+    <select id="mediaColor"><option value="">صور عامة للمنتج</option></select><input id="productMedia" type="file" multiple><button id="uploadMedia" type="button">رفع</button>
+    <input id="colorSearch" type="search"><input id="sizeSearch" type="search"><div id="productColors"></div><div id="sizeReferencePreview"></div>
+    <span id="productColorCount"></span><span id="availableSizeCount"></span><span id="colorSelectionSummary"></span><span id="sizeSelectionSummary"></span><button id="saveDimensions" type="button">حفظ</button>
+    <input id="sizeGuideSearch" type="search"><div id="sizeGuideSelection"></div><button id="saveSizeGuides" type="button">حفظ</button>
+    <form id="optionForm"><input name="name"><select name="option_type"><option value="custom">custom</option></select><textarea name="values_text"></textarea><input name="required" type="checkbox"></form><div id="optionsList"></div>
+    <div id="deliveryBadgeEditor"></div><div id="productCardEditor"></div><div id="recommendationEditor"></div><button id="saveDeliveryBadges"></button><button id="addDeliveryBadge"></button><button id="saveProductCard"></button><button id="resetProductCardOverrides"></button><button id="saveRecommendations"></button>
+    <select id="variantInventoryLocation"></select><select id="inventoryLocationGlobal"></select><div id="variantManualPanel"></div><select id="variantManualColor"></select><div id="variantManualSizes"></div><button id="toggleVariantManual"></button><button id="generateVariants"></button>
+  </div>
+</section>
+
+<div class="pro-modal" data-pro-image-modal hidden>
+  <div class="pro-modal-card">
+    <div class="pro-modal-head"><div><h3 data-pro-modal-title>معاينة الصورة</h3><p data-pro-modal-subtitle></p></div><button class="pro-modal-close" type="button" data-pro-close>×</button></div>
+    <div class="pro-modal-image"><img data-pro-modal-image src="" alt=""></div>
+    <div class="pro-modal-actions"><button class="pro-primary-btn" type="button" data-pro-modal-add>＋ إضافة صورة لهذا اللون</button><button class="pro-outline-btn secondary" type="button" data-pro-close>إغلاق</button></div>
+  </div>
+</div>
+<input id="proColorImageInput" type="file" accept="image/*" multiple hidden>
+
+<div class="admin-modal" data-modal="quickColorModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">مرجع الكتالوج</span><h3>إضافة لون جديد</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickColorForm" class="form-stack">
+      <label>اسم اللون<input name="name" required placeholder="أسود"></label>
+      <label>اللون
+        <span class="color-input-row">
+          <input name="hex_code" type="color" value="#111111">
+          <input name="hex_code_text" class="color-text-input" value="#111111" dir="ltr" maxlength="7">
+        </span>
+      </label>
+      <label>الترتيب<input name="sort_order" type="number" value="0"></label>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء اللون</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="admin-modal" data-modal="quickSizeModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">مرجع الكتالوج</span><h3>إضافة مقاس</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickSizeForm" class="form-stack">
+      <label>المجموعة<input name="group" required placeholder="EU"></label>
+      <label>Code<input name="code" required dir="ltr" placeholder="M"></label>
+      <label>الاسم الظاهر<input name="label" required placeholder="متوسط"></label>
+      <label>الترتيب<input name="sort_order" type="number" value="0"></label>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء المقاس</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="admin-modal" data-modal="quickBadgeModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">التسويق</span><h3>إضافة شارة جديدة</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickBadgeForm" class="form-stack">
+      <label>اسم الشارة<input name="name" required placeholder="خصم جديد"></label>
+      <label>الكود<input name="code" required dir="ltr" placeholder="new"></label>
+      <div class="form-grid">
+        <label>لون الخلفية
+          <span class="color-input-row"><input name="bg_color" type="color" value="#111827"><input name="bg_color_text" class="color-text-input" value="#111827" dir="ltr"></span>
+        </label>
+        <label>لون النص
+          <span class="color-input-row"><input name="text_color" type="color" value="#ffffff"><input name="text_color_text" class="color-text-input" value="#ffffff" dir="ltr"></span>
+        </label>
+      </div>
+      <div class="form-grid">
+        <label>يظهر في<select name="storefront_tab">
+          <option value="none">لا يظهر في تبويب خاص</option>
+          <option value="new">جديد</option>
+          <option value="offers">العروض</option>
+        </select></label>
+        <label>الأولوية<input name="priority" type="number" value="0"></label>
+      </div>
+      <label>النمط<select name="style"><option value="solid">Solid</option><option value="outline">Outline</option><option value="soft">Soft</option></select></label>
+      <div class="form-grid badge-visual-defaults">
+        <label>حجم النص<input name="font_size" type="number" min="6" max="32" step="0.5" value="9"></label>
+        <label>وزن النص<input name="font_weight" type="number" min="300" max="900" step="100" value="800"></label>
+      </div>
+      <div class="form-grid badge-visual-defaults">
+        <label>شفافية الخلفية<input name="background_opacity" type="number" min="0" max="1" step="0.05" value="1"></label>
+        <label>الخط على النص<select name="text_decoration"><option value="none">بدون خط</option><option value="line_through">خط فوق النص</option></select></label>
+      </div>
+      <div class="badge-quick-preview" aria-live="polite"><span id="quickBadgePreview">خصم</span></div>
+      <p class="muted badge-help">إعدادات الشارة الافتراضية يمكن تخصيصها على مستوى هذا المنتج بعد ربطها.</p>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء الشارة</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+
+<div class="admin-modal" data-modal="quickBrandModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">العلامات التجارية</span><h3>إضافة علامة تجارية جديدة</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickBrandForm" class="form-stack"><label>اسم العلامة<input name="name" required placeholder="مثال: Nike"></label>
+<label>Slug <small class="muted">(اختياري؛ يولد تلقائيًا)</small><input name="slug" dir="ltr" placeholder="سيولد تلقائيًا"></label>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء العلامة</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="admin-modal" data-modal="quickCategoryModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">الكتالوج</span><h3>إضافة تصنيف جديد</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickCategoryForm" class="form-stack"><label>اسم التصنيف<input name="name" required placeholder="مثال: فساتين"></label>
+<label>Slug <small class="muted">(اختياري)</small><input name="slug" dir="ltr" placeholder="يولد تلقائيًا"></label>
+<label>التصنيف الأب<select name="parent_id"><option value="">بدون أب</option></select></label>
+<label>النمط<select name="display_style"><option value="circle">دائرة</option><option value="grid">شبكة</option><option value="list">قائمة</option></select></label>
+<label>الترتيب<input name="sort_order" type="number" value="0"></label>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء التصنيف</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="admin-modal" data-modal="quickHashtagModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">الترند والهاشتاجات</span><h3>إضافة هاشتاج جديد</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickHashtagForm" class="form-stack"><label>الاسم الداخلي<input name="name" required placeholder="عروض_العيد"></label>
+<label>اسم العرض<input name="display_name" placeholder="#عروض_العيد"></label>
+<label>Slug <small class="muted">(اختياري)</small><input name="slug" dir="ltr" placeholder="يولد تلقائيًا"></label>
+<label>الترتيب<input name="sort_order" type="number" value="0"></label>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء الهاشتاج</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="admin-modal" data-modal="quickStripModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">جديدنا والعروض</span><h3>إضافة شريط عرض جديد</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickStripForm" class="form-stack"><label>اسم الشريط<input name="name" required placeholder="عرض الشحن المجاني"></label>
+<label>مقدمة قصيرة<input name="text_prefix" placeholder="عرض"></label>
+<label>نص العرض<textarea name="text_body" rows="3" required placeholder="شحن مجاني للطلبات فوق 200"></textarea></label>
+<div class="form-grid"><label>لون الخلفية<input name="background_color" type="color" value="#111827"></label><label>لون النص<input name="text_color" type="color" value="#ffffff"></label></div>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء شريط العرض</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="admin-modal" data-modal="quickCampaignModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">الحملات</span><h3>إضافة حملة جديدة</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickCampaignForm" class="form-stack"><label>اسم الحملة<input name="name" required placeholder="حملة نهاية الموسم"></label>
+<label>Slug <small class="muted">(اختياري)</small><input name="slug" dir="ltr" placeholder="يولد تلقائيًا"></label>
+<label>شارة الحملة<select name="badge_id" id="campaignBadgeId"><option value="">بدون شارة</option></select></label>
+<label>الحالة<select name="status"><option value="draft">مسودة</option><option value="active">فعالة</option></select></label>
+<label>أولوية العرض<input name="display_priority" type="number" value="0"></label>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء الحملة</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="admin-modal" data-modal="quickShippingPolicyModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">السياسات</span><h3>إضافة سياسة شحن</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickShippingPolicyForm" class="form-stack"><label>اسم السياسة<input name="name" required placeholder="شحن قياسي"></label>
+<label>نافذة التسليم<input name="delivery_window" placeholder="3-7 أيام"></label>
+<label>نص العرض<input name="promo_text" placeholder="شحن مجاني فوق حد معين"></label>
+<label>الحد الأدنى للشحن المجاني<input name="min_order_amount" type="number" min="0" step="0.01" value="0"></label>
+<label class="check-row"><input name="free_shipping_enabled" type="checkbox"><span><strong>الشحن المجاني مفعل</strong></span></label>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء سياسة الشحن</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="admin-modal" data-modal="quickReturnPolicyModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">السياسات</span><h3>إضافة سياسة إرجاع</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickReturnPolicyForm" class="form-stack"><label>اسم السياسة<input name="name" required placeholder="إرجاع خلال 7 أيام"></label>
+<label>عدد الأيام<input name="return_window_days" type="number" min="0" value="7"></label>
+<label>الشروط<textarea name="conditions" rows="3"></textarea></label>
+<label>قاعدة الرسوم<input name="fee_rule"></label>
+<label>طريقة الاسترداد<input name="refund_method" placeholder="المحفظة / نفس وسيلة الدفع"></label>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء سياسة الإرجاع</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div class="admin-modal" data-modal="quickWarrantyPolicyModal" hidden>
+  <div class="admin-modal-backdrop" data-close-modal></div>
+  <section class="admin-modal-dialog" role="dialog" aria-modal="true">
+    <div class="admin-modal-header">
+      <div><span class="eyebrow">السياسات</span><h3>إضافة سياسة ضمان</h3></div>
+      <button class="icon-button" type="button" data-close-modal>×</button>
+    </div>
+    <form id="quickWarrantyPolicyForm" class="form-stack"><label>اسم السياسة<input name="name" required placeholder="ضمان سنة"></label>
+<label>المدة بالأيام<input name="duration_days" type="number" min="0" value="365"></label>
+<label>التغطية<textarea name="coverage" rows="3"></textarea></label>
+<label>الاستثناءات<textarea name="exclusions" rows="3"></textarea></label>
+<label>طريقة المطالبة<input name="claim_method"></label>
+      <div class="modal-actions">
+        <button class="ghost-button" type="button" data-close-modal>إلغاء</button>
+        <button class="primary-button" type="submit">إنشاء سياسة الضمان</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script src="{{ url_for('admin.static', filename='product-wizard.js') }}?v=20261008-3" defer></script>
+<script src="{{ url_for('admin.static', filename='product-wizard-pro.js') }}?v=20261008-1" defer></script>
+{% endblock %}
