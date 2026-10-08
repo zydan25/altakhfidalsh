@@ -29,8 +29,6 @@ from ...models import (
     ProductOptionValue,
     ProductColorReference,
     ProductSizeReference,
-    SizeGuide,
-    ProductSizeGuideReference,
     Size,
     Brand,
     Hashtag,
