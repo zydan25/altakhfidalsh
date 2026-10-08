@@ -714,7 +714,7 @@
           }).join("")
         : '<div class="variant-empty-stock">لا يوجد مخزون مسجل لهذا المتغير.</div>';
 
-      return '<article class="variant-card' + (variant.status !== "active" || variant.is_active === false ? ' is-archived' : '') + '">' +
+      return '<article class="variant-card' + (variant.status !== "active" || variant.is_active === false ? ' is-archived' : '') + '" data-variant-card-id="' + variant.id + '">' +
         '<header class="variant-card-head">' +
           '<div class="variant-card-identity">' +
             '<span class="variant-number">' + (index + 1) + '</span>' +
@@ -765,7 +765,7 @@
       const colorsForDraft = (configRefs?.colors || optionRefs?.colors || []).filter(x =>
         x.is_active && !variants.some(v => Number(v.color_id) === Number(x.id) && Number(v.size_id || 0) === Number(draft.sizeId || 0))
       );
-      return '<article class="variant-card is-draft">' +
+      return '<article class="variant-card is-draft" data-variant-draft-card="' + draft.id + '">' +
         '<header class="variant-card-head">' +
           '<div class="variant-card-identity">' +
             '<span class="variant-number is-draft">+</span>' +
@@ -799,8 +799,17 @@
       '</article>';
     }).join("");
 
-    root.innerHTML = savedCards + draftCards ||
+    root.innerHTML = (savedCards + draftCards) ||
       '<div class="empty-state compact"><strong>لا توجد متغيرات بعد.</strong><span class="muted">اختر الألوان والمقاسات ثم ولّد التركيبات أو أضف متغيرًا يدويًا.</span></div>';
+
+    variantDrafts.forEach(draft => {
+      const source = root.querySelector('[data-variant-card-id="' + draft.sourceVariantId + '"]');
+      const draftCard = root.querySelector('[data-variant-draft-card="' + draft.id + '"]');
+      if (source && draftCard) source.after(draftCard);
+    });
+
+    const count = document.getElementById("variantCount");
+    if (count) count.textContent = variants.filter(x => x.status === "active" || x.is_active !== false).length + " متغير";
   };
 
   const hydrate = () => {
