@@ -632,6 +632,67 @@
     });
   };
 
+  const deleteColorSize = async (colorId, sizeId) => {
+    const color = colorById(colorId);
+    const size = sizeById(sizeId);
+    const label = (color?.name || "اللون") + " · " + (size?.label || "المقاس");
+    const variants = activeVariants().filter(v =>
+      Number(v.color_id) === Number(colorId) && Number(v.size_id) === Number(sizeId)
+    );
+
+    if (!window.confirm(
+      "حذف " + label + " من هذا اللون؟\n\n" +
+      "سيتم حذف/أرشفة المتغير المرتبط بهذا اللون والمقاس فقط. " +
+      "المقاس سيبقى متاحًا لبقية الألوان."
+    )) return;
+
+    try {
+      for (const variant of variants) {
+        await requestJson("/api/v1/catalog/products/" + productId + "/variants/" + variant.id, {
+          method:"DELETE"
+        });
+      }
+      await afterMutation();
+      notify("تمت إزالة " + (size?.label || "المقاس") + " من اللون " + (color?.name || "المحدد") + ".");
+    } catch (error) {
+      notify(error.message || "تعذر حذف المقاس من اللون.","error");
+    }
+  };
+
+  const deleteColorAndContents = async colorId => {
+    const color = colorById(colorId);
+    const variants = activeVariants().filter(v => Number(v.color_id) === Number(colorId));
+    const media = (snapshot?.media || []).filter(m => Number(m.color_id) === Number(colorId));
+    const label = color?.name || "هذا اللون";
+
+    if (!window.confirm(
+      "حذف اللون «" + label + "» بالكامل من هذا المنتج؟\n\n" +
+      "سيتم حذف/أرشفة جميع متغيراته وصوره الخاصة به، ثم إزالته من ألوان المنتج.\n" +
+      "هذا لا يحذف اللون من جدول الألوان العام."
+    )) return;
+
+    try {
+      for (const variant of variants) {
+        await requestJson("/api/v1/catalog/products/" + productId + "/variants/" + variant.id, {
+          method:"DELETE"
+        });
+      }
+      for (const item of media) {
+        await requestJson("/api/v1/catalog/products/" + productId + "/media/" + item.id, {
+          method:"DELETE"
+        });
+      }
+
+      colorIds.delete(Number(colorId));
+      await persistDimensions();
+      await afterMutation();
+      renderSelectedChips();
+      notify("تم حذف اللون «" + label + "» ومتغيراته وصوره من المنتج.");
+    } catch (error) {
+      notify(error.message || "تعذر حذف اللون بالكامل.","error");
+    }
+  };
+
   const renderVariants = () => {
     const target = $("#proVariantsList");
     if (!target) return;
@@ -662,7 +723,12 @@
       const colorMedia = (snapshot.media || []).filter(m => Number(m.color_id) === Number(color.id));
       const missingSizes = selectedSizes.filter(size => !allColorVariants.some(v => Number(v.size_id) === Number(size.id)));
       const headerCells = colorSizes.map(size =>
-        '<th scope="col"><div class="pro-size-head"><strong>' + escapeHtml(size.label) + '</strong><small>' + escapeHtml(size.code || size.group || "") + '</small></div></th>'
+        '<th scope="col">' +
+          '<div class="pro-size-head">' +
+            '<div class="pro-size-head-main"><span class="pro-size-label">' + escapeHtml(size.label) + '</span><small>' + escapeHtml(size.code || size.group || "") + '</small></div>' +
+            '<button type="button" class="pro-size-remove" data-pro-remove-color-size="' + color.id + '" data-pro-remove-size-id="' + size.id + '" aria-label="حذف المقاس من اللون">×</button>' +
+          '</div>' +
+        '</th>'
       ).join("");
 
       const cells = colorSizes.map(size => {
@@ -933,9 +999,18 @@
       return;
     }
 
+    const removeColorSize = event.target.closest("[data-pro-remove-color-size]");
+    if (removeColorSize) {
+      await deleteColorSize(
+        Number(removeColorSize.dataset.proRemoveColorSize),
+        Number(removeColorSize.dataset.proRemoveSizeId)
+      );
+      return;
+    }
+
     const removeColor = event.target.closest("[data-pro-remove-color-card]");
     if (removeColor) {
-      removeDimension("color", Number(removeColor.dataset.proRemoveColorCard));
+      await deleteColorAndContents(Number(removeColor.dataset.proRemoveColorCard));
       return;
     }
 
