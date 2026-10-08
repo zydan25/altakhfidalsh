@@ -72,3 +72,17 @@ def test_order_status_notification_contains_navigation_data(app):
             customer_id=customer.id,
             notification_id=row.id,
         ).first() is not None
+
+def test_fcm_reserved_data_key_is_namespaced():
+    from app.services.fcm import FCMService
+
+    payload = FCMService._string_data({
+        "message_type": "text",
+        "target": "conversation",
+        "conversation_id": 42,
+    })
+
+    assert "message_type" not in payload
+    assert payload["data_message_type"] == "text"
+    assert payload["target"] == "conversation"
+    assert payload["conversation_id"] == "42"
