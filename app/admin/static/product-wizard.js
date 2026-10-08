@@ -2154,6 +2154,8 @@
     document.querySelectorAll("[data-badge-sort]").forEach((input,index)=>input.value=index);
   });
 
+  window.takhfidProductWizardReload = load;
+  window.takhfidProductWizardGetSnapshot = () => snapshot;
   syncColorTextInputs();
   load();
 })();
