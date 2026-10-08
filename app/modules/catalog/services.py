@@ -1582,7 +1582,8 @@ class CatalogService:
             color = db.session.get(Color, int(color_id))
             if color is None:
                 raise ValueError("color not found")
-            parts.append(CatalogService._variant_sku_token(color.code if hasattr(color, "code") else color.name))
+            color_token = CatalogService._variant_sku_token(color.name) or f"C{color.id}"
+            parts.append(color_token)
         if size_id is not None:
             size = db.session.get(Size, int(size_id))
             if size is None:
