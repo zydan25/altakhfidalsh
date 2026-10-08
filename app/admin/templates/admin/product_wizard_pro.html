@@ -107,20 +107,20 @@
       <span class="pro-hero-badge">PRO</span>
     </div>
     <nav class="pro-steps" id="proSteps" aria-label="أقسام تعديل المنتج">
-      <button class="pro-step is-active" type="button" data-pro-step="basics">الأساس</button>
-      <button class="pro-step" type="button" data-pro-step="categories">التصنيفات</button>
-      <button class="pro-step" type="button" data-pro-step="side-categories">الفئات الجانبية</button>
-      <button class="pro-step" type="button" data-pro-step="media">الصور العامة</button>
-      <button class="pro-step" type="button" data-pro-step="marketing">التسويق</button>
-      <button class="pro-step" type="button" data-pro-step="presentation">المظهر</button>
-      <button class="pro-step" type="button" data-pro-step="variants">المتغيرات</button>
-      <button class="pro-step" type="button" data-pro-step="policies">السياسات</button>
-      <button class="pro-step" type="button" data-pro-step="publish">المراجعة</button>
+      <button class="pro-step wizard-step is-active" type="button" data-pro-step="basics">الأساس</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="categories">التصنيفات</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="side-categories">الفئات الجانبية</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="media">الصور العامة</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="marketing">التسويق</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="presentation">المظهر</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="variants">المتغيرات</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="policies">السياسات</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="publish">المراجعة</button>
     </nav>
   </header>
-  <div id="proWizardMessage" class="alert" hidden></div>
+  <div id="proWizardMessage" class="alert" hidden></div><div id="wizardMessage" class="alert" hidden></div>
 
-  <section class="pro-section" data-pro-panel="basics">
+  <section class="pro-section" data-pro-panel="basics" data-panel="basics">
     <div class="pro-section-head"><div><strong>بيانات المنتج الأساسية</strong><small>الهوية، السعر، الوصف، المادة والعلامة التجارية.</small></div><span class="pro-section-number">01</span></div>
     <form id="basicsForm" class="form-stack">
       <div class="pro-builder-grid">
@@ -141,27 +141,27 @@
     </form>
   </section>
 
-  <section class="pro-section" data-pro-panel="categories" hidden>
+  <section class="pro-section" data-pro-panel="categories" data-panel="categories" hidden>
     <div class="pro-section-head"><div><strong>التصنيفات</strong><small>نفس شجرة التصنيفات الحالية للمنتج.</small></div><span class="pro-section-number">02</span></div>
     <div class="selection-toolbar"><div><strong>التصنيفات المرتبطة</strong><small class="muted">ابحث داخل الشجرة أو أضف تصنيفًا جديدًا.</small></div><div class="reference-actions"><input id="categorySearch" type="search" class="inline-search" placeholder="بحث…"><button class="ghost-button" type="button" data-open-modal="quickCategoryModal">＋ إضافة</button></div></div>
     <div id="categorySelection" class="category-picker-tree">{% for category, depth in category_tree %}<label class="category-picker-choice" style="--depth:{{ depth }}"><input type="checkbox" value="{{ category.id }}" data-category-checkbox{% if category.id in selected_category_ids %} checked{% endif %}><span class="category-picker-marker">{{ "▾" if depth == 0 else "•" }}</span><span class="category-picker-copy"><strong>{{ category.name }}</strong><small>{{ category.slug }}</small></span></label>{% endfor %}</div>
     <button id="saveCategories" class="pro-primary-btn" type="button">حفظ التصنيفات</button>
   </section>
 
-  <section class="pro-section" data-pro-panel="side-categories" hidden>
+  <section class="pro-section" data-pro-panel="side-categories" data-panel="side-categories" hidden>
     <div class="pro-section-head"><div><strong>الفئات الجانبية ودوائرها</strong><small>تظهر بحسب التصنيفات الأساسية المرتبطة بالمنتج.</small></div><span id="sideCategoryCircleCount" class="pro-section-number">0</span></div>
     <div class="selection-toolbar"><div><strong>دوائر الفئات</strong><small class="muted">نفس نظام الدوائر الحالي دون تغيير المنطق.</small></div><div class="reference-actions"><input id="sideCategoryCircleSearch" type="search" class="inline-search" placeholder="بحث…"><a class="ghost-button" href="/admin/side-categories" target="_blank" rel="noreferrer">إدارة الفئات</a></div></div>
     <div id="sideCategoryCircleSelection" class="side-circle-picker"></div>
     <button id="saveSideCategoryCircles" class="pro-primary-btn" type="button">حفظ الفئات الجانبية</button>
   </section>
 
-  <section class="pro-section" data-pro-panel="media" hidden>
+  <section class="pro-section" data-pro-panel="media" data-panel="media" hidden>
     <div class="pro-section-head"><div><strong>صور عامة للمنتج</strong><small>لا ترتبط بلون. صور الألوان تُضاف من بطاقة اللون في قسم المتغيرات.</small></div><span id="proGeneralMediaCount" class="pro-section-number">0</span></div>
     <div class="pro-upload-card"><label for="proGeneralMediaInput"><span class="pro-upload-icon">＋</span><strong>إضافة صور عامة</strong><small>حدد عدة صور من الهاتف مرة واحدة.</small><input id="proGeneralMediaInput" type="file" accept="image/*" multiple></label><button id="proUploadGeneralMedia" class="pro-primary-btn" type="button">رفع الصور العامة</button></div>
     <div id="proGeneralMediaGrid" class="pro-general-grid"></div><div id="proGeneralMediaEmpty" class="pro-general-meta">لا توجد صور عامة بعد.</div>
   </section>
 
-  <section class="pro-section" data-pro-panel="marketing" hidden>
+  <section class="pro-section" data-pro-panel="marketing" data-panel="marketing" hidden>
     <div class="pro-section-head"><div><strong>التسويق</strong><small>الشارات والهاشتاجات وشرائط العروض والحملات كما في النظام الحالي.</small></div><span class="pro-section-number">05</span></div>
     <div class="two-panel">
       <article class="panel marketing-card"><div class="panel-heading"><div><span class="eyebrow">الشارات</span><strong>شارات المنتج</strong></div><button class="ghost-button quick-add-button" type="button" data-open-modal="quickBadgeModal">＋ إنشاء شارة</button></div><div class="card-inherit-note"><strong>المحرر المستقل</strong><span>التخصيص التفصيلي للشارات بقي في شاشة المظهر المستقلة.</span><a class="primary-button" href="/admin/products/{{ product_id }}/presentation">فتح محرر الشارات</a></div><div id="badgeSelection" class="selection-list" hidden></div></article>
@@ -174,12 +174,12 @@
     <button id="saveMarketing" class="pro-primary-btn" type="button">حفظ التسويق</button>
   </section>
 
-  <section class="pro-section" data-pro-panel="presentation" hidden>
+  <section class="pro-section" data-pro-panel="presentation" data-panel="presentation" hidden>
     <div class="pro-section-head"><div><strong>الشارات والمظهر والتوصيات</strong><small>تظل هذه الوظائف في الفورم المستقل الحالي.</small></div><span class="pro-section-number">06</span></div>
     <div class="pro-option-section"><div class="pro-subhead"><div><strong>محرر المظهر</strong><small>بطاقة المنتج، الشارات الفردية، شارات التوصيل والتوصيات.</small></div></div><div style="padding:0 12px 12px"><a class="pro-primary-btn" style="display:flex;align-items:center;justify-content:center;text-decoration:none" href="/admin/products/{{ product_id }}/presentation">فتح محرر الشارات والمظهر والتوصيات</a></div></div>
   </section>
 
-  <section class="pro-section" data-pro-panel="variants" hidden>
+  <section class="pro-section" data-pro-panel="variants" data-panel="variants" hidden>
     <div class="pro-section-head"><div><strong>المتغيرات · لون + مقاس + مخزون</strong><small>هذا هو مكان اختيار الألوان والمقاسات وإنشاء variants وتعديل الكميات.</small></div><span id="proVariantCount" class="pro-section-number">0</span></div>
     <div class="pro-builder">
       <div class="pro-builder-grid">
@@ -202,7 +202,7 @@
     </section>
   </section>
 
-  <section class="pro-section" data-pro-panel="policies" hidden>
+  <section class="pro-section" data-pro-panel="policies" data-panel="policies" hidden>
     <div class="pro-section-head"><div><strong>السياسات والعرض</strong><small>إعدادات الظهور وسياسات الشحن والإرجاع والضمان.</small></div><span class="pro-section-number">08</span></div>
     <div class="settings-list">
       <label class="check-row"><input id="showRating" type="checkbox" checked><span><strong>إظهار التقييم</strong><small>عرض التقييم وعدد المراجعات.</small></span></label>
@@ -218,7 +218,7 @@
     <button id="saveDisplay" class="pro-primary-btn" type="button">حفظ العرض والسياسات</button>
   </section>
 
-  <section class="pro-section" data-pro-panel="publish" hidden>
+  <section class="pro-section" data-pro-panel="publish" data-panel="publish" hidden>
     <div class="pro-section-head"><div><strong>مراجعة قبل النشر</strong><small>نفس شروط النشر الحالية.</small></div><span class="pro-section-number">09</span></div>
     <div id="publishChecklist" class="checklist"></div><button id="publishProduct" class="pro-primary-btn" type="button">نشر المنتج</button>
   </section>
