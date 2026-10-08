@@ -257,6 +257,21 @@
   width:100%;min-height:48px;border:1px solid var(--pro-line);border-radius:12px;background:#fff;padding:0 10px;outline:none
 }
 .pro-variant-form input:focus,.pro-variant-form select:focus{border-color:var(--pro-accent);box-shadow:0 0 0 3px var(--pro-accent-soft)}
+
+.pro-option-record{
+  margin:0 12px 8px;padding:11px;border:1px solid var(--pro-line);border-radius:14px;background:#fff;
+}
+.pro-option-record strong{display:block;font-size:12px;overflow-wrap:anywhere}
+.pro-option-record small{display:block;color:var(--pro-muted);font-size:10px;margin-top:3px;line-height:1.5}
+.pro-option-record .pro-selected-chip{background:#f8fafc}
+.pro-location-details summary{padding:7px 0;color:#334155}
+.pro-location-details form label{display:grid;gap:6px;font-size:11px;font-weight:900}
+.pro-location-details form input{min-height:48px;border:1px solid var(--pro-line);border-radius:12px;padding:0 10px;background:#fff}
+@media(max-width:420px){
+  .pro-builder-card-head{align-items:flex-start;flex-wrap:wrap}
+  .pro-builder-card-head .pro-primary-btn{width:100%}
+  .pro-builder-card-head select{width:100%!important;min-width:0!important}
+}
 .pro-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .pro-modal-actions .danger{background:#fff1f2;color:#b91c1c;border:1px solid #fecdd3}
 .pro-modal-actions .secondary{background:#f8fafc;color:#334155;border:1px solid var(--pro-line)}
