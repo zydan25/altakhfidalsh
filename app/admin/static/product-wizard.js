@@ -1600,6 +1600,54 @@
     } catch (error) { notify(error.message, "error"); }
   });
 
+  const updateVariantAutoSkuHint = () => {
+    const colorId = document.getElementById("variantColor")?.value || "";
+    const sizeId = document.getElementById("variantSize")?.value || "";
+    const hint = document.getElementById("variantAutoSkuHint");
+    if (!hint) return;
+    hint.textContent = variantSkuPreview(colorId, sizeId);
+  };
+
+  document.getElementById("variantColor")?.addEventListener("change", updateVariantAutoSkuHint);
+  document.getElementById("variantSize")?.addEventListener("change", updateVariantAutoSkuHint);
+
+  document.getElementById("focusVariantForm")?.addEventListener("click", () => {
+    const target = document.getElementById("variantQuickAdd");
+    activate("variants");
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("variantColor")?.focus();
+  });
+
+  document.getElementById("generateVariants")?.addEventListener("click", async () => {
+    if (!draftColorIds.size && !draftSizeIds.size) {
+      notify("اختر لونًا أو مقاسًا واحدًا على الأقل أولًا.", "error");
+      activate("options");
+      return;
+    }
+    const button = document.getElementById("generateVariants");
+    if (button) button.disabled = true;
+    try {
+      const result = await requestJson("/api/v1/catalog/products/" + productId + "/variants/generate", {
+        method: "POST",
+        body: JSON.stringify({
+          color_ids: [...draftColorIds],
+          size_ids: [...draftSizeIds],
+        }),
+      });
+      await load();
+      const item = result.item || {};
+      notify(
+        item.created_count
+          ? "تم إنشاء " + item.created_count + " متغير جديد" + (item.skipped_count ? " وتجاوز " + item.skipped_count + " تركيبة موجودة." : ".")
+          : "جميع التركيبات المطلوبة موجودة بالفعل."
+      );
+    } catch (error) {
+      notify(error.message, "error");
+    } finally {
+      if (button) button.disabled = false;
+    }
+  });
+
   document.getElementById("variantForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -1607,17 +1655,143 @@
       await requestJson("/api/v1/catalog/products/" + productId + "/variants", {
         method: "POST",
         body: JSON.stringify({
-          sku: form.get("sku"),
+          sku: String(form.get("sku") || "").trim(),
           color_id: form.get("color_id") ? Number(form.get("color_id")) : null,
           size_id: form.get("size_id") ? Number(form.get("size_id")) : null,
-          barcode: form.get("barcode"),
+          barcode: String(form.get("barcode") || "").trim(),
           weight: form.get("weight") || null,
         }),
       });
       event.currentTarget.reset();
+      updateVariantAutoSkuHint();
       await load();
-      notify("تمت إضافة الـVariant.");
-    } catch (error) { notify(error.message, "error"); }
+      notify("تمت إضافة المتغير وتم إنشاء SKU تلقائيًا إن لم تدخل SKU يدويًا.");
+    } catch (error) {
+      notify(error.message, "error");
+    }
+  });
+
+  document.getElementById("variantsList")?.addEventListener("click", async event => {
+    const copyButton = event.target.closest("[data-variant-copy]");
+    if (copyButton) {
+      const sourceId = Number(copyButton.dataset.variantCopy);
+      const source = (snapshot?.variants || []).find(row => Number(row.id) === sourceId);
+      if (!source) return;
+      const draftId = "variant-draft-" + (++variantDraftSequence);
+      const size = (configRefs?.sizes || optionRefs?.sizes || []).find(row => Number(row.id) === Number(source.size_id));
+      variantDrafts.push({
+        id: draftId,
+        sourceVariantId: source.id,
+        sourceSku: source.sku,
+        sizeId: source.size_id,
+        sizeLabel: size?.label || "بدون مقاس",
+        weight: source.weight || "",
+        inventory: stockRowsForVariant(source.id).map(row => ({ ...row })),
+      });
+      renderVariants();
+      const draftCard = document.querySelector('[data-variant-draft-card="' + draftId + '"]');
+      draftCard?.scrollIntoView({ behavior: "smooth", block: "center" });
+      draftCard?.querySelector('select[name="color_id"]')?.focus();
+      return;
+    }
+
+    const cancelButton = event.target.closest("[data-variant-draft-cancel]");
+    if (cancelButton) {
+      const draftId = cancelButton.dataset.variantDraftCancel;
+      variantDrafts = variantDrafts.filter(draft => draft.id !== draftId);
+      renderVariants();
+      return;
+    }
+
+    const editButton = event.target.closest("[data-variant-edit]");
+    if (editButton) {
+      const details = document.querySelector('[data-variant-details="' + editButton.dataset.variantEdit + '"]');
+      if (details) {
+        details.open = true;
+        details.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+      return;
+    }
+
+    const autoSkuButton = event.target.closest("[data-variant-auto-sku]");
+    if (autoSkuButton) {
+      const form = autoSkuButton.closest(".variant-edit-form");
+      const sku = form?.querySelector('input[name="sku"]');
+      if (sku) sku.value = "";
+      return;
+    }
+
+    const inventoryButton = event.target.closest("[data-variant-inventory]");
+    if (inventoryButton) {
+      focusInventoryVariant(
+        Number(inventoryButton.dataset.variantInventory),
+        inventoryButton.dataset.variantLocation || null,
+      );
+      return;
+    }
+
+    const archiveButton = event.target.closest("[data-archive-variant]");
+    if (archiveButton) {
+      const variantId = Number(archiveButton.dataset.archiveVariant);
+      if (!window.confirm("هل تريد أرشفة هذا المتغير؟ سيختفي من الاختيارات الجديدة ولن يحذف سجل الطلبات السابق.")) return;
+      try {
+        await requestJson("/api/v1/catalog/products/" + productId + "/variants/" + variantId, { method: "DELETE" });
+        await load();
+        notify("تمت أرشفة المتغير.");
+      } catch (error) {
+        notify(error.message, "error");
+      }
+    }
+  });
+
+  document.getElementById("variantsList")?.addEventListener("submit", async event => {
+    const draftForm = event.target.closest(".variant-draft-form");
+    if (draftForm) {
+      event.preventDefault();
+      const draftId = draftForm.dataset.draftId;
+      const draft = variantDrafts.find(row => row.id === draftId);
+      const colorId = Number(new FormData(draftForm).get("color_id") || 0);
+      if (!draft || !colorId) {
+        notify("اختر اللون لإكمال المتغير المنسوخ.", "error");
+        return;
+      }
+      try {
+        await requestJson(
+          "/api/v1/catalog/products/" + productId + "/variants/" + draft.sourceVariantId + "/copy",
+          { method: "POST", body: JSON.stringify({ color_id: colorId }) },
+        );
+        variantDrafts = variantDrafts.filter(row => row.id !== draftId);
+        await load();
+        notify("تم نسخ المتغير مع مقاسه وبيانات مخزونه، وإنشاء SKU تلقائي.");
+      } catch (error) {
+        notify(error.message, "error");
+      }
+      return;
+    }
+
+    const editForm = event.target.closest(".variant-edit-form");
+    if (!editForm) return;
+    event.preventDefault();
+    const form = new FormData(editForm);
+    try {
+      await requestJson(
+        "/api/v1/catalog/products/" + productId + "/variants/" + editForm.dataset.variantId,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            sku: String(form.get("sku") || "").trim(),
+            color_id: form.get("color_id") ? Number(form.get("color_id")) : null,
+            size_id: form.get("size_id") ? Number(form.get("size_id")) : null,
+            barcode: String(form.get("barcode") || "").trim(),
+            weight: form.get("weight") || null,
+          }),
+        },
+      );
+      await load();
+      notify("تم حفظ تعديلات المتغير.");
+    } catch (error) {
+      notify(error.message, "error");
+    }
   });
 
   document.getElementById("inventoryForm").addEventListener("submit", async (event) => {
