@@ -31,7 +31,7 @@ class ClientState {
 
   bool get loggedIn => api.token.isNotEmpty;
 
-  Future<void> restorePreferences() async {
+  Future<void> restorePreferences({bool fetchServer = true}) async {
     final p = await SharedPreferences.getInstance();
     currencyId = p.getInt('currency_id');
     currencyCode = p.getString('currency_code') ?? 'SAR';
@@ -41,7 +41,7 @@ class ClientState {
 
     // Server preferences are authoritative after login. Local values keep the
     // storefront responsive when the server is temporarily unavailable.
-    if (api.token.isNotEmpty) {
+    if (fetchServer && api.token.isNotEmpty) {
       try {
         final raw = await api.me();
         final item = raw['item'];
