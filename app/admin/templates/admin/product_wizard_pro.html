@@ -107,15 +107,15 @@
       <span class="pro-hero-badge">PRO</span>
     </div>
     <nav class="pro-steps" id="proSteps" aria-label="أقسام تعديل المنتج">
-      <button class="pro-step wizard-step is-active" type="button" data-pro-step="basics">الأساس</button>
-      <button class="pro-step wizard-step" type="button" data-pro-step="categories">التصنيفات</button>
-      <button class="pro-step wizard-step" type="button" data-pro-step="side-categories">الفئات الجانبية</button>
-      <button class="pro-step wizard-step" type="button" data-pro-step="media">الصور العامة</button>
-      <button class="pro-step wizard-step" type="button" data-pro-step="marketing">التسويق</button>
-      <button class="pro-step wizard-step" type="button" data-pro-step="presentation">المظهر</button>
-      <button class="pro-step wizard-step" type="button" data-pro-step="variants">المتغيرات</button>
-      <button class="pro-step wizard-step" type="button" data-pro-step="policies">السياسات</button>
-      <button class="pro-step wizard-step" type="button" data-pro-step="publish">المراجعة</button>
+      <button class="pro-step wizard-step is-active" type="button" data-pro-step="basics" data-step="basics">الأساس</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="categories" data-step="categories">التصنيفات</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="side-categories" data-step="side-categories">الفئات الجانبية</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="media" data-step="media">الصور العامة</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="marketing" data-step="marketing">التسويق</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="presentation" data-step="presentation">المظهر</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="variants" data-step="variants">المتغيرات</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="policies" data-step="policies">السياسات</button>
+      <button class="pro-step wizard-step" type="button" data-pro-step="publish" data-step="publish">المراجعة</button>
     </nav>
   </header>
   <div id="proWizardMessage" class="alert" hidden></div><div id="wizardMessage" class="alert" hidden></div>
@@ -239,8 +239,9 @@
 <div class="pro-modal" data-pro-image-modal hidden>
   <div class="pro-modal-card">
     <div class="pro-modal-head"><div><h3 data-pro-modal-title>معاينة الصورة</h3><p data-pro-modal-subtitle></p></div><button class="pro-modal-close" type="button" data-pro-close>×</button></div>
+    <div class="pro-modal-actions"><button class="pro-primary-btn" type="button" data-pro-modal-add>＋ إضافة صورة لهذا اللون</button></div>
     <div class="pro-modal-image"><img data-pro-modal-image src="" alt=""></div>
-    <div class="pro-modal-actions"><button class="pro-primary-btn" type="button" data-pro-modal-add>＋ إضافة صورة لهذا اللون</button><button class="pro-outline-btn secondary" type="button" data-pro-close>إغلاق</button></div>
+    <div class="pro-modal-actions"><button class="pro-outline-btn secondary" type="button" data-pro-close>إغلاق</button></div>
   </div>
 </div>
 <input id="proColorImageInput" type="file" accept="image/*" multiple hidden>
