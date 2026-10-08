@@ -12816,34 +12816,11 @@ class SxNotificationsScreen extends StatefulWidget {
 class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
   List<Map<String, dynamic>> rows = [];
   bool loading = true;
-  bool fcmLoading = false;
-  Map<String, dynamic> fcm = {};
 
   @override
   void initState() {
     super.initState();
     load();
-    unawaited(checkFcm());
-  }
-
-  Future<void> checkFcm() async {
-    if (mounted) setState(() => fcmLoading = true);
-    try {
-      final result = await AltakhfidNotificationService.fcmDiagnostics();
-      if (mounted) setState(() => fcm = result);
-    } catch (error) {
-      if (mounted) {
-        setState(() {
-          fcm = {
-            'supported': true,
-            'token_state': 'diagnostic_error',
-            'token_error': error.toString(),
-          };
-        });
-      }
-    } finally {
-      if (mounted) setState(() => fcmLoading = false);
-    }
   }
 
   Future<void> load() async {
@@ -12916,99 +12893,6 @@ class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
     } catch (_) {}
   }
 
-  Widget fcmStatusCard() {
-    final supported = fcm['supported'] != false;
-    final authorization = sxText(fcm['authorization'], 'غير معروف');
-    final tokenState = sxText(fcm['token_state'], 'لم يتم الفحص');
-    final lastStatus = sxText(fcm['last_status']);
-    final tokenError = sxText(fcm['token_error']);
-    final lastError = sxText(fcm['last_error']);
-    final tokenPreview = sxText(fcm['token_preview']);
-
-    String tokenLabel;
-    if (tokenState == 'available' || lastStatus == 'server_registered') {
-      tokenLabel = 'FCM Token موجود ومسجل على الخادم';
-    } else if (tokenState == 'error') {
-      tokenLabel = 'فشل الحصول على FCM Token';
-    } else if (lastStatus == 'server_registration_error') {
-      tokenLabel = 'تم الحصول على Token لكن تسجيله في الخادم فشل';
-    } else if (lastStatus == 'server_registration_skipped') {
-      tokenLabel = 'التطبيق لم يجد جلسة تسجيل دخول لتسجيل Token';
-    } else if (tokenState == 'empty') {
-      tokenLabel = 'Firebase أعاد Token فارغًا';
-    } else {
-      tokenLabel = 'لم يتم تحديد حالة FCM بعد';
-    }
-
-    final detail = tokenError.isNotEmpty
-        ? tokenError
-        : lastError.isNotEmpty
-            ? lastError
-            : tokenPreview.isNotEmpty
-                ? 'بداية/نهاية Token: $tokenPreview'
-                : 'افتح هذه الصفحة واضغط «فحص الآن» بعد تسجيل الدخول.';
-
-    return Card(
-      margin: const EdgeInsets.fromLTRB(7, 8, 7, 4),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(13),
-        side: const BorderSide(color: Color(0xFFE5E5E5)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 11, 12, 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.notifications_active_outlined, size: 19),
-                const SizedBox(width: 7),
-                const Expanded(
-                  child: Text(
-                    'حالة إشعارات الهاتف',
-                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900),
-                  ),
-                ),
-                TextButton(
-                  onPressed: fcmLoading ? null : checkFcm,
-                  child: Text(
-                    fcmLoading ? 'جاري الفحص…' : 'فحص الآن',
-                    style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 3),
-            Text(
-              supported
-                  ? 'صلاحية الإشعارات: $authorization'
-                  : 'الإشعارات المحلية وFCM غير متاحين على هذه المنصة.',
-              style: const TextStyle(fontSize: 9.5, color: ClientTheme.muted),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              tokenLabel,
-              style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              detail,
-              style: TextStyle(
-                fontSize: 8.5,
-                height: 1.45,
-                color: tokenState == 'error'
-                    ? const Color(0xFFC62828)
-                    : ClientTheme.muted,
-              ),
-              textDirection: TextDirection.ltr,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return SxShellPage(
@@ -13022,7 +12906,6 @@ class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
                   child: ListView(
                     physics: const AlwaysScrollableScrollPhysics(),
                     children: [
-                      fcmStatusCard(),
                       const SizedBox(height: 150),
                       const Center(
                         child: Text(
@@ -13037,11 +12920,10 @@ class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
                   onRefresh: load,
                   child: ListView.separated(
                     padding: const EdgeInsets.fromLTRB(7, 0, 7, 20),
-                    itemCount: rows.length + 2,
+                    itemCount: rows.length + 1,
                     separatorBuilder: (_, __) => const Divider(height: 1),
                     itemBuilder: (_, i) {
-                      if (i == 0) return fcmStatusCard();
-                      if (i == 1) {
+                      if (i == 0) {
                         return Align(
                           alignment: AlignmentDirectional.centerStart,
                           child: TextButton.icon(
@@ -13055,7 +12937,7 @@ class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
                         );
                       }
 
-                      final row = rows[i - 2];
+                      final row = rows[i - 1];
                       final unread = sxText(row['read_at']).isEmpty;
                       return ListTile(
                         onTap: () => openNotification(row),
