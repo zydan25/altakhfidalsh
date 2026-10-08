@@ -637,7 +637,7 @@ def register_admin_routes(admin_bp):
             .all()
         ]
         return render_template(
-            "admin/product_wizard.html",
+            "admin/product_wizard_pro.html",
             title=f"تعديل برو · {product.name}",
             product_id=product.id,
             product=product,
