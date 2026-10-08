@@ -246,6 +246,31 @@
       <button id="saveDimensions" class="primary-button" type="button">حفظ الألوان والمقاسات</button>
     </div>
 
+    <section class="dimension-card size-guide-assignment-card">
+      <div class="dimension-head">
+        <div>
+          <span id="sizeGuideCount" class="status-pill">0 محدد</span>
+          <div>
+            <span class="eyebrow">مرجع المقاس</span>
+            <strong>جداول المقاسات لهذا المنتج</strong>
+            <small>اختر جدولًا واحدًا أو عدة جداول، ورتبها بالسهمين. ترتيبها هو ترتيب ظهورها للعميل.</small>
+          </div>
+        </div>
+      </div>
+      <div class="dimension-selection-tools">
+        <input id="sizeGuideSearch" type="search" placeholder="ابحث باسم جدول المقاسات…">
+        <span id="sizeGuideSelectionSummary" class="muted">0 محدد</span>
+      </div>
+      <div id="sizeGuideSelection" class="reference-choice-grid"></div>
+      <div class="dimension-save-bar panel" style="margin-top:10px;">
+        <div>
+          <strong>ربط جداول المقاسات</strong>
+          <small class="muted">لا يتم نسخ الجدول إلى المنتج؛ يتم ربطه بالجدول العام، وأي تعديل لاحق على الجدول ينعكس على المنتجات المرتبطة به.</small>
+        </div>
+        <button id="saveSizeGuides" class="primary-button" type="button">حفظ جداول المقاسات</button>
+      </div>
+    </section>
+
     <form id="optionForm" class="form-stack quick-option-form">
       <div class="panel-heading">
         <div><span class="eyebrow">خيارات إضافية</span><strong>خيار مخصص للمنتج</strong></div>
