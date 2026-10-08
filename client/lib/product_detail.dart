@@ -683,22 +683,20 @@ class _SxProductScreenState extends State<SxProductScreen> {
             showSizes: false,
           );
         case 'sizes':
-                    final guideRows = sizeGuide['rows'] is List
-        ? (sizeGuide['rows'] as List)
-            .whereType<Map>()
-            .map((x) => Map<String, dynamic>.from(x))
-            .toList()
-        : <Map<String, dynamic>>[];
-          final selectedGuideIndex = guideRows.indexWhere(
-            (row) => sxInt(row['size_id']) == sxInt(sizeId),
-          );
-          final selectedGuideRow = selectedGuideIndex >= 0
-              ? guideRows[selectedGuideIndex]
-              : <String, dynamic>{};
-          final hasSizeDetails =
-              selectedGuideRow.isNotEmpty &&
-              (_asMap(selectedGuideRow['product_measurements']).isNotEmpty ||
-                  _asMap(selectedGuideRow['body_measurements']).isNotEmpty);
+          final allSizeGuides = sizeGuides.isNotEmpty
+              ? sizeGuides
+              : <Map<String, dynamic>>[sizeGuide];
+          final hasSizeDetails = allSizeGuides.any((guide) {
+            final rows = guide['rows'] is List
+                ? guide['rows'] as List
+                : const <dynamic>[];
+            return rows.whereType<Map>().any(
+                  (row) =>
+                      sxInt(row['size_id']) == sxInt(sizeId) &&
+                      (_asMap(row['product_measurements']).isNotEmpty ||
+                          _asMap(row['body_measurements']).isNotEmpty),
+                );
+          });
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
