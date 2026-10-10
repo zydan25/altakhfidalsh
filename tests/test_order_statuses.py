@@ -5,7 +5,7 @@ from app.admin.context import (
     PAYMENT_STATUS_LABELS,
     SHIPPING_STATUS_LABELS,
 )
-from app.modules.commerce.services import ORDER_STATUSES
+from app.modules.commerce.services import ORDER_STATUSES, ORDER_STATUS_ALIASES
 
 
 def test_order_status_flow_contains_customer_tracking_states_in_order():
@@ -23,6 +23,11 @@ def test_order_status_flow_contains_customer_tracking_states_in_order():
     assert ORDER_STATUSES == tuple(expected)
     assert ORDER_STATUSES.index("shipped") < ORDER_STATUSES.index("in_transit")
     assert ORDER_STATUSES.index("in_transit") < ORDER_STATUSES.index("delivered")
+
+
+def test_legacy_status_typos_are_normalized_to_canonical_values():
+    assert ORDER_STATUS_ALIASES["shiped"] == "shipped"
+    assert ORDER_STATUS_ALIASES["proccessing"] == "processing"
 
 
 def test_every_order_status_has_an_arabic_admin_label():
