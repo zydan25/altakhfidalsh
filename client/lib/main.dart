@@ -138,15 +138,9 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ApiService.onOfflineToast = _showOfflineToast;
 
-  // Firebase must be initialized before registering the FCM background
-  // handler. Web remains unchanged; push is enabled for Android only.
-  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-    await Firebase.initializeApp(options: androidFirebaseOptions);
-    await AltakhfidNotificationService.initialize(
-      tapHandler: handleNotificationTap,
-    );
-  }
-
+  // Restore only essential local app state before rendering the UI.
+  // Firebase/notification initialization must not hold the launch screen:
+  // a push-service failure should never prevent the storefront from opening.
   await Future.wait(<Future<void>>[
     api.restore(),
     state.restorePreferences(fetchServer: false),
@@ -161,8 +155,28 @@ Future<void> main() async {
 
   WidgetsBinding.instance.addPostFrameCallback((_) {
     unawaited(state.restorePreferences());
-    unawaited(_prepareNotificationService());
+    unawaited(_initializeNotificationsSafely());
   });
+}
+
+Future<void> _initializeNotificationsSafely() async {
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
+  try {
+    await Firebase.initializeApp(
+      options: androidFirebaseOptions,
+    ).timeout(const Duration(seconds: 8));
+    await AltakhfidNotificationService.initialize(
+      tapHandler: handleNotificationTap,
+    ).timeout(const Duration(seconds: 8));
+    await _prepareNotificationService().timeout(
+      const Duration(seconds: 15),
+    );
+  } catch (error, stackTrace) {
+    // Notifications are optional during startup. Log failures, but keep the
+    // app usable; a Firebase/plugin issue must not strand users on launch.
+    debugPrint('Notification initialization failed: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
 }
 
 Future<void> _prepareNotificationService() async {
