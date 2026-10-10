@@ -123,7 +123,8 @@ bool orderMatchesFilter(Map<String, dynamic> row, String requestedFilter) {
             'in_transit',
             'out_for_delivery',
           }.contains(shipping));
-  final isDelivered = status == 'delivered' || shipping == 'delivered';
+  final isDelivered = status == 'delivered' ||
+      (status != 'returned' && shipping == 'delivered');
 
   switch (filter) {
     case 'all':
