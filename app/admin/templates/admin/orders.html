@@ -13,9 +13,9 @@
     <div class="entity-field"><span class="entity-label">رقم الطلب</span><strong>{{ order.order_no }}</strong></div>
     <div class="entity-field"><span class="entity-label">العميل</span><strong>#{{ order.customer_id }}</strong></div>
     <div class="entity-field"><span class="entity-label">الإجمالي</span><strong>{{ order.total }} · العملة #{{ order.currency_id }}</strong></div>
-    <div class="entity-field"><span class="entity-label">الحالة</span><strong>{{ order.status }}</strong></div>
-    <div class="entity-field"><span class="entity-label">الدفع</span><strong>{{ order.payment_status }}</strong></div>
-    <div class="entity-field"><span class="entity-label">الشحن</span><strong>{{ order.shipping_status }}</strong></div>
+    <div class="entity-field"><span class="entity-label">الحالة</span><strong>{{ order_status_labels.get(order.status, "حالة غير معروفة") }}</strong></div>
+    <div class="entity-field"><span class="entity-label">الدفع</span><strong>{{ payment_status_labels.get(order.payment_status, "غير محدد") }}</strong></div>
+    <div class="entity-field"><span class="entity-label">الشحن</span><strong>{{ shipping_status_labels.get(order.shipping_status, "غير محدد") }}</strong></div>
     <a class="primary-button" href="/admin/orders/{{ order.id }}">فتح الطلب بالكامل</a>
   </article>
   {% else %}

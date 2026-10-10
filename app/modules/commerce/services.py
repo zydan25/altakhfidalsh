@@ -55,10 +55,20 @@ ORDER_STATUSES = (
     "paid",
     "processing",
     "shipped",
+    "in_transit",
     "delivered",
     "returned",
     "cancelled",
 )
+
+# Accept historic misspellings/aliases at the boundary, but only store canonical
+# status keys for every new transition.
+ORDER_STATUS_ALIASES = {
+    "shiped": "shipped",
+    "proccessing": "processing",
+    "intransit": "in_transit",
+    "canceled": "cancelled",
+}
 
 
 class CommerceService:
@@ -1270,21 +1280,39 @@ class CommerceService:
     def transition_order(order_id, to_status, actor_type="admin", actor_id=None, note=None):
         order = db.session.get(Order, order_id)
         if order is None:
-            raise LookupError("order not found")
+            raise LookupError("الطلب غير موجود.")
+
+        requested = str(to_status or "").strip().lower().replace("-", "_").replace(" ", "_")
+        to_status = ORDER_STATUS_ALIASES.get(requested, requested)
+        current_raw = str(order.status or "").strip().lower().replace("-", "_").replace(" ", "_")
+        current_status = ORDER_STATUS_ALIASES.get(current_raw, current_raw)
+
         if to_status not in ORDER_STATUSES:
-            raise ValueError("invalid order status")
-        if order.status == to_status:
+            raise ValueError("حالة الطلب غير صالحة.")
+        if current_status == to_status:
+            # Correct legacy typos in-place when the administrator saves the same
+            # displayed state; don't keep persisting old misspelled values.
+            if order.status != to_status:
+                order.status = to_status
+                if to_status in {"shipped", "in_transit", "delivered", "cancelled", "returned"}:
+                    order.shipping_status = to_status
+                db.session.commit()
             return CommerceService.serialize_order(order)
 
-        current_index = ORDER_STATUSES.index(order.status) if order.status in ORDER_STATUSES else 0
+        current_index = ORDER_STATUSES.index(current_status) if current_status in ORDER_STATUSES else 0
         target_index = ORDER_STATUSES.index(to_status)
         allowed_backwards = {("cancelled", "created"), ("returned", "processing")}
-        if target_index < current_index and (order.status, to_status) not in allowed_backwards:
-            raise ValueError("illegal status transition")
+        if target_index < current_index and (current_status, to_status) not in allowed_backwards:
+            raise ValueError("لا يمكن نقل الطلب إلى هذه الحالة من وضعه الحالي.")
 
         previous = order.status
         if to_status == "awaiting_payment":
+            # The store approved the order; customer payment is now unlocked.
             order.payment_status = "unpaid"
+        elif to_status == "paid":
+            order.payment_status = "paid"
+
+        if to_status == "awaiting_payment":
             if order.shipping_override is None and not order.shipping_rate_id:
                 item_rows = OrderItem.query.filter_by(order_id=order.id).all()
                 subtotal_sar = sum(
@@ -1348,6 +1376,13 @@ class CommerceService:
                     stock.available = int(stock.on_hand or 0) - int(stock.reserved or 0)
 
             order.status = to_status
+            if to_status in {"shipped", "in_transit", "delivered"}:
+                order.shipping_status = to_status
+            elif to_status == "cancelled":
+                order.shipping_status = "cancelled"
+            elif to_status == "returned":
+                order.shipping_status = "returned"
+
             db.session.add(OrderStatusHistory(
                 order_id=order.id,
                 from_status=previous,
@@ -1367,6 +1402,7 @@ class CommerceService:
             ),
             "processing": "بدأ المتجر تجهيز طلبك.",
             "shipped": "تم شحن طلبك وبدأت رحلة التوصيل.",
+            "in_transit": "طلبك الآن في الطريق إلى عنوانك.",
             "delivered": "تم تسليم طلبك بنجاح. شكرًا لاختيار التخفيض الصح.",
             "cancelled": "تم إلغاء الطلب. يمكنك التواصل مع خدمة العملاء عند الحاجة.",
             "returned": "تم تسجيل إرجاع الطلب.",

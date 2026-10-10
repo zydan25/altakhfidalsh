@@ -19,6 +19,7 @@ import 'product_detail.dart';
 import 'widgets.dart';
 import 'notifications_service.dart';
 import 'referral_links.dart';
+import 'order_status.dart';
 
 String sxText(dynamic v, [String fallback = '']) {
   final raw = (v ?? fallback).toString();
@@ -9438,18 +9439,8 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
         MaterialPageRoute(builder: (_) => SxOrdersScreen(initialFilter: filter)),
       );
 
-  int count(String filter) {
-    bool match(Map<String, dynamic> x) {
-      final s = sxText(x['status']);
-      final p = sxText(x['payment_status']);
-      if (filter == 'payment') return s == 'awaiting_payment' || p == 'unpaid';
-      if (filter == 'processing') return s == 'paid' || s == 'processing';
-      if (filter == 'shipped') return s == 'shipped';
-      if (filter == 'completed') return s == 'delivered' || s == 'returned';
-      return true;
-    }
-    return orders.where(match).length;
-  }
+  int count(String filter) =>
+      orders.where((row) => orderMatchesFilter(row, filter)).length;
 
   Future<void> _logout() async {
     final confirmed = await showDialog<bool>(
@@ -9612,8 +9603,8 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
                       children: [
                         Expanded(child: _AccountMiniLink(Icons.payment_outlined, 'بانتظار الدفع', count('payment'), () => openOrders('payment'))),
                         Expanded(child: _AccountMiniLink(Icons.inventory_2_outlined, 'قيد التجهيز', count('processing'), () => openOrders('processing'))),
-                        Expanded(child: _AccountMiniLink(Icons.local_shipping_outlined, 'تم الشحن', count('shipped'), () => openOrders('shipped'))),
-                        Expanded(child: _AccountMiniLink(Icons.rate_review_outlined, 'للمراجعة', count('completed'), () => openOrders('completed'))),
+                        Expanded(child: _AccountMiniLink(Icons.local_shipping_outlined, 'تم الشحن', count('shipping'), () => openOrders('shipping'))),
+                        Expanded(child: _AccountMiniLink(Icons.rate_review_outlined, 'للمراجعة', count('delivered'), () => openOrders('delivered'))),
                       ],
                     ),
                     const SxSectionTitle(title: 'خدماتي'),
@@ -11431,20 +11422,15 @@ class _SxOrdersScreenState extends State<SxOrdersScreen> {
   bool loading = true;
   String filter = 'all';
 
-  static const filters = <String, String>{
-    'all': 'الكل',
-    'approval': 'موافقة الطلب',
-    'processing': 'التجهيز',
-    'shipping': 'الشحن',
-    'in_transit': 'في الطريق',
-    'delivered': 'تم التسليم',
-    'cancelled': 'ملغاة',
-  };
+  static const filters = orderFilterLabels;
 
   @override
   void initState() {
     super.initState();
-    filter = filters.containsKey(widget.initialFilter) ? widget.initialFilter : 'all';
+    final normalizedFilter = normalizeOrderFilter(widget.initialFilter);
+    // Do not turn an invalid named filter into "all": that would expose every
+    // order when the requested state has no results or a stale route is used.
+    filter = filters.containsKey(normalizedFilter) ? normalizedFilter : '__invalid__';
     load();
   }
 
@@ -11462,74 +11448,25 @@ class _SxOrdersScreenState extends State<SxOrdersScreen> {
     }
   }
 
-  int lifecycleIndex(Map<String, dynamic> row) {
-    final status = sxText(row['status']);
-    final shippingStatus = sxText(row['shipping_status']).trim().toLowerCase();
+  bool matches(Map<String, dynamic> row, String key) =>
+      orderMatchesFilter(row, key);
 
-    if (status == 'delivered' || status == 'returned' || shippingStatus == 'delivered') {
-      return 4;
-    }
-    if (status == 'shipped') {
-      if (const {'picked_up', 'in_transit', 'out_for_delivery'}
-          .contains(shippingStatus)) {
-        return 3;
-      }
-      return 2;
-    }
-    if (status == 'paid' || status == 'processing') return 1;
-    return 0;
-  }
-
-  bool matches(Map<String, dynamic> row, String key) {
-    final status = sxText(row['status']);
-    switch (key) {
-      case 'approval':
-        return status != 'cancelled' && lifecycleIndex(row) == 0;
-      case 'processing':
-        return status != 'cancelled' && lifecycleIndex(row) == 1;
-      case 'shipping':
-        return status != 'cancelled' && lifecycleIndex(row) == 2;
-      case 'in_transit':
-        return status != 'cancelled' && lifecycleIndex(row) == 3;
-      case 'delivered':
-        return status != 'cancelled' && lifecycleIndex(row) == 4;
-      case 'cancelled':
-        return status == 'cancelled';
-      default:
-        return true;
-    }
-  }
-
-  String statusLabel(String status, [String shippingStatus = '']) {
-    const labels = <String, String>{
-      'created': 'بانتظار موافقة الطلب',
-      'awaiting_payment': 'تمت موافقة الطلب',
-      'paid': 'تم الدفع',
-      'processing': 'قيد التجهيز',
-      'shipped': 'تم الشحن',
-      'delivered': 'تم التسليم',
-      'returned': 'تمت الإعادة',
-      'cancelled': 'ملغى',
-    };
-    if (status == 'shipped' &&
-        const {'picked_up', 'in_transit', 'out_for_delivery'}
-            .contains(shippingStatus.trim().toLowerCase())) {
-      return 'في الطريق';
-    }
-    return labels[status] ?? status;
-  }
+  String statusLabel(String status, [String shippingStatus = '']) =>
+      orderStatusLabelForCustomer(status, shippingStatus: shippingStatus);
 
   Color statusBg(String status) {
-    if (status == 'delivered') return const Color(0xFFEAF7F0);
-    if (status == 'cancelled') return const Color(0xFFFFEEEE);
-    if (status == 'shipped') return const Color(0xFFEFF4FF);
+    final key = normalizeOrderStatus(status);
+    if (key == 'delivered') return const Color(0xFFEAF7F0);
+    if (key == 'cancelled') return const Color(0xFFFFEEEE);
+    if (key == 'shipped' || key == 'in_transit') return const Color(0xFFEFF4FF);
     return const Color(0xFFF5F5F5);
   }
 
   Color statusFg(String status) {
-    if (status == 'delivered') return const Color(0xFF18794E);
-    if (status == 'cancelled') return const Color(0xFFC62828);
-    if (status == 'shipped') return const Color(0xFF315BA6);
+    final key = normalizeOrderStatus(status);
+    if (key == 'delivered') return const Color(0xFF18794E);
+    if (key == 'cancelled') return const Color(0xFFC62828);
+    if (key == 'shipped' || key == 'in_transit') return const Color(0xFF315BA6);
     return const Color(0xFF4B4B4B);
   }
 
@@ -11825,52 +11762,26 @@ class _SxOrderDetailScreenState extends State<SxOrderDetailScreen> {
     }
   }
 
-  String statusLabel(String status, [String shippingStatus = '']) {
-    const labels = <String, String>{
-      'created': 'بانتظار موافقة الطلب',
-      'awaiting_payment': 'تمت موافقة الطلب',
-      'paid': 'تم الدفع',
-      'processing': 'قيد التجهيز',
-      'shipped': 'تم الشحن',
-      'delivered': 'تم التسليم',
-      'returned': 'تمت الإعادة',
-      'cancelled': 'ملغى',
-    };
-    if (status == 'shipped' &&
-        const {'picked_up', 'in_transit', 'out_for_delivery'}
-            .contains(shippingStatus.trim().toLowerCase())) {
-      return 'في الطريق';
-    }
-    return labels[status] ?? status;
-  }
+  String statusLabel(String status, [String shippingStatus = '']) =>
+      orderStatusLabelForCustomer(status, shippingStatus: shippingStatus);
 
-  int progressIndex(Map<String, dynamic> data) {
-    final status = sxText(data['status']);
-    final shippingStatus = sxText(data['shipping_status']).trim().toLowerCase();
-
-    if (status == 'delivered' || status == 'returned' || shippingStatus == 'delivered') {
-      return 4;
-    }
-    if (status == 'shipped') {
-      return const {'picked_up', 'in_transit', 'out_for_delivery'}
-              .contains(shippingStatus)
-          ? 3
-          : 2;
-    }
-    if (status == 'paid' || status == 'processing') return 1;
-    return 0;
-  }
+  int progressIndex(Map<String, dynamic> data) => orderProgressIndex(data);
 
   String shippingStatusLabel(String value) {
-    const labels = <String,String>{
-      'pending':'بانتظار التجهيز',
-      'picked_up':'استلمتها شركة الشحن',
-      'in_transit':'جاري الشحن',
-      'out_for_delivery':'بانتظار التسليم',
-      'delivered':'تم التسليم',
-      'exception':'يوجد تحديث على الشحنة',
+    final key = normalizeShippingStatus(value);
+    const labels = <String, String>{
+      'pending': 'بانتظار الشحن',
+      'created': 'تم إنشاء الشحنة',
+      'label_created': 'تم تجهيز بوليصة الشحن',
+      'picked_up': 'استلمتها شركة الشحن',
+      'in_transit': 'في الطريق',
+      'out_for_delivery': 'خرجت للتسليم',
+      'delivered': 'تم التسليم',
+      'exception': 'يوجد تحديث على الشحنة',
+      'returned': 'مرتجع',
+      'cancelled': 'ملغاة',
     };
-    return labels[value] ?? value;
+    return labels[key] ?? 'حالة شحن غير معروفة';
   }
 
   Future<void> openPayment() async {

@@ -103,7 +103,7 @@
 <div class="panel-heading"><div><span class="eyebrow">الطلبات</span><h3>سجل طلبات العميل</h3></div><span class="status-pill">{{ orders|length }}</span></div>
 <div class="stack-list">
 {% for order in orders %}
-<div class="stack-row"><strong>{{ order.order_no }}</strong><span>{{ order.total }} · {{ order.status }} · {{ order.payment_status }}</span><a class="inline-link" href="/admin/orders/{{ order.id }}">فتح</a></div>
+<div class="stack-row"><strong>{{ order.order_no }}</strong><span>{{ order.total }} · {{ order_status_labels.get(order.status, "حالة غير معروفة") }} · {{ payment_status_labels.get(order.payment_status, "غير محدد") }}</span><a class="inline-link" href="/admin/orders/{{ order.id }}">فتح</a></div>
 {% else %}<span class="muted">لا توجد طلبات.</span>{% endfor %}
 </div>
 </section>
