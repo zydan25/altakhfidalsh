@@ -368,6 +368,17 @@ def register_entity_views(admin_bp):
                 )
 
         detail = CommerceService.serialize_order_detail(order)
+        # Keep old misspelled status values readable and correctly selected in
+        # the admin dropdown; canonicalization is also done on the next save.
+        status_aliases = {
+            "shiped": "shipped",
+            "proccessing": "processing",
+            "intransit": "in_transit",
+            "canceled": "cancelled",
+        }
+        for field in ("status", "shipping_status"):
+            raw_status = str(detail.get(field) or "").strip().lower().replace("-", "_").replace(" ", "_")
+            detail[field] = status_aliases.get(raw_status, raw_status)
         order_conversation = (
             detail.get("conversations") or [None]
         )[0]
