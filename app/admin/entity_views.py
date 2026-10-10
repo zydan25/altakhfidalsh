@@ -388,7 +388,7 @@ def register_entity_views(admin_bp):
             order_unread_messages=order_unread_messages,
             status_choices=(
                 "created", "awaiting_payment", "paid", "processing",
-                "shipped", "delivered", "returned", "cancelled",
+                "shipped", "in_transit", "delivered", "returned", "cancelled",
             ),
             error=error,
             success=success,
