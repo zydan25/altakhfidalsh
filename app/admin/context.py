@@ -7,7 +7,7 @@ from ..models import Conversation, Message, Notification, Order
 from .navigation import NAVIGATION, NavItem, NavSection
 
 ORDER_STATUS_LABELS = {
-    "created": "بانتظار الموافقة",
+    "created": "بانتظار موافقة الطلب",
     "awaiting_payment": "بانتظار الدفع",
     "paid": "تم الدفع",
     "processing": "قيد التجهيز",
