@@ -54,6 +54,15 @@ void main() {
       );
     });
 
+    test('a returned order is not shown in delivered results', () {
+      final order = <String, dynamic>{
+        'status': 'returned',
+        'shipping_status': 'delivered',
+      };
+      expect(orderMatchesFilter(order, 'returned'), isTrue);
+      expect(orderMatchesFilter(order, 'delivered'), isFalse);
+    });
+
     test('supports legacy shortcut keys without broadening the filter', () {
       final shipped = <String, dynamic>{
         'status': 'shipped',
