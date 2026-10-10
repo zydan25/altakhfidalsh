@@ -10062,7 +10062,6 @@ class _SxReferralsScreenState extends State<SxReferralsScreen> {
                             ],
                           ),
                         ),
-                    const SxDeveloperSignature(),
                   ],
                 ),
               ),
@@ -10169,7 +10168,6 @@ class _SxStoreContactScreenState extends State<SxStoreContactScreen> {
             _contactAction(Icons.phone_outlined, 'اتصال هاتفي', sxText(info['support_phone'], 'غير محدد'), _call),
             const SizedBox(height: 8),
             _contactAction(Icons.chat_outlined, 'WhatsApp', sxText(info['whatsapp_phone'], sxText(info['support_phone'], 'غير محدد')), _whatsapp),
-            const SxDeveloperSignature(),
           ],
         ),
   );
@@ -10278,7 +10276,6 @@ class _SxStoreLocationScreenState extends State<SxStoreLocationScreen> {
               )
             else
               SxStoreLocations(locations: locations),
-            const SxDeveloperSignature(),
           ],
         ),
   );
@@ -10564,8 +10561,7 @@ class _SxPaymentInfoScreenState extends State<SxPaymentInfoScreen> {
                 else
                   for (final method in methods)
                     SxPaymentInfoCard(method: method),
-                const SxDeveloperSignature(),
-              ],
+                  ],
             ),
           ),
   );
@@ -13409,18 +13405,118 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
     );
   }
 
+  Future<void> _openChatImage(String imageUrl) async {
+    final screenSize = MediaQuery.sizeOf(context);
+    final safeInsets = MediaQuery.paddingOf(context);
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.black,
+      useSafeArea: false,
+      builder: (dialogContext) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Center(
+              child: InteractiveViewer(
+                minScale: 0.8,
+                maxScale: 4,
+                panEnabled: true,
+                scaleEnabled: true,
+                child: SizedBox(
+                  width: screenSize.width,
+                  height: screenSize.height,
+                  child: SxImage(
+                    url: imageUrl,
+                    fit: BoxFit.contain,
+                    width: screenSize.width,
+                    height: screenSize.height,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: safeInsets.top + 10,
+              right: 12,
+              child: Material(
+                color: const Color(0x99000000),
+                shape: const CircleBorder(),
+                child: IconButton(
+                  tooltip: 'إغلاق الصورة',
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  icon: const Icon(Icons.close_rounded, color: Colors.white),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: safeInsets.bottom + 16,
+              left: 0,
+              right: 0,
+              child: const IgnorePointer(
+                child: Text(
+                  'قرّب الصورة بإصبعين للتكبير',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _attachment(Map<String, dynamic> a) {
     final url = sxImage(a['url']);
-    final mime = sxText(a['mime_type']);
+    final mime = sxText(a['mime_type']).trim().toLowerCase();
     if (mime.startsWith('image/') && url.isNotEmpty) {
+      final double availableWidth = MediaQuery.sizeOf(context).width * .68;
+      final double thumbnailWidth =
+          availableWidth < 220.0 ? availableWidth : 220.0;
       return Padding(
-        padding: const EdgeInsets.only(top: 5),
+        padding: const EdgeInsets.only(top: 6),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(10),
-          child: SxImage(
-            url: url,
-            fit: BoxFit.cover,
-            height: 190,
+          borderRadius: BorderRadius.circular(9),
+          child: Material(
+            color: const Color(0xFFE9EAEC),
+            child: InkWell(
+              onTap: () => _openChatImage(url),
+              child: SizedBox(
+                width: thumbnailWidth,
+                height: 185,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    SxImage(
+                      url: url,
+                      fit: BoxFit.cover,
+                      width: thumbnailWidth,
+                      height: 185,
+                    ),
+                    Positioned(
+                      left: 7,
+                      top: 7,
+                      child: Container(
+                        padding: const EdgeInsets.all(5),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(.56),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(
+                          Icons.open_in_full_rounded,
+                          color: Colors.white,
+                          size: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
       );
