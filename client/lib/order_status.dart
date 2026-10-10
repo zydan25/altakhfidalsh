@@ -76,7 +76,7 @@ const Map<String, String> orderFilterLabels = <String, String>{
 const Map<String, String> customerOrderStatusLabels = <String, String>{
   'created': 'بانتظار موافقة الطلب',
   'awaiting_payment': 'بانتظار الدفع',
-  // "paid" is an internal transition; customers see it as the preparing stage.
+  // Keep payment confirmation distinct from the preparation stage.
   'paid': 'تم الدفع',
   'processing': 'قيد التجهيز',
   'shipped': 'تم الشحن',
