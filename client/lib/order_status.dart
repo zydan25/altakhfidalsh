@@ -15,6 +15,8 @@ String normalizeOrderStatus(dynamic value) {
   const aliases = <String, String>{
     'canceled': 'cancelled',
     'cancel': 'cancelled',
+    'shiped': 'shipped',
+    'proccessing': 'processing',
     'intransit': 'in_transit',
     'outfordelivery': 'out_for_delivery',
     'pickedup': 'picked_up',
@@ -51,6 +53,8 @@ String normalizeOrderFilter(String value) {
     'pending_payment': 'payment',
     'awaiting_payment': 'payment',
     'shipped': 'shipping',
+    'shiped': 'shipping',
+    'proccessing': 'processing',
     'shipping_status': 'shipping',
     'completed': 'delivered',
     'complete': 'delivered',
