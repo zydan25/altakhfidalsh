@@ -16,9 +16,9 @@
 
 <section class="metric-grid">
   <article class="metric-card"><div><span class="metric-label">الإجمالي</span><strong>{{ order.total }}</strong></div></article>
-  <article class="metric-card"><div><span class="metric-label">الحالة</span><strong>{{ order.status }}</strong></div></article>
-  <article class="metric-card"><div><span class="metric-label">الدفع</span><strong>{{ order.payment_status }}</strong></div></article>
-  <article class="metric-card"><div><span class="metric-label">الشحن</span><strong>{{ order.shipping_status }}</strong></div></article>
+  <article class="metric-card"><div><span class="metric-label">الحالة</span><strong>{{ order_status_labels.get(order.status, "حالة غير معروفة") }}</strong></div></article>
+  <article class="metric-card"><div><span class="metric-label">الدفع</span><strong>{{ payment_status_labels.get(order.payment_status, "غير محدد") }}</strong></div></article>
+  <article class="metric-card"><div><span class="metric-label">الشحن</span><strong>{{ shipping_status_labels.get(order.shipping_status, "غير محدد") }}</strong></div></article>
   <article class="metric-card"><div><span class="metric-label">مجموعة التسعير</span><strong>#{{ order.pricing_group_id or "—" }}</strong></div></article>
 </section>
 <section class="panel" style="margin-top:12px">
@@ -99,7 +99,7 @@
       <input type="hidden" name="action" value="status">
       <label>الحالة
         <select name="status">
-          {% for status in status_choices %}<option value="{{ status }}" {% if order.status == status %}selected{% endif %}>{{ status }}</option>{% endfor %}
+          {% for status in status_choices %}<option value="{{ status }}" {% if order.status == status %}selected{% endif %}>{{ order_status_labels.get(status, "حالة غير معروفة") }}</option>{% endfor %}
         </select>
       </label>
       <label>ملاحظة داخلية<textarea name="note" rows="3" placeholder="سبب التغيير أو ملاحظة للمراجعة"></textarea></label>
@@ -144,7 +144,7 @@
     <div class="panel-heading"><div><span class="eyebrow">التسلسل الزمني</span><h3>كل ما حدث للطلب</h3></div></div>
     <div class="stack-list">
       {% for row in order.status_history %}
-      <div class="stack-row"><strong>{{ row.to_status }}</strong><span>{{ row.from_status or "بداية" }} · {{ row.actor_type }}{% if row.note %} · {{ row.note }}{% endif %}</span></div>
+      <div class="stack-row"><strong>{{ order_status_labels.get(row.to_status, "حالة غير معروفة") }}</strong><span>{{ order_status_labels.get(row.from_status, "بداية") if row.from_status else "بداية" }} · {{ actor_labels.get(row.actor_type, "النظام") }}{% if row.note %} · {{ row.note }}{% endif %}</span></div>
       {% else %}<span class="muted">لا يوجد تاريخ حالات.</span>{% endfor %}
     </div>
   </article>
@@ -153,10 +153,10 @@
     <div class="panel-heading"><div><span class="eyebrow">الدفع</span><h3>العمليات والإثباتات</h3></div></div>
     <div class="stack-list">
       {% for payment in order.payments %}
-      <div class="stack-row"><strong>{{ payment.method_name or ("طريقة #" ~ payment.method_id) }}</strong><span>{{ payment.amount }} · {{ payment.status }}{% if payment.provider_ref %} · {{ payment.provider_ref }}{% endif %}</span></div>
+      <div class="stack-row"><strong>{{ payment.method_name or ("طريقة #" ~ payment.method_id) }}</strong><span>{{ payment.amount }} · {{ payment_status_labels.get(payment.status, "غير محدد") }}{% if payment.provider_ref %} · {{ payment.provider_ref }}{% endif %}</span></div>
       {% else %}<span class="muted">لا توجد عملية دفع.</span>{% endfor %}
       {% for proof in order.payment_proofs %}
-      <div class="stack-row"><strong>إثبات #{{ proof.id }}</strong><span>{{ proof.status }} {% if proof.url %}· <a class="inline-link" href="{{ proof.url }}" target="_blank">فتح الملف</a>{% endif %}</span></div>
+      <div class="stack-row"><strong>إثبات #{{ proof.id }}</strong><span>{{ payment_status_labels.get(proof.status, "قيد المراجعة") }} {% if proof.url %}· <a class="inline-link" href="{{ proof.url }}" target="_blank">فتح الملف</a>{% endif %}</span></div>
       {% endfor %}
     </div>
   </article>
@@ -168,9 +168,9 @@
     <div class="stack-list">
       {% for shipment in order.shipments %}
       <div class="stack-row" style="align-items:flex-start;flex-direction:column">
-        <strong>شحنة #{{ shipment.id }} · {{ shipment.status }}</strong>
-        <span>Tracking: {{ shipment.tracking_no or "—" }}</span>
-        {% for event in shipment.events %}<small class="muted">{{ event.status }} · {{ event.location or "—" }} · {{ event.description or "" }}</small>{% endfor %}
+        <strong>شحنة #{{ shipment.id }} · {{ shipping_status_labels.get(shipment.status, "حالة شحن غير معروفة") }}</strong>
+        <span>رقم التتبع: {{ shipment.tracking_no or "—" }}</span>
+        {% for event in shipment.events %}<small class="muted">{{ shipping_status_labels.get(event.status, "حالة شحن غير معروفة") }} · {{ event.location or "—" }} · {{ event.description or "" }}</small>{% endfor %}
       </div>
       {% else %}<span class="muted">لا توجد شحنات.</span>{% endfor %}
     </div>
@@ -179,9 +179,9 @@
   <article class="panel">
     <div class="panel-heading"><div><span class="eyebrow">بعد البيع</span><h3>الإرجاع والاسترداد والضمان</h3></div></div>
     <div class="stack-list">
-      {% for row in order.returns %}<div class="stack-row"><strong>إرجاع #{{ row.id }}</strong><span>{{ row.reason }} · {{ row.status }}</span></div>{% endfor %}
-      {% for row in order.refunds %}<div class="stack-row"><strong>استرداد #{{ row.id }}</strong><span>{{ row.amount }} · {{ row.status }}</span></div>{% endfor %}
-      {% for row in order.warranty_claims %}<div class="stack-row"><strong>ضمان #{{ row.id }}</strong><span>{{ row.issue }} · {{ row.status }}</span></div>{% endfor %}
+      {% for row in order.returns %}<div class="stack-row"><strong>إرجاع #{{ row.id }}</strong><span>{{ row.reason }} · {{ record_status_labels.get(row.status, "قيد المعالجة") }}</span></div>{% endfor %}
+      {% for row in order.refunds %}<div class="stack-row"><strong>استرداد #{{ row.id }}</strong><span>{{ row.amount }} · {{ record_status_labels.get(row.status, "قيد المعالجة") }}</span></div>{% endfor %}
+      {% for row in order.warranty_claims %}<div class="stack-row"><strong>ضمان #{{ row.id }}</strong><span>{{ row.issue }} · {{ record_status_labels.get(row.status, "قيد المعالجة") }}</span></div>{% endfor %}
       {% if not order.returns and not order.refunds and not order.warranty_claims %}<span class="muted">لا توجد حالات بعد البيع.</span>{% endif %}
     </div>
   </article>
