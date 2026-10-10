@@ -36,7 +36,6 @@ String normalizeShippingStatus(dynamic value) {
     'intransit': 'in_transit',
     'outfordelivery': 'out_for_delivery',
     'pickedup': 'picked_up',
-    'shipped': 'pending',
   };
   return aliases[raw] ?? raw;
 }
