@@ -94,6 +94,14 @@ def public_store_info():
             "account_order_status_section_enabled": _public_setting(
                 "account_order_status_section_enabled", "true"
             ).strip().lower() in {"1", "true", "yes", "on", "enabled"},
+            "developer_signature_enabled": _public_setting(
+                "developer_signature_enabled", "true"
+            ).strip().lower() in {"1", "true", "yes", "on", "enabled"},
+            "developer_signature_style": _public_setting(
+                "developer_signature_style", "classic"
+            ).strip().lower()
+            if _public_setting("developer_signature_style", "classic").strip().lower()
+            in {"classic", "modern", "premium"} else "classic",
         }
     }
 
