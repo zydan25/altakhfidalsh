@@ -10062,7 +10062,6 @@ class _SxReferralsScreenState extends State<SxReferralsScreen> {
                             ],
                           ),
                         ),
-                    const SxDeveloperSignature(),
                   ],
                 ),
               ),
@@ -10169,7 +10168,6 @@ class _SxStoreContactScreenState extends State<SxStoreContactScreen> {
             _contactAction(Icons.phone_outlined, 'اتصال هاتفي', sxText(info['support_phone'], 'غير محدد'), _call),
             const SizedBox(height: 8),
             _contactAction(Icons.chat_outlined, 'WhatsApp', sxText(info['whatsapp_phone'], sxText(info['support_phone'], 'غير محدد')), _whatsapp),
-            const SxDeveloperSignature(),
           ],
         ),
   );
@@ -10278,7 +10276,6 @@ class _SxStoreLocationScreenState extends State<SxStoreLocationScreen> {
               )
             else
               SxStoreLocations(locations: locations),
-            const SxDeveloperSignature(),
           ],
         ),
   );
@@ -10564,8 +10561,7 @@ class _SxPaymentInfoScreenState extends State<SxPaymentInfoScreen> {
                 else
                   for (final method in methods)
                     SxPaymentInfoCard(method: method),
-                const SxDeveloperSignature(),
-              ],
+                  ],
             ),
           ),
   );
