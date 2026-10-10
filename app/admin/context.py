@@ -9,7 +9,7 @@ from .navigation import NAVIGATION, NavItem, NavSection
 ORDER_STATUS_LABELS = {
     "created": "بانتظار الموافقة",
     "awaiting_payment": "بانتظار الدفع",
-    "paid": "قيد التجهيز",
+    "paid": "تم الدفع",
     "processing": "قيد التجهيز",
     "shipped": "تم الشحن",
     "in_transit": "في الطريق",
