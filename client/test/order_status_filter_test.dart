@@ -74,7 +74,15 @@ void main() {
       };
 
       expect(normalizeOrderFilter('shipped'), 'shipping');
+      expect(normalizeOrderFilter('shiped'), 'shipping');
+      expect(normalizeOrderFilter('proccessing'), 'processing');
+      expect(normalizeOrderStatus('shiped'), 'shipped');
+      expect(normalizeOrderStatus('proccessing'), 'processing');
       expect(normalizeOrderFilter('completed'), 'delivered');
+      expect(orderMatchesFilter(<String, dynamic>{
+        'status': 'shiped',
+        'shipping_status': 'pending',
+      }, 'shipping'), isTrue);
       expect(orderMatchesFilter(shipped, 'shipped'), isTrue);
       expect(orderMatchesFilter(delivered, 'completed'), isTrue);
       expect(orderMatchesFilter(shipped, 'not-a-state'), isFalse);
