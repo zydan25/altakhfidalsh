@@ -1155,7 +1155,8 @@ def register_entity_views(admin_bp):
                 target_url = (request.form.get("target_url") or "").strip()
                 if not target_url.startswith(("https://","http://")): raise ValueError("أدخل رابطًا صحيحًا يبدأ بـ http:// أو https://.")
                 data["url"] = target_url
-            data.update({"title_color":color(request.form.get("title_color"),"#111827"),"body_color":color(request.form.get("body_color"),"#475467"),"accent_color":color(request.form.get("accent_color"),"#16A085"),"template_code":(request.form.get("template_code") or "custom")[:40]})
+            accent_color = color(request.form.get("accent_color"), "#16A085")
+            data.update({"title_color":color(request.form.get("title_color"),"#111827"),"body_color":color(request.form.get("body_color"),"#475467"),"accent_color":accent_color,"action_color":color(request.form.get("action_color"),accent_color),"template_code":(request.form.get("template_code") or "custom")[:40]})
             show_button = request.form.get("show_action_button") == "on"
             data["show_action_button"] = show_button
             if show_button:

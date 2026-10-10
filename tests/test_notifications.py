@@ -89,6 +89,48 @@ def test_fcm_reserved_data_key_is_namespaced():
 
 
 
+def test_fcm_supports_action_buttons_without_breaking_legacy_clients(app):
+    from app.services.fcm import FCMService
+
+    payload = {
+        "notification_id": 91,
+        "show_action_button": True,
+        "action_label": "عرض التفاصيل",
+        "action_color": "#7F56D9",
+        "accent_color": "#16A085",
+        "image_url": "/media/notifications/example.jpg",
+        "target": "home",
+    }
+    with app.app_context():
+        action_message = FCMService._message(
+            "عنوان تجريبي",
+            "وصف تجريبي",
+            payload,
+            "test-token",
+            local_actions=True,
+        )
+        legacy_message = FCMService._message(
+            "عنوان تجريبي",
+            "وصف تجريبي",
+            payload,
+            "test-token",
+            local_actions=False,
+        )
+
+    assert action_message.notification is None
+    assert action_message.android.notification is None
+    assert action_message.data["title"] == "عنوان تجريبي"
+    assert action_message.data["body"] == "وصف تجريبي"
+    assert action_message.data["show_action_button"] == "true"
+    assert action_message.data["action_label"] == "عرض التفاصيل"
+    assert action_message.data["action_color"] == "#7F56D9"
+    assert action_message.data["image_url"].startswith("https://")
+    # Existing APKs keep working until they upgrade and re-register.
+    assert legacy_message.notification is not None
+    assert legacy_message.notification.title == "عنوان تجريبي"
+    assert legacy_message.android.notification is not None
+
+
 def test_disabled_automatic_product_notifications_are_skipped_but_manual_sends_work(app):
     with app.app_context():
         customer = Customer(phone_normalized="967700000003", status="active")

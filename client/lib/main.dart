@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'api.dart';
+import 'firebase_options.dart';
 
 import 'app_state.dart';
 import 'auth_flow.dart';
@@ -133,17 +134,6 @@ void _insertOfflineOverlay() {
   overlay.insert(_offlineOverlayEntry!);
 }
 
-// Keep Android Firebase configuration explicit so Firebase Installations/FCM
-// always receives a valid API key, even if generated Gradle resources are
-// unavailable or stale in a build.
-const FirebaseOptions _androidFirebaseOptions = FirebaseOptions(
-  apiKey: 'AIzaSyAZAQ69JCgldJdULTCxUz5jtC_DxKevCY0',
-  appId: '1:907469003345:android:e9411583b33fec0dd6f670',
-  messagingSenderId: '907469003345',
-  projectId: 'altakhfidalsh',
-  storageBucket: 'altakhfidalsh.firebasestorage.app',
-);
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ApiService.onOfflineToast = _showOfflineToast;
@@ -151,7 +141,7 @@ Future<void> main() async {
   // Firebase must be initialized before registering the FCM background
   // handler. Web remains unchanged; push is enabled for Android only.
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-    await Firebase.initializeApp(options: _androidFirebaseOptions);
+    await Firebase.initializeApp(options: androidFirebaseOptions);
     await AltakhfidNotificationService.initialize(
       tapHandler: handleNotificationTap,
     );

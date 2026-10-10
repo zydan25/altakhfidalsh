@@ -300,8 +300,16 @@ jobs:
               if count != 1:
                   raise SystemExit("AndroidManifest.xml: <application> opening tag not found")
               text = text2
+          # flutter_local_notifications 16+ requires this receiver for action buttons.
+          receiver = '<receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />'
+          if "com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" not in text:
+              marker = "</application>"
+              if marker not in text:
+                  raise SystemExit("AndroidManifest.xml: </application> closing tag not found")
+              text = text.replace(marker, "    " + receiver + "\n" + marker, 1)
+
           manifest.write_text(text, encoding="utf-8")
-          print("Firebase Google Services plugin and FCM default channel configured.")
+          print("Firebase channel and notification action receiver configured.")
           PY
 
           grep -n -E "google-services|default_notification_channel_id|altakhfid_alerts_v7"             android/settings.gradle android/settings.gradle.kts             android/app/build.gradle android/app/build.gradle.kts             android/app/src/main/AndroidManifest.xml 2>/dev/null || true

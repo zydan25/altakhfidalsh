@@ -102,17 +102,46 @@ class FCMService:
         return absolute if parsed_absolute.scheme == "https" and parsed_absolute.netloc else None
 
     @classmethod
-    def _message(cls, title, body, data, token):
-        # Keep every customer notification on the exact same FCM/Android path.
-        # Navigation details stay in the data payload, while the visible
-        # notification is always a standard high-priority notification.
+    def _message(cls, title, body, data, token, *, local_actions=False):
         data_map = cls._string_data(data)
         title_text = str(title or "التخفيض الصح")[:240]
         body_text = str(body or "")[:1000]
         image_url = cls._absolute_image_url((data or {}).get("image_url"))
         raw_color = str((data or {}).get("accent_color") or "").strip()
         accent_color = raw_color if re.fullmatch(r"#[0-9a-fA-F]{6}", raw_color) else None
+        raw_action_color = str((data or {}).get("action_color") or "").strip()
+        action_color = (
+            raw_action_color
+            if re.fullmatch(r"#[0-9a-fA-F]{6}", raw_action_color)
+            else None
+        )
 
+        # New Android clients build a local notification, which permits a real
+        # system action button. Titles must therefore be included as data keys.
+        data_map["title"] = title_text
+        data_map["body"] = body_text
+        if image_url:
+            data_map["image_url"] = image_url
+        else:
+            data_map.pop("image_url", None)
+        if accent_color:
+            data_map["accent_color"] = accent_color
+        else:
+            data_map.pop("accent_color", None)
+        if action_color:
+            data_map["action_color"] = action_color
+        else:
+            data_map.pop("action_color", None)
+
+        if local_actions:
+            return messaging.Message(
+                data=data_map,
+                token=token,
+                android=messaging.AndroidConfig(priority="high"),
+            )
+
+        # Existing APKs still need a standard notification payload until they
+        # upgrade and re-register with the new local-action capability.
         return messaging.Message(
             notification=messaging.Notification(
                 title=title_text,
@@ -162,7 +191,15 @@ class FCMService:
             token = str(row.push_token or "").strip()
             if not token:
                 continue
-            messages.append(cls._message(title, body, data, token))
+            messages.append(
+                cls._message(
+                    title,
+                    body,
+                    data,
+                    token,
+                    local_actions=str(row.platform or "").strip().lower() == "android_actions_v1",
+                )
+            )
             device_rows.append(row)
 
         if not messages:

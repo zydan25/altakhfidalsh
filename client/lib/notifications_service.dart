@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api.dart';
+import 'firebase_options.dart';
 
 const String notificationAlertsChannelId = 'altakhfid_alerts_v7';
 const String notificationDeviceIdKey = 'altakhfid_fcm_device_id_v1';
@@ -26,10 +27,13 @@ typedef NotificationTapHandler = Future<void> Function(
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
-    await Firebase.initializeApp();
-  } catch (_) {}
-  // Notification messages received while the Android app is backgrounded or
-  // terminated are displayed by FCM/Android. Do not post another local copy.
+    await Firebase.initializeApp(options: androidFirebaseOptions);
+  } catch (_) {
+    // Firebase may already have been initialized by the Android host process.
+  }
+  // Action-capable devices receive data-only FCM messages, so render the
+  // notification here while the Flutter app is backgrounded or terminated.
+  await AltakhfidNotificationService.showBackgroundMessage(message);
 }
 
 class AltakhfidNotificationService {
@@ -110,8 +114,9 @@ class AltakhfidNotificationService {
 
     try {
       final launch = await _local.getNotificationAppLaunchDetails();
-      if (launch?.didNotificationLaunchApp == true) {
-        await _storePendingPayload(launch?.notificationResponse?.payload);
+      final response = launch?.notificationResponse;
+      if (launch?.didNotificationLaunchApp == true && response != null) {
+        await _handleLocalNotificationResponse(response);
       }
     } catch (_) {}
   }
@@ -261,7 +266,7 @@ class AltakhfidNotificationService {
       await client.registerPushToken(
         deviceId: await _deviceId(),
         pushToken: cleanToken,
-        platform: 'android',
+        platform: 'android_actions_v1',
       );
       await _saveFcmDiagnostic(
         status: 'server_registered',
@@ -384,25 +389,85 @@ class AltakhfidNotificationService {
     }
   }
 
+  static Future<void> showBackgroundMessage(RemoteMessage message) async {
+    try {
+      await _local.initialize(
+        settings: const InitializationSettings(
+          android: AndroidInitializationSettings('app_icon'),
+        ),
+        onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
+      );
+      final android = _local.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      if (android != null) {
+        await android.createNotificationChannel(
+          const AndroidNotificationChannel(
+            notificationAlertsChannelId,
+            'تنبيهات التخفيض الصح',
+            description: 'رسائل الطلبات والمحادثات والعروض الجديدة.',
+            importance: Importance.high,
+            playSound: true,
+            enableVibration: true,
+            showBadge: true,
+          ),
+        );
+      }
+      await _showRemoteMessage(message, plugin: _local);
+    } catch (error) {
+      debugPrint('Background notification display failed: $error');
+    }
+  }
+
   static Future<void> showForegroundMessage(RemoteMessage message) async {
     if (!_isAndroid) return;
+    await _showRemoteMessage(message, plugin: _local);
+  }
 
+  static Color? _colorFromHex(String raw) {
+    final value = raw.trim();
+    if (!RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(value)) return null;
+    return Color(int.parse('FF' + value.substring(1), radix: 16));
+  }
+
+  static Future<void> _showRemoteMessage(
+    RemoteMessage message, {
+    required FlutterLocalNotificationsPlugin plugin,
+  }) async {
     final payload = _payloadFromRemote(message);
     final id = int.tryParse(payload['notification_id']?.toString() ?? '') ??
         DateTime.now().millisecondsSinceEpoch.remainder(2147483647);
     final title = (payload['title'] ?? 'التخفيض الصح').toString();
     final body = (payload['body'] ?? '').toString();
     final rawData = payload['data'];
-    final data = rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
+    final data =
+        rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
     final imageUrl = (data['image_url'] ?? '').toString().trim();
 
     try {
-      final imageBytes = imageUrl.isEmpty ? null : await _downloadNotificationImage(imageUrl);
-      final rawAccent = (data['accent_color'] ?? '').toString().trim();
-      Color? accent;
-      if (RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(rawAccent)) {
-        accent = Color(int.parse('FF' + rawAccent.substring(1), radix: 16));
-      }
+      final imageBytes =
+          imageUrl.isEmpty ? null : await _downloadNotificationImage(imageUrl);
+      final rawAccent = (data['accent_color'] ?? '').toString();
+      final accent = _colorFromHex(rawAccent);
+      final rawActionColor = (data['action_color'] ?? '').toString();
+      final actionColor = _colorFromHex(rawActionColor) ?? accent;
+      final showAction = const <String>{'1', 'true', 'yes', 'on'}.contains(
+        (data['show_action_button'] ?? '').toString().trim().toLowerCase(),
+      );
+      final actionLabel = (data['action_label'] ?? 'عرض التفاصيل')
+          .toString()
+          .trim();
+      final actions = showAction
+          ? <AndroidNotificationAction>[
+              AndroidNotificationAction(
+                'open_action',
+                actionLabel.isEmpty ? 'عرض التفاصيل' : actionLabel,
+                titleColor: actionColor,
+                showsUserInterface: true,
+                cancelNotification: true,
+              ),
+            ]
+          : null;
+
       final StyleInformation style = imageBytes == null
           ? BigTextStyleInformation(body)
           : BigPictureStyleInformation(
@@ -411,7 +476,7 @@ class AltakhfidNotificationService {
               summaryText: body,
               showBigPictureWhenCollapsed: true,
             );
-      await _local.show(
+      await plugin.show(
         id: id,
         title: title,
         body: body,
@@ -427,6 +492,7 @@ class AltakhfidNotificationService {
             icon: 'notification_icon',
             ticker: 'التخفيض الصح',
             color: accent,
+            actions: actions,
             playSound: true,
             enableVibration: true,
             onlyAlertOnce: false,
@@ -438,7 +504,7 @@ class AltakhfidNotificationService {
         payload: jsonEncode(payload),
       );
     } catch (error) {
-      debugPrint('Foreground notification display failed: $error');
+      debugPrint('Notification display failed: $error');
     }
   }
 
@@ -478,18 +544,25 @@ class AltakhfidNotificationService {
   static void _onLocalNotificationResponse(
     NotificationResponse response,
   ) {
-    final raw = response.payload;
-    if (raw == null || raw.trim().isEmpty) return;
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is Map && onTap != null) {
-        unawaited(onTap!(Map<String, dynamic>.from(decoded)));
-      } else {
-        unawaited(_storePendingPayload(raw));
-      }
-    } catch (_) {
-      unawaited(_storePendingPayload(raw));
+    unawaited(_handleLocalNotificationResponse(response));
+  }
+
+  static Future<void> _handleLocalNotificationResponse(
+    NotificationResponse response,
+  ) async {
+    final payload = _effectiveLocalNotificationPayload(response);
+    if (payload == null) {
+      await _storePendingPayload(response.payload);
+      return;
     }
+    final handler = onTap;
+    if (handler != null) {
+      try {
+        await handler(payload);
+        return;
+      } catch (_) {}
+    }
+    await _storePendingPayload(jsonEncode(payload));
   }
 
   static Future<void> dispose() async {
@@ -502,11 +575,44 @@ class AltakhfidNotificationService {
   }
 }
 
+Map<String, dynamic>? _effectiveLocalNotificationPayload(
+  NotificationResponse response,
+) {
+  final raw = response.payload;
+  if (raw == null || raw.trim().isEmpty) return null;
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is! Map) return null;
+    final payload = Map<String, dynamic>.from(decoded);
+    if (response.actionId == 'open_action' && payload['data'] is Map) {
+      final data = Map<String, dynamic>.from(payload['data'] as Map);
+      final rawUrl = (data['action_url'] ?? '').toString().trim();
+      final uri = Uri.tryParse(rawUrl);
+      if (uri != null &&
+          (uri.scheme == 'https' || uri.scheme == 'http') &&
+          uri.host.isNotEmpty) {
+        data['url'] = rawUrl;
+        data['screen_type'] = 'url';
+        data['target'] = 'url';
+        payload['data'] = data;
+      }
+    }
+    return payload;
+  } catch (_) {
+    return null;
+  }
+}
+
 @pragma('vm:entry-point')
 void notificationTapBackground(NotificationResponse response) {
-  final raw = response.payload;
-  if (raw == null || raw.trim().isEmpty) return;
+  final payload = _effectiveLocalNotificationPayload(response);
+  if (payload != null) {
+    unawaited(
+      AltakhfidNotificationService.storePendingPayload(jsonEncode(payload)),
+    );
+    return;
+  }
   unawaited(
-    AltakhfidNotificationService._storePendingPayload(raw),
+    AltakhfidNotificationService.storePendingPayload(response.payload),
   );
 }
