@@ -19,9 +19,11 @@ ORDER_STATUS_LABELS = {
     "canceled": "ملغاة",
     "shiped": "تم الشحن",
     "proccessing": "قيد التجهيز",
+    "intransit": "في الطريق",
 }
 
 PAYMENT_STATUS_LABELS = {
+    "cod": "الدفع عند الاستلام",
     "unpaid": "غير مدفوع",
     "pending": "قيد الانتظار",
     "pending_proof": "بانتظار مراجعة إثبات الدفع",
