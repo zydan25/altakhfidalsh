@@ -103,6 +103,9 @@ class FCMService:
 
     @classmethod
     def _message(cls, title, body, data, token, *, local_actions=False):
+        # Always include the standard FCM notification payload. Android/FCM
+        # displays it in the system tray while the app is backgrounded or
+        # terminated. Local action buttons must never suppress the notification.
         data_map = cls._string_data(data)
         title_text = str(title or "التخفيض الصح")[:240]
         body_text = str(body or "")[:1000]
@@ -116,8 +119,8 @@ class FCMService:
             else None
         )
 
-        # New Android clients build a local notification, which permits a real
-        # system action button. Titles must therefore be included as data keys.
+        # Keep display fields in data for foreground local notifications and
+        # navigation, without replacing the system notification payload.
         data_map["title"] = title_text
         data_map["body"] = body_text
         if image_url:
@@ -133,15 +136,6 @@ class FCMService:
         else:
             data_map.pop("action_color", None)
 
-        if local_actions:
-            return messaging.Message(
-                data=data_map,
-                token=token,
-                android=messaging.AndroidConfig(priority="high"),
-            )
-
-        # Existing APKs still need a standard notification payload until they
-        # upgrade and re-register with the new local-action capability.
         return messaging.Message(
             notification=messaging.Notification(
                 title=title_text,

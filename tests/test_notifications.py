@@ -89,7 +89,7 @@ def test_fcm_reserved_data_key_is_namespaced():
 
 
 
-def test_fcm_supports_action_buttons_without_breaking_legacy_clients(app):
+def test_fcm_always_keeps_system_notification_payload_even_when_action_button_is_enabled(app):
     from app.services.fcm import FCMService
 
     payload = {
@@ -102,34 +102,27 @@ def test_fcm_supports_action_buttons_without_breaking_legacy_clients(app):
         "target": "home",
     }
     with app.app_context():
-        action_message = FCMService._message(
+        message = FCMService._message(
             "عنوان تجريبي",
             "وصف تجريبي",
             payload,
             "test-token",
             local_actions=True,
         )
-        legacy_message = FCMService._message(
-            "عنوان تجريبي",
-            "وصف تجريبي",
-            payload,
-            "test-token",
-            local_actions=False,
-        )
 
-    assert action_message.notification is None
-    assert action_message.android.notification is None
-    assert action_message.data["title"] == "عنوان تجريبي"
-    assert action_message.data["body"] == "وصف تجريبي"
-    assert action_message.data["show_action_button"] == "true"
-    assert action_message.data["action_label"] == "عرض التفاصيل"
-    assert action_message.data["action_color"] == "#7F56D9"
-    assert action_message.data["image_url"].startswith("https://")
-    # Existing APKs keep working until they upgrade and re-register.
-    assert legacy_message.notification is not None
-    assert legacy_message.notification.title == "عنوان تجريبي"
-    assert legacy_message.android.notification is not None
-
+    # System notifications must remain visible in the Android tray. A local
+    # action button may not turn the FCM message into data-only delivery.
+    assert message.notification is not None
+    assert message.notification.title == "عنوان تجريبي"
+    assert message.notification.body == "وصف تجريبي"
+    assert message.android.notification is not None
+    assert message.android.notification.channel_id == "altakhfid_alerts_v7"
+    assert message.data["title"] == "عنوان تجريبي"
+    assert message.data["body"] == "وصف تجريبي"
+    assert message.data["show_action_button"] == "true"
+    assert message.data["action_label"] == "عرض التفاصيل"
+    assert message.data["action_color"] == "#7F56D9"
+    assert message.data["image_url"].startswith("https://")
 
 def test_disabled_automatic_product_notifications_are_skipped_but_manual_sends_work(app):
     with app.app_context():

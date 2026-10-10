@@ -12,7 +12,6 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api.dart';
-import 'firebase_options.dart';
 
 const String notificationAlertsChannelId = 'altakhfid_alerts_v7';
 const String notificationDeviceIdKey = 'altakhfid_fcm_device_id_v1';
@@ -27,13 +26,10 @@ typedef NotificationTapHandler = Future<void> Function(
 @pragma('vm:entry-point')
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
-    await Firebase.initializeApp(options: androidFirebaseOptions);
-  } catch (_) {
-    // Firebase may already have been initialized by the Android host process.
-  }
-  // Action-capable devices receive data-only FCM messages, so render the
-  // notification here while the Flutter app is backgrounded or terminated.
-  await AltakhfidNotificationService.showBackgroundMessage(message);
+    await Firebase.initializeApp();
+  } catch (_) {}
+  // The standard notification payload is displayed by Android/FCM in the
+  // system tray while the app is backgrounded. Do not create a second copy.
 }
 
 class AltakhfidNotificationService {
@@ -266,7 +262,7 @@ class AltakhfidNotificationService {
       await client.registerPushToken(
         deviceId: await _deviceId(),
         pushToken: cleanToken,
-        platform: 'android_actions_v1',
+        platform: 'android',
       );
       await _saveFcmDiagnostic(
         status: 'server_registered',
