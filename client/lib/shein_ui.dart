@@ -9604,7 +9604,7 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
                         Expanded(child: _AccountMiniLink(Icons.payment_outlined, 'بانتظار الدفع', count('payment'), () => openOrders('payment'))),
                         Expanded(child: _AccountMiniLink(Icons.inventory_2_outlined, 'قيد التجهيز', count('processing'), () => openOrders('processing'))),
                         Expanded(child: _AccountMiniLink(Icons.local_shipping_outlined, 'تم الشحن', count('shipping'), () => openOrders('shipping'))),
-                        Expanded(child: _AccountMiniLink(Icons.check_circle_outline, 'تم التسليم', count('delivered'), () => openOrders('delivered'))),
+                        Expanded(child: _AccountMiniLink(Icons.rate_review_outlined, 'للمراجعة', count('delivered'), () => openOrders('delivered'))),
                       ],
                     ),
                     const SxSectionTitle(title: 'خدماتي'),
