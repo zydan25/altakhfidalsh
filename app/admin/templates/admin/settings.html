@@ -5,6 +5,43 @@
     margin-bottom:12px;padding:14px;border:1px solid #e5e7eb;border-radius:16px;
     background:linear-gradient(180deg,#ffffff 0%,#fafbff 100%);
   }
+  .developer-signature-setting{
+    margin-bottom:12px;padding:15px;border:1px solid #d7dce5;border-radius:17px;
+    background:linear-gradient(145deg,#fff 0%,#f7f8fb 100%);
+    box-shadow:0 8px 24px rgba(16,24,40,.05);
+  }
+  .developer-signature-setting .setting-heading{
+    display:flex;align-items:flex-start;gap:10px;margin-bottom:13px;
+  }
+  .developer-signature-setting .setting-card-icon{
+    display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+    width:38px;height:38px;border-radius:12px;background:#111827;color:#fff;font-size:18px;
+  }
+  .developer-signature-setting h3{margin:0;font-size:15px}
+  .developer-signature-setting .setting-description{margin:5px 0 0;color:#667085;font-size:10px;line-height:1.65}
+  .signature-setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 0;border-top:1px solid #e7e9ef}
+  .signature-setting-label{font-size:11px;font-weight:900;color:#202633}
+  .signature-setting-help{font-size:9px;color:#667085;line-height:1.5;margin-top:3px}
+  .signature-style-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:9px}
+  .signature-style-option{display:block;position:relative;min-width:0;cursor:pointer}
+  .signature-style-option input{position:absolute;opacity:0;pointer-events:none}
+  .signature-style-card{height:100%;min-height:94px;padding:8px;border:1px solid #e0e3ea;border-radius:12px;background:#fff;transition:.15s ease}
+  .signature-style-option input:checked + .signature-style-card{border-color:#111827;box-shadow:0 0 0 1px #111827;background:#fcfcfd}
+  .signature-style-preview{min-height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;gap:4px;padding:6px;margin-bottom:7px;font-size:8px;font-weight:900}
+  .signature-style-preview.classic{background:#f3f4f6;color:#252a34;border:1px solid #e5e7eb}
+  .signature-style-preview.modern{background:#111827;color:#fff}
+  .signature-style-preview.premium{background:linear-gradient(120deg,#101010,#35302a);color:#f4d58d;border:1px solid #b79553}
+  .signature-style-name{display:block;text-align:center;font-size:9px;font-weight:900;color:#202633}
+  .signature-style-help{display:block;margin-top:3px;text-align:center;font-size:8px;line-height:1.4;color:#667085}
+  .signature-save-row{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+  @media(max-width:520px){
+    .developer-signature-setting{padding:12px}
+    .signature-style-grid{gap:5px}
+    .signature-style-card{padding:6px;min-height:91px}
+    .signature-style-preview{font-size:7px}
+    .signature-style-name{font-size:8.3px}
+    .signature-style-help{font-size:7.5px}
+  }
   .account-status-setting{
     border-color:#d9dce5;
     box-shadow:0 8px 24px rgba(16,24,40,.045);
@@ -60,6 +97,64 @@
 <section class="module-header"><span class="eyebrow">النظام</span><h2>الإعدادات</h2><p class="muted">إعدادات عامة قابلة للتعديل من قاعدة البيانات بدل القيم الثابتة.</p></section>
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="developer-signature-setting">
+  <form method="post">
+    <input type="hidden" name="action" value="save_developer_signature_settings">
+    <div class="setting-heading">
+      <span class="setting-card-icon" aria-hidden="true">✦</span>
+      <div>
+        <span class="eyebrow">هوية التطبيق · توقيع البرمجة</span>
+        <h3>إعداد توقيع المبرمج وشركة التطوير</h3>
+        <p class="setting-description">يتحكم هذا النموذج في ظهور التوقيع وتصميمه. سيظهر في صفحة الدخول وصفحة «أنا» فقط، ولن يظهر في صفحات الخدمات أو المحادثات أو التفاصيل.</p>
+      </div>
+    </div>
+    <div class="signature-setting-row">
+      <div>
+        <div class="signature-setting-label">إظهار التوقيع</div>
+        <div class="signature-setting-help">يمكنك إخفاؤه من التطبيق بالكامل دون حذف معلومات التوقيع أو إعداداته.</div>
+      </div>
+      <label class="setting-switch" title="إظهار أو إخفاء توقيع المبرمج">
+        <input type="checkbox" name="enabled" {% if developer_signature_enabled %}checked{% endif %}>
+        <span class="setting-switch-track"><span class="setting-switch-thumb"></span></span>
+        <span class="setting-switch-label">{% if developer_signature_enabled %}مفعل{% else %}مخفي{% endif %}</span>
+      </label>
+    </div>
+    <div style="padding-top:11px">
+      <div class="signature-setting-label">اختر تصميم التوقيع</div>
+      <div class="signature-setting-help">التصميم الحالي محفوظ كخيار أول، وأضفنا تصميمين جديدين يمكنك التبديل بينهما في أي وقت.</div>
+      <div class="signature-style-grid">
+        <label class="signature-style-option">
+          <input type="radio" name="style" value="classic" {% if developer_signature_style == "classic" %}checked{% endif %}>
+          <span class="signature-style-card">
+            <span class="signature-style-preview classic"><span>⌘</span><span>زيدان العطاب</span></span>
+            <span class="signature-style-name">التصميم الحالي</span>
+            <span class="signature-style-help">هادئ وبسيط</span>
+          </span>
+        </label>
+        <label class="signature-style-option">
+          <input type="radio" name="style" value="modern" {% if developer_signature_style == "modern" %}checked{% endif %}>
+          <span class="signature-style-card">
+            <span class="signature-style-preview modern"><span>✦</span><span>زيدان العطاب</span></span>
+            <span class="signature-style-name">التصميم العصري</span>
+            <span class="signature-style-help">داكن وواضح</span>
+          </span>
+        </label>
+        <label class="signature-style-option">
+          <input type="radio" name="style" value="premium" {% if developer_signature_style == "premium" %}checked{% endif %}>
+          <span class="signature-style-card">
+            <span class="signature-style-preview premium"><span>♛</span><span>يمن كود</span></span>
+            <span class="signature-style-name">التصميم الفاخر</span>
+            <span class="signature-style-help">أسود ولمسات ذهبية</span>
+          </span>
+        </label>
+      </div>
+    </div>
+    <div class="signature-save-row">
+      <button class="primary-button" type="submit">حفظ إعدادات التوقيع</button>
+    </div>
+  </form>
+</section>
 
 <section class="general-images-setting account-status-setting">
   <form method="post">
