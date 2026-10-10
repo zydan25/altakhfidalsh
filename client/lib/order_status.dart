@@ -77,7 +77,7 @@ const Map<String, String> customerOrderStatusLabels = <String, String>{
   'created': 'بانتظار موافقة الطلب',
   'awaiting_payment': 'بانتظار الدفع',
   // "paid" is an internal transition; customers see it as the preparing stage.
-  'paid': 'قيد التجهيز',
+  'paid': 'تم الدفع',
   'processing': 'قيد التجهيز',
   'shipped': 'تم الشحن',
   'in_transit': 'في الطريق',
