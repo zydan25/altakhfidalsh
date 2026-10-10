@@ -1,79 +1,357 @@
 import 'package:flutter/material.dart';
+import 'app_state.dart';
 import 'models.dart';
 import 'theme.dart';
 
-class SxDeveloperSignature extends StatelessWidget {
+class SxDeveloperSignature extends StatefulWidget {
   const SxDeveloperSignature({super.key});
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 16, bottom: 6),
-    child: Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8F8F8),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE8E8E8)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
+  State<SxDeveloperSignature> createState() => _SxDeveloperSignatureState();
+}
+
+class _SxDeveloperSignatureState extends State<SxDeveloperSignature> {
+  bool _enabled = true;
+  String _style = 'classic';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final info = await api.storeInfo();
+      final rawEnabled = info['developer_signature_enabled'];
+      var enabled = _enabled;
+      if (rawEnabled is bool) {
+        enabled = rawEnabled;
+      } else if (rawEnabled != null) {
+        final value = rawEnabled.toString().trim().toLowerCase();
+        if (const {'1', 'true', 'yes', 'on', 'enabled'}.contains(value)) {
+          enabled = true;
+        } else if (const {'0', 'false', 'no', 'off', 'disabled'}.contains(value)) {
+          enabled = false;
+        }
+      }
+
+      final rawStyle =
+          (info['developer_signature_style'] ?? _style).toString().trim().toLowerCase();
+      final style = const {'classic', 'modern', 'premium'}.contains(rawStyle)
+          ? rawStyle
+          : 'classic';
+      if (mounted) {
+        setState(() {
+          _enabled = enabled;
+          _style = style;
+        });
+      }
+    } catch (_) {
+      // Preserve the existing signature appearance when the API is unavailable.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_enabled) return const SizedBox.shrink();
+    final Widget signature;
+    switch (_style) {
+      case 'modern':
+        signature = _modernSignature();
+        break;
+      case 'premium':
+        signature = _premiumSignature();
+        break;
+      default:
+        signature = _classicSignature();
+    }
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 180),
+      child: signature,
+    );
+  }
+
+  Widget _classicSignature() => Padding(
+        key: const ValueKey('signature-classic'),
+        padding: const EdgeInsets.only(top: 16, bottom: 6),
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8F8F8),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE8E8E8)),
+            ),
+            child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 22,
-                  height: 22,
-                  decoration: const BoxDecoration(
-                    color: Colors.black,
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: const Icon(
-                    Icons.code_rounded,
-                    size: 12,
-                    color: Colors.white,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 22,
+                      height: 22,
+                      decoration: const BoxDecoration(
+                        color: Colors.black,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.code_rounded,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    const Text(
+                      'برمجة وتصميم م. زيدان العطاب',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 8.7,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text(
+                      '774952665',
+                      textDirection: TextDirection.ltr,
+                      style: TextStyle(
+                        fontSize: 8.4,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF5F6872),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 7),
+                const SizedBox(height: 4),
                 const Text(
-                  'برمجة وتصميم م. زيدان العطاب',
+                  'يمن كود للتقنيات الذكية',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 8.7,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                const Text(
-                  '774952665',
-                  textDirection: TextDirection.ltr,
-                  style: TextStyle(
-                    fontSize: 8.4,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF5F6872),
+                    fontSize: 8.2,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF7A838D),
+                    letterSpacing: .1,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'يمن كود للتقنيات الذكية',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 8.2,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF7A838D),
-                letterSpacing: .1,
+          ),
+        ),
+      );
+
+  Widget _modernSignature() => Padding(
+        key: const ValueKey('signature-modern'),
+        padding: const EdgeInsets.only(top: 15, bottom: 6),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 370),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(13),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111827),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: const Color(0xFF303A4C)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x14111827),
+                    blurRadius: 15,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(.09),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white24),
+                    ),
+                    child: const Icon(
+                      Icons.terminal_rounded,
+                      size: 23,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'برمجة وتصميم',
+                          style: TextStyle(
+                            color: Color(0xFFB8C4D8),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'م. زيدان العطاب',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 3,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.business_outlined,
+                              size: 12,
+                              color: Color(0xFF9CAAC0),
+                            ),
+                            const Text(
+                              'يمن كود للتقنيات الذكية',
+                              style: TextStyle(
+                                color: Color(0xFFCDD5E1),
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Text(
+                              '774952665',
+                              textDirection: TextDirection.ltr,
+                              style: TextStyle(
+                                color: Color(0xFF9CAAC0),
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
-      ),
-    ),
-  );
+      );
+
+  Widget _premiumSignature() => Padding(
+        key: const ValueKey('signature-premium'),
+        padding: const EdgeInsets.only(top: 15, bottom: 6),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 370),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: [Color(0xFF171717), Color(0xFF29251E), Color(0xFF101010)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFB99B5B), width: 1),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1FB99B5B),
+                    blurRadius: 16,
+                    offset: Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: const Color(0xFFC9A96E)),
+                          color: const Color(0x22C9A96E),
+                        ),
+                        child: const Icon(
+                          Icons.workspace_premium_outlined,
+                          color: Color(0xFFE8CE91),
+                          size: 21,
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'تطوير وتنفيذ',
+                              style: TextStyle(
+                                color: Color(0xFFD9C18C),
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'م. زيدان العطاب',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      const Text(
+                        '774952665',
+                        textDirection: TextDirection.ltr,
+                        style: TextStyle(
+                          color: Color(0xFFE8CE91),
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Container(height: 1, color: const Color(0x66C9A96E)),
+                  const SizedBox(height: 8),
+                  const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.diamond_outlined,
+                        color: Color(0xFFE8CE91),
+                        size: 13,
+                      ),
+                      SizedBox(width: 5),
+                      Text(
+                        'يمن كود للتقنيات الذكية',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFFF0DEB4),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: .15,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
 }
 
 class SearchBox extends StatelessWidget {
