@@ -39,7 +39,7 @@ def test_every_order_status_has_an_arabic_admin_label():
 
 
 def test_payment_and_shipping_states_have_arabic_labels():
-    for status in ("unpaid", "pending", "pending_proof", "paid", "failed"):
+    for status in ("cod", "unpaid", "pending", "pending_proof", "paid", "failed"):
         assert status in PAYMENT_STATUS_LABELS
         assert re.search(r"[A-Za-z]", PAYMENT_STATUS_LABELS[status]) is None
 
