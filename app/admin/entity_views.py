@@ -3792,7 +3792,26 @@ def register_entity_views(admin_bp):
         if request.method=="POST":
             try:
                 action=(request.form.get("action") or "save").strip(); row=db.session.get(AppSetting,request.form.get("id",type=int))
-                if action=="save_general_product_images":
+                if action=="save_account_order_status_section":
+                    enabled = request.form.get("enabled") == "on"
+                    row = AppSetting.query.filter_by(
+                        group_code="storefront",
+                        key="account_order_status_section_enabled",
+                    ).first()
+                    if row is None:
+                        row = AppSetting(
+                            group_code="storefront",
+                            key="account_order_status_section_enabled",
+                            value="true" if enabled else "false",
+                            value_type="boolean",
+                        )
+                        db.session.add(row)
+                    else:
+                        row.value = "true" if enabled else "false"
+                        row.value_type = "boolean"
+                    success = "تم حفظ إعداد قسم حالة طلباتك في حساب العميل."
+
+                elif action=="save_general_product_images":
                     enabled = request.form.get("enabled") == "on"
                     row = AppSetting.query.filter_by(
                         group_code="storefront",
@@ -3826,15 +3845,28 @@ def register_entity_views(admin_bp):
                 db.session.commit()
             except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
         rows=AppSetting.query.order_by(AppSetting.group_code,AppSetting.key).limit(500).all()
+        def setting_is_enabled(setting, default=True):
+            if setting is None or setting.value is None:
+                return default
+            value = str(setting.value).strip().lower()
+            if value in {"1", "true", "yes", "on", "enabled"}:
+                return True
+            if value in {"0", "false", "no", "off", "disabled", ""}:
+                return False
+            return default
+
         general_images_setting = AppSetting.query.filter_by(
             group_code="storefront",
             key="product_general_images_enabled",
         ).first()
-        general_images_enabled = True
-        if general_images_setting is not None:
-            general_images_enabled = str(general_images_setting.value or "").strip().lower() in {
-                "1", "true", "yes", "on"
-            }
+        general_images_enabled = setting_is_enabled(general_images_setting, default=True)
+
+        order_status_section_setting = AppSetting.query.filter_by(
+            group_code="storefront",
+            key="account_order_status_section_enabled",
+        ).first()
+        order_status_section_enabled = setting_is_enabled(order_status_section_setting, default=True)
+
         return render_template(
             "admin/settings.html",
             title="الإعدادات",
@@ -3842,6 +3874,7 @@ def register_entity_views(admin_bp):
             success=success,
             error=error,
             general_images_enabled=general_images_enabled,
+            order_status_section_enabled=order_status_section_enabled,
             **build_admin_context(),
         )
 
