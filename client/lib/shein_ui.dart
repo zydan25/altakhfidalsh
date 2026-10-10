@@ -13474,8 +13474,9 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
     final url = sxImage(a['url']);
     final mime = sxText(a['mime_type']).trim().toLowerCase();
     if (mime.startsWith('image/') && url.isNotEmpty) {
-      final availableWidth = MediaQuery.sizeOf(context).width * .68;
-      final thumbnailWidth = availableWidth < 220 ? availableWidth : 220;
+      final double availableWidth = MediaQuery.sizeOf(context).width * .68;
+      final double thumbnailWidth =
+          availableWidth < 220.0 ? availableWidth : 220.0;
       return Padding(
         padding: const EdgeInsets.only(top: 6),
         child: ClipRRect(
