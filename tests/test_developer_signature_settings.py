@@ -55,12 +55,6 @@ def test_admin_can_disable_and_select_each_supported_signature_design(client):
 
 
 def test_invalid_signature_style_is_not_returned_to_client(client):
-    AppSetting(
-        group_code="storefront",
-        key=STYLE_KEY,
-        value="not-a-style",
-        value_type="text",
-    )
     from app.extensions import db
 
     db.session.add(
