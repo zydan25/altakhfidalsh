@@ -17,6 +17,8 @@ ORDER_STATUS_LABELS = {
     "returned": "تمت الإعادة",
     "cancelled": "ملغاة",
     "canceled": "ملغاة",
+    "shiped": "تم الشحن",
+    "proccessing": "قيد التجهيز",
 }
 
 PAYMENT_STATUS_LABELS = {
