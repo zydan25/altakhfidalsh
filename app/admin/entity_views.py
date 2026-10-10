@@ -3792,7 +3792,32 @@ def register_entity_views(admin_bp):
         if request.method=="POST":
             try:
                 action=(request.form.get("action") or "save").strip(); row=db.session.get(AppSetting,request.form.get("id",type=int))
-                if action=="save_account_order_status_section":
+                if action=="save_developer_signature_settings":
+                    enabled = request.form.get("enabled") == "on"
+                    style = (request.form.get("style") or "classic").strip().lower()
+                    if style not in {"classic", "modern", "premium"}:
+                        raise ValueError("اختر تصميمًا صحيحًا للتوقيع.")
+                    for key, value, value_type in (
+                        ("developer_signature_enabled", "true" if enabled else "false", "boolean"),
+                        ("developer_signature_style", style, "text"),
+                    ):
+                        setting = AppSetting.query.filter_by(
+                            group_code="storefront",
+                            key=key,
+                        ).first()
+                        if setting is None:
+                            db.session.add(AppSetting(
+                                group_code="storefront",
+                                key=key,
+                                value=value,
+                                value_type=value_type,
+                            ))
+                        else:
+                            setting.value = value
+                            setting.value_type = value_type
+                    success = "تم حفظ إعدادات توقيع البرمجة والتصميم."
+
+                elif action=="save_account_order_status_section":
                     enabled = request.form.get("enabled") == "on"
                     row = AppSetting.query.filter_by(
                         group_code="storefront",
@@ -3867,6 +3892,22 @@ def register_entity_views(admin_bp):
         ).first()
         order_status_section_enabled = setting_is_enabled(order_status_section_setting, default=True)
 
+        signature_enabled_setting = AppSetting.query.filter_by(
+            group_code="storefront",
+            key="developer_signature_enabled",
+        ).first()
+        developer_signature_enabled = setting_is_enabled(signature_enabled_setting, default=True)
+        signature_style_setting = AppSetting.query.filter_by(
+            group_code="storefront",
+            key="developer_signature_style",
+        ).first()
+        developer_signature_style = (
+            str(signature_style_setting.value or "classic").strip().lower()
+            if signature_style_setting is not None else "classic"
+        )
+        if developer_signature_style not in {"classic", "modern", "premium"}:
+            developer_signature_style = "classic"
+
         return render_template(
             "admin/settings.html",
             title="الإعدادات",
@@ -3875,6 +3916,8 @@ def register_entity_views(admin_bp):
             error=error,
             general_images_enabled=general_images_enabled,
             order_status_section_enabled=order_status_section_enabled,
+            developer_signature_enabled=developer_signature_enabled,
+            developer_signature_style=developer_signature_style,
             **build_admin_context(),
         )
 
