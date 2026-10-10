@@ -55,6 +55,7 @@ ORDER_STATUSES = (
     "paid",
     "processing",
     "shipped",
+    "in_transit",
     "delivered",
     "returned",
     "cancelled",
@@ -1284,7 +1285,12 @@ class CommerceService:
 
         previous = order.status
         if to_status == "awaiting_payment":
+            # The store approved the order; customer payment is now unlocked.
             order.payment_status = "unpaid"
+        elif to_status == "paid":
+            order.payment_status = "paid"
+
+        if to_status == "awaiting_payment":
             if order.shipping_override is None and not order.shipping_rate_id:
                 item_rows = OrderItem.query.filter_by(order_id=order.id).all()
                 subtotal_sar = sum(
@@ -1348,6 +1354,13 @@ class CommerceService:
                     stock.available = int(stock.on_hand or 0) - int(stock.reserved or 0)
 
             order.status = to_status
+            if to_status in {"shipped", "in_transit", "delivered"}:
+                order.shipping_status = to_status
+            elif to_status == "cancelled":
+                order.shipping_status = "cancelled"
+            elif to_status == "returned":
+                order.shipping_status = "returned"
+
             db.session.add(OrderStatusHistory(
                 order_id=order.id,
                 from_status=previous,
@@ -1367,6 +1380,7 @@ class CommerceService:
             ),
             "processing": "بدأ المتجر تجهيز طلبك.",
             "shipped": "تم شحن طلبك وبدأت رحلة التوصيل.",
+            "in_transit": "طلبك الآن في الطريق إلى عنوانك.",
             "delivered": "تم تسليم طلبك بنجاح. شكرًا لاختيار التخفيض الصح.",
             "cancelled": "تم إلغاء الطلب. يمكنك التواصل مع خدمة العملاء عند الحاجة.",
             "returned": "تم تسجيل إرجاع الطلب.",
