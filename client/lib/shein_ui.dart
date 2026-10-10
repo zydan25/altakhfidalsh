@@ -11422,17 +11422,7 @@ class _SxOrdersScreenState extends State<SxOrdersScreen> {
   bool loading = true;
   String filter = 'all';
 
-  static const filters = <String, String>{
-    'all': 'الكل',
-    'approval': 'بانتظار الموافقة',
-    'payment': 'بانتظار الدفع',
-    'processing': 'قيد التجهيز',
-    'shipping': 'الشحن',
-    'in_transit': 'في الطريق',
-    'delivered': 'تم التسليم',
-    'returned': 'المرتجعة',
-    'cancelled': 'ملغاة',
-  };
+  static const filters = orderFilterLabels;
 
   @override
   void initState() {
