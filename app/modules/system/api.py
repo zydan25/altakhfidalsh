@@ -91,6 +91,9 @@ def public_store_info():
             "image_url": _public_setting("store_image_url"),
             "hours": _public_setting("store_hours"),
             "splash_duration_seconds": _public_setting("splash_duration_seconds", "2"),
+            "account_order_status_section_enabled": _public_setting(
+                "account_order_status_section_enabled", "true"
+            ).strip().lower() in {"1", "true", "yes", "on", "enabled"},
         }
     }
 

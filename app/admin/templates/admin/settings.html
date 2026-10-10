@@ -5,6 +5,17 @@
     margin-bottom:12px;padding:14px;border:1px solid #e5e7eb;border-radius:16px;
     background:linear-gradient(180deg,#ffffff 0%,#fafbff 100%);
   }
+  .account-status-setting{
+    border-color:#d9dce5;
+    box-shadow:0 8px 24px rgba(16,24,40,.045);
+    background:linear-gradient(135deg,#fff 0%,#f8f9fc 100%);
+  }
+  .account-status-setting .setting-card-icon{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:34px;height:34px;border-radius:11px;background:#111827;color:#fff;
+    font-size:17px;flex:0 0 auto;margin-inline-end:9px;
+  }
+  .account-status-setting .general-images-setting-copy h3{font-size:16px}
   .general-images-setting-head{
     display:flex;align-items:center;justify-content:space-between;gap:12px;
   }
@@ -49,6 +60,34 @@
 <section class="module-header"><span class="eyebrow">النظام</span><h2>الإعدادات</h2><p class="muted">إعدادات عامة قابلة للتعديل من قاعدة البيانات بدل القيم الثابتة.</p></section>
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="general-images-setting account-status-setting">
+  <form method="post">
+    <input type="hidden" name="action" value="save_account_order_status_section">
+    <div class="general-images-setting-head">
+      <div style="display:flex;align-items:flex-start;min-width:0">
+        <span class="setting-card-icon" aria-hidden="true">▤</span>
+        <div class="general-images-setting-copy">
+          <span class="eyebrow">حساب العميل · عرض الأقسام</span>
+          <h3>إظهار قسم «حالة طلباتك»</h3>
+          <p>يتحكم هذا المفتاح في ظهور عنوان «حالة طلباتك» وجميع الاختصارات والعدادات الموجودة تحته في صفحة «أنا» بالتطبيق.</p>
+        </div>
+      </div>
+      <label class="setting-switch" title="إظهار أو إخفاء قسم حالة طلباتك">
+        <input type="checkbox" name="enabled" {% if order_status_section_enabled %}checked{% endif %} onchange="this.form.submit()">
+        <span class="setting-switch-track"><span class="setting-switch-thumb"></span></span>
+        <span class="setting-switch-label">{% if order_status_section_enabled %}مفعل{% else %}مخفي{% endif %}</span>
+      </label>
+    </div>
+    <div class="general-images-setting-note">
+      {% if order_status_section_enabled %}
+        القسم ظاهر للعملاء حاليًا. عند إيقاف المفتاح سيختفي بالكامل، مع بقاء صفحة «طلباتي» وجميع الطلبات وإدارتها دون تغيير.
+      {% else %}
+        القسم مخفي عن العملاء حاليًا. فعّل المفتاح لإظهاره مجددًا.
+      {% endif %}
+    </div>
+  </form>
+</section>
 
 <section class="general-images-setting">
   <form method="post">

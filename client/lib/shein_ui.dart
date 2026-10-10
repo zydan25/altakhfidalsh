@@ -9415,6 +9415,22 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
   Map<String, dynamic> me = {};
   List<Map<String, dynamic>> orders = <Map<String, dynamic>>[];
   bool loading = true;
+  // Keep the section visible by default for backward compatibility when older
+  // API servers do not yet return the setting.
+  bool showOrderStatusSection = true;
+
+  bool _settingEnabled(dynamic value, {bool defaultValue = true}) {
+    if (value is bool) return value;
+    if (value == null) return defaultValue;
+    final normalized = value.toString().trim().toLowerCase();
+    if (const {'1', 'true', 'yes', 'on', 'enabled'}.contains(normalized)) {
+      return true;
+    }
+    if (const {'0', 'false', 'no', 'off', 'disabled'}.contains(normalized)) {
+      return false;
+    }
+    return defaultValue;
+  }
 
   @override
   void initState() {
@@ -9423,6 +9439,17 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
   }
 
   Future<void> load() async {
+    // This public storefront setting is independent of customer data loading:
+    // an API failure must not block the rest of the account screen.
+    try {
+      final storeInfo = await api.storeInfo();
+      showOrderStatusSection = _settingEnabled(
+        storeInfo['account_order_status_section_enabled'],
+      );
+    } catch (_) {
+      showOrderStatusSection = true;
+    }
+
     try {
       final result = await api.me();
       final item = result['item'];
@@ -9598,15 +9625,17 @@ class _SxAccountScreenState extends State<SxAccountScreen> {
                                 ),
                               ),
                     ),
-                    const SxSectionTitle(title: 'حالة طلباتك'),
-                    Row(
-                      children: [
-                        Expanded(child: _AccountMiniLink(Icons.payment_outlined, 'بانتظار الدفع', count('payment'), () => openOrders('payment'))),
-                        Expanded(child: _AccountMiniLink(Icons.inventory_2_outlined, 'قيد التجهيز', count('processing'), () => openOrders('processing'))),
-                        Expanded(child: _AccountMiniLink(Icons.local_shipping_outlined, 'تم الشحن', count('shipping'), () => openOrders('shipping'))),
-                        Expanded(child: _AccountMiniLink(Icons.rate_review_outlined, 'للمراجعة', count('delivered'), () => openOrders('delivered'))),
-                      ],
-                    ),
+                    if (showOrderStatusSection) ...[
+                      const SxSectionTitle(title: 'حالة طلباتك'),
+                      Row(
+                        children: [
+                          Expanded(child: _AccountMiniLink(Icons.payment_outlined, 'بانتظار الدفع', count('payment'), () => openOrders('payment'))),
+                          Expanded(child: _AccountMiniLink(Icons.inventory_2_outlined, 'قيد التجهيز', count('processing'), () => openOrders('processing'))),
+                          Expanded(child: _AccountMiniLink(Icons.local_shipping_outlined, 'تم الشحن', count('shipping'), () => openOrders('shipping'))),
+                          Expanded(child: _AccountMiniLink(Icons.rate_review_outlined, 'للمراجعة', count('delivered'), () => openOrders('delivered'))),
+                        ],
+                      ),
+                    ],
                     const SxSectionTitle(title: 'خدماتي'),
                     GridView.count(
                       primary: false,
