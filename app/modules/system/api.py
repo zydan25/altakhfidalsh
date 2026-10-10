@@ -80,10 +80,10 @@ def _public_setting(key, default=""):
 @api_bp.get("/store-info")
 def public_store_info():
     developer_signature_style = _public_setting(
-        "developer_signature_style", "classic"
+        "developer_signature_style", "minimal"
     ).strip().lower()
-    if developer_signature_style not in {"classic", "modern", "premium"}:
-        developer_signature_style = "classic"
+    if developer_signature_style not in {"minimal", "signature", "royal", "atelier"}:
+        developer_signature_style = "minimal"
 
     return {
         "item": {
@@ -99,9 +99,6 @@ def public_store_info():
             "splash_duration_seconds": _public_setting("splash_duration_seconds", "2"),
             "account_order_status_section_enabled": _public_setting(
                 "account_order_status_section_enabled", "true"
-            ).strip().lower() in {"1", "true", "yes", "on", "enabled"},
-            "developer_signature_enabled": _public_setting(
-                "developer_signature_enabled", "true"
             ).strip().lower() in {"1", "true", "yes", "on", "enabled"},
             "developer_signature_style": developer_signature_style,
         }

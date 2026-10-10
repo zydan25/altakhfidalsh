@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
+import 'dart:ui' show Color;
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api.dart';
@@ -337,6 +340,20 @@ class AltakhfidNotificationService {
     };
   }
 
+  static Future<Uint8List?> _downloadNotificationImage(String rawUrl) async {
+    final uri = Uri.tryParse(rawUrl.trim());
+    if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) return null;
+    try {
+      final response = await http.get(uri).timeout(const Duration(seconds: 4));
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty || response.bodyBytes.length > 5 * 1024 * 1024) return null;
+      final contentType = response.headers['content-type'] ?? '';
+      if (!contentType.toLowerCase().startsWith('image/')) return null;
+      return response.bodyBytes;
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Map<String, dynamic> _payloadFromRemote(RemoteMessage message) {
     final data = Map<String, dynamic>.from(message.data);
     final id = data['notification_id']?.toString() ??
@@ -371,39 +388,54 @@ class AltakhfidNotificationService {
     if (!_isAndroid) return;
 
     final payload = _payloadFromRemote(message);
-    final id = int.tryParse(
-          payload['notification_id']?.toString() ?? '',
-        ) ??
+    final id = int.tryParse(payload['notification_id']?.toString() ?? '') ??
         DateTime.now().millisecondsSinceEpoch.remainder(2147483647);
+    final title = (payload['title'] ?? 'التخفيض الصح').toString();
+    final body = (payload['body'] ?? '').toString();
+    final rawData = payload['data'];
+    final data = rawData is Map ? Map<String, dynamic>.from(rawData) : <String, dynamic>{};
+    final imageUrl = (data['image_url'] ?? '').toString().trim();
 
     try {
+      final imageBytes = imageUrl.isEmpty ? null : await _downloadNotificationImage(imageUrl);
+      final rawAccent = (data['accent_color'] ?? '').toString().trim();
+      Color? accent;
+      if (RegExp(r'^#[0-9a-fA-F]{6}$').hasMatch(rawAccent)) {
+        accent = Color(int.parse('FF' + rawAccent.substring(1), radix: 16));
+      }
+      final StyleInformation style = imageBytes == null
+          ? BigTextStyleInformation(body)
+          : BigPictureStyleInformation(
+              ByteArrayAndroidBitmap(imageBytes),
+              contentTitle: title,
+              summaryText: body,
+              showBigPictureWhenCollapsed: true,
+            );
       await _local.show(
-      id: id,
-      title: (payload['title'] ?? 'التخفيض الصح').toString(),
-      body: (payload['body'] ?? '').toString(),
-      notificationDetails: NotificationDetails(
-        android: AndroidNotificationDetails(
-          notificationAlertsChannelId,
-          'تنبيهات التخفيض الصح',
-          channelDescription:
-              'رسائل الطلبات والمحادثات والعروض الجديدة.',
-          importance: Importance.max,
-          priority: Priority.high,
-          category: AndroidNotificationCategory.message,
-          visibility: NotificationVisibility.public,
-          icon: 'notification_icon',
-          ticker: 'التخفيض الصح',
-          playSound: true,
-          enableVibration: true,
-          onlyAlertOnce: false,
-          autoCancel: true,
-          showWhen: true,
-          styleInformation: BigTextStyleInformation(
-            (payload['body'] ?? '').toString(),
+        id: id,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(
+          android: AndroidNotificationDetails(
+            notificationAlertsChannelId,
+            'تنبيهات التخفيض الصح',
+            channelDescription: 'رسائل الطلبات والمحادثات والعروض الجديدة.',
+            importance: Importance.max,
+            priority: Priority.high,
+            category: AndroidNotificationCategory.message,
+            visibility: NotificationVisibility.public,
+            icon: 'notification_icon',
+            ticker: 'التخفيض الصح',
+            color: accent,
+            playSound: true,
+            enableVibration: true,
+            onlyAlertOnce: false,
+            autoCancel: true,
+            showWhen: true,
+            styleInformation: style,
           ),
         ),
-      ),
-      payload: jsonEncode(payload),
+        payload: jsonEncode(payload),
       );
     } catch (error) {
       debugPrint('Foreground notification display failed: $error');

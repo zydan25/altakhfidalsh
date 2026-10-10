@@ -1090,123 +1090,146 @@ def register_entity_views(admin_bp):
 
     @admin_bp.route("/notifications", methods=["GET", "POST"])
     def notifications():
-        from ..models import Notification, Customer, Product, Order, Conversation
+        import json, re
+        from ..models import AppSetting, Category, Customer, Conversation, Notification, Order, Product
         from ..services.notifications import NotificationService
-        import json
 
-        error = None
-        success = None
+        events = [("new_product","إضافة منتج"),("product_updated","تحديث منتج"),("order_status","تحديث حالة الطلب"),("order_updated","تحديث الطلب"),("message","إرسال رسالة"),("payment","تحديث الدفع"),("shipping","تحديث الشحن"),("announcement","الإشعارات العامة")]
+        types = {code for code, _ in events}
+        targets = {"home":"home","product_details":"product","order_details":"order","conversation":"conversation","category":"category","url":"url"}
+        error = success = None
+
+        def enabled(code):
+            setting = AppSetting.query.filter_by(group_code="notifications", key=code + "_enabled").first()
+            if setting is None or setting.value is None: return True
+            return str(setting.value).strip().lower() not in {"0","false","no","off","disabled",""}
+
+        def save_event(code, value):
+            setting = AppSetting.query.filter_by(group_code="notifications", key=code + "_enabled").first()
+            if setting is None:
+                db.session.add(AppSetting(group_code="notifications", key=code + "_enabled", value="true" if value else "false", value_type="boolean"))
+            else:
+                setting.value = "true" if value else "false"
+                setting.value_type = "boolean"
+
+        def color(raw, fallback):
+            raw = str(raw or "").strip()
+            return raw if re.fullmatch(r"#[0-9a-fA-F]{6}", raw) else fallback
+
+        def make_data(existing=None):
+            data = dict(existing or {})
+            raw = (request.form.get("payload") or "").strip()
+            if raw:
+                try: extra = json.loads(raw)
+                except json.JSONDecodeError as exc: raise ValueError("بيانات JSON الإضافية غير صحيحة.") from exc
+                if not isinstance(extra, dict): raise ValueError("بيانات JSON يجب أن تكون كائنًا.")
+                data.update(extra)
+            kind = (request.form.get("notification_type") or "announcement").strip()
+            screen = (request.form.get("screen_type") or "home").strip()
+            if kind not in types: raise ValueError("نوع الإشعار غير مدعوم.")
+            if screen not in targets: raise ValueError("وجهة الإشعار غير مدعومة.")
+            for key in ("product_id","order_id","conversation_id","category_id","url"): data.pop(key, None)
+            data.update({"type":kind,"screen_type":screen,"target":targets[screen]})
+            customer_id = request.form.get("customer_id", type=int)
+            if screen == "product_details":
+                product = db.session.get(Product, request.form.get("product_id", type=int))
+                if product is None: raise ValueError("اختر منتجًا صحيحًا.")
+                data["product_id"] = product.id
+            elif screen == "order_details":
+                order = db.session.get(Order, request.form.get("order_id", type=int))
+                if order is None: raise ValueError("اختر طلبًا صحيحًا.")
+                if request.form.get("action") != "update_notification" and request.form.get("recipient_type", "all") != "customer": raise ValueError("إشعار الطلب يحتاج إلى عميل محدد.")
+                if customer_id and order.customer_id != customer_id: raise ValueError("الطلب لا يتبع العميل المحدد.")
+                data["order_id"] = order.id
+            elif screen == "conversation":
+                conversation = db.session.get(Conversation, request.form.get("conversation_id", type=int))
+                if conversation is None: raise ValueError("اختر محادثة صحيحة.")
+                if request.form.get("action") != "update_notification" and request.form.get("recipient_type", "all") != "customer": raise ValueError("إشعار المحادثة يحتاج إلى عميل محدد.")
+                if customer_id and conversation.customer_id != customer_id: raise ValueError("المحادثة لا تتبع العميل المحدد.")
+                data["conversation_id"] = conversation.id
+            elif screen == "category":
+                category = db.session.get(Category, request.form.get("category_id", type=int))
+                if category is None: raise ValueError("اختر فئة صحيحة.")
+                data["category_id"] = category.id
+            elif screen == "url":
+                target_url = (request.form.get("target_url") or "").strip()
+                if not target_url.startswith(("https://","http://")): raise ValueError("أدخل رابطًا صحيحًا يبدأ بـ http:// أو https://.")
+                data["url"] = target_url
+            data.update({"title_color":color(request.form.get("title_color"),"#111827"),"body_color":color(request.form.get("body_color"),"#475467"),"accent_color":color(request.form.get("accent_color"),"#16A085"),"template_code":(request.form.get("template_code") or "custom")[:40]})
+            show_button = request.form.get("show_action_button") == "on"
+            data["show_action_button"] = show_button
+            if show_button:
+                data["action_label"] = (request.form.get("action_label") or "عرض التفاصيل").strip()[:60] or "عرض التفاصيل"
+                action_url = (request.form.get("action_url") or "").strip()
+                if action_url and not action_url.startswith(("https://","http://")): raise ValueError("رابط الزر غير صحيح.")
+                if action_url: data["action_url"] = action_url
+                else: data.pop("action_url", None)
+            else:
+                data.pop("action_label", None); data.pop("action_url", None)
+            upload = request.files.get("image_file")
+            if upload is not None and upload.filename:
+                assets = MediaService.save_generic_files([upload], "notifications")
+                if assets:
+                    image_url = str(assets[0].get("url") or "").strip()
+                    data["image_url"] = request.host_url.rstrip("/") + image_url if image_url.startswith("/") else image_url
+            elif request.form.get("remove_image") == "on": data.pop("image_url", None)
+            data.pop("_manual_send", None); data["_manual_send"] = True
+            return data, kind
+
         if request.method == "POST":
+            action = (request.form.get("action") or "send_notification").strip()
             try:
-                title = (request.form.get("title") or "").strip()
-                body = (request.form.get("body") or "").strip()
-                recipient_type = (request.form.get("recipient_type") or "all").strip()
-                screen_type = (request.form.get("screen_type") or "home").strip()
-                customer_id = request.form.get("customer_id", type=int)
-                data_text = (request.form.get("payload") or "").strip()
+                if action == "save_notification_controls":
+                    for code, _label in events: save_event(code, request.form.get(code + "_enabled") == "on")
+                    db.session.commit(); success = "تم حفظ إعدادات أنواع الإشعارات."
+                elif action == "delete_notification":
+                    row = db.session.get(Notification, request.form.get("notification_id", type=int))
+                    if row is None: raise ValueError("الإشعار غير موجود.")
+                    db.session.delete(row); db.session.commit(); success = "تم حذف سجل الإشعار."
+                elif action in {"send_notification","update_notification"}:
+                    title = (request.form.get("title") or "").strip(); body = (request.form.get("body") or "").strip()
+                    if not title or not body: raise ValueError("عنوان الإشعار ووصفه مطلوبان.")
+                    if action == "update_notification":
+                        row = db.session.get(Notification, request.form.get("notification_id", type=int))
+                        if row is None: raise ValueError("الإشعار المطلوب تعديله غير موجود.")
+                        data, kind = make_data(row.data or {})
+                        row.title = title[:240]; row.body = body[:10000]; row.type = kind[:60]; row.data = data
+                        NotificationService.resend_existing(row)
+                        success = "تم حفظ التعديل وإعادة إرساله إلى العميل نفسه."
+                    else:
+                        recipient_type = (request.form.get("recipient_type") or "all").strip()
+                        customer_id = request.form.get("customer_id", type=int)
+                        if recipient_type not in {"all","customer"}: raise ValueError("المستلم غير صحيح.")
+                        data, kind = make_data()
+                        if recipient_type == "customer":
+                            customer = db.session.get(Customer, customer_id) if customer_id else None
+                            if customer is None: raise ValueError("اختر عميلًا صحيحًا.")
+                            if data.get("order_id") and db.session.get(Order, data["order_id"]).customer_id != customer.id: raise ValueError("الطلب لا يتبع العميل المحدد.")
+                            if data.get("conversation_id") and db.session.get(Conversation, data["conversation_id"]).customer_id != customer.id: raise ValueError("المحادثة لا تتبع العميل المحدد.")
+                            NotificationService.create(customer.id, kind, title, body, data)
+                            success = "تم إرسال الإشعار إلى العميل المحدد."
+                        else:
+                            result = NotificationService.broadcast(title, body, data)
+                            if result.get("skipped"): raise ValueError("هذا النوع متوقف في مفاتيح الإشعارات.")
+                            success = "تم إرسال الإشعار وإنشاء سجل منفصل لكل عميل (" + str(result["count"]) + ")."
+                else: raise ValueError("الإجراء المطلوب غير معروف.")
+            except (ValueError, TypeError, OSError, AttributeError) as exc:
+                db.session.rollback(); error = str(exc)
 
-                if not title or not body:
-                    raise ValueError("عنوان الإشعار ونصه مطلوبان.")
-                if recipient_type not in {"all", "customer"}:
-                    raise ValueError("المستلم غير صحيح.")
-
-                data = {}
-                if data_text:
-                    try:
-                        parsed = json.loads(data_text)
-                    except json.JSONDecodeError as exc:
-                        raise ValueError("Payload يجب أن يكون JSON صحيحًا.") from exc
-                    if not isinstance(parsed, dict):
-                        raise ValueError("Payload يجب أن يكون كائن JSON.")
-                    data.update(parsed)
-
-                if screen_type not in {
-                    "home", "product_details", "order_details",
-                    "conversation", "category", "url",
-                }:
-                    raise ValueError("نوع الشاشة غير مدعوم.")
-
-                data["screen_type"] = screen_type
-                data["type"] = "announcement"
-
-                if screen_type == "product_details":
-                    product_id = request.form.get("product_id", type=int)
-                    if not product_id or db.session.get(Product, product_id) is None:
-                        raise ValueError("اختر منتجًا صحيحًا.")
-                    data["product_id"] = product_id
-                elif screen_type == "order_details":
-                    order_id = request.form.get("order_id", type=int)
-                    order = db.session.get(Order, order_id) if order_id else None
-                    if order is None:
-                        raise ValueError("اختر طلبًا صحيحًا.")
-                    if recipient_type != "customer":
-                        raise ValueError("إشعار تفاصيل الطلب يجب أن يرسل إلى عميل محدد.")
-                    if order.customer_id != customer_id:
-                        raise ValueError("الطلب لا يتبع العميل المحدد.")
-                    data["order_id"] = order_id
-                elif screen_type == "conversation":
-                    conversation_id = request.form.get("conversation_id", type=int)
-                    conversation = db.session.get(Conversation, conversation_id) if conversation_id else None
-                    if conversation is None:
-                        raise ValueError("المحادثة غير موجودة.")
-                    if recipient_type != "customer":
-                        raise ValueError("إشعار المحادثة يجب أن يرسل إلى عميل محدد.")
-                    if conversation.customer_id != customer_id:
-                        raise ValueError("المحادثة لا تتبع العميل المحدد.")
-                    data["conversation_id"] = conversation_id
-                elif screen_type == "category":
-                    category_id = request.form.get("category_id", type=int)
-                    if not category_id:
-                        raise ValueError("أدخل رقم الفئة الصحيح.")
-                    data["category_id"] = category_id
-                elif screen_type == "url":
-                    target_url = (request.form.get("target_url") or "").strip()
-                    if not target_url:
-                        raise ValueError("أدخل رابط الوجهة.")
-                    data["url"] = target_url
-
-                data["target"] = {
-                    "home": "home",
-                    "product_details": "product",
-                    "order_details": "order",
-                    "conversation": "conversation",
-                    "category": "category",
-                    "url": "url",
-                }[screen_type]
-
-                if recipient_type == "customer":
-                    if not customer_id or db.session.get(Customer, customer_id) is None:
-                        raise ValueError("العميل غير موجود.")
-                    NotificationService.create(
-                        customer_id,
-                        "announcement",
-                        title,
-                        body,
-                        data,
-                    )
-                    success = "تم إرسال الإشعار للعميل."
-                else:
-                    result = NotificationService.broadcast(title, body, data)
-                    success = f"تم إرسال الإشعار إلى {result['count']} عميل."
-            except (ValueError, TypeError, OSError) as exc:
-                db.session.rollback()
-                error = str(exc)
-
-        rows = Notification.query.order_by(Notification.id.desc()).limit(200).all()
-        customers = Customer.query.filter_by(status="active").order_by(Customer.id.desc()).limit(300).all()
-        products = Product.query.filter_by(is_active=True, status="published").order_by(Product.id.desc()).limit(300).all()
-        orders = Order.query.order_by(Order.id.desc()).limit(300).all()
-        return render_template(
-            "admin/notifications.html",
-            title="الإشعارات",
-            rows=rows,
-            customers=customers,
-            products=products,
-            orders=orders,
-            success=success,
-            error=error,
-            **build_admin_context(),
-        )
+        filter_type = (request.args.get("type") or "").strip()
+        filter_customer_id = request.args.get("customer_id", type=int)
+        query = Notification.query.order_by(Notification.id.desc())
+        if filter_type: query = query.filter(Notification.type == filter_type)
+        if filter_customer_id: query = query.filter(Notification.customer_id == filter_customer_id)
+        rows = query.limit(180).all()
+        edit_id = request.args.get("edit", type=int)
+        edit_notification = db.session.get(Notification, edit_id) if edit_id else None
+        customers = Customer.query.filter_by(status="active").order_by(Customer.id.desc()).limit(1000).all()
+        products = Product.query.filter_by(is_active=True,status="published").order_by(Product.id.desc()).limit(500).all()
+        orders = Order.query.order_by(Order.id.desc()).limit(500).all()
+        conversations = Conversation.query.order_by(Conversation.id.desc()).limit(500).all()
+        categories = Category.query.filter_by(is_active=True).order_by(Category.name).limit(500).all()
+        return render_template("admin/notifications.html", title="مركز الإشعارات", rows=rows, customers=customers, customer_map={x.id:x for x in customers}, products=products, orders=orders, conversations=conversations, categories=categories, event_options=events, event_flags={code:enabled(code) for code,_label in events}, filter_type=filter_type, filter_customer_id=filter_customer_id, edit_notification=edit_notification, success=success, error=error, **build_admin_context())
 
     @admin_bp.get("/products/drafts")
     def product_drafts():
@@ -3793,29 +3816,26 @@ def register_entity_views(admin_bp):
             try:
                 action=(request.form.get("action") or "save").strip(); row=db.session.get(AppSetting,request.form.get("id",type=int))
                 if action=="save_developer_signature_settings":
-                    enabled = request.form.get("enabled") == "on"
-                    style = (request.form.get("style") or "classic").strip().lower()
-                    if style not in {"classic", "modern", "premium"}:
+                    style = (request.form.get("style") or "minimal").strip().lower()
+                    if style not in {"minimal", "signature", "royal", "atelier"}:
                         raise ValueError("اختر تصميمًا صحيحًا للتوقيع.")
-                    for key, value, value_type in (
-                        ("developer_signature_enabled", "true" if enabled else "false", "boolean"),
-                        ("developer_signature_style", style, "text"),
-                    ):
-                        setting = AppSetting.query.filter_by(
-                            group_code="storefront",
-                            key=key,
-                        ).first()
-                        if setting is None:
-                            db.session.add(AppSetting(
-                                group_code="storefront",
-                                key=key,
-                                value=value,
-                                value_type=value_type,
-                            ))
-                        else:
-                            setting.value = value
-                            setting.value_type = value_type
-                    success = "تم حفظ إعدادات توقيع البرمجة والتصميم."
+                    setting = AppSetting.query.filter_by(
+                        group_code="storefront", key="developer_signature_style"
+                    ).first()
+                    if setting is None:
+                        db.session.add(AppSetting(
+                            group_code="storefront", key="developer_signature_style",
+                            value=style, value_type="text",
+                        ))
+                    else:
+                        setting.value = style
+                        setting.value_type = "text"
+                    legacy_setting = AppSetting.query.filter_by(
+                        group_code="storefront", key="developer_signature_enabled"
+                    ).first()
+                    if legacy_setting is not None:
+                        db.session.delete(legacy_setting)
+                    success = "تم حفظ تصميم التوقيع الجديد."
 
                 elif action=="save_account_order_status_section":
                     enabled = request.form.get("enabled") == "on"
@@ -3869,7 +3889,7 @@ def register_entity_views(admin_bp):
                 else: raise ValueError("إجراء الإعداد غير معروف.")
                 db.session.commit()
             except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
-        rows=AppSetting.query.order_by(AppSetting.group_code,AppSetting.key).limit(500).all()
+        rows=[item for item in AppSetting.query.order_by(AppSetting.group_code,AppSetting.key).limit(500).all() if not (item.group_code == "storefront" and item.key == "developer_signature_enabled")]
         def setting_is_enabled(setting, default=True):
             if setting is None or setting.value is None:
                 return default
@@ -3892,21 +3912,16 @@ def register_entity_views(admin_bp):
         ).first()
         order_status_section_enabled = setting_is_enabled(order_status_section_setting, default=True)
 
-        signature_enabled_setting = AppSetting.query.filter_by(
-            group_code="storefront",
-            key="developer_signature_enabled",
-        ).first()
-        developer_signature_enabled = setting_is_enabled(signature_enabled_setting, default=True)
         signature_style_setting = AppSetting.query.filter_by(
             group_code="storefront",
             key="developer_signature_style",
         ).first()
         developer_signature_style = (
-            str(signature_style_setting.value or "classic").strip().lower()
-            if signature_style_setting is not None else "classic"
+            str(signature_style_setting.value or "minimal").strip().lower()
+            if signature_style_setting is not None else "minimal"
         )
-        if developer_signature_style not in {"classic", "modern", "premium"}:
-            developer_signature_style = "classic"
+        if developer_signature_style not in {"minimal", "signature", "royal", "atelier"}:
+            developer_signature_style = "minimal"
 
         return render_template(
             "admin/settings.html",
@@ -3916,7 +3931,6 @@ def register_entity_views(admin_bp):
             error=error,
             general_images_enabled=general_images_enabled,
             order_status_section_enabled=order_status_section_enabled,
-            developer_signature_enabled=developer_signature_enabled,
             developer_signature_style=developer_signature_style,
             **build_admin_context(),
         )

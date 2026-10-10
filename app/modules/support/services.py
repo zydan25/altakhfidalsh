@@ -149,10 +149,15 @@ class SupportService:
         # the conversation; notification creation is intentionally separate.
         if str(sender_type or "").strip().lower() in {"admin", "staff", "employee"}:
             from ...services.notifications import NotificationService
+            first_image = next((
+                item for item in (attachments or [])
+                if str(item.get("mime_type") or "").lower().startswith("image/")
+            ), None)
             NotificationService.message_received(
                 conversation,
                 message.body,
                 message.message_type,
+                image_url=(first_image or {}).get("url"),
             )
 
         return {

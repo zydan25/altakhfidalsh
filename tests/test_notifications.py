@@ -1,5 +1,5 @@
 from app.extensions import db
-from app.models import Customer, CustomerNotification, Conversation, Notification
+from app.models import AppSetting, Customer, CustomerNotification, Conversation, Notification
 from app.modules.support.services import SupportService
 from app.services.notifications import NotificationService
 
@@ -86,3 +86,71 @@ def test_fcm_reserved_data_key_is_namespaced():
     assert payload["data_message_type"] == "text"
     assert payload["target"] == "conversation"
     assert payload["conversation_id"] == "42"
+
+
+
+def test_disabled_automatic_product_notifications_are_skipped_but_manual_sends_work(app):
+    with app.app_context():
+        customer = Customer(phone_normalized="967700000003", status="active")
+        db.session.add(customer)
+        db.session.add(AppSetting(
+            group_code="notifications",
+            key="new_product_enabled",
+            value="false",
+            value_type="boolean",
+        ))
+        db.session.commit()
+
+        result = NotificationService.broadcast(
+            "منتج جديد",
+            "وصف المنتج",
+            {
+                "type": "new_product",
+                "target": "product",
+                "product_id": 7,
+            },
+        )
+        assert result["skipped"] is True
+        assert result["count"] == 0
+        assert Notification.query.filter_by(customer_id=customer.id).count() == 0
+
+        manual = NotificationService.create(
+            customer.id,
+            "new_product",
+            "إشعار يدوي",
+            "هذا الإشعار أرسله المسؤول يدويًا.",
+            {
+                "type": "new_product",
+                "target": "product",
+                "product_id": 7,
+                "_manual_send": True,
+            },
+        )
+        assert manual is not None
+        assert manual["title"] == "إشعار يدوي"
+        assert "_manual_send" not in manual["data"]
+        assert Notification.query.filter_by(customer_id=customer.id).count() == 1
+
+
+def test_broadcast_keeps_one_editable_record_per_recipient(app):
+    with app.app_context():
+        customers = [
+            Customer(phone_normalized="967700000004", status="active"),
+            Customer(phone_normalized="967700000005", status="active"),
+        ]
+        db.session.add_all(customers)
+        db.session.commit()
+
+        result = NotificationService.broadcast(
+            "إعلان تجريبي",
+            "وصف تجريبي",
+            {"type": "announcement", "screen_type": "home", "target": "home"},
+        )
+        assert result["count"] == 2
+        rows = Notification.query.filter(
+            Notification.customer_id.in_([x.id for x in customers]),
+            Notification.title == "إعلان تجريبي",
+        ).all()
+        assert len(rows) == 2
+        assert len({row.customer_id for row in rows}) == 2
+        assert all(row.status == "sent" for row in rows)

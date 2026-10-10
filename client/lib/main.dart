@@ -5,6 +5,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'api.dart';
 
 import 'app_state.dart';
 import 'auth_flow.dart';
@@ -16,6 +19,119 @@ import 'theme.dart';
 
 final GlobalKey<NavigatorState> notificationNavigatorKey =
     GlobalKey<NavigatorState>();
+final GlobalKey<ScaffoldMessengerState> appScaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+OverlayEntry? _offlineOverlayEntry;
+Timer? _offlineOverlayTimer;
+String? _pendingOfflineMessage;
+bool _offlineOverlayRetryScheduled = false;
+
+void _showOfflineToast(String message) {
+  _pendingOfflineMessage = message;
+  _offlineOverlayTimer?.cancel();
+  _insertOfflineOverlay();
+  for (final delay in <Duration>[
+    Duration.zero,
+    const Duration(milliseconds: 140),
+    const Duration(milliseconds: 500),
+  ]) {
+    Timer(delay, () => appScaffoldMessengerKey.currentState?.hideCurrentSnackBar());
+  }
+  _offlineOverlayTimer = Timer(const Duration(milliseconds: 4200), () {
+    _offlineOverlayEntry?.remove();
+    _offlineOverlayEntry = null;
+  });
+}
+
+void _insertOfflineOverlay() {
+  final overlay = notificationNavigatorKey.currentState?.overlay;
+  if (overlay == null) {
+    if (!_offlineOverlayRetryScheduled) {
+      _offlineOverlayRetryScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _offlineOverlayRetryScheduled = false;
+        if (_pendingOfflineMessage != null && _offlineOverlayEntry == null) {
+          _insertOfflineOverlay();
+        }
+      });
+    }
+    return;
+  }
+  if (_offlineOverlayEntry != null) {
+    _offlineOverlayEntry!.markNeedsBuild();
+    return;
+  }
+  _offlineOverlayEntry = OverlayEntry(builder: (context) {
+    final message = _pendingOfflineMessage ?? 'تحقق من اتصالك بالإنترنت ثم أعد المحاولة.';
+    return Positioned(
+      top: MediaQuery.paddingOf(context).top + 9,
+      left: 12,
+      right: 12,
+      child: Material(
+        color: Colors.transparent,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Directionality(
+              textDirection: TextDirection.rtl,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.centerRight,
+                    end: Alignment.centerLeft,
+                    colors: [Color(0xFF0F766E), Color(0xFF1D4ED8)],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(.25)),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0x400B1F3A), blurRadius: 22, offset: Offset(0, 8)),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 39,
+                      height: 39,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(.17),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.wifi_off_rounded, color: Colors.white, size: 21),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('الاتصال غير متاح', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900)),
+                          const SizedBox(height: 3),
+                          Text(message, maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Color(0xFFEAF2FF), fontSize: 10, height: 1.5, fontWeight: FontWeight.w600)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () {
+                        _offlineOverlayTimer?.cancel();
+                        _offlineOverlayEntry?.remove();
+                        _offlineOverlayEntry = null;
+                      },
+                      icon: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  });
+  overlay.insert(_offlineOverlayEntry!);
+}
 
 // Keep Android Firebase configuration explicit so Firebase Installations/FCM
 // always receives a valid API key, even if generated Gradle resources are
@@ -30,6 +146,7 @@ const FirebaseOptions _androidFirebaseOptions = FirebaseOptions(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  ApiService.onOfflineToast = _showOfflineToast;
 
   // Firebase must be initialized before registering the FCM background
   // handler. Web remains unchanged; push is enabled for Android only.
@@ -111,7 +228,7 @@ Future<void> handleNotificationTap(Map<String, dynamic> payload) async {
     return;
   }
 
-  if (screenType == 'conversation') {
+  if (screenType == 'conversation' || data['target'] == 'conversation') {
     final conversationId =
         int.tryParse((data['conversation_id'] ?? '').toString()) ?? 0;
     if (conversationId > 0) {
@@ -126,6 +243,25 @@ Future<void> handleNotificationTap(Map<String, dynamic> payload) async {
         ),
       );
     }
+    return;
+  }
+
+  if (screenType == 'category' || data['target'] == 'category') {
+    final categoryId = int.tryParse((data['category_id'] ?? '').toString()) ?? 0;
+    if (categoryId > 0) {
+      await navigator.push(
+        MaterialPageRoute(
+          builder: (_) => SxResults(title: 'الفئة', categoryId: categoryId),
+        ),
+      );
+    }
+    return;
+  }
+
+  final targetUrl = (data['url'] ?? '').toString().trim();
+  if ((screenType == 'url' || targetUrl.isNotEmpty) && targetUrl.startsWith(RegExp(r'^https?://'))) {
+    final uri = Uri.tryParse(targetUrl);
+    if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
 
@@ -135,6 +271,7 @@ class AltakhfidApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      scaffoldMessengerKey: appScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       title: 'التخفيض الصح',
       theme: ClientTheme.theme(),

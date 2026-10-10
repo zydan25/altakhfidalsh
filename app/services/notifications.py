@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import or_, text
 
 from ..extensions import db
-from ..models import Customer, CustomerNotification, CustomerPreference, Notification
+from ..models import AppSetting, Customer, CustomerNotification, CustomerPreference, Notification
 from .fcm import FCMService
 
 logger = logging.getLogger(__name__)
@@ -13,6 +13,37 @@ logger = logging.getLogger(__name__)
 
 class NotificationService:
     """Create durable in-app and real-time customer notifications."""
+
+    # These switches intentionally default to enabled so an installation upgrade
+    # never silently disables a notification type.
+    controllable_events = frozenset({
+        "new_product", "product_updated", "order_status", "order_updated",
+        "message", "payment", "shipping", "announcement",
+    })
+
+    @classmethod
+    def event_enabled(cls, event_code):
+        code = str(event_code or "announcement").strip().lower()
+        if code not in cls.controllable_events:
+            return True
+        setting = AppSetting.query.filter_by(
+            group_code="notifications", key=code + "_enabled"
+        ).first()
+        if setting is None or setting.value is None:
+            return True
+        value = str(setting.value).strip().lower()
+        return value not in {"0", "false", "no", "off", "disabled", ""}
+
+    @classmethod
+    def _event_allowed(cls, notification_type, data):
+        if str((data or {}).get("_manual_send", "")).strip().lower() in {"1", "true", "yes", "on"}:
+            return True
+        declared = str((data or {}).get("type") or "").strip().lower()
+        fallback = str(notification_type or "announcement").strip().lower()
+        event_code = declared if declared in cls.controllable_events else fallback
+        if event_code not in cls.controllable_events:
+            event_code = "announcement"
+        return cls.event_enabled(event_code)
 
     @staticmethod
     def _emit(customer_id, notification_id, notification=None):
@@ -48,13 +79,18 @@ class NotificationService:
 
     @staticmethod
     def create(customer_id, notification_type, title, body, data=None):
+        incoming_data = dict(data or {})
+        if not NotificationService._event_allowed(notification_type, incoming_data):
+            logger.info("Notification skipped because event is disabled: %s", notification_type)
+            return None
+        incoming_data.pop("_manual_send", None)
         customer_id = int(customer_id)
         row = Notification(
             customer_id=customer_id,
             type=str(notification_type or "general")[:60],
             title=str(title or "إشعار")[:240],
             body=str(body or "")[:10000],
-            data=dict(data or {}),
+            data=incoming_data,
             status="sent",
             sent_at=datetime.now(timezone.utc),
         )
@@ -94,7 +130,14 @@ class NotificationService:
 
     @staticmethod
     def broadcast(title, body, data=None):
-        """Send one notification to all active customers with notifications enabled."""
+        """Send one notification per eligible customer and return the sent record IDs."""
+        incoming_data = dict(data or {})
+        declared_type = str(incoming_data.get("type") or "announcement").strip().lower()
+        if not NotificationService._event_allowed(declared_type, incoming_data):
+            logger.info("Notification broadcast skipped because event is disabled: %s", declared_type)
+            return {"count": 0, "notification_ids": [], "skipped": True}
+        incoming_data.pop("_manual_send", None)
+        data = incoming_data
         customer_rows = (
             db.session.query(Customer.id)
             .outerjoin(
@@ -160,6 +203,25 @@ class NotificationService:
         return {"count": len(created), "notification_ids": [x[1] for x in created]}
 
     @staticmethod
+    def resend_existing(row):
+        """Re-deliver an edited notification to its original recipient."""
+        row.status = "sent"
+        row.sent_at = datetime.now(timezone.utc)
+        db.session.commit()
+        NotificationService._emit(row.customer_id, row.id, row)
+        try:
+            result = FCMService.send_to_customer(
+                row.customer_id,
+                row.title,
+                row.body,
+                {**dict(row.data or {}), "notification_id": row.id, "type": row.type},
+            )
+            logger.info("FCM edited notification id=%s customer_id=%s result=%s", row.id, row.customer_id, result)
+        except Exception:
+            logger.exception("FCM edited notification failed id=%s customer_id=%s", row.id, row.customer_id)
+        return {"id": row.id, "customer_id": row.customer_id, "status": row.status}
+
+    @staticmethod
     def order_status_changed(order, body, status=None):
         status = status or order.status
         return NotificationService.create(
@@ -176,7 +238,7 @@ class NotificationService:
         )
 
     @staticmethod
-    def message_received(conversation, message_body, message_type="text"):
+    def message_received(conversation, message_body, message_type="text", image_url=None):
         title = "رسالة جديدة من الإدارة"
         prefix = "رسالة جديدة"
         if conversation.order_id:
@@ -202,6 +264,7 @@ class NotificationService:
                 "message_type": message_type,
                 "target": "conversation",
                 "preview": prefix,
+                **({"image_url": image_url} if image_url else {}),
             },
         )
 

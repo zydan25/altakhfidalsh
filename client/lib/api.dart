@@ -5,6 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
 
 class ApiService {
+  static void Function(String message)? onOfflineToast;
+  static DateTime? _lastOfflineFeedbackAt;
+
   static const _homeCachePrefix = 'storefront_home_v5_';
   // v6 invalidates older result caches after the circle-result filtering fixes.
   // v7 includes trend/hashtag/meta payloads used by the product-card renderer.
@@ -47,9 +50,16 @@ class ApiService {
         s.contains('timeout');
   }
 
-  Exception _offlineException() => Exception(
-        'أنت غير متصل بالإنترنت حاليًا. تم الاحتفاظ بما يمكن حفظه، حاول مرة أخرى عند عودة الاتصال.',
-      );
+  Exception _offlineException() {
+    const message = 'أنت غير متصل بالإنترنت حاليًا. حاول مرة أخرى عند عودة الاتصال.';
+    final now = DateTime.now();
+    final last = _lastOfflineFeedbackAt;
+    if (last == null || now.difference(last) > const Duration(seconds: 4)) {
+      _lastOfflineFeedbackAt = now;
+      onOfflineToast?.call(message);
+    }
+    return Exception(message);
+  }
   Future<dynamic> get(String p,{Map<String,String>? q}) async {
     try {
       return decode(await http.get(

@@ -1141,6 +1141,7 @@ class CatalogService:
         product = db.session.get(Product, product_id)
         if not product:
             raise LookupError("product not found")
+        was_published = product.status == "published"
         for key in ("name", "description", "material", "care_instructions", "sku", "product_type"):
             if key in payload:
                 value = (payload[key] or "").strip()
@@ -1188,6 +1189,31 @@ class CatalogService:
                 else None
             )
         db.session.commit()
+        if was_published:
+            try:
+                from ...services.notifications import NotificationService
+                image_row = (
+                    db.session.query(MediaAsset.url)
+                    .join(ProductMedia, ProductMedia.asset_id == MediaAsset.id)
+                    .filter(ProductMedia.product_id == product.id)
+                    .order_by(ProductMedia.sort_order, ProductMedia.id)
+                    .first()
+                )
+                update_data = {
+                    "type": "product_updated",
+                    "screen_type": "product_details",
+                    "product_id": product.id,
+                    "target": "product",
+                }
+                if image_row and image_row[0]:
+                    update_data["image_url"] = image_row[0]
+                NotificationService.broadcast(
+                    "تم تحديث منتج في التخفيض الصح",
+                    "تم تحديث «" + product.name + "». اضغط لعرض التفاصيل.",
+                    update_data,
+                )
+            except Exception:
+                current_app.logger.exception("Failed to broadcast product update notification for product %s", product.id)
         return CatalogService._serialize_product(product)
 
     @staticmethod
@@ -2548,15 +2574,25 @@ class CatalogService:
 
         if notify_customers:
             from ...services.notifications import NotificationService
+            image_row = (
+                db.session.query(MediaAsset.url)
+                .join(ProductMedia, ProductMedia.asset_id == MediaAsset.id)
+                .filter(ProductMedia.product_id == product.id)
+                .order_by(ProductMedia.sort_order, ProductMedia.id)
+                .first()
+            )
+            notification_data = {
+                "type": "new_product",
+                "screen_type": "product_details",
+                "product_id": product.id,
+                "target": "product",
+            }
+            if image_row and image_row[0]:
+                notification_data["image_url"] = image_row[0]
             NotificationService.broadcast(
                 "منتج جديد في التخفيض الصح",
                 "تمت إضافة «" + product.name + "» إلى المتجر. اضغط لعرض تفاصيل المنتج.",
-                {
-                    "type": "new_product",
-                    "screen_type": "product_details",
-                    "product_id": product.id,
-                    "target": "product",
-                },
+                notification_data,
             )
 
         return CatalogService._serialize_product(product)

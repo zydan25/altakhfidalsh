@@ -98,61 +98,39 @@
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
+<style>
+.signature-style-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.signature-style-option input{position:absolute;opacity:0}
+.signature-style-option{position:relative;display:block;cursor:pointer}
+.signature-style-card{display:block;height:100%;min-height:115px;padding:10px;border:1px solid #e1e6ee;border-radius:15px;background:#fff;transition:.18s}
+.signature-style-option input:checked + .signature-style-card{border-color:#167d88;box-shadow:0 0 0 2px #167d881c;background:#fbffff}
+.signature-style-preview{min-height:52px;border-radius:11px;display:flex;align-items:center;justify-content:center;gap:7px;padding:9px;margin-bottom:9px;font-size:10px;font-weight:900}
+.signature-style-preview.minimal{background:#f8fafc;color:#334155;border:1px solid #e2e8f0}
+.signature-style-preview.signature{background:linear-gradient(135deg,#101828,#344054);color:#f5d58a;border:1px solid #475467}
+.signature-style-preview.royal{background:linear-gradient(135deg,#fffdf8,#f4ead2);color:#72521b;border:1px solid #e6d5ab}
+.signature-style-preview.atelier{background:linear-gradient(135deg,#0b2330,#174d57);color:#b7f3e7;border:1px solid #277c83}
+.signature-style-name{display:block;text-align:center;font-size:10px;font-weight:950;color:#202633}
+.signature-style-help{display:block;margin-top:5px;text-align:center;font-size:9px;line-height:1.5;color:#667085}
+@media(max-width:650px){.signature-style-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
 <section class="developer-signature-setting">
   <form method="post">
     <input type="hidden" name="action" value="save_developer_signature_settings">
-    <div class="setting-heading">
-      <span class="setting-card-icon" aria-hidden="true">✦</span>
-      <div>
-        <span class="eyebrow">هوية التطبيق · توقيع البرمجة</span>
-        <h3>إعداد توقيع المبرمج وشركة التطوير</h3>
-        <p class="setting-description">يتحكم هذا النموذج في ظهور التوقيع وتصميمه. سيظهر في صفحة الدخول وصفحة «أنا» فقط، ولن يظهر في صفحات الخدمات أو المحادثات أو التفاصيل.</p>
-      </div>
-    </div>
-    <div class="signature-setting-row">
-      <div>
-        <div class="signature-setting-label">إظهار التوقيع</div>
-        <div class="signature-setting-help">يمكنك إخفاؤه من التطبيق بالكامل دون حذف معلومات التوقيع أو إعداداته.</div>
-      </div>
-      <label class="setting-switch" title="إظهار أو إخفاء توقيع المبرمج">
-        <input type="checkbox" name="enabled" {% if developer_signature_enabled %}checked{% endif %}>
-        <span class="setting-switch-track"><span class="setting-switch-thumb"></span></span>
-        <span class="setting-switch-label">{% if developer_signature_enabled %}مفعل{% else %}مخفي{% endif %}</span>
-      </label>
-    </div>
-    <div style="padding-top:11px">
-      <div class="signature-setting-label">اختر تصميم التوقيع</div>
-      <div class="signature-setting-help">التصميم الحالي محفوظ كخيار أول، وأضفنا تصميمين جديدين يمكنك التبديل بينهما في أي وقت.</div>
+    <div class="setting-heading"><span class="setting-card-icon" aria-hidden="true">✦</span><div>
+      <span class="eyebrow">هوية التطبيق · التوقيع</span><h3>تصميم توقيع البرمجة والتطوير</h3>
+      <p class="setting-description">اختر توقيعًا متناسقًا مع هوية التطبيق. التوقيع ظاهر دائمًا ولا يوجد مفتاح لإخفائه.</p>
+    </div></div>
+    <div style="padding-top:12px">
+      <div class="signature-setting-label">التصاميم المتاحة</div>
+      <div class="signature-setting-help">أربعة أنماط مستقلة: هادئ، فاخر، ذهبي ملكي، واستوديو تقني معاصر.</div>
       <div class="signature-style-grid">
-        <label class="signature-style-option">
-          <input type="radio" name="style" value="classic" {% if developer_signature_style == "classic" %}checked{% endif %}>
-          <span class="signature-style-card">
-            <span class="signature-style-preview classic"><span>⌘</span><span>زيدان العطاب</span></span>
-            <span class="signature-style-name">التصميم الحالي</span>
-            <span class="signature-style-help">هادئ وبسيط</span>
-          </span>
-        </label>
-        <label class="signature-style-option">
-          <input type="radio" name="style" value="modern" {% if developer_signature_style == "modern" %}checked{% endif %}>
-          <span class="signature-style-card">
-            <span class="signature-style-preview modern"><span>✦</span><span>زيدان العطاب</span></span>
-            <span class="signature-style-name">التصميم العصري</span>
-            <span class="signature-style-help">داكن وواضح</span>
-          </span>
-        </label>
-        <label class="signature-style-option">
-          <input type="radio" name="style" value="premium" {% if developer_signature_style == "premium" %}checked{% endif %}>
-          <span class="signature-style-card">
-            <span class="signature-style-preview premium"><span>♛</span><span>يمن كود</span></span>
-            <span class="signature-style-name">التصميم الفاخر</span>
-            <span class="signature-style-help">أسود ولمسات ذهبية</span>
-          </span>
-        </label>
+        <label class="signature-style-option"><input type="radio" name="style" value="minimal" {% if developer_signature_style == "minimal" %}checked{% endif %}><span class="signature-style-card"><span class="signature-style-preview minimal"><span>✧</span><span>زيدان العطاب</span></span><span class="signature-style-name">الحد الأدنى</span><span class="signature-style-help">ناعم وبسيط</span></span></label>
+        <label class="signature-style-option"><input type="radio" name="style" value="signature" {% if developer_signature_style == "signature" %}checked{% endif %}><span class="signature-style-card"><span class="signature-style-preview signature"><span>⌘</span><span>Z · ALATTAB</span></span><span class="signature-style-name">التوقيع الفاخر</span><span class="signature-style-help">داكن ولمسة ذهبية</span></span></label>
+        <label class="signature-style-option"><input type="radio" name="style" value="royal" {% if developer_signature_style == "royal" %}checked{% endif %}><span class="signature-style-card"><span class="signature-style-preview royal"><span>✦</span><span>YEMEN CODE</span></span><span class="signature-style-name">الكلاسيكي الملكي</span><span class="signature-style-help">عاجي وتفاصيل ذهبية</span></span></label>
+        <label class="signature-style-option"><input type="radio" name="style" value="atelier" {% if developer_signature_style == "atelier" %}checked{% endif %}><span class="signature-style-card"><span class="signature-style-preview atelier"><span>◈</span><span>DESIGNED WITH CARE</span></span><span class="signature-style-name">الاستوديو التقني</span><span class="signature-style-help">أزرق داكن وفيروزي</span></span></label>
       </div>
     </div>
-    <div class="signature-save-row">
-      <button class="primary-button" type="submit">حفظ إعدادات التوقيع</button>
-    </div>
+    <div class="signature-save-row"><button class="primary-button" type="submit">حفظ التصميم</button></div>
   </form>
 </section>
 

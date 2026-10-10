@@ -1,6 +1,8 @@
 import json
 import logging
 import os
+import re
+from urllib.parse import urljoin, urlparse
 
 import firebase_admin
 from firebase_admin import credentials, messaging
@@ -85,6 +87,21 @@ class FCMService:
         return result
 
     @classmethod
+    def _absolute_image_url(cls, value):
+        raw = str(value or "").strip()
+        if not raw:
+            return None
+        parsed = urlparse(raw)
+        if parsed.scheme in {"https", "http"} and parsed.netloc:
+            return raw
+        # MEDIA_BASE_URL commonly uses a local /media path. FCM requires an
+        # absolute URL, so resolve paths against the public storefront host.
+        base = str(current_app.config.get("PUBLIC_BASE_URL") or "https://takhfidsh.alattab.site").rstrip("/") + "/"
+        absolute = urljoin(base, raw.lstrip("/"))
+        parsed_absolute = urlparse(absolute)
+        return absolute if parsed_absolute.scheme == "https" and parsed_absolute.netloc else None
+
+    @classmethod
     def _message(cls, title, body, data, token):
         # Keep every customer notification on the exact same FCM/Android path.
         # Navigation details stay in the data payload, while the visible
@@ -92,11 +109,15 @@ class FCMService:
         data_map = cls._string_data(data)
         title_text = str(title or "التخفيض الصح")[:240]
         body_text = str(body or "")[:1000]
+        image_url = cls._absolute_image_url((data or {}).get("image_url"))
+        raw_color = str((data or {}).get("accent_color") or "").strip()
+        accent_color = raw_color if re.fullmatch(r"#[0-9a-fA-F]{6}", raw_color) else None
 
         return messaging.Message(
             notification=messaging.Notification(
                 title=title_text,
                 body=body_text,
+                image=image_url,
             ),
             data=data_map,
             token=token,
@@ -110,6 +131,8 @@ class FCMService:
                     priority="max",
                     visibility="public",
                     icon="notification_icon",
+                    color=accent_color,
+                    image=image_url,
                     ticker=title_text,
                     default_sound=True,
                     default_vibrate_timings=True,

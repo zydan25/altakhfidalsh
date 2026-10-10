@@ -1,149 +1,101 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<section class="module-header">
-  <div class="module-heading-copy">
-    <span class="eyebrow">التواصل</span>
-    <h2>مركز الإشعارات</h2>
-    <p class="muted">إرسال إشعار فوري عبر WebSocket مع حفظه في سجل العميل، ودعم فتح المنتج أو الطلب أو المحادثة مباشرة.</p>
-  </div>
-</section>
+<style>
+[hidden]{display:none!important}.np{direction:rtl;color:#182230}.np-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}.np-head h2{margin:0;font-size:23px;font-weight:950}.np-head p{margin:6px 0 0;color:#667085;font-size:12px;line-height:1.7}.np-panel{background:#fff;border:1px solid #e4e7ec;border-radius:17px;padding:15px;margin-bottom:15px;box-shadow:0 6px 20px #10182807}.np-title{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:12px}.np-title strong{font-size:14px;font-weight:950}.np-main{border:0;border-radius:11px;padding:11px 16px;color:#fff;background:linear-gradient(115deg,#14213d,#168c8c);font-weight:900;cursor:pointer}.np-soft{border:1px solid #d0d5dd;border-radius:10px;padding:9px 12px;color:#344054;background:#fff;text-decoration:none;font-size:11px;font-weight:850;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}.np-danger{color:#b42318;border-color:#fecdca}.np-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.np label{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:850;min-width:0;color:#344054}.np input:not([type=checkbox]):not([type=color]):not([type=file]),.np select,.np textarea{box-sizing:border-box;width:100%;min-width:0;border:1px solid #dfe4ea;border-radius:10px;background:#fbfcfe;padding:10px;font:inherit;font-size:12px;color:#101828}.np textarea{line-height:1.7;resize:vertical}.np-wide{margin-top:12px}.np-colors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:12px;padding:10px;background:#f8fafc;border-radius:12px}.np-color{display:flex!important;flex-direction:row!important;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e4e7ec;border-radius:10px;padding:8px}.np input[type=color]{width:38px;height:30px;border:0;background:transparent;padding:0}.np-check{display:flex!important;flex-direction:row!important;align-items:center;gap:8px!important;background:#f8fafc;padding:10px;border:1px solid #e4e7ec;border-radius:10px}.np-check input{width:16px;height:16px;accent-color:#168c8c}.np-events{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.np-events label{display:flex;flex-direction:row;align-items:center;gap:8px;padding:10px;border:1px solid #e4e7ec;border-radius:10px;background:#fbfcfd}.np-events input{accent-color:#168c8c}.np-filters{display:grid;grid-template-columns:1fr 1fr auto;gap:9px;align-items:end}.np-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.np-card{overflow:hidden;border:1px solid #e4e7ec;border-radius:15px;background:#fff}.np-card-top{height:4px;background:linear-gradient(90deg,#168c8c,#7f56d9)}.np-card-inner{padding:12px}.np-meta{display:flex;justify-content:space-between;align-items:center;gap:7px;flex-wrap:wrap;font-size:10px;color:#667085}.np-pill{display:inline-flex;border-radius:99px;padding:5px 8px;background:#ecfdf3;color:#027a48;font-weight:900}.np-card h3{font-size:14px;line-height:1.55;margin:11px 0 5px;overflow-wrap:anywhere}.np-desc{font-size:11px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere}.np-img{display:block;width:100%;max-height:175px;object-fit:cover;border-radius:10px;margin-top:9px;background:#f2f4f7}.np-actions{display:flex;gap:7px;margin-top:12px}.np-actions form{margin:0}.np-actions button,.np-actions a{flex:1}@media(max-width:760px){.np-list{grid-template-columns:1fr}.np-events{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.np-grid,.np-colors,.np-filters{grid-template-columns:1fr}.np-panel{padding:12px}.np-head h2{font-size:20px}.np-main{width:100%}}
+</style>
+<div class="np">
+  <section class="np-head">
+    <div><span class="eyebrow">التواصل · مركز التحكم</span><h2>مركز الإشعارات</h2><p>إشعارات مصوّرة وقابلة للتخصيص، مع سجل منفصل لكل عميل وإمكانية تعديل كل سجل أو حذفه.</p></div>
+    <button class="np-main" type="button" id="openForm">＋ إرسال إشعار جديد</button>
+  </section>
+  {% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
-{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
-{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+  <section class="np-panel">
+    <div class="np-title"><strong>التحكم في الإشعارات التلقائية</strong><span class="np-pill">افتراضيًا مفعّلة</span></div>
+    <p style="color:#667085;font-size:11px;line-height:1.8">اختر الأحداث التي يُسمح لها بإرسال إشعار تلقائي. الإرسال اليدوي يبقى مستقلًا عن هذه المفاتيح.</p>
+    <form method="post"><input type="hidden" name="action" value="save_notification_controls"><div class="np-events">
+      {% for code,label in event_options %}<label><input type="checkbox" name="{{ code }}_enabled" {% if event_flags.get(code,true) %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+    </div><div style="margin-top:12px"><button class="np-main" type="submit">حفظ المفاتيح</button></div></form>
+  </section>
 
-<section class="panel" style="padding:16px;margin-bottom:14px">
-  <form method="post" id="notificationForm">
-    <div class="form-grid">
-      <label>
-        <span>المستلمون</span>
-        <select name="recipient_type" id="recipientType">
-          <option value="all">كل العملاء المسموح لهم بالإشعارات</option>
-          <option value="customer">عميل محدد</option>
-        </select>
-      </label>
-      <label id="customerWrap" hidden>
-        <span>العميل</span>
-        <select name="customer_id">
-          <option value="">اختر العميل</option>
-          {% for customer in customers %}
-          <option value="{{ customer.id }}">{{ customer.id }} · {{ customer.name or customer.phone_normalized }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label>
-        <span>عنوان الإشعار</span>
-        <input name="title" maxlength="240" required placeholder="عرض جديد">
-      </label>
-      <label>
-        <span>نوع الوجهة</span>
-        <select name="screen_type" id="screenType">
-          <option value="home">الرئيسية</option>
-          <option value="product_details">تفاصيل منتج</option>
-          <option value="order_details">تفاصيل طلب</option>
-          <option value="conversation">المحادثة</option>
-          <option value="category">الفئة</option>
-          <option value="url">رابط</option>
-        </select>
-      </label>
-    </div>
+  {% set d = edit_notification.data or {} if edit_notification else {} %}
+  {% set old_target = d.get('screen_type') or ('order_details' if d.get('target') == 'order' else 'conversation' if d.get('target') == 'conversation' else 'product_details' if d.get('target') == 'product' else 'home') %}
+  <section class="np-panel" id="formPanel" {% if not edit_notification %}hidden{% endif %}>
+    <div class="np-title"><strong>{% if edit_notification %}تعديل الإشعار #{{ edit_notification.id }}{% else %}إنشاء إشعار جديد{% endif %}</strong>{% if edit_notification %}<a class="np-soft" href="{{ url_for('admin.notifications') }}">إلغاء</a>{% endif %}</div>
+    <form id="notificationForm" method="post" enctype="multipart/form-data">
+      <input type="hidden" name="action" value="{% if edit_notification %}update_notification{% else %}send_notification{% endif %}">{% if edit_notification %}<input type="hidden" name="notification_id" value="{{ edit_notification.id }}">{% endif %}
+      <div class="np-grid">
+        <label>نوع الإشعار<select name="notification_type" id="notifType">{% for val,label in [('announcement','إشعار عام'),('new_product','منتج جديد'),('product_updated','تحديث منتج'),('order_status','حالة الطلب'),('order_updated','تحديث الطلب'),('message','رسالة'),('payment','الدفع'),('shipping','الشحن والتوصيل')] %}<option value="{{ val }}" {% if (edit_notification and edit_notification.type == val) or (not edit_notification and val == 'announcement') %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label>قالب الإشعار<select name="template_code" id="templateCode">{% set tc=d.get('template_code','custom') %}<option value="custom" {% if tc == 'custom' %}selected{% endif %}>مخصص دون قالب</option>{% for val,label in [('elegant','أنيق وفيروزي'),('sale','عروض وتخفيضات'),('product','منتج جديد'),('order','طلبات وشحن'),('support','رسائل ودعم')] %}<option value="{{ val }}" {% if tc == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label>المستلمون<select id="recipientType" name="recipient_type" {% if edit_notification %}disabled{% endif %}><option value="all" {% if not edit_notification %}selected{% endif %}>كل العملاء</option><option value="customer" {% if edit_notification %}selected{% endif %}>عميل محدد</option></select>{% if edit_notification %}<input type="hidden" name="recipient_type" value="customer">{% endif %}</label>
+        <label id="customerWrap" {% if not edit_notification %}hidden{% endif %}>العميل<select name="customer_id" id="customerId" {% if edit_notification %}disabled{% endif %}><option value="">اختر عميلًا</option>{% for x in customers %}<option value="{{ x.id }}" {% if edit_notification and x.id == edit_notification.customer_id %}selected{% endif %}>{{ x.id }} · {{ x.name or x.phone_normalized }}</option>{% endfor %}</select>{% if edit_notification %}<input type="hidden" name="customer_id" value="{{ edit_notification.customer_id }}">{% endif %}</label>
+        <label>عنوان الإشعار<input name="title" maxlength="240" required value="{{ edit_notification.title if edit_notification else '' }}" placeholder="وصلت تخفيضات جديدة ✨"></label>
+        <label>عند الضغط على الإشعار<select name="screen_type" id="screenType">{% for val,label in [('home','الرئيسية'),('product_details','تفاصيل منتج'),('order_details','تفاصيل طلب'),('conversation','المحادثة'),('category','فئة'),('url','رابط خارجي')] %}<option value="{{ val }}" {% if old_target == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      </div>
+      <label class="np-wide">وصف الإشعار<textarea name="body" rows="3" maxlength="10000" required placeholder="اكتب الوصف الذي سيظهر في التنبيه وفي صفحة الإشعارات.">{{ edit_notification.body if edit_notification else '' }}</textarea></label>
+      <div id="productField" class="np-wide" {% if old_target != 'product_details' %}hidden{% endif %}><label>المنتج<select name="product_id"><option value="">اختر المنتج</option>{% for x in products %}<option value="{{ x.id }}" {% if d.get('product_id')|int == x.id %}selected{% endif %}>{{ x.id }} · {{ x.name }} · {{ x.sku }}</option>{% endfor %}</select></label></div>
+      <div id="orderField" class="np-wide" {% if old_target != 'order_details' %}hidden{% endif %}><label>الطلب<select name="order_id"><option value="">اختر الطلب</option>{% for x in orders %}<option value="{{ x.id }}" {% if d.get('order_id')|int == x.id %}selected{% endif %}>{{ x.id }} · {{ x.order_no }} · العميل {{ x.customer_id }}</option>{% endfor %}</select></label></div>
+      <div id="conversationField" class="np-wide" {% if old_target != 'conversation' %}hidden{% endif %}><label>المحادثة<select name="conversation_id"><option value="">اختر المحادثة</option>{% for x in conversations %}<option value="{{ x.id }}" {% if d.get('conversation_id')|int == x.id %}selected{% endif %}>{{ x.id }} · العميل {{ x.customer_id }} · {{ x.subject or x.type }}</option>{% endfor %}</select></label></div>
+      <div id="categoryField" class="np-wide" {% if old_target != 'category' %}hidden{% endif %}><label>الفئة<select name="category_id"><option value="">اختر الفئة</option>{% for x in categories %}<option value="{{ x.id }}" {% if d.get('category_id')|int == x.id %}selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></label></div>
+      <div id="urlField" class="np-wide" {% if old_target != 'url' %}hidden{% endif %}><label>الرابط الخارجي<input type="url" name="target_url" value="{{ d.get('url','') }}" placeholder="https://example.com"></label></div>
+      <div class="np-grid np-wide">
+        <label>صورة للإشعار (اختيارية)<input type="file" name="image_file" accept="image/*">{% if d.get('image_url') %}<span style="display:flex;gap:10px;align-items:center"><img src="{{ d.get('image_url') }}" alt="الصورة الحالية" style="width:68px;height:52px;object-fit:cover;border-radius:8px"><span class="np-check"><input type="checkbox" name="remove_image"> حذف الصورة الحالية</span></span>{% endif %}</label>
+        <label>لون التمييز في إشعار الهاتف<span class="np-color"><input type="color" name="accent_color" value="{{ d.get('accent_color','#16A085') }}"><span>لون علامة الإشعار</span></span></label>
+      </div>
+      <div class="np-colors">
+        <label class="np-color">لون العنوان داخل التطبيق<input type="color" name="title_color" value="{{ d.get('title_color','#111827') }}"></label>
+        <label class="np-color">لون الوصف داخل التطبيق<input type="color" name="body_color" value="{{ d.get('body_color','#475467') }}"></label>
+        <label class="np-color">زر الإجراء <span class="np-check"><input type="checkbox" name="show_action_button" id="showAction" {% if d.get('show_action_button') %}checked{% endif %}> إظهار زر</span></label>
+      </div>
+      <div class="np-grid np-wide" id="actionFields" {% if not d.get('show_action_button') %}hidden{% endif %}><label>نص الزر<input name="action_label" maxlength="60" value="{{ d.get('action_label','عرض التفاصيل') }}"></label><label>رابط اختياري للزر<input type="url" name="action_url" value="{{ d.get('action_url','') }}" placeholder="فارغ = فتح وجهة الإشعار"></label></div>
+      <label class="np-wide">بيانات إضافية (JSON اختياري)<textarea name="payload" rows="2" dir="ltr" placeholder='{"campaign_id":10}'></textarea></label>
+      <div class="np-wide" style="display:flex;gap:8px;flex-wrap:wrap"><button class="np-main" type="submit">{% if edit_notification %}حفظ التعديل وإعادة الإرسال{% else %}إرسال الإشعار الآن{% endif %}</button>{% if edit_notification %}<a class="np-soft" href="{{ url_for('admin.notifications') }}">إلغاء التعديل</a>{% endif %}</div>
+    </form>
+  </section>
 
-    <label style="display:block;margin-top:12px">
-      <span>نص الإشعار</span>
-      <textarea name="body" rows="4" maxlength="10000" required placeholder="اكتب الرسالة التي ستظهر في الإشعار"></textarea>
-    </label>
-
-    <div id="productField" style="margin-top:12px">
-      <label>
-        <span>المنتج</span>
-        <select name="product_id">
-          <option value="">اختر المنتج</option>
-          {% for product in products %}
-          <option value="{{ product.id }}">{{ product.id }} · {{ product.name }} · {{ product.sku }}</option>
-          {% endfor %}
-        </select>
-      </label>
-    </div>
-
-    <div id="orderField" style="margin-top:12px" hidden>
-      <label>
-        <span>الطلب</span>
-        <select name="order_id">
-          <option value="">اختر الطلب</option>
-          {% for order in orders %}
-          <option value="{{ order.id }}">{{ order.id }} · {{ order.order_no }} · العميل {{ order.customer_id }}</option>
-          {% endfor %}
-        </select>
-      </label>
-    </div>
-
-    <div id="genericField" style="margin-top:12px" hidden>
-      <label>
-        <span id="genericLabel">بيانات الوجهة</span>
-        <input name="conversation_id" id="conversationId" inputmode="numeric" placeholder="رقم المحادثة">
-        <input name="category_id" id="categoryId" inputmode="numeric" placeholder="رقم الفئة" hidden style="margin-top:8px">
-        <input name="target_url" id="targetUrl" type="url" placeholder="https://..." hidden style="margin-top:8px">
-      </label>
-    </div>
-
-    <label style="display:block;margin-top:12px">
-      <span>Payload إضافي (JSON)</span>
-      <textarea name="payload" rows="5" dir="ltr" placeholder='{"campaign_id": 10, "source": "admin"}'></textarea>
-    </label>
-
-    <div style="margin-top:14px;display:flex;justify-content:flex-start">
-      <button class="primary-button" type="submit">إرسال الإشعار الآن</button>
-    </div>
-  </form>
-</section>
-
-<section class="panel" style="overflow:auto">
-  <div style="padding:14px 14px 4px">
-    <strong>آخر الإشعارات</strong>
-  </div>
-  <table class="data-table">
-    <thead><tr><th>ID</th><th>العميل</th><th>النوع</th><th>العنوان</th><th>الحالة</th><th>التاريخ</th></tr></thead>
-    <tbody>
-    {% for row in rows %}
-      <tr>
-        <td>{{ row.id }}</td>
-        <td>{{ row.customer_id }}</td>
-        <td>{{ row.type }}</td>
-        <td>{{ row.title }}</td>
-        <td>{{ row.status }}</td>
-        <td>{{ row.created_at }}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="6">لا توجد إشعارات بعد.</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</section>
-
+  <section class="np-panel"><div class="np-title"><strong>سجل الإشعارات المرسلة</strong><span class="np-pill">{{ rows|length }} سجل ظاهر</span></div>
+    <form method="get" class="np-filters">
+      <label>التصفية حسب النوع<select name="type"><option value="">كل الأنواع</option>{% for val,label in [('announcement','عام'),('new_product','منتج جديد'),('product_updated','تحديث منتج'),('order_status','حالة طلب'),('order_updated','تحديث طلب'),('message','رسالة'),('payment','دفع'),('shipping','شحن')] %}<option value="{{ val }}" {% if filter_type == val %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label>التصفية حسب العميل<select name="customer_id"><option value="">كل العملاء</option>{% for x in customers %}<option value="{{ x.id }}" {% if filter_customer_id == x.id %}selected{% endif %}>{{ x.id }} · {{ x.name or x.phone_normalized }}</option>{% endfor %}</select></label>
+      <button class="np-soft" type="submit">تطبيق</button>
+    </form>
+  </section>
+  <section class="np-list">
+    {% for row in rows %}{% set item = row.data or {} %}<article class="np-card"><div class="np-card-top"></div><div class="np-card-inner">
+      <div class="np-meta"><span class="np-pill">#{{ row.id }} · {{ row.type }}</span><span>العميل #{{ row.customer_id }}</span></div>
+      <h3 style="color:{{ item.get('title_color','#111827') }}">{{ row.title }}</h3><div class="np-desc" style="color:{{ item.get('body_color','#475467') }}">{{ row.body }}</div>
+      {% if item.get('image_url') %}<img class="np-img" src="{{ item.get('image_url') }}" alt="صورة الإشعار" loading="lazy">{% endif %}
+      {% if item.get('show_action_button') %}<span class="np-pill">زر: {{ item.get('action_label','عرض التفاصيل') }}</span>{% endif %}
+      <div class="np-meta" style="margin-top:10px"><span>{{ row.status }}</span><span>{{ row.sent_at or row.created_at }}</span></div>
+      <div class="np-actions"><a class="np-soft" href="{{ url_for('admin.notifications',edit=row.id,type=filter_type,customer_id=filter_customer_id) }}">تعديل هذا الإشعار</a><form method="post" onsubmit="return confirm('حذف سجل هذا الإشعار لهذا العميل؟')"><input type="hidden" name="action" value="delete_notification"><input type="hidden" name="notification_id" value="{{ row.id }}"><button class="np-soft np-danger" type="submit">حذف السجل</button></form></div>
+    </div></article>{% else %}<div class="np-panel" style="grid-column:1/-1;text-align:center;color:#667085;padding:30px">لا توجد إشعارات مطابقة للفرز.</div>{% endfor %}
+  </section>
+</div>
 <script>
 (() => {
-  const recipient = document.getElementById('recipientType');
-  const customer = document.getElementById('customerWrap');
-  const screen = document.getElementById('screenType');
-  const product = document.getElementById('productField');
-  const order = document.getElementById('orderField');
-  const generic = document.getElementById('genericField');
-  const conversation = document.getElementById('conversationId');
-  const category = document.getElementById('categoryId');
-  const url = document.getElementById('targetUrl');
-
-  function sync() {
-    customer.hidden = recipient.value !== 'customer';
-    const v = screen.value;
-    product.hidden = v !== 'product_details';
-    order.hidden = v !== 'order_details';
-    generic.hidden = !['conversation', 'category', 'url'].includes(v);
-    conversation.hidden = v !== 'conversation';
-    category.hidden = v !== 'category';
-    url.hidden = v !== 'url';
-  }
-  recipient.addEventListener('change', sync);
-  screen.addEventListener('change', sync);
-  sync();
+ const panel=document.getElementById('formPanel'), open=document.getElementById('openForm');
+ const recipient=document.getElementById('recipientType'), customer=document.getElementById('customerWrap');
+ const screen=document.getElementById('screenType'), showAction=document.getElementById('showAction');
+ const actionFields=document.getElementById('actionFields');
+ const fields={product_details:'productField',order_details:'orderField',conversation:'conversationField',category:'categoryField',url:'urlField'};
+ const template=document.getElementById('templateCode');
+ const title=document.querySelector('#notificationForm input[name="title"]');
+ const body=document.querySelector('#notificationForm textarea[name="body"]');
+ const tc=document.querySelector('#notificationForm input[name="title_color"]');
+ const bc=document.querySelector('#notificationForm input[name="body_color"]');
+ const ac=document.querySelector('#notificationForm input[name="accent_color"]');
+ const presets={
+   elegant:{tc:'#12303A',bc:'#4B6470',ac:'#168C8C'},
+   sale:{title:'تخفيضات جديدة بانتظارك',body:'اكتشف العروض الجديدة قبل نفاد الكمية.',tc:'#B42318',bc:'#7A271A',ac:'#D92D20',button:true},
+   product:{title:'وصل منتج جديد ✨',body:'أضفنا لك منتجًا جديدًا إلى المتجر. افتح الإشعار لاكتشافه.',tc:'#175CD3',bc:'#344054',ac:'#1570EF',button:true},
+   order:{title:'تحديث على طلبك',body:'تم تحديث معلومات طلبك. افتح التفاصيل للاطلاع على آخر حالة.',tc:'#027A48',bc:'#344054',ac:'#12B76A',button:true},
+   support:{title:'رسالة جديدة من التخفيض الصح',body:'لديك رسالة جديدة من فريق خدمة العملاء.',tc:'#6941C6',bc:'#475467',ac:'#7F56D9',button:true}
+ };
+ function sync(){if(recipient&&customer)customer.hidden=recipient.value!=='customer';Object.keys(fields).forEach(k=>{const node=document.getElementById(fields[k]);if(node)node.hidden=screen.value!==k;});if(actionFields)actionFields.hidden=!showAction.checked;}
+ if(open)open.addEventListener('click',()=>{panel.hidden=!panel.hidden;if(!panel.hidden)panel.scrollIntoView({behavior:'smooth',block:'start'});});
+ if(recipient)recipient.addEventListener('change',sync);if(screen)screen.addEventListener('change',sync);if(showAction)showAction.addEventListener('change',sync);
+ if(template)template.addEventListener('change',()=>{const p=presets[template.value];if(!p)return;if(p.title)title.value=p.title;if(p.body)body.value=p.body;if(p.tc)tc.value=p.tc;if(p.bc)bc.value=p.bc;if(p.ac)ac.value=p.ac;if(p.button&&showAction)showAction.checked=true;sync();});
+ sync();
 })();
 </script>
 {% endblock %}

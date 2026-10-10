@@ -5,136 +5,83 @@ import 'theme.dart';
 
 class SxDeveloperSignature extends StatefulWidget {
   const SxDeveloperSignature({super.key});
-
   @override
   State<SxDeveloperSignature> createState() => _SxDeveloperSignatureState();
 }
 
 class _SxDeveloperSignatureState extends State<SxDeveloperSignature> {
-  bool _enabled = true;
-  String _style = 'classic';
+  String _style = 'minimal';
 
   @override
   void initState() {
     super.initState();
-    _loadSettings();
+    _loadStyle();
   }
 
-  Future<void> _loadSettings() async {
+  Future<void> _loadStyle() async {
     try {
       final info = await api.storeInfo();
-      final rawEnabled = info['developer_signature_enabled'];
-      var enabled = _enabled;
-      if (rawEnabled is bool) {
-        enabled = rawEnabled;
-      } else if (rawEnabled != null) {
-        final value = rawEnabled.toString().trim().toLowerCase();
-        if (const {'1', 'true', 'yes', 'on', 'enabled'}.contains(value)) {
-          enabled = true;
-        } else if (const {'0', 'false', 'no', 'off', 'disabled'}.contains(value)) {
-          enabled = false;
-        }
-      }
-
-      final rawStyle =
-          (info['developer_signature_style'] ?? _style).toString().trim().toLowerCase();
-      final style = const {'classic', 'modern', 'premium'}.contains(rawStyle)
-          ? rawStyle
-          : 'classic';
-      if (mounted) {
-        setState(() {
-          _enabled = enabled;
-          _style = style;
-        });
-      }
+      final raw = (info['developer_signature_style'] ?? 'minimal')
+          .toString().trim().toLowerCase();
+      final style = const {'minimal', 'signature', 'royal', 'atelier'}.contains(raw)
+          ? raw
+          : 'minimal';
+      if (mounted) setState(() => _style = style);
     } catch (_) {
-      // Preserve the existing signature appearance when the API is unavailable.
+      // The signature is never hidden when settings cannot be fetched.
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_enabled) return const SizedBox.shrink();
     final Widget signature;
     switch (_style) {
-      case 'modern':
-        signature = _modernSignature();
+      case 'signature':
+        signature = _signatureStyle();
         break;
-      case 'premium':
-        signature = _premiumSignature();
+      case 'royal':
+        signature = _royalStyle();
+        break;
+      case 'atelier':
+        signature = _atelierStyle();
         break;
       default:
-        signature = _classicSignature();
+        signature = _minimalStyle();
     }
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 180),
+      duration: const Duration(milliseconds: 260),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
       child: signature,
     );
   }
 
-  Widget _classicSignature() => Padding(
-        key: const ValueKey('signature-classic'),
-        padding: const EdgeInsets.only(top: 16, bottom: 6),
+  Widget _minimalStyle() => Padding(
+        key: const ValueKey('signature-minimal'),
+        padding: const EdgeInsets.only(top: 17, bottom: 8),
         child: Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8F8F8),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE8E8E8)),
-            ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 360),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 22,
-                      height: 22,
-                      decoration: const BoxDecoration(
-                        color: Colors.black,
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.code_rounded,
-                        size: 12,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(width: 7),
-                    const Text(
-                      'برمجة وتصميم م. زيدان العطاب',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 8.7,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.black,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      '774952665',
-                      textDirection: TextDirection.ltr,
-                      style: TextStyle(
-                        fontSize: 8.4,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF5F6872),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'يمن كود للتقنيات الذكية',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 8.2,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF7A838D),
-                    letterSpacing: .1,
+                Container(
+                  width: 32, height: 1,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(colors: [Color(0xFFE4E7EC), Color(0xFF98A2B3), Color(0xFFE4E7EC)]),
                   ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'برمجة وتصميم م. زيدان العطاب',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: Color(0xFF475467), letterSpacing: .1),
+                ),
+                const SizedBox(height: 3),
+                const Text(
+                  'يمن كود للتقنيات الذكية  ·  774952665',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 8.2, fontWeight: FontWeight.w600, color: Color(0xFF98A2B3)),
                 ),
               ],
             ),
@@ -142,98 +89,48 @@ class _SxDeveloperSignatureState extends State<SxDeveloperSignature> {
         ),
       );
 
-  Widget _modernSignature() => Padding(
-        key: const ValueKey('signature-modern'),
-        padding: const EdgeInsets.only(top: 15, bottom: 6),
+  Widget _signatureStyle() => Padding(
+        key: const ValueKey('signature-luxe'),
+        padding: const EdgeInsets.fromLTRB(12, 17, 12, 8),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 370),
+            constraints: const BoxConstraints(maxWidth: 380),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(13),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF111827),
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: const Color(0xFF303A4C)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x14111827),
-                    blurRadius: 15,
-                    offset: Offset(0, 5),
-                  ),
-                ],
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  colors: [Color(0xFF111827), Color(0xFF293444), Color(0xFF111827)],
+                ),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFB9934A).withOpacity(.55)),
+                boxShadow: const [BoxShadow(color: Color(0x17111827), blurRadius: 16, offset: Offset(0, 5))],
               ),
               child: Row(
                 children: [
                   Container(
-                    width: 42,
-                    height: 42,
+                    width: 42, height: 42,
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(.09),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white24),
+                      border: Border.all(color: const Color(0xFFD9B66F).withOpacity(.75)),
+                      color: Colors.white.withOpacity(.04),
                     ),
-                    child: const Icon(
-                      Icons.terminal_rounded,
-                      size: 23,
-                      color: Colors.white,
-                    ),
+                    child: const Icon(Icons.code_rounded, color: Color(0xFFE5C47D), size: 22),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'برمجة وتصميم',
-                          style: TextStyle(
-                            color: Color(0xFFB8C4D8),
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'م. زيدان العطاب',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 3,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            const Icon(
-                              Icons.business_outlined,
-                              size: 12,
-                              color: Color(0xFF9CAAC0),
-                            ),
-                            const Text(
-                              'يمن كود للتقنيات الذكية',
-                              style: TextStyle(
-                                color: Color(0xFFCDD5E1),
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const Text(
-                              '774952665',
-                              textDirection: TextDirection.ltr,
-                              style: TextStyle(
-                                color: Color(0xFF9CAAC0),
-                                fontSize: 8,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                  const SizedBox(width: 11),
+                  const Expanded(child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('زيدان العطاب', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900)),
+                      SizedBox(height: 3),
+                      Text('برمجة وتصميم التطبيقات', style: TextStyle(color: Color(0xFFC5CDD8), fontSize: 8.3, fontWeight: FontWeight.w600)),
+                      SizedBox(height: 3),
+                      Text('YEMEN CODE  ·  774952665', textDirection: TextDirection.ltr, style: TextStyle(color: Color(0xFFE5C47D), fontSize: 7.7, fontWeight: FontWeight.w800, letterSpacing: .4)),
+                    ],
+                  )),
+                  const Icon(Icons.auto_awesome_rounded, size: 17, color: Color(0xFFD9B66F)),
                 ],
               ),
             ),
@@ -241,113 +138,70 @@ class _SxDeveloperSignatureState extends State<SxDeveloperSignature> {
         ),
       );
 
-  Widget _premiumSignature() => Padding(
-        key: const ValueKey('signature-premium'),
-        padding: const EdgeInsets.only(top: 15, bottom: 6),
+  Widget _royalStyle() => Padding(
+        key: const ValueKey('signature-royal'),
+        padding: const EdgeInsets.fromLTRB(12, 17, 12, 8),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 370),
+            constraints: const BoxConstraints(maxWidth: 365),
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topRight,
-                  end: Alignment.bottomLeft,
-                  colors: [Color(0xFF171717), Color(0xFF29251E), Color(0xFF101010)],
+                color: const Color(0xFFFFFCF5),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE6D5AB)),
+              ),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  const Icon(Icons.workspace_premium_outlined, size: 17, color: Color(0xFF94713A)),
+                  const SizedBox(width: 7),
+                  const Text('يمن كود للتقنيات الذكية', style: TextStyle(color: Color(0xFF694D1F), fontSize: 9.5, fontWeight: FontWeight.w900)),
+                ]),
+                const SizedBox(height: 6),
+                Container(width: 70, height: 1, color: const Color(0xFFD9BD7E)),
+                const SizedBox(height: 6),
+                const Text('برمجة وتصميم م. زيدان العطاب  ·  774952665', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF7A6A4B), fontSize: 8.1, fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ),
+        ),
+      );
+
+  Widget _atelierStyle() => Padding(
+        key: const ValueKey('signature-atelier'),
+        padding: const EdgeInsets.fromLTRB(12, 17, 12, 8),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0B2330),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF267984).withOpacity(.75)),
+              ),
+              child: Row(children: [
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(color: const Color(0xFF174D57), borderRadius: BorderRadius.circular(10)),
+                  child: const Icon(Icons.developer_mode_rounded, color: Color(0xFFB7F3E7), size: 19),
                 ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFB99B5B), width: 1),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x1FB99B5B),
-                    blurRadius: 16,
-                    offset: Offset(0, 5),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFC9A96E)),
-                          color: const Color(0x22C9A96E),
-                        ),
-                        child: const Icon(
-                          Icons.workspace_premium_outlined,
-                          color: Color(0xFFE8CE91),
-                          size: 21,
-                        ),
-                      ),
-                      const SizedBox(width: 9),
-                      const Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'تطوير وتنفيذ',
-                              style: TextStyle(
-                                color: Color(0xFFD9C18C),
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'م. زيدان العطاب',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      const Text(
-                        '774952665',
-                        textDirection: TextDirection.ltr,
-                        style: TextStyle(
-                          color: Color(0xFFE8CE91),
-                          fontSize: 8.5,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Container(height: 1, color: const Color(0x66C9A96E)),
-                  const SizedBox(height: 8),
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.diamond_outlined,
-                        color: Color(0xFFE8CE91),
-                        size: 13,
-                      ),
-                      SizedBox(width: 5),
-                      Text(
-                        'يمن كود للتقنيات الذكية',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Color(0xFFF0DEB4),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: .15,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                const SizedBox(width: 10),
+                const Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('DESIGNED WITH CARE', textDirection: TextDirection.ltr, style: TextStyle(color: Color(0xFFB7F3E7), fontSize: 7.2, fontWeight: FontWeight.w900, letterSpacing: 1.1)),
+                    SizedBox(height: 4),
+                    Text('زيدان العطاب · يمن كود', style: TextStyle(color: Colors.white, fontSize: 9.3, fontWeight: FontWeight.w800)),
+                    SizedBox(height: 3),
+                    Text('774952665', textDirection: TextDirection.ltr, style: TextStyle(color: Color(0xFF8DDDD0), fontSize: 7.7, fontWeight: FontWeight.w700)),
+                  ],
+                )),
+                const Icon(Icons.hexagon_outlined, size: 20, color: Color(0xFF70CFC0)),
+              ]),
             ),
           ),
         ),

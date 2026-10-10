@@ -8,6 +8,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:video_player/video_player.dart';
 
 import 'app_state.dart';
 import 'auth_flow.dart';
@@ -182,6 +183,10 @@ class _SxAppShellState extends State<SxAppShell> {
             ),
           ),
         );
+      } else if ((screenType == 'url' || target == 'url') &&
+          (sxText(data['url']).startsWith('https://') || sxText(data['url']).startsWith('http://'))) {
+        final uri = Uri.tryParse(sxText(data['url']));
+        if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } catch (_) {
     } finally {
@@ -12746,7 +12751,8 @@ class _SxWishlistScreenState extends State<SxWishlistScreen> {
 
 class SxNotificationsScreen extends StatefulWidget {
   const SxNotificationsScreen({super.key});
-  @override State<SxNotificationsScreen> createState() => _SxNotificationsScreenState();
+  @override
+  State<SxNotificationsScreen> createState() => _SxNotificationsScreenState();
 }
 
 class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
@@ -12763,15 +12769,23 @@ class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
     try {
       final data = await api.notificationSummary();
       final next = sxMaps(data['items']);
-      if (mounted) {
-        setState(() {
-          rows = next;
-          loading = false;
-        });
-      }
+      if (mounted) setState(() { rows = next; loading = false; });
       notificationBadge.value = sxInt(data['unread_count']);
     } catch (_) {
       if (mounted) setState(() => loading = false);
+    }
+  }
+
+  IconData _icon(String type) {
+    switch (type) {
+      case 'message': return Icons.chat_bubble_outline_rounded;
+      case 'shipping': return Icons.local_shipping_outlined;
+      case 'payment': return Icons.account_balance_wallet_outlined;
+      case 'order_status':
+      case 'order_updated': return Icons.receipt_long_outlined;
+      case 'new_product': return Icons.auto_awesome_outlined;
+      case 'product_updated': return Icons.shopping_bag_outlined;
+      default: return Icons.notifications_active_outlined;
     }
   }
 
@@ -12779,10 +12793,8 @@ class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
     final id = sxInt(row['id']);
     try {
       if (id > 0 && sxText(row['read_at']).isEmpty) {
-        await api.markNotificationRead(
-          sxInt((await api.notificationSummary())['customer_id']),
-          id,
-        );
+        final summary = await api.notificationSummary();
+        await api.markNotificationRead(sxInt(summary['customer_id']), id);
         row['read_at'] = DateTime.now().toIso8601String();
         notificationBadge.value = rows.where((x) => sxText(x['read_at']).isEmpty).length;
         if (mounted) setState(() {});
@@ -12792,130 +12804,197 @@ class _SxNotificationsScreenState extends State<SxNotificationsScreen> {
     final data = row['data'] is Map
         ? Map<String, dynamic>.from(row['data'])
         : <String, dynamic>{};
+    final screenType = sxText(data['screen_type']);
     final target = sxText(data['target']);
-    final conversationId = sxInt(data['conversation_id']);
+    final productId = sxInt(data['product_id']);
     final orderId = sxInt(data['order_id']);
+    final conversationId = sxInt(data['conversation_id']);
+    final categoryId = sxInt(data['category_id']);
 
     if (!mounted) return;
-    if (target == 'conversation' && conversationId > 0) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => SxConversationScreen(
-            conversationId: conversationId,
-            title: orderId > 0 ? 'محادثة الطلب' : 'خدمة العملاء',
-          ),
-        ),
-      );
+    if ((screenType == 'product_details' || target == 'product') && productId > 0) {
+      await Navigator.push(context, MaterialPageRoute(
+        builder: (_) => SxProductScreen(id: productId, cartBuilder: (_) => const SxCartScreen()),
+      ));
       await load();
-    } else if (target == 'order' && orderId > 0) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => SxOrderDetailScreen(id: orderId),
+    } else if ((screenType == 'order_details' || target == 'order') && orderId > 0) {
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => SxOrderDetailScreen(id: orderId)));
+      await load();
+    } else if ((screenType == 'conversation' || target == 'conversation') && conversationId > 0) {
+      await Navigator.push(context, MaterialPageRoute(
+        builder: (_) => SxConversationScreen(
+          conversationId: conversationId,
+          title: orderId > 0 ? 'محادثة الطلب' : 'خدمة العملاء',
         ),
-      );
+      ));
+      await load();
+    } else if ((screenType == 'category' || target == 'category') && categoryId > 0) {
+      await Navigator.push(context, MaterialPageRoute(
+        builder: (_) => SxResults(title: 'الفئة', categoryId: categoryId),
+      ));
+    } else {
+      final targetUrl = sxText(data['url']).trim();
+      if ((screenType == 'url' || target == 'url') &&
+          (targetUrl.startsWith('https://') || targetUrl.startsWith('http://'))) {
+        final uri = Uri.tryParse(targetUrl);
+        if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
     }
+  }
+
+  Future<void> _openAction(Map<String, dynamic> row) async {
+    final data = row['data'] is Map ? Map<String, dynamic>.from(row['data']) : <String, dynamic>{};
+    final raw = sxText(data['action_url']).trim();
+    if (raw.startsWith('https://') || raw.startsWith('http://')) {
+      final uri = Uri.tryParse(raw);
+      if (uri != null && await launchUrl(uri, mode: LaunchMode.externalApplication)) return;
+    }
+    await openNotification(row);
   }
 
   Future<void> markAllRead() async {
     try {
       await api.markAllNotificationsRead();
-      for (final row in rows) {
-        row['read_at'] = DateTime.now().toIso8601String();
-      }
+      for (final row in rows) { row['read_at'] = DateTime.now().toIso8601String(); }
       notificationBadge.value = 0;
       if (mounted) setState(() {});
     } catch (_) {}
   }
 
+  String _date(dynamic raw) {
+    try {
+      final dt = DateTime.parse(sxText(raw)).toLocal();
+      final today = DateTime.now();
+      if (dt.year == today.year && dt.month == today.month && dt.day == today.day) {
+        return dt.hour.toString().padLeft(2, '0') + ':' + dt.minute.toString().padLeft(2, '0');
+      }
+      return dt.day.toString().padLeft(2, '0') + '/' + dt.month.toString().padLeft(2, '0');
+    } catch (_) { return ''; }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SxShellPage(
-      title: 'الإشعارات',
-      back: true,
-      child: loading
-          ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
-          : rows.isEmpty
-              ? RefreshIndicator(
-                  onRefresh: load,
-                  child: ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    children: [
-                      const SizedBox(height: 150),
-                      const Center(
-                        child: Text(
-                          'لا توجد إشعارات',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  onRefresh: load,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(7, 0, 7, 20),
-                    itemCount: rows.length + 1,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (_, i) {
-                      if (i == 0) {
-                        return Align(
-                          alignment: AlignmentDirectional.centerStart,
-                          child: TextButton.icon(
-                            onPressed: markAllRead,
-                            icon: const Icon(Icons.done_all, size: 17),
-                            label: const Text(
-                              'تحديد الكل كمقروء',
-                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
-                            ),
-                          ),
-                        );
-                      }
-
-                      final row = rows[i - 1];
-                      final unread = sxText(row['read_at']).isEmpty;
-                      return ListTile(
-                        onTap: () => openNotification(row),
-                        tileColor: unread ? const Color(0xFFF7F7F7) : Colors.white,
-                        leading: CircleAvatar(
-                          backgroundColor: unread ? Colors.black : ClientTheme.soft,
-                          child: Icon(
-                            sxText(row['type']) == 'message'
-                                ? Icons.chat_bubble_outline
-                                : sxText(row['type']) == 'shipping'
-                                    ? Icons.local_shipping_outlined
-                                    : sxText(row['type']) == 'payment'
-                                        ? Icons.payments_outlined
-                                        : Icons.notifications_none,
-                            color: unread ? Colors.white : Colors.black,
-                          ),
-                        ),
-                        title: Text(
-                          sxText(row['title'], 'إشعار'),
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: unread ? FontWeight.w900 : FontWeight.w700,
-                          ),
-                        ),
-                        subtitle: Text(
-                          sxText(row['body'], sxText(row['message'])),
-                          style: const TextStyle(fontSize: 9, height: 1.4),
-                        ),
-                        trailing: unread
-                            ? Container(
-                                width: 7,
-                                height: 7,
-                                decoration: const BoxDecoration(
-                                  color: Colors.black,
-                                  shape: BoxShape.circle,
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: SxShellPage(
+        title: 'الإشعارات',
+        back: true,
+        child: loading
+            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            : RefreshIndicator(
+                onRefresh: load,
+                child: rows.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(26, 100, 26, 30),
+                        children: const [
+                          Icon(Icons.notifications_none_rounded, size: 64, color: Color(0xFF98A2B3)),
+                          SizedBox(height: 14),
+                          Text('لا توجد إشعارات بعد', textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Color(0xFF344054))),
+                          SizedBox(height: 5),
+                          Text('ستظهر هنا تحديثات طلباتك والمنتجات والرسائل الجديدة.',
+                            textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: ClientTheme.muted, height: 1.7)),
+                        ],
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(12, 4, 12, 26),
+                        itemCount: rows.length + 1,
+                        separatorBuilder: (_, __) => const SizedBox(height: 9),
+                        itemBuilder: (_, i) {
+                          if (i == 0) {
+                            return Align(
+                              alignment: AlignmentDirectional.centerStart,
+                              child: TextButton.icon(
+                                onPressed: markAllRead,
+                                icon: const Icon(Icons.done_all_rounded, size: 17),
+                                label: const Text('تحديد الكل كمقروء', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800)),
+                              ),
+                            );
+                          }
+                          final row = rows[i - 1];
+                          final unread = sxText(row['read_at']).isEmpty;
+                          final data = row['data'] is Map ? Map<String, dynamic>.from(row['data']) : <String, dynamic>{};
+                          final imageUrl = sxImage(data['image_url']);
+                          final titleColor = sxColor(data['title_color'], const Color(0xFF101828));
+                          final bodyColor = sxColor(data['body_color'], const Color(0xFF667085));
+                          return Material(
+                            color: unread ? const Color(0xFFF5FBFA) : Colors.white,
+                            borderRadius: BorderRadius.circular(17),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(17),
+                              onTap: () => openNotification(row),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(17),
+                                  border: Border.all(color: unread ? const Color(0xFFB8E1DC) : const Color(0xFFE7EAF0)),
+                                  boxShadow: const [BoxShadow(color: Color(0x070B1220), blurRadius: 12, offset: Offset(0, 4))],
                                 ),
-                              )
-                            : null,
-                      );
-                    },
-                  ),
-                ),
+                                padding: const EdgeInsets.all(13),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Container(
+                                          width: 43, height: 43,
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(colors: unread
+                                              ? const [Color(0xFF0F766E), Color(0xFF168C8C)]
+                                              : const [Color(0xFFF2F4F7), Color(0xFFE4E7EC)]),
+                                            borderRadius: BorderRadius.circular(13),
+                                          ),
+                                          child: Icon(_icon(sxText(row['type'])), color: unread ? Colors.white : const Color(0xFF475467), size: 21),
+                                        ),
+                                        const SizedBox(width: 11),
+                                        Expanded(child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [
+                                            Text(sxText(row['title'], 'إشعار'), style: TextStyle(color: titleColor, fontSize: 13, height: 1.55, fontWeight: unread ? FontWeight.w900 : FontWeight.w800)),
+                                            const SizedBox(height: 4),
+                                            Text(_date(row['sent_at'] ?? row['created_at']), textAlign: TextAlign.start,
+                                              style: const TextStyle(color: Color(0xFF98A2B3), fontSize: 9, fontWeight: FontWeight.w700)),
+                                          ],
+                                        )),
+                                        if (unread) Container(width: 8,height: 8,margin: const EdgeInsets.only(top: 4),decoration: const BoxDecoration(color: Color(0xFF12B76A),shape: BoxShape.circle)),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 9),
+                                    Text(sxText(row['body'], sxText(row['message'])), style: TextStyle(color: bodyColor, fontSize: 11.2, height: 1.8, fontWeight: unread ? FontWeight.w600 : FontWeight.w500)),
+                                    if (imageUrl.isNotEmpty) ...[
+                                      const SizedBox(height: 10),
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Container(
+                                          constraints: const BoxConstraints(maxHeight: 190),
+                                          color: const Color(0xFFF2F4F7),
+                                          child: Image.network(imageUrl, fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => const SizedBox(height: 40, child: Icon(Icons.image_not_supported_outlined, color: Color(0xFF98A2B3))),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                    if (data['show_action_button'] == true) ...[
+                                      const SizedBox(height: 11),
+                                      Align(
+                                        alignment: AlignmentDirectional.centerStart,
+                                        child: TextButton.icon(
+                                          onPressed: () => _openAction(row),
+                                          icon: const Icon(Icons.arrow_back_rounded, size: 15),
+                                          label: Text(sxText(data['action_label'], 'عرض التفاصيل'), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+      ),
     );
   }
 }
@@ -13179,6 +13258,204 @@ class _SxSupportScreenState extends State<SxSupportScreen> {
   }
 }
 
+class _SxChatVideoPreview extends StatefulWidget {
+  final String url;
+  final VoidCallback onOpen;
+  const _SxChatVideoPreview({required this.url, required this.onOpen});
+
+  @override
+  State<_SxChatVideoPreview> createState() => _SxChatVideoPreviewState();
+}
+
+class _SxChatVideoPreviewState extends State<_SxChatVideoPreview> {
+  late final VideoPlayerController _controller;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    _controller.initialize().then((_) {
+      if (mounted) setState(() {});
+    }).catchError((_) {
+      if (mounted) setState(() => _failed = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(13),
+      child: Material(
+        color: const Color(0xFF101828),
+        child: InkWell(
+          onTap: widget.onOpen,
+          child: SizedBox(
+            width: 280,
+            height: 205,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (_controller.value.isInitialized)
+                  Center(
+                    child: AspectRatio(
+                      aspectRatio: _controller.value.aspectRatio > 0 ? _controller.value.aspectRatio : 16 / 9,
+                      child: VideoPlayer(_controller),
+                    ),
+                  )
+                else
+                  Center(
+                    child: Icon(_failed ? Icons.video_file_outlined : Icons.movie_creation_outlined,
+                      size: 43, color: Colors.white70),
+                  ),
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.black.withOpacity(.05), Colors.black.withOpacity(.48)],
+                      ),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Container(
+                    width: 54, height: 54,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(.93),
+                      shape: BoxShape.circle,
+                      boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 12)],
+                    ),
+                    child: const Icon(Icons.play_arrow_rounded, size: 35, color: Color(0xFF101828)),
+                  ),
+                ),
+                const Positioned(
+                  right: 10, bottom: 9,
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.play_circle_outline_rounded, size: 14, color: Colors.white),
+                    SizedBox(width: 5),
+                    Text('مشاهدة الفيديو', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                  ]),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SxChatVideoDialog extends StatefulWidget {
+  final String url;
+  const _SxChatVideoDialog({required this.url});
+
+  @override
+  State<_SxChatVideoDialog> createState() => _SxChatVideoDialogState();
+}
+
+class _SxChatVideoDialogState extends State<_SxChatVideoDialog> {
+  late final VideoPlayerController _controller;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    _controller.initialize().then((_) {
+      if (mounted) setState(() {});
+    }).catchError((_) {
+      if (mounted) setState(() => _failed = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ready = _controller.value.isInitialized;
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        elevation: 0,
+        title: const Text('مشاهدة الفيديو', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: _failed
+              ? const Padding(
+                  padding: EdgeInsets.all(28),
+                  child: Text('تعذر تشغيل الفيديو. تحقق من اتصالك أو افتحه من المرفق الأصلي.',
+                    textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, height: 1.7)),
+                )
+              : !ready
+                  ? const CircularProgressIndicator(color: Color(0xFF8DE0D5))
+                  : Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AspectRatio(
+                            aspectRatio: _controller.value.aspectRatio > 0 ? _controller.value.aspectRatio : 16 / 9,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: VideoPlayer(_controller),
+                            ),
+                          ),
+                          const SizedBox(height: 13),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              IconButton.filled(
+                                style: IconButton.styleFrom(backgroundColor: const Color(0xFF168C8C), foregroundColor: Colors.white),
+                                onPressed: () {
+                                  setState(() {
+                                    if (_controller.value.isPlaying) {
+                                      _controller.pause();
+                                    } else {
+                                      _controller.play();
+                                    }
+                                  });
+                                },
+                                icon: Icon(_controller.value.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded),
+                              ),
+                              const SizedBox(width: 10),
+                              const Text('تشغيل / إيقاف', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                            ],
+                          ),
+                          VideoProgressIndicator(
+                            _controller,
+                            allowScrubbing: true,
+                            colors: const VideoProgressColors(
+                              playedColor: Color(0xFF55C5B8),
+                              bufferedColor: Colors.white54,
+                              backgroundColor: Colors.white24,
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                          ),
+                        ],
+                      ),
+                    ),
+        ),
+      ),
+    );
+  }
+}
+
 class SxConversationScreen extends StatefulWidget {
   final int conversationId;
   final String title;
@@ -13318,7 +13595,7 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
               'تحديث النظام',
               textAlign: TextAlign.right,
               style: TextStyle(
-                fontSize: 7.8,
+                fontSize: 8.8,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF777777),
               ),
@@ -13347,7 +13624,7 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
                 color: system
                     ? const Color(0xFF8C8C8C)
                     : (mine ? Colors.white70 : ClientTheme.muted),
-                fontSize: 7.2,
+                fontSize: 8.2,
               ),
             ),
             if (mine) ...[
@@ -13376,7 +13653,7 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
           left: system ? 28 : (mine ? 38 : 10),
           right: system ? 28 : (mine ? 10 : 38),
         ),
-        padding: const EdgeInsets.fromLTRB(11, 8, 10, 6),
+        padding: const EdgeInsets.fromLTRB(12, 10, 11, 8),
         decoration: BoxDecoration(
           color: system
               ? const Color(0xFFF0F0F0)
@@ -13470,47 +13747,109 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
     );
   }
 
+  Future<void> _openChatVideo(String videoUrl) async {
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.black,
+      useSafeArea: false,
+      builder: (_) => Dialog.fullscreen(
+        backgroundColor: Colors.black,
+        child: _SxChatVideoDialog(url: videoUrl),
+      ),
+    );
+  }
+
+  Future<void> _openChatFile(String fileUrl) async {
+    final uri = Uri.tryParse(fileUrl);
+    if (uri == null || !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تعذر فتح هذا المرفق على الجهاز.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Color(0xFF344054),
+          ),
+        );
+      }
+    }
+  }
+
   Widget _attachment(Map<String, dynamic> a) {
     final url = sxImage(a['url']);
     final mime = sxText(a['mime_type']).trim().toLowerCase();
-    if (mime.startsWith('image/') && url.isNotEmpty) {
-      final double availableWidth = MediaQuery.sizeOf(context).width * .68;
-      final double thumbnailWidth =
-          availableWidth < 220.0 ? availableWidth : 220.0;
+    final path = (Uri.tryParse(url)?.path ?? url).toLowerCase();
+    final isImage = mime.startsWith('image/') ||
+        ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.heic'].any(path.endsWith);
+    final isVideo = mime.startsWith('video/') ||
+        ['.mp4', '.mov', '.m4v', '.webm', '.mkv', '.3gp'].any(path.endsWith);
+    final parsedName = Uri.tryParse(url)?.pathSegments.isNotEmpty == true
+        ? Uri.tryParse(url)!.pathSegments.last
+        : '';
+    final fileName = sxText(a['source_name'], parsedName).trim().isEmpty
+        ? 'فتح المرفق'
+        : sxText(a['source_name'], parsedName).trim();
+
+    if (url.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.only(top: 7),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF2F4F7),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Row(children: [
+          Icon(Icons.insert_drive_file_outlined, size: 20, color: Color(0xFF667085)),
+          SizedBox(width: 8),
+          Expanded(child: Text('المرفق غير متاح', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700))),
+        ]),
+      );
+    }
+
+    if (isImage) {
+      final availableWidth = MediaQuery.sizeOf(context).width * .74;
+      final thumbnailWidth = availableWidth > 290.0 ? 290.0 : availableWidth;
       return Padding(
-        padding: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.only(top: 8),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(13),
           child: Material(
-            color: const Color(0xFFE9EAEC),
+            color: const Color(0xFFF8FAFC),
             child: InkWell(
               onTap: () => _openChatImage(url),
-              child: SizedBox(
+              child: Container(
                 width: thumbnailWidth,
-                height: 185,
+                height: 220,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  border: Border.all(color: const Color(0xFFE4E7EC)),
+                  borderRadius: BorderRadius.circular(13),
+                ),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    SxImage(
-                      url: url,
-                      fit: BoxFit.cover,
-                      width: thumbnailWidth,
-                      height: 185,
+                    Padding(
+                      padding: const EdgeInsets.all(5),
+                      child: SxImage(
+                        url: url,
+                        fit: BoxFit.contain,
+                        width: thumbnailWidth,
+                        height: 210,
+                      ),
                     ),
                     Positioned(
-                      left: 7,
-                      top: 7,
+                      left: 8,
+                      top: 8,
                       child: Container(
-                        padding: const EdgeInsets.all(5),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                         decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(.56),
-                          borderRadius: BorderRadius.circular(6),
+                          color: Colors.black.withOpacity(.68),
+                          borderRadius: BorderRadius.circular(9),
                         ),
-                        child: const Icon(
-                          Icons.open_in_full_rounded,
-                          color: Colors.white,
-                          size: 13,
-                        ),
+                        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.open_in_full_rounded, color: Colors.white, size: 13),
+                          SizedBox(width: 5),
+                          Text('فتح الصورة', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                        ]),
                       ),
                     ),
                   ],
@@ -13521,24 +13860,55 @@ class _SxConversationScreenState extends State<SxConversationScreen> {
         ),
       );
     }
+
+    if (isVideo) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: _SxChatVideoPreview(url: url, onOpen: () => _openChatVideo(url)),
+      );
+    }
+
+    final fileIcon = mime.contains('pdf') || path.endsWith('.pdf')
+        ? Icons.picture_as_pdf_rounded
+        : mime.contains('audio')
+            ? Icons.headphones_rounded
+            : Icons.insert_drive_file_rounded;
     return Container(
-      margin: const EdgeInsets.only(top: 5),
-      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(top: 7),
+      constraints: const BoxConstraints(maxWidth: 300),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F3F3),
-        borderRadius: BorderRadius.circular(9),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: const Color(0xFFE4E7EC)),
       ),
-      child: Row(
-        children: [
-          const Icon(Icons.insert_drive_file_outlined, size: 16),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              'مرفق',
-              style: const TextStyle(fontSize: 8.8, fontWeight: FontWeight.w700),
-            ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(13),
+          onTap: () => _openChatFile(url),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 12),
+            child: Row(children: [
+              Container(
+                width: 39, height: 42,
+                decoration: BoxDecoration(color: const Color(0xFFE9F5F3), borderRadius: BorderRadius.circular(10)),
+                child: Icon(fileIcon, size: 21, color: const Color(0xFF168C8C)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(fileName, maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Color(0xFF344054))),
+                  const SizedBox(height: 3),
+                  const Text('اضغط لفتح المرفق', style: TextStyle(fontSize: 9, color: Color(0xFF667085))),
+                ],
+              )),
+              const SizedBox(width: 7),
+              const Icon(Icons.open_in_new_rounded, size: 17, color: Color(0xFF667085)),
+            ]),
           ),
-        ],
+        ),
       ),
     );
   }
