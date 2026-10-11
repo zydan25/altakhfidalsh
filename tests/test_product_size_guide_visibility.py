@@ -89,7 +89,6 @@ def test_product_with_assigned_guide_respects_global_setting(app):
         item = CatalogService.get_product(product_id)
 
         assert item["size_guide"]["id"] == guide_id
-        assert item["size_guide_show"] if "size_guide_show" in item else item["product_detail_settings"]["size_guide_show"]
         assert item["product_detail_settings"]["size_guide_show"] is True
         assert any(
             "size_guide" in group.get("items", [])
