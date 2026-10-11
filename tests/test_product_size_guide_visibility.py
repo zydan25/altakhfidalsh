@@ -83,7 +83,7 @@ def test_product_without_assigned_size_guide_does_not_auto_select_one(app):
 def test_product_with_assigned_guide_respects_global_setting(app):
     with app.app_context():
         product_id, guide_id = _create_product_with_size_guide(
-            app, assign_guide=True, global_show=True
+            assign_guide=True, global_show=True
         )
         item = CatalogService.get_product(product_id)
 
@@ -98,7 +98,7 @@ def test_product_with_assigned_guide_respects_global_setting(app):
 def test_global_size_guide_setting_can_hide_assigned_guide(app):
     with app.app_context():
         product_id, guide_id = _create_product_with_size_guide(
-            app, assign_guide=True, global_show=False
+            assign_guide=True, global_show=False
         )
         item = CatalogService.get_product(product_id)
 
