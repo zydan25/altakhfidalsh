@@ -1087,6 +1087,25 @@ class CatalogService:
         if not product:
             raise LookupError("product not found")
         snapshot = CatalogService.wizard_snapshot(product_id)
+
+        # Keep the size-guide switch global, while applying its effective value per
+        # product. Existing clients already consume product_detail_settings from this
+        # endpoint, so the guide button can be hidden without a client release.
+        detail_settings = dict(
+            snapshot.get("product_detail_settings") or CatalogService.product_detail_settings()
+        )
+        has_selected_size_guide = bool(snapshot.get("size_guides"))
+        detail_settings["size_guide_show"] = bool(
+            detail_settings.get("size_guide_show", True) and has_selected_size_guide
+        )
+        if not detail_settings["size_guide_show"]:
+            for group in detail_settings.get("detail_groups", []):
+                if isinstance(group, dict) and isinstance(group.get("items"), list):
+                    group["items"] = [
+                        item for item in group["items"] if item != "size_guide"
+                    ]
+        snapshot["product_detail_settings"] = detail_settings
+
         snapshot["product_card_global_settings"] = CatalogService.product_card_display_settings()
         snapshot["product_card_settings"] = CatalogService.product_card_display_settings(product_id)
         display_row = db.session.get(ProductDisplaySettings, product_id)
@@ -2911,37 +2930,9 @@ class CatalogService:
             )
             size_guides.append(serialize_size_guide(guide, guide_rows))
 
-        # Backward compatibility: products that predate explicit guide assignment
-        # still receive the best matching public guide rather than losing their
-        # existing size-guide UI.
-        if not size_guides:
-            product_size_ids = {int(row.size_id) for row, _size in size_reference_rows}
-            guides = SizeGuide.query.filter_by(is_active=True).order_by(SizeGuide.id).all()
-            best_guide = None
-            best_rows = []
-            best_score = -1
-            for guide in guides:
-                guide_rows = (
-                    db.session.query(SizeGuideRow, Size)
-                    .join(Size, Size.id == SizeGuideRow.size_id)
-                    .filter(
-                        SizeGuideRow.guide_id == guide.id,
-                        Size.is_active.is_(True),
-                    )
-                    .order_by(SizeGuideRow.id)
-                    .all()
-                )
-                score = sum(1 for row, _size in guide_rows if int(row.size_id) in product_size_ids)
-                if guide_rows and (
-                    score > best_score
-                    or (best_guide is None and score == best_score)
-                ):
-                    best_guide = guide
-                    best_rows = guide_rows
-                    best_score = score
-            if best_guide is not None:
-                size_guides.append(serialize_size_guide(best_guide, best_rows))
-
+        # A size guide is shown only when it was explicitly assigned to this product.
+        # Do not silently choose a "best match": that can expose a guide the admin
+        # intentionally left unselected.
         guide_payload = size_guides[0] if size_guides else None
 
 
