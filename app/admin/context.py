@@ -96,7 +96,7 @@ ADMIN_THEME_ICONS = {
     "section:الرئيسية":"bi-house-door-fill","section:الكتالوج":"bi-box-seam-fill",
     "section:المحتوى والمتجر":"bi-shop-window","section:التسعير":"bi-currency-exchange",
     "section:المبيعات والطلبات":"bi-bag-check-fill","section:العملاء والتواصل":"bi-people-fill",
-    "section:الترويج والمالية":"bi-megaphone-fill","section:التكاملات":"bi-plug-fill","section:النظام":"bi-gear-fill",
+    "section:الترويج والمالية":"bi-megaphone-fill","section:المحاسبة":"bi-calculator-fill","section:التكاملات":"bi-plug-fill","section:النظام":"bi-gear-fill",
     "/admin/":"bi-grid-1x2-fill","/admin/tasks":"bi-list-check","/admin/notifications":"bi-bell-fill",
     "/admin/products":"bi-box-seam-fill","/admin/products/new":"bi-plus-square-fill","/admin/products/drafts":"bi-file-earmark-text-fill",
     "/admin/categories":"bi-diagram-3-fill","/admin/category-home-display":"bi-grid-fill","/admin/category-strip":"bi-view-stacked",
@@ -115,7 +115,9 @@ ADMIN_THEME_ICONS = {
     "/admin/customers/addresses":"bi-pin-map-fill","/admin/chat":"bi-chat-dots-fill","/admin/attachments":"bi-paperclip",
     "/admin/promotions/coupons":"bi-ticket-perforated-fill","/admin/promotions/gifts":"bi-gift-fill",
     "/admin/finance/wallets":"bi-wallet2","/admin/finance/wallet-ledger":"bi-journal-text","/admin/reports":"bi-bar-chart-fill",
-    "/admin/whatsapp":"bi-whatsapp","/admin/system/admins":"bi-person-badge-fill","/admin/system/roles":"bi-shield-lock-fill",
+    "/admin/whatsapp":"bi-whatsapp","/admin/accounting":"bi-calculator-fill","/admin/accounting/accounts":"bi-diagram-3-fill",
+    "/admin/accounting/journal":"bi-journal-check","/admin/accounting/vouchers":"bi-receipt","/admin/accounting/reports":"bi-graph-up-arrow",
+    "/admin/system/admins":"bi-person-badge-fill","/admin/system/roles":"bi-shield-lock-fill",
     "/admin/system/audit":"bi-clock-history","/admin/system/theme":"bi-palette-fill","/admin/system/layout":"bi-layout-wtf",
     "/admin/system/settings":"bi-gear-fill","/admin/system/features":"bi-toggles"
 }
