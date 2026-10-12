@@ -345,14 +345,29 @@ def register_entity_views(admin_bp):
                         status="posted",
                     ).order_by(CustomerLedgerOperation.id.asc()).first()
                     if sale_operation is None:
-                        # The order amount is captured in its original currency and
-                        # converted to the customer's fixed YER ledger at posting time.
+                        # If an earlier deployment posted this order directly into
+                        # the ledger in a display currency, reverse that entry before
+                        # creating the permanent YER-native customer operation.
+                        from ..models import AccountingJournalEntry
+                        from ..services.accounting import reverse_entry
+                        legacy_entries = AccountingJournalEntry.query.filter_by(
+                            source_type="order_sale",
+                            source_id=order.id,
+                            status="posted",
+                        ).order_by(AccountingJournalEntry.id.asc()).all()
+                        for legacy_entry in legacy_entries:
+                            reverse_entry(
+                                legacy_entry,
+                                admin_id=session.get("admin_id"),
+                                reason=f"إعادة ترحيل الطلب {order.order_no} إلى حساب العميل بالريال اليمني",
+                            )
                         sale_operation = create_customer_operation(
                             operation_type="order_sale",
                             customer_id=order.customer_id,
                             order_id=order.id,
                             entered_amount=order.total,
                             currency_code=order_currency.code,
+                            operation_date=order.created_at.date() if order.created_at else None,
                             description=f"قيمة الطلب {order.order_no} شامل التوصيل",
                             admin_id=session.get("admin_id"),
                         )
