@@ -1,14 +1,17 @@
 {
-  "name": "التخفيض · لوحة الإدارة",
+  "id": "/admin/",
+  "name": "التخفيض الصح · لوحة الإدارة",
   "short_name": "التخفيض",
+  "description": "لوحة إدارة التخفيض الصح للتجارة الإلكترونية",
   "start_url": "/admin/",
   "scope": "/admin/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "orientation": "portrait",
   "lang": "ar",
   "dir": "rtl",
-  "theme_color": "#7c3aed",
-  "background_color": "#f5f7fb",
+  "theme_color": "#1a56db",
+  "background_color": "#f4f7fb",
   "icons": [
     {"src": "/admin/static/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
   ]
