@@ -1,0 +1,20 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المحاسبة · كشف الحساب</span><h2>{% if account %}{{ account.code }} · {{ account.name }}{% else %}كشف الحساب{% endif %}</h2><p class="muted">تفاصيل القيود المدينة والدائنة مع رصيد جارٍ لكل حركة.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if account %}
+<form method="get" class="panel accounting-filter-form">
+  <label>من<input type="date" name="start" value="{{ start }}"></label>
+  <label>إلى<input type="date" name="end" value="{{ end }}"></label>
+  <label>العملة<select name="currency">{% for currency_row in currencies %}<option value="{{ currency_row.code }}" {% if currency == currency_row.code %}selected{% endif %}>{{ currency_row.name }} · {{ currency_row.code }}</option>{% endfor %}</select></label>
+  <button class="primary-button" type="submit">تحديث الكشف</button>
+</form>
+<section class="accounting-summary-grid">
+  <article class="panel accounting-summary-card"><div><small>الرصيد الافتتاحي · {{ currency }}</small><strong>{{ "%.2f"|format(opening|float) }}</strong></div></article>
+  <article class="panel accounting-summary-card"><div><small>الرصيد الختامي · {{ currency }}</small><strong>{{ "%.2f"|format(closing|float) }}</strong></div></article>
+</section>
+<section class="panel accounting-report-table"><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>رقم القيد</th><th>البيان</th><th>مدين</th><th>دائن</th><th>الرصيد الجاري</th></tr></thead><tbody>
+{% for movement in movements %}<tr><td>{{ movement.entry.entry_date }}</td><td>{{ movement.entry.number }}</td><td>{{ movement.line.description or movement.entry.description }}</td><td>{{ "%.2f"|format(movement.line.debit|float) }}</td><td>{{ "%.2f"|format(movement.line.credit|float) }}</td><td>{{ "%.2f"|format(movement.balance|float) }}</td></tr>{% else %}<tr><td colspan="6">لا توجد حركات ضمن الفترة.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% endif %}
+{% endblock %}
