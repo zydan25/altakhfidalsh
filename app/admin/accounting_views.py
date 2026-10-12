@@ -107,11 +107,8 @@ def _account_period_rows(start, end, currency=None):
                 func.coalesce(func.sum(AccountingJournalLine.credit), 0).label("credit"),
             )
             .join(AccountingJournalEntry, AccountingJournalEntry.id == AccountingJournalLine.entry_id)
-            .filter(
-                AccountingJournalEntry.status == "posted",
-                LedgerAccount.id == AccountingJournalLine.account_id,
-            )
             .join(LedgerAccount, LedgerAccount.id == AccountingJournalLine.account_id)
+            .filter(AccountingJournalEntry.status == "posted")
         )
         if upper:
             q = q.filter(AccountingJournalEntry.entry_date <= upper)
@@ -502,15 +499,33 @@ def register_accounting_views(admin_bp):
             summary = summaries.setdefault(row["currency_code"], {
                 "revenue": Decimal("0"), "expenses": Decimal("0"),
                 "debit": Decimal("0"), "credit": Decimal("0"),
+                "assets_at_end": Decimal("0"), "liabilities_at_end": Decimal("0"),
+                "equity_at_end": Decimal("0"), "lifetime_revenue": Decimal("0"),
+                "lifetime_expenses": Decimal("0"),
             })
             summary["debit"] += row["debit"]
             summary["credit"] += row["credit"]
-            if row["account_type"] == "revenue":
+            if row["account_type"] == "asset":
+                summary["assets_at_end"] += row["closing"]
+            elif row["account_type"] == "liability":
+                summary["liabilities_at_end"] -= row["closing"]
+            elif row["account_type"] == "equity":
+                summary["equity_at_end"] -= row["closing"]
+            elif row["account_type"] == "revenue":
                 summary["revenue"] += row["credit"] - row["debit"]
+                summary["lifetime_revenue"] -= row["closing"]
             elif row["account_type"] == "expense":
                 summary["expenses"] += row["debit"] - row["credit"]
+                summary["lifetime_expenses"] += row["closing"]
         for summary in summaries.values():
             summary["net"] = summary["revenue"] - summary["expenses"]
+            # The result remains separate from retained earnings so the balance
+            # sheet can display current accumulated profit before year-end closing.
+            summary["lifetime_profit"] = summary["lifetime_revenue"] - summary["lifetime_expenses"]
+            summary["balance_sheet_equity"] = summary["equity_at_end"] + summary["lifetime_profit"]
+            summary["balance_difference"] = summary["assets_at_end"] - (
+                summary["liabilities_at_end"] + summary["balance_sheet_equity"]
+            )
         return render_template(
             "admin/accounting/reports.html",
             title="التقارير المحاسبية",
