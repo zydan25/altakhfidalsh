@@ -511,10 +511,18 @@ def register_operation_routes(admin_bp):
                             assets = MediaService.save_generic_files([image], "banners")
                             if assets:
                                 row.image_asset_id = assets[0]["id"]
+                        elif request.form.get("remove_image") == "on":
+                            # A banner without its main image is retained as a draft,
+                            # so no live storefront response can expose an empty image.
+                            row.image_asset_id = None
+                            row.status = "draft"
+
                         if mobile and mobile.filename:
                             assets = MediaService.save_generic_files([mobile], "banners")
                             if assets:
                                 row.mobile_asset_id = assets[0]["id"]
+                        elif request.form.get("remove_mobile_image") == "on":
+                            row.mobile_asset_id = None
                         success = "تم تحديث البانر."
 
                 elif action == "add_targets":
