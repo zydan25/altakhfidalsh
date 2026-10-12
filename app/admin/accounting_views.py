@@ -370,7 +370,19 @@ def register_accounting_views(admin_bp):
                         raise ValueError("لا يمكن تعطيل حساب تجميعي يحتوي فروعًا؛ عطّل الحسابات الفرعية أولًا.")
                     account.is_active = not account.is_active
                 elif action == "delete":
-                    raise ValueError("لا يُحذف الحساب من السجل المحاسبي؛ عطّله بدلًا من ذلك حتى تبقى القيود والتقارير سليمة.")
+                    if account.children:
+                        raise ValueError("لا يمكن حذف حساب له فروع. احذف الفروع غير المستخدمة أولًا.")
+                    if db.session.query(AccountingJournalLine.id).filter_by(account_id=account.id).first():
+                        raise ValueError("لا يمكن حذف حساب استُخدم في القيود. عطّله بدلًا من ذلك.")
+                    if Customer.query.filter_by(ledger_account_id=account.id).first():
+                        raise ValueError("هذا حساب مرتبط بعميل ولا يمكن حذفه.")
+                    if CustomerLedgerOperation.query.filter(
+                        (CustomerLedgerOperation.cash_account_id == account.id) |
+                        (CustomerLedgerOperation.contra_account_id == account.id)
+                    ).first():
+                        raise ValueError("الحساب مرتبط بحركات عملاء ولا يمكن حذفه.")
+                    db.session.delete(account)
+                    success = "تم حذف الحساب لأنه غير مستخدم في أي حركة."
                 else:
                     raise ValueError("إجراء الحساب غير معروف.")
                 db.session.commit()
@@ -380,34 +392,82 @@ def register_accounting_views(admin_bp):
                 error = str(exc)
 
         all_accounts = LedgerAccount.query.order_by(LedgerAccount.code).all()
-        balances = {}
-        movement_rows = (
-            db.session.query(
-                AccountingJournalLine.account_id,
-                AccountingJournalEntry.currency_code,
-                func.coalesce(func.sum(AccountingJournalLine.debit), 0),
-                func.coalesce(func.sum(AccountingJournalLine.credit), 0),
-            )
-            .join(AccountingJournalEntry, AccountingJournalEntry.id == AccountingJournalLine.entry_id)
-            .filter(AccountingJournalEntry.status == "posted")
-            .group_by(AccountingJournalLine.account_id, AccountingJournalEntry.currency_code)
-            .all()
-        )
-        for account_id, currency_code, debit, credit in movement_rows:
-            balances.setdefault(account_id, []).append({
-                "currency": currency_code,
-                "balance": Decimal(str(debit or 0)) - Decimal(str(credit or 0)),
-            })
+        tree = _account_tree(all_accounts)
+        picker_context = _account_picker_context()
+        balances = _account_balance_tree(all_accounts, tree)
         return render_template(
             "admin/accounting/accounts.html",
             title="شجرة الحسابات",
-            tree=_account_tree(all_accounts),
+            tree=tree,
             accounts=all_accounts,
             parent_options=[row for row in all_accounts if row.is_group and row.is_active],
             balances=balances,
+            stats={
+                "count": len(all_accounts),
+                "groups": sum(1 for row in all_accounts if row.is_group),
+                "leaves": sum(1 for row in all_accounts if not row.is_group),
+                "journal_count": AccountingJournalEntry.query.filter_by(status="posted").count(),
+                "voucher_count": AccountingVoucher.query.filter_by(status="posted").count(),
+                "customer_count": Customer.query.filter(Customer.ledger_account_id.isnot(None)).count(),
+            },
             account_type_labels=ACCOUNT_TYPES,
             error=error,
             success=success,
+            **picker_context,
+            **_context(),
+        )
+
+    @admin_bp.get("/accounting/accounts/<int:account_id>")
+    def accounting_account_detail(account_id):
+        _ready()
+        account = db.session.get(LedgerAccount, account_id)
+        if account is None:
+            return render_template(
+                "admin/accounting/account_detail.html",
+                title="الحساب غير موجود",
+                account=None,
+                error="الحساب المطلوب غير موجود.",
+                **_context(),
+            ), 404
+        start = _parse_date(request.args.get("start"), date.today().replace(day=1))
+        end = _parse_date(request.args.get("end"), date.today())
+        currency = (request.args.get("currency") or "YER").strip().upper()
+        opening = ledger_balance(account.id, currency_code=currency, end_date=start - timedelta(days=1))
+        movement_query = (
+            db.session.query(AccountingJournalLine, AccountingJournalEntry)
+            .join(AccountingJournalEntry, AccountingJournalEntry.id == AccountingJournalLine.entry_id)
+            .filter(
+                AccountingJournalLine.account_id == account.id,
+                AccountingJournalEntry.status == "posted",
+                AccountingJournalEntry.currency_code == currency,
+                AccountingJournalEntry.entry_date >= start,
+                AccountingJournalEntry.entry_date <= end,
+            )
+            .order_by(AccountingJournalEntry.entry_date, AccountingJournalEntry.id, AccountingJournalLine.id)
+        )
+        movements = []
+        balance = opening
+        for line, entry in movement_query.all():
+            balance += Decimal(str(line.debit or 0)) - Decimal(str(line.credit or 0))
+            movements.append({"line": line, "entry": entry, "balance": balance})
+        children = LedgerAccount.query.filter_by(parent_id=account.id).order_by(LedgerAccount.code).all()
+        children_summaries = [
+            {"account": child, "balance": ledger_balance(child.id, currency_code=currency)}
+            for child in children
+        ]
+        return render_template(
+            "admin/accounting/account_detail.html",
+            title=f"{account.code} · {account.name}",
+            account=account,
+            start=start,
+            end=end,
+            currency=currency,
+            currencies=_currency_options(),
+            opening=opening,
+            closing=balance,
+            movements=movements,
+            children_summaries=children_summaries,
+            error=None,
             **_context(),
         )
 
