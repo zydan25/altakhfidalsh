@@ -544,3 +544,18 @@ body.water-admin-theme{background:var(--bg);color:var(--text);font-size:15px;min
 .water-admin-theme .banner-preview-image:not([style*="background-image"]) .banner-preview-overlay{display:none}
 .water-admin-theme .look-card .look-cover:not([style*="background-image"]){background-color:#edf2f8}
 .water-admin-theme .look-card .look-cover:not([style*="background-image"]):after{content:"صورة غير متوفرة";position:absolute;inset:0;display:grid;place-items:center;color:#8695aa;font-size:10px;font-weight:900;background:linear-gradient(135deg,#f6f8fb,#e8eef6)}
+
+.water-admin-theme .archived-banner-panel{margin-top:15px;padding:13px;min-width:0}
+.water-admin-theme .archived-banner-heading{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;font-size:12px;font-weight:950}
+.water-admin-theme .archived-banner-heading::-webkit-details-marker{display:none}
+.water-admin-theme .archived-banner-heading>span:first-child{display:flex;align-items:center;gap:8px}
+.water-admin-theme .archived-banner-heading i{color:#667085;font-size:17px}
+.water-admin-theme .archived-banner-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}
+.water-admin-theme .archived-banner-card{display:grid;align-content:start;gap:8px;min-width:0;padding:9px;border:1px solid #e1e7f0;border-radius:13px;background:#fafbfc}
+.water-admin-theme .archived-banner-card>img{width:100%;height:82px;object-fit:cover;border-radius:8px;filter:saturate(.65);opacity:.83}
+.water-admin-theme .archived-banner-no-image{height:82px;display:grid;place-items:center;border-radius:8px;background:#eef2f6;color:#8994a4;font-size:10px}
+.water-admin-theme .archived-banner-info{display:grid;gap:4px;min-width:0}
+.water-admin-theme .archived-banner-info strong{font-size:11px;overflow-wrap:anywhere;color:#475467}
+.water-admin-theme .archived-banner-info small,.water-admin-theme .archived-banner-info span{font-size:9px;color:#8994a4;overflow-wrap:anywhere}
+.water-admin-theme .archived-banner-card .primary-button{width:100%;min-height:33px;font-size:10px}
+@media(min-width:650px){.water-admin-theme .archived-banner-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.water-admin-theme .archived-banner-card>img,.water-admin-theme .archived-banner-no-image{height:105px}}
