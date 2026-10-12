@@ -536,3 +536,11 @@ body.water-admin-theme{background:var(--bg);color:var(--text);font-size:15px;min
 .water-admin-theme .accounting-report-table{scroll-margin-top:88px}
 .water-admin-theme .accounting-summary-grid,.water-admin-theme .accounting-balance-sheet{scroll-margin-top:88px}
 @media(min-width:680px){.water-admin-theme .accounting-balance-sheet{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.water-admin-theme .banner-sort-placeholder{width:54px;height:42px;display:grid;place-items:center;border-radius:7px;background:#eff4fb;color:#7d8ca3;font-size:18px}
+.water-admin-theme .banner-preview-no-image{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;background:linear-gradient(135deg,#eff4fb,#e4ecf6);color:#8191a7;font-size:10px;font-weight:900}
+.water-admin-theme .banner-preview-no-image i{font-size:24px;color:#9aabc1}
+.water-admin-theme .banner-preview-no-image~.banner-preview-content{z-index:2}
+.water-admin-theme .banner-preview-image:not([style*="background-image"]) .banner-preview-overlay{display:none}
+.water-admin-theme .look-card .look-cover:not([style*="background-image"]){background-color:#edf2f8}
+.water-admin-theme .look-card .look-cover:not([style*="background-image"]):after{content:"صورة غير متوفرة";position:absolute;inset:0;display:grid;place-items:center;color:#8695aa;font-size:10px;font-weight:900;background:linear-gradient(135deg,#f6f8fb,#e8eef6)}
