@@ -1,0 +1,26 @@
+{% macro customer_picker(name, customers, selected_id=None, placeholder='اختر العميل', required=True, picker_id=None) -%}
+<div class="account-tree-picker customer-tree-picker" data-customer-picker {% if picker_id %}id="{{ picker_id }}"{% endif %}>
+  <input type="hidden" name="{{ name }}" value="{{ selected_id or '' }}" data-customer-value {% if required %}required{% endif %}>
+  <button type="button" class="account-picker-trigger" data-customer-trigger aria-expanded="false">
+    <span data-customer-label>{% if selected_id %}{% for customer in customers if customer.id == selected_id %}{{ customer.name or customer.phone_normalized or ('عميل #' ~ customer.id) }}{% endfor %}{% else %}{{ placeholder }}{% endif %}</span>
+    <i class="bi bi-chevron-down" aria-hidden="true"></i>
+  </button>
+  <div class="account-picker-panel" data-customer-panel hidden>
+    <div class="account-picker-search-row">
+      <input type="search" class="account-picker-search-input" data-customer-search placeholder="ابحث باسم العميل أو الهاتف..." autocomplete="off" aria-label="بحث عن عميل">
+      <button type="button" class="account-picker-search-button" data-customer-search-submit><i class="bi bi-search" aria-hidden="true"></i> بحث</button>
+    </div>
+    <div class="customer-picker-options" data-customer-options>
+      {% for customer in customers %}
+      <button type="button" class="customer-picker-option" data-customer-option data-customer-id="{{ customer.id }}" data-customer-label="{{ customer.name or customer.phone_normalized or ('عميل #' ~ customer.id) }}" data-customer-search="{{ ((customer.name or '') ~ ' ' ~ (customer.phone_normalized or '') ~ ' ' ~ customer.id)|lower }}">
+        <span class="customer-picker-avatar"><i class="bi bi-person-fill" aria-hidden="true"></i></span>
+        <span><strong>{{ customer.name or "بدون اسم" }}</strong><small dir="ltr">{{ customer.phone_normalized or "بدون هاتف" }}</small></span>
+        <i class="bi bi-check2 customer-picker-check" aria-hidden="true"></i>
+      </button>
+      {% endfor %}
+    </div>
+    <div class="account-picker-no-results" data-customer-no-results hidden>لا يوجد عملاء بهذا الاسم.</div>
+    <div class="account-picker-footer"><button type="button" class="account-picker-clear" data-customer-clear>مسح الاختيار</button><span>{{ customers|length }} عميل</span></div>
+  </div>
+</div>
+{%- endmacro %}
