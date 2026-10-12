@@ -125,7 +125,7 @@
     const search=$("[data-customer-search]",picker),searchButton=$("[data-customer-search-submit]",picker);
     const hidden=$("[data-customer-value]",picker),label=$("[data-customer-label]",picker);
     const empty=$("[data-customer-no-results]",picker),clear=$("[data-customer-clear]",picker);
-    const options=$("[data-customer-option]",picker);
+    const options=$$("[data-customer-option]",picker);
     function show(open){if(!panel||!trigger)return;panel.hidden=!open;trigger.setAttribute("aria-expanded",String(open));if(open)setTimeout(()=>search?.focus(),25);else if(search)search.value="";}
     function filter(){
       const q=norm(search?.value);
@@ -153,7 +153,7 @@
     document.addEventListener("click",event=>{if(!picker.contains(event.target))show(false);});
     document.addEventListener("keydown",event=>{if(event.key==="Escape"&&panel&&!panel.hidden)show(false);});
   }
-  function initCustomerPickers(){ $("[data-customer-picker]").forEach(initCustomerPicker); }
+  function initCustomerPickers(){ $$("[data-customer-picker]").forEach(initCustomerPicker); }
   document.addEventListener("DOMContentLoaded",initCustomerPickers);
   initCustomerPickers();
 
