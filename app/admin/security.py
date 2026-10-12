@@ -20,6 +20,11 @@ ROUTE_PERMISSIONS = {
         "/admin/looks": "content.view",
         "/admin/banner-targets": "content.manage",
         "/admin/category-circles": "content.view",
+        "/admin/accounting": "accounting.view",
+        "/admin/accounting/accounts": "accounting.view",
+        "/admin/accounting/journal": "accounting.view",
+        "/admin/accounting/vouchers": "accounting.view",
+        "/admin/accounting/reports": "accounting.view",
         "/admin/side-categories": "side_category.view",
         "/admin/trends": "hashtag.view",
         "/admin/hashtags": "hashtag.view",
@@ -68,6 +73,10 @@ ROUTE_PERMISSIONS = {
         "/admin/products/new": "product.create",
         "/admin/categories": "category.manage",
         "/admin/category-circles": "category.manage",
+        "/admin/accounting/accounts": "accounting.manage",
+        "/admin/accounting/journal": "accounting.manage",
+        "/admin/accounting/vouchers": "accounting.manage",
+        "/admin/accounting/sales/post": "accounting.post",
         "/admin/category-strip": "content.manage",
         "/admin/side-categories": "side_category.manage",
         "/admin/brands": "product.edit",
@@ -129,12 +138,19 @@ def permission_code(path, method):
         ("/admin/pricing/", "pricing.manage"),
         ("/admin/promotions/", "promotion.manage"),
         ("/admin/finance/", "wallet.adjust"),
+        ("/admin/accounting/", "accounting.manage"),
         ("/admin/system/", "system.manage"),
         ("/admin/storefront/", "content.manage"),
         ("/admin/catalog/", "policy.manage"),
     )
     for prefix, code in prefix_permissions:
         if path.startswith(prefix):
+            if prefix == "/admin/accounting/":
+                if method == "GET":
+                    return "accounting.view"
+                if method == "POST" and (path.endswith("/void") or path.endswith("/reverse")):
+                    return "accounting.post"
+                return "accounting.manage"
             if method == "GET" and prefix == "/admin/pricing/":
                 return "pricing.view"
             if method == "GET" and prefix == "/admin/products/":
