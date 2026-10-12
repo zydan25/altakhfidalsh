@@ -25,7 +25,7 @@
   <form method="post" action="/admin/accounting/accounts" class="accounting-form-grid">
     <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ account.id }}">
     <label>الاسم<input name="name" value="{{ account.name }}" required></label>
-    <label>الحساب الأب<select name="parent_id" required>{% for node in parent_tree %}{% set parent=node.account %}{% if parent.id != account.id %}<option value="{{ parent.id }}" {% if parent.id == account.parent_id %}selected{% endif %}>{{ parent.code }} · {{ parent.name }}</option>{% endif %}{% endfor %}</select></label>
+    <label>الحساب الأب<select name="parent_id" required>{% for parent, depth in parent_tree %}{% if parent.id != account.id and parent.is_group %}<option value="{{ parent.id }}" {% if parent.id == account.parent_id %}selected{% endif %}>{{ "　" * depth }}{{ parent.code }} · {{ parent.name }}</option>{% endif %}{% endfor %}</select></label>
     <label>الوصف<input name="description" value="{{ account.description or '' }}"></label>
     <label class="accounting-inline-check"><input type="checkbox" name="is_active" {% if account.is_active %}checked{% endif %}><span>نشط</span></label>
     {% if not account.is_group %}<label class="accounting-inline-check"><input type="checkbox" name="allow_manual_posting" {% if account.allow_manual_posting %}checked{% endif %}><span>السماح بالقيد المباشر</span></label>{% endif %}
