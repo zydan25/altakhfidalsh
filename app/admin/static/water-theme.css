@@ -524,3 +524,15 @@ body.water-admin-theme{background:var(--bg);color:var(--text);font-size:15px;min
  .water-admin-theme .accounting-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
  .water-admin-theme .accounting-filter-form{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+
+.water-admin-theme .accounting-report-nav{margin:8px 0 12px;padding:4px 0 9px}
+.water-admin-theme .accounting-report-nav .water-admin-tab{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.water-admin-theme .accounting-balance-sheet{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:12px 0}
+.water-admin-theme .accounting-balance-check{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px;border-radius:10px;background:#fff7ed;color:#9a3412}
+.water-admin-theme .accounting-balance-check strong{direction:ltr;font-size:12px}
+.water-admin-theme .accounting-balance-check.is-balanced{background:#ecfdf3;color:#067647}
+.water-admin-theme .accounting-balance-check.is-unbalanced{background:#fff1f0;color:#b42318}
+.water-admin-theme .accounting-summary-card .accounting-balance-check{border-bottom:0}
+.water-admin-theme .accounting-report-table{scroll-margin-top:88px}
+.water-admin-theme .accounting-summary-grid,.water-admin-theme .accounting-balance-sheet{scroll-margin-top:88px}
+@media(min-width:680px){.water-admin-theme .accounting-balance-sheet{grid-template-columns:repeat(2,minmax(0,1fr))}}
