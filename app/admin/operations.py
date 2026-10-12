@@ -608,6 +608,15 @@ def register_operation_routes(admin_bp):
                     row.is_active = False
                     success = "تمت أرشفة البانر."
 
+                elif action == "restore_banner":
+                    if row is None:
+                        raise ValueError("البانر غير موجود.")
+                    row.is_active = True
+                    # A banner without the required main image remains a draft.
+                    if not row.image_asset_id:
+                        row.status = "draft"
+                    success = "تمت استعادة البانر إلى القائمة النشطة."
+
                 elif action == "banner_reorder":
                     ids = [int(x) for x in (request.form.get("order_ids") or "").split(",") if x.strip().isdigit()]
                     for index, banner_id in enumerate(ids):
@@ -626,10 +635,14 @@ def register_operation_routes(admin_bp):
         banners = Banner.query.filter_by(is_active=True).order_by(
             Banner.sort_order, Banner.id.desc()
         ).limit(200).all()
+        archived_banners = Banner.query.filter_by(is_active=False).order_by(
+            Banner.updated_at.desc(), Banner.id.desc()
+        ).limit(300).all()
         ids = [x.id for x in banners]
         asset_ids = []
-        for x in banners:
-            asset_ids.append(x.image_asset_id)
+        for x in [*banners, *archived_banners]:
+            if x.image_asset_id:
+                asset_ids.append(x.image_asset_id)
             if x.mobile_asset_id:
                 asset_ids.append(x.mobile_asset_id)
         assets = MediaAsset.query.filter(MediaAsset.id.in_(asset_ids)).all() if asset_ids else []
@@ -662,6 +675,7 @@ def register_operation_routes(admin_bp):
             "admin/banners.html",
             title="البانرات",
             banners=banners,
+            archived_banners=archived_banners,
             asset_map=asset_map,
             targets_by_banner=targets_by_banner,
             categories=categories,
