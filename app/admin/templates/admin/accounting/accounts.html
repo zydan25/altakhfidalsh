@@ -1,57 +1,119 @@
 {% extends "admin/base.html" %}
 {% block content %}
-<section class="module-header">
-  <span class="eyebrow">المحاسبة · الدليل المحاسبي</span><h2>شجرة الحسابات</h2>
-  <p class="muted">تدرج الحسابات الرئيسي والفرعي. الحسابات النظامية وحسابات العملاء والموظفين مرتبطة بسجلاتها ولا يمكن حذفها مع وجود حركات.</p>
+{% from "admin/accounting/_account_picker.html" import account_picker %}
+<section class="accounting-tree-page-head">
+  <div class="module-header" style="margin:0">
+    <span class="eyebrow">المحاسبة · الدليل المحاسبي</span><h2>شجرة الحسابات</h2>
+    <p class="muted">شجرة مغلقة الفروع على نمط Kareem؛ افتح الفرع الذي تريد، وابحث عن الحساب أو انتقل مباشرة إلى كشفه وتفاصيله.</p>
+  </div>
+  <div class="accounting-tree-page-actions">
+    <a href="/admin/accounting/journal"><i class="bi bi-journal-text" aria-hidden="true"></i> القيود</a>
+    <a href="/admin/accounting/ledger"><i class="bi bi-journal-check" aria-hidden="true"></i> دفتر الأستاذ</a>
+    <a href="/admin/accounting/reconciliation"><i class="bi bi-clipboard2-check" aria-hidden="true"></i> المطابقة</a>
+    <a href="/admin/accounting/vouchers"><i class="bi bi-receipt" aria-hidden="true"></i> السندات</a>
+    <a href="/admin/accounting/vouchers?new=receipt" class="receipt"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i> قبض</a>
+    <a href="/admin/accounting/vouchers?new=payment" class="payment"><i class="bi bi-box-arrow-up" aria-hidden="true"></i> صرف</a>
+  </div>
 </section>
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<section class="accounting-tree-stat-grid">
+  <article class="accounting-tree-stat"><span>إجمالي الحسابات</span><strong>{{ stats.count }}</strong></article>
+  <article class="accounting-tree-stat"><span>حسابات رئيسية</span><strong>{{ stats.groups }}</strong></article>
+  <article class="accounting-tree-stat"><span>حسابات تفصيلية</span><strong>{{ stats.leaves }}</strong></article>
+  <article class="accounting-tree-stat"><span>القيود المرحلة</span><strong>{{ stats.journal_count }}</strong></article>
+</section>
+
+<section class="panel accounting-tree-search-card">
+  <div class="panel-heading"><div><span class="eyebrow">بحث وانتقال مباشر</span><h3>ابحث عن حساب</h3></div></div>
+  {{ account_picker('account_search','بحث عن حساب',account_tree,placeholder='اضغط لفتح شجرة الحسابات والبحث',mode='navigate',required=False,picker_id='accountNavigationPicker') }}
+  <p class="muted" style="font-size:10px;margin:8px 0 0">افتح الفروع الصغيرة داخل القائمة؛ عند اختيار الحساب تنتقل إلى تفاصيله مباشرة.</p>
+</section>
+
 <details class="panel accounting-form-panel" {% if error %}open{% endif %}>
-  <summary class="accounting-form-summary"><span><i class="bi bi-plus-circle" aria-hidden="true"></i> إنشاء حساب جديد</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
-  <form method="post" class="form-stack accounting-form-grid">
+  <summary class="accounting-form-summary"><span><i class="bi bi-plus-circle" aria-hidden="true"></i> إضافة حساب جديد</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+  <form method="post" class="accounting-form-grid">
     <input type="hidden" name="action" value="create">
-    <label>الحساب الأب التجميعي<select name="parent_id" required><option value="">اختر الحساب الأب</option>{% for parent in parent_options %}<option value="{{ parent.id }}">{{ parent.code }} · {{ parent.name }}</option>{% endfor %}</select></label>
+    <label>الحساب الأب<select name="parent_id" required><option value="">اختر حسابًا رئيسيًا أو تجميعيًا</option>{% for parent in parent_options %}<option value="{{ parent.id }}">{{ parent.code }} · {{ parent.name }}</option>{% endfor %}</select></label>
     <label>اسم الحساب<input name="name" required placeholder="مثال: مصروفات الإنترنت"></label>
-    <label>رمز الحساب<input name="code" dir="ltr" placeholder="اتركه فارغًا للتوليد التلقائي"></label>
+    <label>رمز الحساب<input name="code" dir="ltr" placeholder="توليد تلقائي إذا تركته فارغًا"></label>
     <label>الوصف<input name="description" placeholder="وصف اختياري"></label>
-    <label class="check-row"><input type="checkbox" name="is_group"><span>حساب تجميعي يحتوي حسابات فرعية</span></label>
-    <button class="primary-button" type="submit">حفظ الحساب</button>
+    <label class="accounting-inline-check"><input type="checkbox" name="is_group"><span>حساب تجميعي يحتوي فروعًا</span></label>
+    <button class="primary-button" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i> حفظ الحساب</button>
   </form>
 </details>
-<section class="accounting-account-list">
-{% for node in tree %}
-  {% set account = node.account %}
-  <article class="panel accounting-account-card {% if not account.is_active %}is-account-inactive{% endif %}" style="--account-depth:{{ node.depth }}">
-    <div class="accounting-account-heading">
-      <span class="accounting-account-code">{{ account.code }}</span>
-      <span class="accounting-account-type">{{ account_type_labels.get(account.account_type,account.account_type) }}</span>
-      <span class="accounting-account-state {{ 'is-active' if account.is_active else 'is-off' }}">{{ "نشط" if account.is_active else "معطل" }}</span>
+
+<section class="accounting-tree-list" id="accountingMainTree">
+{% macro render_nodes(nodes) %}
+  {% for node in nodes %}
+    {% set account = node.account %}
+    <div class="accounting-tree-node" data-accounting-tree-node data-accounting-search="{{ account.code|lower }} {{ account.name|lower }}" data-accounting-id="{{ account.id }}">
+      <article class="accounting-tree-row {% if account.is_group %}is-group{% endif %} {% if not account.is_active %}is-inactive{% endif %}" style="--accounting-depth:{{ node.depth }}">
+        <div class="accounting-tree-row-main">
+          {% if node.children %}
+            <button type="button" class="accounting-tree-caret" data-accounting-tree-toggle aria-expanded="false" aria-label="فتح فروع {{ account.name }}"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
+          {% else %}<span class="accounting-tree-caret-spacer"></span>{% endif %}
+          <span class="accounting-tree-icon">{% if account.is_group %}<i class="bi bi-folder2" aria-hidden="true"></i>{% else %}<i class="bi bi-file-earmark-text" aria-hidden="true"></i>{% endif %}</span>
+          <span class="accounting-tree-name"><strong>{{ account.name }}</strong><small>{{ account.code }} · {{ account_type_labels.get(account.account_type,account.account_type) }}{% if account.system_key %} · حساب نظامي{% endif %}</small></span>
+        </div>
+        <div class="accounting-tree-row-balance">
+          {% for balance in balances.get(account.id,[]) %}
+            <strong>{{ "%.2f"|format(balance.balance|float) }}</strong><small>{{ balance.currency }}</small>
+          {% else %}<strong>0.00</strong><small>الرصيد</small>{% endfor %}
+        </div>
+        <div class="accounting-tree-row-actions">
+          <a href="/admin/accounting/accounts/{{ account.id }}" title="تفاصيل الحساب"><i class="bi bi-eye" aria-hidden="true"></i> تفاصيل</a>
+          <a href="/admin/accounting/reports/accounts/{{ account.id }}?currency=YER" title="تقرير وكشف الحساب"><i class="bi bi-file-earmark-bar-graph" aria-hidden="true"></i> تقرير</a>
+          {% if not account.system_key %}
+          <details class="accounting-tree-edit">
+            <summary title="تعديل الحساب"><i class="bi bi-pencil-square" aria-hidden="true"></i> تعديل</summary>
+            <form method="post" class="accounting-edit-form">
+              <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ account.id }}">
+              <label>اسم الحساب<input name="name" value="{{ account.name }}" required></label>
+              <label>الحساب الأب<select name="parent_id" required>{% for parent in parent_options if parent.id != account.id %}<option value="{{ parent.id }}" {% if parent.id == account.parent_id %}selected{% endif %}>{{ parent.code }} · {{ parent.name }}</option>{% endfor %}</select></label>
+              <label>الوصف<input name="description" value="{{ account.description or '' }}"></label>
+              <label class="accounting-inline-check"><input type="checkbox" name="is_active" {% if account.is_active %}checked{% endif %}><span>نشط</span></label>
+              {% if not account.is_group %}<label class="accounting-inline-check"><input type="checkbox" name="allow_manual_posting" {% if account.allow_manual_posting %}checked{% endif %}><span>السماح بالقيد المباشر</span></label>{% endif %}
+              <button type="submit" class="primary-button">حفظ التعديل</button>
+            </form>
+          </details>
+          <form method="post" onsubmit="return confirm('حذف الحساب نهائيًا؟ لن يُسمح بالحذف إذا كان الحساب مستخدمًا في قيود أو عمليات.');"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="{{ account.id }}"><button class="danger" type="submit" title="حذف الحساب"><i class="bi bi-trash3" aria-hidden="true"></i> حذف</button></form>
+          {% else %}<span class="accounting-system-flag"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i> محمي</span>{% endif %}
+        </div>
+      </article>
+      {% if node.children %}<div class="accounting-tree-children" data-accounting-tree-children hidden>{{ render_nodes(node.children) }}</div>{% endif %}
     </div>
-    <div class="accounting-account-title"><strong>{{ account.name }}</strong>{% if account.system_key %}<span class="accounting-system-lock"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i> نظامي</span>{% endif %}</div>
-    <div class="accounting-account-meta">
-      <span>{{ "حساب تجميعي" if account.is_group else "حساب تفصيلي" }}</span>
-      <span>{{ "يسمح بالقيد" if account.allow_manual_posting else "غير قابل للقيد المباشر" }}</span>
-      {% if account.description %}<span>{{ account.description }}</span>{% endif %}
-    </div>
-    {% if balances.get(account.id) %}
-    <div class="accounting-currency-balances">{% for balance in balances.get(account.id,[]) %}<span><small>{{ balance.currency }}</small><strong>{{ "%.2f"|format(balance.balance|float) }}</strong></span>{% endfor %}</div>
-    {% endif %}
-    {% if not account.system_key %}
-    <details class="accounting-edit-panel">
-      <summary><i class="bi bi-pencil-square" aria-hidden="true"></i> تعديل الحساب</summary>
-      <form method="post" class="form-stack accounting-form-grid">
-        <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ account.id }}">
-        <label>الاسم<input name="name" value="{{ account.name }}" required></label>
-        <label>الحساب الأب<select name="parent_id" required>{% for parent in parent_options if parent.id != account.id %}<option value="{{ parent.id }}" {% if parent.id == account.parent_id %}selected{% endif %}>{{ parent.code }} · {{ parent.name }}</option>{% endfor %}</select></label>
-        <label>الوصف<input name="description" value="{{ account.description or '' }}"></label>
-        <label class="check-row"><input type="checkbox" name="is_active" {% if account.is_active %}checked{% endif %}><span>الحساب نشط</span></label>
-        {% if not account.is_group %}<label class="check-row"><input type="checkbox" name="allow_manual_posting" {% if account.allow_manual_posting %}checked{% endif %}><span>السماح بالقيد المباشر</span></label>{% endif %}
-        <button class="primary-button" type="submit">حفظ التعديلات</button>
-      </form>
-    </details>
-    <form method="post" class="accounting-toggle-form"><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="{{ account.id }}"><button class="ghost-button compact" type="submit">{{ "تعطيل الحساب" if account.is_active else "إعادة تفعيل الحساب" }}</button></form>
-    {% endif %}
-  </article>
-{% else %}<div class="empty-state panel"><h3>لا توجد حسابات</h3></div>{% endfor %}
+  {% endfor %}
+{% endmacro %}
+{{ render_nodes(tree) }}
+{% if not tree %}<div class="accounting-tree-empty">لا توجد حسابات لعرضها.</div>{% endif %}
 </section>
+
+<script>
+(() => {
+  const root=document.getElementById("accountingMainTree");
+  if(!root)return;
+  function close(node){
+    const children=node.querySelector(":scope > [data-accounting-tree-children]");
+    if(!children)return;
+    children.hidden=true;
+    const btn=node.querySelector(":scope > .accounting-tree-row [data-accounting-tree-toggle]");
+    if(btn){btn.setAttribute("aria-expanded","false");const i=btn.querySelector("i");if(i)i.className="bi bi-chevron-left";}
+    children.querySelectorAll(":scope > [data-accounting-tree-node]").forEach(close);
+  }
+  root.querySelectorAll("[data-accounting-tree-toggle]").forEach(button=>{
+    button.addEventListener("click",()=>{
+      const node=button.closest("[data-accounting-tree-node]");
+      const children=node.querySelector(":scope > [data-accounting-tree-children]");
+      if(!children)return;
+      if(children.hidden){
+        node.parentElement.querySelectorAll(":scope > [data-accounting-tree-node]").forEach(sibling=>{if(sibling!==node)close(sibling);});
+        children.hidden=false;button.setAttribute("aria-expanded","true");
+        const i=button.querySelector("i");if(i)i.className="bi bi-chevron-down";
+      }else close(node);
+    });
+  });
+})();
+</script>
 {% endblock %}
