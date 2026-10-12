@@ -18,6 +18,7 @@ from ..models import (
     AccountingJournalLine,
     AccountingVoucher,
     Customer,
+    CustomerLedgerOperation,
     LedgerAccount,
     Order,
     OrderItem,
@@ -558,3 +559,177 @@ def register_accounting_events():
     if not _ACCOUNTING_EVENTS_REGISTERED:
         event.listen(Session, "before_flush", _auto_create_party_accounts)
         _ACCOUNTING_EVENTS_REGISTERED = True
+
+
+def exchange_rate_to_yer(currency_code, session=None):
+    """Return the current quote-to-YER rate, failing rather than inventing an FX rate."""
+    session = session or db.session
+    code = (currency_code or "YER").strip().upper()
+    if code == "YER":
+        return Decimal("1")
+    with session.no_autoflush:
+        source = session.query(Currency).filter_by(code=code, is_active=True).first()
+        yer = session.query(Currency).filter_by(code="YER", is_active=True).first()
+    if source is None or yer is None:
+        raise ValueError("عملة العملية غير مفعّلة أو عملة الريال اليمني غير مهيأة.")
+    from .pricing import resolve_exchange_rate
+    try:
+        return Decimal(str(resolve_exchange_rate(base_currency_id=source.id, quote_currency_id=yer.id)))
+    except LookupError as exc:
+        raise ValueError(f"لا يوجد سعر صرف معتمد للتحويل من {code} إلى الريال اليمني.") from exc
+
+
+def account_is_in_cash_tree(account_id, session=None):
+    session = session or db.session
+    chart = ensure_chart(session)
+    root = chart.get("cash_root")
+    if not root:
+        return False
+    account = session.get(LedgerAccount, account_id)
+    seen = set()
+    while account and account.id not in seen:
+        if account.id == root.id:
+            return not account.is_group
+        seen.add(account.id)
+        account = session.get(LedgerAccount, account.parent_id) if account.parent_id else None
+    return False
+
+
+def create_customer_operation(*, operation_type, customer_id, entered_amount, currency_code="YER",
+                              operation_date=None, cash_account_id=None, contra_account_id=None,
+                              side=None, order_id=None, description=None, admin_id=None, session=None):
+    """Post an auditable customer transaction in YER with balanced double-entry lines."""
+    session = session or db.session
+    operation_type = (operation_type or "").strip()
+    if operation_type not in {"insurance", "daybook", "order_sale", "order_payment"}:
+        raise ValueError("نوع حركة حساب العميل غير مدعوم.")
+    customer = session.get(Customer, customer_id)
+    if customer is None:
+        raise ValueError("العميل المحدد غير موجود.")
+    entered = D(entered_amount, "المبلغ")
+    if entered <= 0:
+        raise ValueError("أدخل مبلغًا أكبر من صفر.")
+    currency_code = (currency_code or "YER").strip().upper()
+    rate = exchange_rate_to_yer(currency_code, session)
+    amount_yer = (entered * rate).quantize(Decimal("0.0001"))
+    if amount_yer <= 0:
+        raise ValueError("المبلغ بعد التحويل إلى الريال اليمني يجب أن يكون أكبر من صفر.")
+    chart = ensure_chart(session)
+    customer_account = ensure_customer_account(customer, session)
+    cash_account = _account_by_id(session, cash_account_id) if cash_account_id else None
+    contra_account = _account_by_id(session, contra_account_id) if contra_account_id else None
+
+    if operation_type in {"insurance", "order_payment"}:
+        if cash_account is None or not account_is_in_cash_tree(cash_account.id, session):
+            raise ValueError("اختر حسابًا تفصيليًا من شجرة الصناديق.")
+    if operation_type == "daybook":
+        if contra_account is None:
+            raise ValueError("اختر الحساب المقابل من شجرة الحسابات.")
+        if contra_account.id == customer_account.id:
+            raise ValueError("لا يمكن استخدام حساب العميل نفسه كمصدر مقابل.")
+        if side not in {"debit", "credit"}:
+            raise ValueError("اختر «له» أو «عليه» لتحديد طبيعة القيد.")
+    if operation_type == "insurance":
+        duplicate = session.query(CustomerLedgerOperation.id).filter(
+            CustomerLedgerOperation.operation_type == "insurance",
+            CustomerLedgerOperation.customer_id == customer.id,
+            CustomerLedgerOperation.operation_date == (operation_date or date.today()),
+            CustomerLedgerOperation.amount_yer == amount_yer,
+            CustomerLedgerOperation.status == "posted",
+        ).first()
+        if duplicate:
+            raise ValueError("يوجد تأمين مسجل لهذا العميل بالمبلغ نفسه في اليوم نفسه.")
+        description = (description or "").strip() or "تأمين عميل"
+        lines = [
+            {"account": cash_account, "debit": amount_yer, "credit": 0, "description": description},
+            {"account": customer_account, "debit": 0, "credit": amount_yer, "description": description},
+        ]
+        contra_account = customer_account
+        prefix = "INS"
+    elif operation_type == "daybook":
+        description = (description or "").strip()
+        if not description:
+            raise ValueError("البيان مطلوب في يوميات العملاء.")
+        if side == "credit":  # له: credit the customer, debit the counter-account
+            lines = [
+                {"account": contra_account, "debit": amount_yer, "credit": 0, "description": description},
+                {"account": customer_account, "debit": 0, "credit": amount_yer, "description": description},
+            ]
+        else:  # عليه: debit the customer, credit the counter-account
+            lines = [
+                {"account": customer_account, "debit": amount_yer, "credit": 0, "description": description},
+                {"account": contra_account, "debit": 0, "credit": amount_yer, "description": description},
+            ]
+        prefix = "CDJ"
+    elif operation_type == "order_sale":
+        if not order_id:
+            raise ValueError("مرجع الطلب مطلوب لقيد المبيعات.")
+        order = session.get(Order, order_id)
+        if order is None or order.customer_id != customer.id:
+            raise ValueError("الطلب غير موجود أو لا يتبع هذا العميل.")
+        duplicate = session.query(CustomerLedgerOperation.id).filter_by(
+            operation_type="order_sale", order_id=order.id, status="posted"
+        ).first()
+        if duplicate:
+            raise ValueError("تم ترحيل مبيعات هذا الطلب مسبقًا.")
+        description = (description or "").strip() or f"مبيعات الطلب {order.order_no}"
+        sales_account = chart["sales_revenue"]
+        contra_account = sales_account
+        lines = [
+            {"account": customer_account, "debit": amount_yer, "credit": 0, "description": description, "reference": order.order_no},
+            {"account": sales_account, "debit": 0, "credit": amount_yer, "description": description, "reference": order.order_no},
+        ]
+        prefix = "SALE"
+    else:  # order_payment
+        if not order_id:
+            raise ValueError("مرجع الطلب مطلوب لقيد دفع الطلب.")
+        order = session.get(Order, order_id)
+        if order is None or order.customer_id != customer.id:
+            raise ValueError("الطلب غير موجود أو لا يتبع هذا العميل.")
+        description = (description or "").strip() or f"دفعة للطلب {order.order_no}"
+        lines = [
+            {"account": cash_account, "debit": amount_yer, "credit": 0, "description": description, "reference": order.order_no},
+            {"account": customer_account, "debit": 0, "credit": amount_yer, "description": description, "reference": order.order_no},
+        ]
+        contra_account = customer_account
+        prefix = "PAY"
+
+    operation = CustomerLedgerOperation(
+        operation_type=operation_type,
+        customer_id=customer.id,
+        order_id=order_id,
+        operation_date=operation_date or date.today(),
+        amount_yer=amount_yer,
+        entered_amount=entered,
+        entered_currency_code=currency_code,
+        exchange_rate_to_yer=rate,
+        cash_account_id=cash_account.id if cash_account else None,
+        contra_account_id=contra_account.id if contra_account else None,
+        description=(description or "").strip() or None,
+        status="posted",
+        created_by_admin_id=admin_id,
+    )
+    session.add(operation)
+    session.flush()
+    entry = create_posted_entry(
+        description=operation.description or "حركة حساب عميل",
+        entry_date=operation.operation_date,
+        currency_code="YER",
+        created_by_admin_id=admin_id,
+        lines=lines,
+        source_type=operation_type,
+        source_id=operation.id,
+        prefix=prefix,
+        session=session,
+    )
+    operation.journal_entry_id = entry.id
+    return operation
+
+
+def reverse_customer_operation(operation, *, admin_id, reason, session=None):
+    session = session or db.session
+    if operation is None or operation.status != "posted" or operation.journal_entry is None:
+        raise ValueError("حركة حساب العميل غير موجودة أو غير مرحلة.")
+    reverse_entry(operation.journal_entry, admin_id=admin_id, reason=reason, session=session)
+    operation.status = "void"
+    return operation
