@@ -17,9 +17,16 @@
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
 
+{% if admin_layout_theme == "water" and title == "العلامات التجارية" %}
+<section class="water-list-toolbar" data-brand-controls aria-label="بحث العلامات التجارية">
+  <label class="water-search-field"><span><i class="bi bi-search" aria-hidden="true"></i> البحث عن علامة تجارية</span><input id="brandSearch" type="search" placeholder="اسم العلامة أو رمزها..." autocomplete="off"></label>
+  <div class="water-filter-summary"><span id="brandResultsCount">عرض {{ records|length }} علامة</span><button type="button" id="clearBrandSearch" class="water-text-button">إعادة ضبط</button></div>
+</section>
+<div class="water-filter-empty panel" id="brandFilterEmpty" hidden><i class="bi bi-tags" aria-hidden="true"></i><strong>لا توجد علامات مطابقة</strong><span>جرّب اسمًا آخر.</span></div>
+{% endif %}
 <section class="entity-grid manage-grid">
   {% for record in records %}
-  <article class="entity-card panel manage-card">
+  <article class="entity-card panel manage-card" {% if admin_layout_theme == "water" and title == "العلامات التجارية" %}data-brand-card data-brand-search="{{ (record.title ~ ' ' ~ record.id)|lower }}"{% endif %}>
     <div class="manage-card-header">
       <div class="manage-card-title">
         {% if record.color %}<span class="color-swatch" style="background: {{ record.color }}"></span>{% endif %}
@@ -28,6 +35,11 @@
       {% if record.badge %}<span class="status-pill">{{ record.badge }}</span>{% endif %}
     </div>
 
+    {% if admin_layout_theme == "water" and title == "العلامات التجارية" %}
+    <div class="manage-card-logo">
+      {% if record.image_url %}<img src="{{ record.image_url }}" alt="{{ record.title }} logo" loading="lazy">{% else %}<i class="bi bi-shop-window" aria-hidden="true"></i>{% endif %}
+    </div>
+    {% endif %}
     {% for item in record.fields %}
     <div class="entity-field">
       <span class="entity-label">{{ item.label }}</span>
