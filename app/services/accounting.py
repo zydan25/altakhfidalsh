@@ -126,6 +126,24 @@ def _ensure_account(session, *, system_key, code, name, account_type,
 def ensure_chart(session=None):
     """Create the protected accounting chart idempotently without deleting user accounts."""
     session = session or db.session
+    # The commerce catalog continues to price in its existing base currency;
+    # accounting party balances are posted in YER as the customer-ledger currency.
+    with session.no_autoflush:
+        yer_currency = session.query(Currency).filter_by(code="YER").first()
+    if yer_currency is None:
+        yer_currency = Currency(
+            code="YER",
+            name_ar="ريال يمني",
+            symbol="ر.ي",
+            decimals=0,
+            is_base=False,
+            is_active=True,
+        )
+        session.add(yer_currency)
+    else:
+        yer_currency.is_active = True
+        yer_currency.name_ar = yer_currency.name_ar or "ريال يمني"
+        yer_currency.symbol = yer_currency.symbol or "ر.ي"
     accounts = {}
     for code, name, account_type, key in ROOT_ACCOUNTS:
         accounts[key] = _ensure_account(
