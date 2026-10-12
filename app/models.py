@@ -1142,7 +1142,7 @@ class Banner(TimestampMixin, ActiveMixin, db.Model):
 
     id = db.Column(Integer, primary_key=True)
     name = db.Column(String(200), nullable=False)
-    image_asset_id = db.Column(ForeignKey("media_assets.id"), nullable=False)
+    image_asset_id = db.Column(ForeignKey("media_assets.id"), nullable=True)
     mobile_asset_id = db.Column(ForeignKey("media_assets.id"))
     root_category_id = db.Column(ForeignKey("categories.id", ondelete="SET NULL"))
     title = db.Column(String(220))
