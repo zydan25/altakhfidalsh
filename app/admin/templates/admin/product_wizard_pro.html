@@ -482,7 +482,7 @@
       [price, compare].forEach(input => {
         if (input?.value !== "") {
           const value = Number(input.value);
-          if (Number.isFinite(value)) input.value = (value * previousFactor / nextFactor).toFixed(4).replace(/\.?0+$/, "");
+          if (Number.isFinite(value)) input.value = (value * previousFactor / nextFactor).toFixed(4).replace(/(\.\d*?[1-9])0+$/, "$1").replace(/\.0+$/, "");
         }
       });
     }
