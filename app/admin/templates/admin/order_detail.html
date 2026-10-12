@@ -1,4 +1,5 @@
 {% extends "admin/base.html" %}
+{% from "admin/accounting/_account_picker.html" import account_picker %}
 {% block content %}
 <section class="module-header">
   <span class="eyebrow">ملف الطلب الكامل</span>
@@ -98,7 +99,7 @@
     <form method="post" class="form-stack">
       <input type="hidden" name="action" value="status">
       <label>الحالة
-        <select name="status">
+        <select name="status" id="orderStatusSelect" data-current-status="{{ order.status }}" data-payment-status="{{ order.payment_status }}">
           {% for status in status_choices %}<option value="{{ status }}" {% if order.status == status %}selected{% endif %}>{{ order_status_labels.get(status, "حالة غير معروفة") }}</option>{% endfor %}
         </select>
       </label>
@@ -107,6 +108,35 @@
     </form>
   </article>
 </section>
+
+<div class="accounting-modal-overlay order-accounting-payment-overlay" id="orderAccountingPaymentModal" {% if not payment_form_open %}hidden{% endif %}>
+  <div class="accounting-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="orderAccountingPaymentTitle">
+    <div class="accounting-modal-title">
+      <div><span class="eyebrow">المحاسبة · حساب العميل بالريال اليمني</span><h3 id="orderAccountingPaymentTitle">تسجيل دفع الطلب {{ order.order_no }}</h3><p class="muted" style="font-size:10px;margin-top:5px">{{ order.customer_name or ('عميل #' ~ order.customer_id) }} · المبلغ الافتراضي شامل التوصيل</p></div>
+      <button type="button" class="icon-button" data-close-order-accounting-payment aria-label="إغلاق"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+    </div>
+    <div class="accounting-payment-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>سيُسجّل قيد قيمة الطلب على حساب العميل، ثم يُسجّل قيد الدفعة من الصندوق إلى حساب العميل. تُحوّل العملة المختارة تلقائيًا إلى الريال اليمني في دفتر العميل.</span></div>
+    <form method="post" class="accounting-order-payment-form" id="orderAccountingPaymentForm">
+      <input type="hidden" name="action" value="record_account_payment">
+      <label class="accounting-voucher-field"><span>المبلغ الإجمالي للطلب · شامل التوصيل</span>
+        <input name="amount" id="orderAccountingPaymentAmount" type="number" min="0.0001" step="0.0001" inputmode="decimal" value="{{ order.total }}" required data-money-words data-money-words-target="#orderAccountingPaymentWords" data-money-currency="{{ (currencies|selectattr('id','equalto',order.currency_id)|map(attribute='code')|first) or 'YER' }}">
+        <span class="accounting-amount-words" id="orderAccountingPaymentWords" aria-live="polite"></span>
+      </label>
+      <label class="accounting-voucher-field"><span>عملة الدفع</span>
+        <select name="currency_id" id="orderAccountingPaymentCurrency" required>
+          {% for currency in currencies %}<option value="{{ currency.id }}" data-currency-code="{{ currency.code }}" {% if currency.id == order.currency_id %}selected{% endif %}>{{ currency.name_ar }} · {{ currency.code }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="accounting-voucher-field"><span>المصدر الحسابي · الصندوق</span>
+        {{ account_picker('cash_account_id','الصندوق',cash_tree,placeholder='اختر صندوق التحصيل',allowed_ids=cashbox_ids,required=True,picker_id='orderAccountingCashPicker') }}
+      </label>
+      <div class="accounting-voucher-form-actions">
+        <span>حساب العميل محفوظ بالريال اليمني؛ لا تتغير عملة دفتر العميل.</span>
+        <button type="submit" class="accounting-voucher-submit is-receipt"><i class="bi bi-check2-circle" aria-hidden="true"></i> حفظ الدفع وترحيله</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <section class="panel" style="margin-top:12px">
   <div class="panel-heading"><div><span class="eyebrow">الأصناف</span><h3>ما طلبه العميل فعليًا</h3></div><span class="status-pill">{{ order_items|length }}</span></div>
@@ -188,4 +218,43 @@
 </section>
 
 
+<script>
+(() => {
+  const select=document.getElementById("orderStatusSelect");
+  const modal=document.getElementById("orderAccountingPaymentModal");
+  const close=()=>{if(modal)modal.hidden=true;document.body.classList.remove("accounting-modal-open");};
+  const open=()=>{if(modal)modal.hidden=false;document.body.classList.add("accounting-modal-open");setTimeout(()=>document.querySelector('#orderAccountingCashPicker [data-account-trigger]')?.focus(),25);};
+  if(select){
+    select.addEventListener("change",()=>{
+      if(select.value==="paid" && select.dataset.paymentStatus!=="paid"){
+        select.value=select.dataset.currentStatus||"awaiting_payment";
+        open();
+      }
+    });
+  }
+  document.querySelectorAll("[data-close-order-accounting-payment]").forEach(b=>b.addEventListener("click",close));
+  modal?.addEventListener("click",event=>{if(event.target===modal)close();});
+  document.addEventListener("keydown",event=>{if(event.key==="Escape"&&modal&&!modal.hidden)close();});
+  const amount=document.getElementById("orderAccountingPaymentAmount");
+  const currency=document.getElementById("orderAccountingPaymentCurrency");
+  function refreshAmountWords(){
+    if(!amount)return;
+    const option=currency?.selectedOptions?.[0];
+    amount.dataset.moneyCurrency=option?.dataset.currencyCode||"YER";
+    const target=document.getElementById("orderAccountingPaymentWords");
+    if(target && typeof window.moneyToArabicWords==="function")target.textContent=window.moneyToArabicWords(amount.value,amount.dataset.moneyCurrency);
+  }
+  amount?.addEventListener("input",refreshAmountWords);
+  currency?.addEventListener("change",refreshAmountWords);
+  refreshAmountWords();
+  document.getElementById("orderAccountingPaymentForm")?.addEventListener("submit",event=>{
+    const cash=document.querySelector('#orderAccountingCashPicker [data-account-value]')?.value;
+    const amountValue=Number(amount?.value||0);
+    if(!cash||!currency?.value||!Number.isFinite(amountValue)||amountValue<=0){
+      event.preventDefault();
+      alert("أدخل مبلغًا صالحًا واختر العملة وصندوق التحصيل.");
+    }
+  });
+})();
+</script>
 {% endblock %}
