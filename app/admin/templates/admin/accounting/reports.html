@@ -7,8 +7,13 @@
   <label>العملة<select name="currency"><option value="">جميع العملات (مجموعات مستقلة)</option>{% for currency_row in currencies %}<option value="{{ currency_row.code }}" {% if selected_currency == currency_row.code %}selected{% endif %}>{{ currency_row.name }} · {{ currency_row.code }}</option>{% endfor %}</select></label>
   <button class="primary-button" type="submit"><i class="bi bi-filter-circle" aria-hidden="true"></i> تطبيق الفترة</button>
 </form>
+<nav class="water-admin-tabs accounting-report-nav" aria-label="أقسام التقارير">
+  <a class="water-admin-tab is-active" href="#incomeReport">قائمة الدخل</a>
+  <a class="water-admin-tab" href="#balanceSheetReport">الميزانية العمومية</a>
+  <a class="water-admin-tab" href="#trialBalanceReport">ميزان المراجعة</a>
+</nav>
 {% if summaries %}
-<section class="accounting-summary-grid">
+<section class="accounting-summary-grid" id="incomeReport">
   {% for currency_code, summary in summaries.items() %}
   <article class="panel accounting-summary-card">
     <span class="accounting-entry-currency">{{ currency_code }}</span>
@@ -19,9 +24,24 @@
   </article>
   {% endfor %}
 </section>
+<section id="balanceSheetReport" class="accounting-balance-sheet">
+  {% for currency_code, summary in summaries.items() %}
+  <article class="panel accounting-summary-card">
+    <div class="panel-heading"><div><span class="eyebrow">الميزانية العمومية · {{ currency_code }}</span><h3>المركز المالي حتى {{ end }}</h3></div></div>
+    <div><small>الأصول</small><strong>{{ "%.2f"|format(summary.assets_at_end|float) }}</strong></div>
+    <div><small>الخصوم</small><strong>{{ "%.2f"|format(summary.liabilities_at_end|float) }}</strong></div>
+    <div><small>حقوق الملكية</small><strong>{{ "%.2f"|format(summary.equity_at_end|float) }}</strong></div>
+    <div><small>الأرباح المتراكمة قبل إقفال السنة</small><strong>{{ "%.2f"|format(summary.lifetime_profit|float) }}</strong></div>
+    <div class="accounting-net-value"><small>الخصوم + حقوق الملكية + الأرباح</small><strong>{{ "%.2f"|format(summary.balance_sheet_equity|float + summary.liabilities_at_end|float) }}</strong></div>
+    <div class="accounting-balance-check {% if (summary.balance_difference|float)|abs < 0.01 %}is-balanced{% else %}is-unbalanced{% endif %}">
+      <small>فرق التوازن (الأصول − الجانب المقابل)</small><strong>{{ "%.2f"|format(summary.balance_difference|float) }}</strong>
+    </div>
+  </article>
+  {% endfor %}
+</section>
 {% else %}<div class="empty-state panel"><h3>لا توجد حركات في الفترة المحددة</h3><p class="muted">سيظهر ملخص الإيرادات والمصروفات بعد ترحيل قيود أو مبيعات.</p></div>{% endif %}
-<section class="panel accounting-report-table">
-  <div class="panel-heading"><div><span class="eyebrow">ميزان حركة الحسابات</span><h3>تفاصيل الفترة</h3></div></div>
+<section id="trialBalanceReport" class="panel accounting-report-table">
+  <div class="panel-heading"><div><span class="eyebrow">ميزان المراجعة</span><h3>تفاصيل حركة الحسابات من {{ start }} إلى {{ end }}</h3></div></div>
   <div class="table-wrap"><table><thead><tr><th>رمز</th><th>الحساب</th><th>العملة</th><th>افتتاحي</th><th>مدين</th><th>دائن</th><th>ختامي</th><th></th></tr></thead><tbody>
   {% for row in rows %}<tr>
     <td>{{ row.code }}</td><td>{{ row.name }}</td><td>{{ row.currency_code }}</td>
