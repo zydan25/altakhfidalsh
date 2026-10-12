@@ -323,7 +323,7 @@
   function init() {
     if (!document.body.classList.contains("water-admin-theme")) return;
     initProductFilters(); initCustomerFilters(); initOrderFilters(); initBrandSearch();
-    initSettingsTabs(); initProductDetailTabs();
+    // Keep the original settings page flow intact; no setting form or section is moved or hidden. initProductDetailTabs();
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded",init,{once:true});
   else init();
