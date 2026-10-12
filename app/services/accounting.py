@@ -457,63 +457,70 @@ def order_currency_code(session, order):
 
 
 def post_unposted_sales(*, admin_id, limit=500, session=None):
-    """Post orders to the GL once. Paid sales debit the payment clearing account;
-    unpaid orders debit the customer's receivable account. Canceled orders are skipped.
+    """Post non-cancelled orders to each customer's permanent YER subledger.
+
+    Legacy order_sale journals created before the YER subledger was introduced are
+    reversed once, then replaced with a YER-native customer sale operation. This
+    keeps historical evidence while preventing amounts in SAR/USD from being read
+    as Yemeni rials in the customer's balance.
     """
     session = session or db.session
-    chart = ensure_chart(session)
+    ensure_chart(session)
     with session.no_autoflush:
         orders = (
             session.query(Order)
-            .filter(Order.status.notin_(("cancelled", "canceled", "void")))
+            .filter(Order.status.notin_(("cancelled", "canceled", "void", "returned")))
             .order_by(Order.id.asc())
             .limit(limit)
             .all()
         )
     posted = []
     skipped = 0
+    from .accounting import create_customer_operation, reverse_entry
     for order in orders:
         with session.no_autoflush:
-            exists = session.query(AccountingJournalEntry.id).filter_by(
-                source_type="order_sale", source_id=order.id
+            existing_operation = session.query(CustomerLedgerOperation).filter_by(
+                operation_type="order_sale",
+                order_id=order.id,
+                status="posted",
             ).first()
-        if exists:
+        if existing_operation:
             skipped += 1
             continue
         customer = session.get(Customer, order.customer_id)
         if customer is None:
             skipped += 1
             continue
-        customer_account = ensure_customer_account(customer, session)
-        paid = (getattr(order, "payment_status", "") or "").lower() in {"paid", "success", "successful", "succeeded", "captured", "complete", "completed"}
-        debit_account = chart["payment_clearing"] if paid else customer_account
-        created = order.created_at
-        entry_date = created.date() if created else date.today()
-        try:
-            entry = create_posted_entry(
-                description=f"مبيعات الطلب {order.order_no}",
-                entry_date=entry_date,
-                currency_code=order_currency_code(session, order),
-                created_by_admin_id=admin_id,
-                lines=[
-                    {"account": debit_account, "debit": D(order.total), "credit": 0,
-                     "description": "ذمم العميل" if not paid else "مبالغ قيد التحصيل الإلكتروني",
-                     "reference": order.order_no},
-                    {"account": chart["sales_revenue"], "debit": 0, "credit": D(order.total),
-                     "description": f"إيراد المبيعات - {order.order_no}", "reference": order.order_no},
-                ],
+
+        # Reverse legacy direct journals for this order before re-posting through
+        # the YER customer subledger. The original record and reversal remain auditable.
+        with session.no_autoflush:
+            legacy_entries = session.query(AccountingJournalEntry).filter_by(
                 source_type="order_sale",
                 source_id=order.id,
-                prefix="SALE",
+                status="posted",
+            ).order_by(AccountingJournalEntry.id.asc()).all()
+        for legacy in legacy_entries:
+            reverse_entry(
+                legacy,
+                admin_id=admin_id,
+                reason=f"إعادة ترحيل الطلب {order.order_no} إلى دفتر العميل بالريال اليمني",
                 session=session,
             )
-            posted.append(entry)
-        except ValueError as exc:
-            # Idempotency issues are safely counted as skipped; validation issues are raised.
-            if "مرحل مسبقًا" in str(exc):
-                skipped += 1
-                continue
-            raise
+
+        entry_date = order.created_at.date() if order.created_at else date.today()
+        sale = create_customer_operation(
+            operation_type="order_sale",
+            customer_id=order.customer_id,
+            order_id=order.id,
+            entered_amount=order.total,
+            currency_code=order_currency_code(session, order),
+            operation_date=entry_date,
+            description=f"مبيعات الطلب {order.order_no} شامل التوصيل",
+            admin_id=admin_id,
+            session=session,
+        )
+        posted.append(sale.journal_entry)
     return {"posted": posted, "posted_count": len(posted), "skipped_count": skipped}
 
 
@@ -731,13 +738,14 @@ def create_customer_operation(*, operation_type, customer_id, entered_amount, cu
     )
     session.add(operation)
     session.flush()
+    journal_source_type = "customer_order_sale" if operation_type == "order_sale" else operation_type
     entry = create_posted_entry(
         description=operation.description or "حركة حساب عميل",
         entry_date=operation.operation_date,
         currency_code="YER",
         created_by_admin_id=admin_id,
         lines=lines,
-        source_type=operation_type,
+        source_type=journal_source_type,
         source_id=operation.id,
         prefix=prefix,
         session=session,
