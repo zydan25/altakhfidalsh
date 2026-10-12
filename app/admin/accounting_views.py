@@ -267,17 +267,18 @@ def register_accounting_views(admin_bp):
         voucher_count = AccountingVoucher.query.filter_by(status="posted").count()
         with db.session.no_autoflush:
             posted_order_ids = (
-                db.session.query(AccountingJournalEntry.source_id)
+                db.session.query(CustomerLedgerOperation.order_id)
                 .filter(
-                    AccountingJournalEntry.source_type == "order_sale",
-                    AccountingJournalEntry.source_id.isnot(None),
+                    CustomerLedgerOperation.operation_type == "order_sale",
+                    CustomerLedgerOperation.status == "posted",
+                    CustomerLedgerOperation.order_id.isnot(None),
                 )
                 .subquery()
             )
             pending_sales = (
                 Order.query
-                .filter(Order.status.notin_(("cancelled", "canceled", "void")))
-                .filter(~Order.id.in_(db.session.query(posted_order_ids.c.source_id)))
+                .filter(Order.status.notin_(("cancelled", "canceled", "void", "returned")))
+                .filter(~Order.id.in_(db.session.query(posted_order_ids.c.order_id)))
                 .count()
             )
         latest_entries = AccountingJournalEntry.query.order_by(
