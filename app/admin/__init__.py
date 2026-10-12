@@ -6,6 +6,7 @@ from .routes import register_admin_routes
 from .security import init_admin_security
 from .whatsapp import register_whatsapp_admin
 from .pricing_views import register_pricing_views
+from .layout_theme import register_layout_theme_route
 
 admin_bp = Blueprint(
     "admin",
@@ -19,3 +20,4 @@ register_entity_views(admin_bp)
 init_admin_security(admin_bp)
 register_whatsapp_admin(admin_bp)
 register_pricing_views(admin_bp)
+register_layout_theme_route(admin_bp)
