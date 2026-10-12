@@ -67,6 +67,7 @@ ROUTE_PERMISSIONS = {
         "/admin/products": "product.create",
         "/admin/products/new": "product.create",
         "/admin/categories": "category.manage",
+        "/admin/category-circles": "category.manage",
         "/admin/category-strip": "content.manage",
         "/admin/side-categories": "side_category.manage",
         "/admin/brands": "product.edit",
