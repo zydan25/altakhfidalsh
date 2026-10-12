@@ -1,0 +1,81 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المحاسبة · التسجيلات</span><h2>القيود اليومية</h2><p class="muted">كل قيد مرحّل يجب أن يتوازن إجمالي المدين مع إجمالي الدائن. القيود المرحلة تحفظ أثرًا تدقيقيًا ولا تحذف مباشرة.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<details class="panel accounting-form-panel" {% if error %}open{% endif %}>
+  <summary class="accounting-form-summary"><span><i class="bi bi-plus-circle" aria-hidden="true"></i> إنشاء قيد يومي جديد</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+  <form method="post" class="accounting-manual-entry-form" id="accountingManualEntryForm">
+    <div class="accounting-form-grid">
+      <label>تاريخ القيد<input name="entry_date" type="date" value="{{ start }}" required></label>
+      <label>العملة<select name="currency_code" required>{% for currency_row in currencies %}<option value="{{ currency_row.code }}" {% if currency_row.code == "SAR" %}selected{% endif %}>{{ currency_row.name }} · {{ currency_row.code }}</option>{% endfor %}</select></label>
+      <label class="accounting-form-wide">بيان القيد<input name="description" required placeholder="سبب القيد أو المرجع"></label>
+    </div>
+    <div class="accounting-lines-heading"><strong>تفاصيل القيد</strong><button type="button" class="ghost-button compact" id="addAccountingLine"><i class="bi bi-plus" aria-hidden="true"></i> إضافة سطر</button></div>
+    <div class="accounting-journal-line-list" id="accountingJournalLineList">
+      {% for n in range(4) %}
+      <div class="accounting-journal-line" data-accounting-line>
+        <label>الحساب<select name="account_id"><option value="">اختر حسابًا</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.code }} · {{ account.name }}</option>{% endfor %}</select></label>
+        <label>مدين<input name="debit" type="number" inputmode="decimal" min="0" step="0.0001" placeholder="0"></label>
+        <label>دائن<input name="credit" type="number" inputmode="decimal" min="0" step="0.0001" placeholder="0"></label>
+        <label>بيان السطر<input name="line_description" placeholder="اختياري"></label>
+        <label>مرجع<input name="reference" placeholder="اختياري"></label>
+        <button type="button" class="ghost-button compact" data-remove-accounting-line aria-label="إزالة السطر"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+      </div>
+      {% endfor %}
+    </div>
+    <template id="accountingJournalLineTemplate">
+      <div class="accounting-journal-line" data-accounting-line>
+        <label>الحساب<select name="account_id"><option value="">اختر حسابًا</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.code }} · {{ account.name }}</option>{% endfor %}</select></label>
+        <label>مدين<input name="debit" type="number" inputmode="decimal" min="0" step="0.0001" placeholder="0"></label>
+        <label>دائن<input name="credit" type="number" inputmode="decimal" min="0" step="0.0001" placeholder="0"></label>
+        <label>بيان السطر<input name="line_description" placeholder="اختياري"></label>
+        <label>مرجع<input name="reference" placeholder="اختياري"></label>
+        <button type="button" class="ghost-button compact" data-remove-accounting-line aria-label="إزالة السطر"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+      </div>
+    </template>
+    <div class="accounting-form-footer"><span class="muted">لن يُرحّل القيد إذا لم يتساوَ المدين والدائن.</span><button class="primary-button" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i> التحقق وترحيل القيد</button></div>
+  </form>
+</details>
+<form method="get" class="panel accounting-filter-form">
+  <label>بحث<input name="q" value="{{ query }}" placeholder="رقم القيد أو البيان"></label>
+  <label>نوع المصدر<select name="source"><option value="">جميع المصادر</option>{% for value,label in [("manual","يدوي"),("order_sale","مبيعات"),("voucher","سند"),("reverse","قيد عكسي")] %}<option value="{{ value }}" {% if source == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+  <label>العملة<select name="currency"><option value="">كل العملات</option>{% for currency_row in currencies %}<option value="{{ currency_row.code }}" {% if currency == currency_row.code %}selected{% endif %}>{{ currency_row.name }} · {{ currency_row.code }}</option>{% endfor %}</select></label>
+  <label>من<input name="start" type="date" value="{{ start }}"></label><label>إلى<input name="end" type="date" value="{{ end }}"></label>
+  <button class="primary-button" type="submit"><i class="bi bi-search" aria-hidden="true"></i> عرض القيود</button>
+</form>
+<section class="accounting-entry-list">
+  {% for entry in entries %}
+  <article class="panel accounting-entry-card">
+    <div class="accounting-entry-head"><span class="accounting-entry-number">{{ entry.number }}</span><span class="accounting-entry-date">{{ entry.entry_date }}</span><span class="accounting-entry-currency">{{ entry.currency_code }}</span></div>
+    <strong class="accounting-entry-description">{{ entry.description }}</strong>
+    <div class="accounting-entry-totals"><span><small>المدين</small><strong>{{ "%.2f"|format(entry._debit_total|float) }}</strong></span><span><small>الدائن</small><strong>{{ "%.2f"|format(entry._credit_total|float) }}</strong></span><span><small>الحالة</small><strong>{{ {"posted":"مرحّل","draft":"مسودة","void":"معكوس"}.get(entry.status,entry.status) }}</strong></span></div>
+    <details class="accounting-entry-lines"><summary>عرض تفاصيل القيد ({{ entry.lines|length }} سطر)</summary>
+      <div class="table-wrap"><table><thead><tr><th>الحساب</th><th>البيان</th><th>مدين</th><th>دائن</th></tr></thead><tbody>
+        {% for line in entry.lines %}<tr><td>{{ line.account.code }} · {{ line.account.name }}</td><td>{{ line.description or "—" }}</td><td>{{ "%.2f"|format(line.debit|float) }}</td><td>{{ "%.2f"|format(line.credit|float) }}</td></tr>{% endfor %}
+      </tbody></table></div>
+    </details>
+  </article>
+  {% else %}<div class="empty-state panel"><h3>لا توجد قيود ضمن الفترة</h3><p class="muted">يمكنك إنشاء قيد جديد من النموذج أعلى الصفحة.</p></div>{% endfor %}
+</section>
+<script>
+(() => {
+  const list=document.getElementById("accountingJournalLineList");
+  const template=document.getElementById("accountingJournalLineTemplate");
+  document.getElementById("addAccountingLine")?.addEventListener("click",()=>{
+    if(list&&template&&list.querySelectorAll("[data-accounting-line]").length<30) list.appendChild(template.content.cloneNode(true));
+  });
+  list?.addEventListener("click",(event)=>{
+    const button=event.target.closest("[data-remove-accounting-line]");
+    if(!button)return;
+    const rows=list.querySelectorAll("[data-accounting-line]");
+    if(rows.length>2) button.closest("[data-accounting-line]")?.remove();
+    else {
+      const row=button.closest("[data-accounting-line]");
+      row?.querySelectorAll("input").forEach(input=>input.value="");
+      const select=row?.querySelector("select");if(select)select.value="";
+    }
+  });
+})();
+</script>
+{% endblock %}
