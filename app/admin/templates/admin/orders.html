@@ -8,7 +8,28 @@
 </section>
 {% if admin_layout_theme == "water" %}
 <section class="water-list-toolbar" data-order-controls aria-label="بحث وفرز الطلبات">
-  <label class="water-search-field"><span><i class="bi bi-search" aria-hidden="true"></i> البحث عن طلب</span><input id="orderSearch" type="search" placeholder="رقم الطلب أو رقم العميل..." autocomplete="off"></label>
+  <label class="water-search-field"><span><i class="bi bi-search" aria-hidden="true"></i> البحث عن طلب</span><input id="orderSearch" type="search" placeholder="رقم الطلب أو اسم العميل أو هاتفه..." autocomplete="off"></label>
+  <div class="water-customer-picker" data-order-customer-picker>
+    <button type="button" class="water-customer-trigger" id="orderCustomerTrigger" aria-expanded="false" aria-controls="orderCustomerMenu">
+      <span><i class="bi bi-person-lines-fill" aria-hidden="true"></i> العميل</span>
+      <strong id="selectedOrderCustomer">جميع العملاء</strong>
+      <i class="bi bi-chevron-down" aria-hidden="true"></i>
+    </button>
+    <div class="water-customer-menu" id="orderCustomerMenu" hidden>
+      <div class="water-customer-menu-head">
+        <button type="button" class="primary-button compact" id="orderCustomerSearchButton"><i class="bi bi-search" aria-hidden="true"></i> بحث</button>
+        <input type="search" id="orderCustomerSearch" placeholder="ابحث بالاسم أو الهاتف..." autocomplete="off">
+      </div>
+      <div class="water-customer-options" id="orderCustomerOptions">
+        <button type="button" class="water-customer-choice is-selected" data-order-customer-choice="" data-customer-label="جميع العملاء" data-customer-search="جميع العملاء">جميع العملاء</button>
+        {% for customer in order_customer_options %}
+        <button type="button" class="water-customer-choice" data-order-customer-choice="{{ customer.id }}" data-customer-label="{{ customer.name or ('عميل #' ~ customer.id) }}" data-customer-search="{{ ((customer.name or '') ~ ' ' ~ customer.phone_normalized ~ ' ' ~ customer.id)|lower }}">
+          <strong>{{ customer.name or "بدون اسم" }}</strong><small dir="ltr">{{ customer.phone_normalized }}</small>
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
   <div class="water-filter-tabs" role="group" aria-label="حالة الطلب">
     <button type="button" class="is-active" data-order-group="all">الكل</button>
     <button type="button" data-order-group="new">طلبات جديدة</button>
@@ -26,10 +47,10 @@
 {% endif %}
 <section class="entity-grid" id="adminOrderCards">
   {% for order in orders %}
-  <article class="entity-card panel" data-order-id="{{ order.id }}" data-order-number="{{ order.order_no|lower }}" data-order-search="{{ (order.order_no ~ ' ' ~ order.customer_id)|lower }}" data-order-status="{{ order.status|lower }}" data-payment-status="{{ order.payment_status|lower }}" data-order-total="{{ order.total }}" data-shipping-status="{{ order.shipping_status|lower }}">
+  <article class="entity-card panel" data-order-id="{{ order.id }}" data-order-number="{{ order.order_no|lower }}" data-order-search="{{ (order.order_no ~ ' ' ~ order.customer_id ~ ' ' ~ (order.customer.name or '') ~ ' ' ~ (order.customer.phone_normalized or ''))|lower }}" data-order-customer-id="{{ order.customer_id }}" data-order-customer-name="{{ order.customer.name or '' }}" data-order-status="{{ order.status|lower }}" data-payment-status="{{ order.payment_status|lower }}" data-order-total="{{ order.total }}" data-shipping-status="{{ order.shipping_status|lower }}">
     {% if admin_layout_theme == "water" %}<div class="water-record-top"><span class="water-record-icon"><i class="bi bi-bag-check-fill" aria-hidden="true"></i></span><span class="water-record-id">#{{ order.id }}</span></div>{% endif %}
     <div class="entity-field"><span class="entity-label">رقم الطلب</span><strong>{{ order.order_no }}</strong></div>
-    <div class="entity-field"><span class="entity-label">العميل</span><strong>#{{ order.customer_id }}</strong></div>
+    <div class="entity-field"><span class="entity-label">العميل</span><strong>{{ order.customer.name or ("عميل #" ~ order.customer_id) }}</strong>{% if order.customer.phone_normalized %}<small dir="ltr">{{ order.customer.phone_normalized }}</small>{% endif %}</div>
     <div class="entity-field"><span class="entity-label">الإجمالي</span><strong>{{ order.total }} · العملة #{{ order.currency_id }}</strong></div>
     <div class="entity-field"><span class="entity-label">الحالة</span><strong>{{ order_status_labels.get(order.status, "حالة غير معروفة") }}</strong></div>
     <div class="entity-field"><span class="entity-label">الدفع</span><strong>{{ payment_status_labels.get(order.payment_status, "غير محدد") }}</strong></div>
