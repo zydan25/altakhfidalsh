@@ -1,3 +1,4 @@
+{% from "admin/accounting/_account_picker.html" import account_picker %}
 {% extends "admin/base.html" %}
 {% block content %}
 <section class="module-header"><span class="eyebrow">المحاسبة · التسجيلات</span><h2>القيود اليومية</h2><p class="muted">كل قيد مرحّل يجب أن يتوازن إجمالي المدين مع إجمالي الدائن. القيود المرحلة تحفظ أثرًا تدقيقيًا ولا تحذف مباشرة.</p></section>
@@ -15,7 +16,7 @@
     <div class="accounting-journal-line-list" id="accountingJournalLineList">
       {% for n in range(4) %}
       <div class="accounting-journal-line" data-accounting-line>
-        <label>الحساب<select name="account_id"><option value="">اختر حسابًا</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.code }} · {{ account.name }}</option>{% endfor %}</select></label>
+        <label>الحساب{{ account_picker('account_id','الحساب',account_tree,placeholder='اختر الحساب',allowed_ids=postable_ids,required=False,picker_id='journalAccount' ~ n) }}</label>
         <label>مدين<input name="debit" type="number" inputmode="decimal" min="0" step="0.0001" placeholder="0"></label>
         <label>دائن<input name="credit" type="number" inputmode="decimal" min="0" step="0.0001" placeholder="0"></label>
         <label>بيان السطر<input name="line_description" placeholder="اختياري"></label>
