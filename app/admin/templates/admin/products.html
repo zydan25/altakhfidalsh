@@ -54,9 +54,47 @@
   <a class="{% if view == 'all' %}is-current{% endif %}" href="/admin/products?view=all">الكل <span>{{ active_count + archived_count }}</span></a>
 </nav>
 
-<section class="admin-product-cards">
+{% if admin_layout_theme == "water" %}
+<section class="water-list-toolbar product-filter-tools" data-product-filters aria-label="بحث وفرز المنتجات">
+  <label class="water-search-field">
+    <span><i class="bi bi-search" aria-hidden="true"></i> البحث عن منتج</span>
+    <input id="productTextSearch" type="search" placeholder="اسم المنتج أو الرمز..." autocomplete="off">
+  </label>
+  <div class="product-category-picker">
+    <button type="button" class="product-category-trigger" id="productCategoryTrigger" aria-expanded="false" aria-controls="productCategoryMenu">
+      <span>التصنيف</span>
+      <strong id="selectedProductCategory">كل التصنيفات</strong>
+      <i class="bi bi-chevron-down" aria-hidden="true"></i>
+    </button>
+    <div class="product-category-menu" id="productCategoryMenu" hidden>
+      <div class="product-category-menu-head">
+        <button type="button" class="primary-button compact" id="productCategorySearchButton"><i class="bi bi-search" aria-hidden="true"></i> بحث</button>
+        <input type="search" id="productCategorySearch" placeholder="ابحث عن تصنيف..." autocomplete="off">
+      </div>
+      <div class="product-category-options" id="productCategoryOptions">
+        <button type="button" class="product-category-choice is-selected" data-product-category-id="" data-product-category-name="كل التصنيفات" data-category-search="كل التصنيفات">كل التصنيفات</button>
+        {% for category in category_options %}
+        <button type="button" class="product-category-choice" data-product-category-id="{{ category.id }}" data-product-category-name="{{ category.label }}" data-category-search="{{ category.label|lower }}">{{ category.label }}</button>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <label class="water-sort-field">
+    <span><i class="bi bi-sort-down" aria-hidden="true"></i> ترتيب المنتجات</span>
+    <select id="productSortOrder">
+      <option value="default">الأحدث إضافة</option>
+      <option value="stock-asc">الأقل كمية في المخزون</option>
+      <option value="orders-desc">الأكثر طلبًا</option>
+      <option value="price-asc">السعر الأقل</option>
+    </select>
+  </label>
+  <div class="water-filter-summary"><span id="productResultsCount">عرض {{ products|length }} منتج</span><button type="button" id="clearProductFilters" class="water-text-button">إعادة ضبط</button></div>
+</section>
+{% endif %}
+
+<section class="admin-product-cards" id="adminProductCards">
 {% for product in products %}
-<article class="admin-product-card {% if not product.is_active %}is-archived{% endif %}">
+<article class="admin-product-card {% if not product.is_active %}is-archived{% endif %}" data-product-id="{{ product.id }}" data-product-search="{{ (product.name ~ ' ' ~ product.sku)|lower }}" data-category-ids="{{ product._admin_category_ids|join(',') }}" data-stock="{{ product._admin_stock_quantity }}" data-orders="{{ product._admin_order_quantity }}" data-price="{{ product.base_price }}">
   <div class="admin-product-card-media">
     {% if product._admin_image_url %}<img src="{{ product._admin_image_url }}" alt="{{ product.name }}" loading="lazy">
     {% else %}<div class="admin-product-card-placeholder" aria-hidden="true">▧</div>{% endif %}
@@ -90,7 +128,16 @@
       <span><b>{{ product._admin_variant_count }}</b> متغير</span>
       <span><b>{{ product._admin_badge_count }}</b> شارة</span>
       <span><b>{{ "منشور" if product.status == "published" else ("مسودة" if product.status == "draft" else product.status) }}</b></span>
+      {% if admin_layout_theme == "water" %}
+      <span class="product-stock-stat"><i class="bi bi-box-seam" aria-hidden="true"></i> {{ product._admin_stock_quantity }} متاح</span>
+      <span class="product-order-stat"><i class="bi bi-cart-check" aria-hidden="true"></i> {{ product._admin_order_quantity }} طلب</span>
+      {% endif %}
     </div>
+    {% if admin_layout_theme == "water" and product._admin_category_names %}
+    <div class="admin-product-category-tags" aria-label="تصنيفات المنتج">
+      {% for category_name in product._admin_category_names[:2] %}<span>{{ category_name }}</span>{% endfor %}
+    </div>
+    {% endif %}
     <div class="admin-product-card-actions">
       <a class="primary-button compact" href="/admin/products/{{ product.id }}">فتح المنتج</a>
       <a class="ghost-button compact pro-edit-button" href="/admin/products/{{ product.id }}/edit-pro">تعديل برو</a>
@@ -107,6 +154,13 @@
 </section>
 {% endfor %}
 </section>
+{% if admin_layout_theme == "water" %}
+<div class="water-filter-empty panel" id="productFilterEmpty" hidden>
+  <i class="bi bi-search" aria-hidden="true"></i>
+  <strong>لا توجد منتجات مطابقة</strong>
+  <span>غيّر عبارة البحث أو اختر تصنيفًا آخر.</span>
+</div>
+{% endif %}
 
 <script>
 (() => {
