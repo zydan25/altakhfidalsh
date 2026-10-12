@@ -7,6 +7,7 @@ from .security import init_admin_security
 from .whatsapp import register_whatsapp_admin
 from .pricing_views import register_pricing_views
 from .layout_theme import register_layout_theme_route
+from .accounting_views import register_accounting_views
 
 admin_bp = Blueprint(
     "admin",
@@ -21,3 +22,4 @@ init_admin_security(admin_bp)
 register_whatsapp_admin(admin_bp)
 register_pricing_views(admin_bp)
 register_layout_theme_route(admin_bp)
+register_accounting_views(admin_bp)
