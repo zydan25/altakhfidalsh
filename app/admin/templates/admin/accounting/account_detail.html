@@ -1,0 +1,55 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">المحاسبة · تفاصيل الحساب</span>
+  {% if account %}<h2>{{ account.code }} · {{ account.name }}</h2><p class="muted">{{ account_type_labels.get(account.account_type,account.account_type) }} · {{ "حساب تجميعي" if account.is_group else "حساب تفصيلي" }}</p>{% else %}<h2>تفاصيل الحساب</h2>{% endif %}
+  <div class="accounting-voucher-toolbar">
+    <a class="accounting-voucher-kind-btn" href="/admin/accounting/accounts"><i class="bi bi-diagram-3"></i> شجرة الحسابات</a>
+    <a class="accounting-voucher-kind-btn" href="/admin/accounting/ledger?account_id={{ account.id if account else '' }}"><i class="bi bi-journal-text"></i> دفتر الأستاذ</a>
+    <a class="accounting-voucher-kind-btn" href="/admin/accounting/reports/accounts/{{ account.id if account else '' }}?currency={{ currency or 'YER' }}"><i class="bi bi-file-earmark-bar-graph"></i> التقرير</a>
+  </div>
+</section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if account %}
+<section class="accounting-summary-grid">
+  <article class="panel accounting-summary-card"><div><small>الرصيد الافتتاحي · {{ currency }}</small><strong>{{ "%.2f"|format(opening|float) }}</strong></div></article>
+  <article class="panel accounting-summary-card"><div><small>الرصيد الختامي · {{ currency }}</small><strong>{{ "%.2f"|format(closing|float) }}</strong></div></article>
+  <article class="panel accounting-summary-card"><div><small>الحالة</small><strong>{{ "نشط" if account.is_active else "غير نشط" }}</strong></div></article>
+</section>
+<section class="panel accounting-account-card" style="margin-bottom:12px">
+  <div class="accounting-account-heading"><span class="accounting-account-code">{{ account.code }}</span><span class="accounting-account-type">{{ account_type_labels.get(account.account_type,account.account_type) }}</span>{% if account.system_key %}<span class="accounting-system-lock"><i class="bi bi-shield-lock-fill"></i> حساب نظامي</span>{% endif %}</div>
+  <div class="accounting-account-title"><strong>{{ account.name }}</strong></div>
+  <div class="accounting-account-meta"><span>{{ "حساب تجميعي" if account.is_group else "حساب تفصيلي" }}</span><span>{{ "يسمح بالقيد المباشر" if account.allow_manual_posting else "غير قابل للقيد المباشر" }}</span>{% if account.description %}<span>{{ account.description }}</span>{% endif %}</div>
+  {% if not account.system_key %}
+  <details class="accounting-edit-panel"><summary><i class="bi bi-pencil-square"></i> تعديل بيانات الحساب</summary>
+  <form method="post" action="/admin/accounting/accounts" class="accounting-form-grid">
+    <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ account.id }}">
+    <label>الاسم<input name="name" value="{{ account.name }}" required></label>
+    <label>الحساب الأب<select name="parent_id" required>{% for node in parent_tree %}{% set parent=node.account %}{% if parent.id != account.id %}<option value="{{ parent.id }}" {% if parent.id == account.parent_id %}selected{% endif %}>{{ parent.code }} · {{ parent.name }}</option>{% endif %}{% endfor %}</select></label>
+    <label>الوصف<input name="description" value="{{ account.description or '' }}"></label>
+    <label class="accounting-inline-check"><input type="checkbox" name="is_active" {% if account.is_active %}checked{% endif %}><span>نشط</span></label>
+    {% if not account.is_group %}<label class="accounting-inline-check"><input type="checkbox" name="allow_manual_posting" {% if account.allow_manual_posting %}checked{% endif %}><span>السماح بالقيد المباشر</span></label>{% endif %}
+    <button type="submit" class="primary-button">حفظ التعديلات</button>
+  </form></details>
+  {% endif %}
+</section>
+
+{% if children_summaries %}
+<section class="panel accounting-report-table">
+  <div class="panel-heading"><div><span class="eyebrow">الحسابات التابعة</span><h3>الفروع المباشرة</h3></div><span class="status-pill">{{ children_summaries|length }}</span></div>
+  <div class="accounting-account-list">{% for row in children_summaries %}<a class="accounting-child-account" href="/admin/accounting/accounts/{{ row.account.id }}"><span><strong>{{ row.account.name }}</strong><small>{{ row.account.code }} · {{ "نشط" if row.account.is_active else "غير نشط" }}</small></span><b>{{ "%.2f"|format(row.balance|float) }} {{ currency }}</b><i class="bi bi-chevron-left"></i></a>{% endfor %}</div>
+</section>
+{% endif %}
+
+<section class="panel accounting-report-table">
+  <div class="panel-heading"><div><span class="eyebrow">دفتر الأستاذ</span><h3>حركات الحساب</h3></div></div>
+  <form method="get" class="accounting-filter-form">
+    <label>من<input type="date" name="start" value="{{ start }}"></label><label>إلى<input type="date" name="end" value="{{ end }}"></label>
+    <label>العملة<select name="currency">{% for item in currencies %}<option value="{{ item.code }}" {% if item.code == currency %}selected{% endif %}>{{ item.name }} · {{ item.code }}</option>{% endfor %}</select></label><button type="submit" class="primary-button"><i class="bi bi-search"></i> تحديث</button>
+  </form>
+  <div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>القيد</th><th>البيان</th><th>مدين</th><th>دائن</th><th>الرصيد</th></tr></thead><tbody>
+  {% for row in movements %}<tr><td>{{ row.entry.entry_date }}</td><td><a href="/admin/accounting/journal?q={{ row.entry.number|urlencode }}">{{ row.entry.number }}</a></td><td>{{ row.line.description or row.entry.description }}</td><td>{{ "%.2f"|format(row.line.debit|float) }}</td><td>{{ "%.2f"|format(row.line.credit|float) }}</td><td>{{ "%.2f"|format(row.balance|float) }}</td></tr>{% else %}<tr><td colspan="6">لا توجد حركات لهذا الحساب في الفترة المحددة.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endif %}
+{% endblock %}
