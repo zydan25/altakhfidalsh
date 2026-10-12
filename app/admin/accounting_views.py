@@ -97,51 +97,71 @@ def _account_tree(accounts):
 
 
 def _account_period_rows(start, end, currency=None):
-    q = (
-        db.session.query(
-            LedgerAccount.id,
-            LedgerAccount.code,
-            LedgerAccount.name,
-            LedgerAccount.account_type,
-            AccountingJournalEntry.currency_code,
-            func.coalesce(func.sum(AccountingJournalLine.debit), 0).label("debit"),
-            func.coalesce(func.sum(AccountingJournalLine.credit), 0).label("credit"),
+    """Build a currency-separated period trial balance without per-account queries."""
+    def aggregate(upper=None, lower=None):
+        q = (
+            db.session.query(
+                AccountingJournalLine.account_id,
+                AccountingJournalEntry.currency_code,
+                func.coalesce(func.sum(AccountingJournalLine.debit), 0).label("debit"),
+                func.coalesce(func.sum(AccountingJournalLine.credit), 0).label("credit"),
+            )
+            .join(AccountingJournalEntry, AccountingJournalEntry.id == AccountingJournalLine.entry_id)
+            .filter(
+                AccountingJournalEntry.status == "posted",
+                LedgerAccount.id == AccountingJournalLine.account_id,
+            )
+            .join(LedgerAccount, LedgerAccount.id == AccountingJournalLine.account_id)
         )
-        .join(AccountingJournalLine, AccountingJournalLine.account_id == LedgerAccount.id)
-        .join(AccountingJournalEntry, AccountingJournalEntry.id == AccountingJournalLine.entry_id)
-        .filter(
-            LedgerAccount.is_group.is_(False),
-            AccountingJournalEntry.status == "posted",
-            AccountingJournalEntry.entry_date >= start,
-            AccountingJournalEntry.entry_date <= end,
-        )
-    )
-    if currency:
-        q = q.filter(AccountingJournalEntry.currency_code == currency)
-    q = q.group_by(
-        LedgerAccount.id,
-        LedgerAccount.code,
-        LedgerAccount.name,
-        LedgerAccount.account_type,
-        AccountingJournalEntry.currency_code,
-    ).order_by(LedgerAccount.code, AccountingJournalEntry.currency_code)
+        if upper:
+            q = q.filter(AccountingJournalEntry.entry_date <= upper)
+        if lower:
+            q = q.filter(AccountingJournalEntry.entry_date >= lower)
+        if currency:
+            q = q.filter(AccountingJournalEntry.currency_code == currency)
+        return {
+            (row.account_id, row.currency_code): (
+                Decimal(str(row.debit or 0)),
+                Decimal(str(row.credit or 0)),
+            )
+            for row in q.group_by(
+                AccountingJournalLine.account_id,
+                AccountingJournalEntry.currency_code,
+            ).all()
+        }
+
+    period = aggregate(upper=end, lower=start)
+    opening = aggregate(upper=start - timedelta(days=1))
+    closing = aggregate(upper=end)
+    currency_keys = set(period) | set(closing)
+    if not currency_keys:
+        return []
+
+    accounts = {
+        account.id: account
+        for account in LedgerAccount.query.filter(LedgerAccount.is_group.is_(False)).all()
+    }
     rows = []
-    for row in q.all():
-        debit = Decimal(str(row.debit or 0))
-        credit = Decimal(str(row.credit or 0))
+    for account_id, currency_code in currency_keys:
+        account = accounts.get(account_id)
+        if not account:
+            continue
+        debit, credit = period.get((account_id, currency_code), (Decimal("0"), Decimal("0")))
+        open_debit, open_credit = opening.get((account_id, currency_code), (Decimal("0"), Decimal("0")))
+        close_debit, close_credit = closing.get((account_id, currency_code), (Decimal("0"), Decimal("0")))
         rows.append({
-            "id": row.id,
-            "code": row.code,
-            "name": row.name,
-            "account_type": row.account_type,
-            "currency_code": row.currency_code,
-            "opening": ledger_balance(row.id, currency_code=row.currency_code, end_date=start - timedelta(days=1)),
+            "id": account.id,
+            "code": account.code,
+            "name": account.name,
+            "account_type": account.account_type,
+            "currency_code": currency_code,
+            "opening": open_debit - open_credit,
             "debit": debit,
             "credit": credit,
-            "closing": ledger_balance(row.id, currency_code=row.currency_code, end_date=end),
+            "closing": close_debit - close_credit,
         })
+    rows.sort(key=lambda row: (row["currency_code"], row["code"]))
     return rows
-
 
 def register_accounting_views(admin_bp):
     @admin_bp.get("/accounting")
@@ -247,7 +267,10 @@ def register_accounting_views(admin_bp):
                     account.parent_id = parent.id
                     account.account_type = parent.account_type
                     account.description = (request.form.get("description") or "").strip() or None
-                    account.is_active = request.form.get("is_active") == "on"
+                    desired_active = request.form.get("is_active") == "on"
+                    if account.is_group and not desired_active and any(child.is_active for child in account.children):
+                        raise ValueError("لا يمكن تعطيل حساب تجميعي ما دامت له حسابات فرعية نشطة.")
+                    account.is_active = desired_active
                     account.allow_manual_posting = (not account.is_group) and request.form.get("allow_manual_posting") == "on"
                 elif action == "toggle":
                     if account.is_group and account.children:
