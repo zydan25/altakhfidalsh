@@ -135,12 +135,12 @@
     cards.forEach((card, i) => { card.dataset.defaultOrder = String(i); });
     const search = $("#orderSearch"), payment = $("#orderPaymentFilter"), sortSelect = $("#orderSort");
     const count = $("#orderResultsCount"), empty = $("#orderFilterEmpty"), clear = $("#clearOrderFilters");
-    const tabs = $("[data-order-group]", toolbar); let group = "all";
+    const tabs = $$("[data-order-group]", toolbar); let group = "all";
     const customerPicker = $("[data-order-customer-picker]", toolbar);
     const customerTrigger = $("#orderCustomerTrigger"), customerMenu = $("#orderCustomerMenu");
     const customerSearch = $("#orderCustomerSearch"), customerSearchButton = $("#orderCustomerSearchButton");
     const customerLabel = $("#selectedOrderCustomer");
-    const customerChoices = $(".water-customer-choice", toolbar);
+    const customerChoices = $$(".water-customer-choice", toolbar);
     let selectedCustomer = "";
     const newStatuses = new Set(["created", "awaiting_payment"]);
     const processing = new Set(["paid", "processing", "shipped", "in_transit", "intransit", "shiped"]);
