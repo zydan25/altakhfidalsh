@@ -179,6 +179,27 @@
 {% endfor %}
 </section>
 
+{% if archived_banners %}
+<section class="panel archived-banner-panel">
+  <details>
+    <summary class="archived-banner-heading"><span><i class="bi bi-archive" aria-hidden="true"></i> البانرات المؤرشفة</span><span class="status-pill">{{ archived_banners|length }}</span></summary>
+    <div class="archived-banner-grid">
+    {% for archived in archived_banners %}
+      {% set archived_asset = asset_map.get(archived.mobile_asset_id or archived.image_asset_id) %}
+      <article class="archived-banner-card">
+        {% if archived_asset %}<img src="{{ archived_asset.url }}" alt="{{ archived.name }}" loading="lazy">{% else %}<div class="archived-banner-no-image"><i class="bi bi-image" aria-hidden="true"></i> بدون صورة</div>{% endif %}
+        <div class="archived-banner-info"><strong>{{ archived.name }}</strong><small>{{ archived.title or "بدون عنوان" }}</small><span>أُرشف في {{ archived.updated_at.strftime('%Y-%m-%d') if archived.updated_at else "—" }}</span></div>
+        <form method="post" onsubmit="return confirm('استعادة هذا البانر إلى القائمة النشطة؟')">
+          <input type="hidden" name="action" value="restore_banner"><input type="hidden" name="id" value="{{ archived.id }}">
+          <button class="primary-button compact" type="submit"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> استعادة</button>
+        </form>
+      </article>
+    {% endfor %}
+    </div>
+  </details>
+</section>
+{% endif %}
+
 <div class="admin-modal" data-modal="bannerCreate" hidden>
   <div class="admin-modal-backdrop" data-close-modal></div>
   <section class="admin-modal-dialog banner-modal-dialog">
