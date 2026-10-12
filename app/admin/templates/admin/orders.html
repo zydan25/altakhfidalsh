@@ -6,10 +6,28 @@
     <div><h2>الطلبات</h2><p class="muted">كل طلب يفتح كسجل تشغيل كامل يحتوي الأصناف والاختيارات والسعر والدفع والشحن والمحادثة والتاريخ.</p></div>
   </div>
 </section>
-
-<section class="entity-grid">
+{% if admin_layout_theme == "water" %}
+<section class="water-list-toolbar" data-order-controls aria-label="بحث وفرز الطلبات">
+  <label class="water-search-field"><span><i class="bi bi-search" aria-hidden="true"></i> البحث عن طلب</span><input id="orderSearch" type="search" placeholder="رقم الطلب أو رقم العميل..." autocomplete="off"></label>
+  <div class="water-filter-tabs" role="group" aria-label="حالة الطلب">
+    <button type="button" class="is-active" data-order-group="all">الكل</button>
+    <button type="button" data-order-group="new">طلبات جديدة</button>
+    <button type="button" data-order-group="processing">قيد المعالجة</button>
+    <button type="button" data-order-group="completed">مكتملة</button>
+    <button type="button" data-order-group="cancelled">ملغاة</button>
+  </div>
+  <div class="water-list-toolbar-row">
+    <label class="water-sort-field"><span><i class="bi bi-credit-card" aria-hidden="true"></i> حالة الدفع</span><select id="orderPaymentFilter"><option value="all">جميع حالات الدفع</option>{% for key, label in payment_status_labels.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
+    <label class="water-sort-field"><span><i class="bi bi-sort-down" aria-hidden="true"></i> الترتيب</span><select id="orderSort"><option value="newest">الأحدث</option><option value="oldest">الأقدم</option><option value="total-desc">الأعلى إجماليًا</option><option value="total-asc">الأقل إجماليًا</option></select></label>
+  </div>
+  <div class="water-filter-summary"><span id="orderResultsCount">عرض {{ orders|length }} طلب</span><button type="button" id="clearOrderFilters" class="water-text-button">إعادة ضبط</button></div>
+</section>
+<div class="water-filter-empty panel" id="orderFilterEmpty" hidden><i class="bi bi-bag-x" aria-hidden="true"></i><strong>لا توجد طلبات مطابقة</strong><span>غيّر حالة الطلب أو البحث.</span></div>
+{% endif %}
+<section class="entity-grid" id="adminOrderCards">
   {% for order in orders %}
-  <article class="entity-card panel">
+  <article class="entity-card panel" data-order-id="{{ order.id }}" data-order-number="{{ order.order_no|lower }}" data-order-search="{{ (order.order_no ~ ' ' ~ order.customer_id)|lower }}" data-order-status="{{ order.status|lower }}" data-payment-status="{{ order.payment_status|lower }}" data-order-total="{{ order.total }}" data-shipping-status="{{ order.shipping_status|lower }}">
+    {% if admin_layout_theme == "water" %}<div class="water-record-top"><span class="water-record-icon"><i class="bi bi-bag-check-fill" aria-hidden="true"></i></span><span class="water-record-id">#{{ order.id }}</span></div>{% endif %}
     <div class="entity-field"><span class="entity-label">رقم الطلب</span><strong>{{ order.order_no }}</strong></div>
     <div class="entity-field"><span class="entity-label">العميل</span><strong>#{{ order.customer_id }}</strong></div>
     <div class="entity-field"><span class="entity-label">الإجمالي</span><strong>{{ order.total }} · العملة #{{ order.currency_id }}</strong></div>
@@ -22,4 +40,5 @@
   <section class="empty-state panel"><div class="empty-icon">▣</div><h3>لا توجد طلبات</h3><p class="muted">ستظهر الطلبات هنا فور وصولها.</p></section>
   {% endfor %}
 </section>
+{% if admin_layout_theme == "water" %}<script src="{{ url_for('admin.static', filename='water-admin.js') }}?v=20261012-1" defer></script>{% endif %}
 {% endblock %}
