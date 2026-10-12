@@ -573,10 +573,30 @@ def exchange_rate_to_yer(currency_code, session=None):
     if source is None or yer is None:
         raise ValueError("عملة العملية غير مفعّلة أو عملة الريال اليمني غير مهيأة.")
     from .pricing import resolve_exchange_rate
+    # Prefer a direct quote, then its inverse, then triangulate through the
+    # configured pricing base currency (normally SAR). Never invent a rate.
     try:
         return Decimal(str(resolve_exchange_rate(base_currency_id=source.id, quote_currency_id=yer.id)))
-    except LookupError as exc:
-        raise ValueError(f"لا يوجد سعر صرف معتمد للتحويل من {code} إلى الريال اليمني.") from exc
+    except LookupError:
+        try:
+            inverse = Decimal(str(resolve_exchange_rate(base_currency_id=yer.id, quote_currency_id=source.id)))
+            if inverse > 0:
+                return Decimal("1") / inverse
+        except LookupError:
+            pass
+    with session.no_autoflush:
+        pivot = session.query(Currency).filter_by(is_base=True, is_active=True).first()
+        if pivot is None:
+            pivot = session.query(Currency).filter_by(code="SAR", is_active=True).first()
+    if pivot is not None:
+        try:
+            pivot_to_source = Decimal(str(resolve_exchange_rate(base_currency_id=pivot.id, quote_currency_id=source.id)))
+            pivot_to_yer = Decimal(str(resolve_exchange_rate(base_currency_id=pivot.id, quote_currency_id=yer.id)))
+            if pivot_to_source > 0:
+                return pivot_to_yer / pivot_to_source
+        except LookupError:
+            pass
+    raise ValueError(f"لا يوجد سعر صرف مباشر أو قابل للتحويل من {code} إلى الريال اليمني.")
 
 
 def account_is_in_cash_tree(account_id, session=None):
