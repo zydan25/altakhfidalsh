@@ -1,14 +1,14 @@
 {% extends "admin/base.html" %}
 {% from "admin/accounting/_account_picker.html" import account_picker %}
 {% block content %}
-<section class="module-header">
+<div class="order-detail-page"><section class="module-header">
   <span class="eyebrow">ملف الطلب الكامل</span>
   <div class="split-heading">
     <div>
       <h2>{{ order.order_no }}</h2>
       <p class="muted">سجل تاريخي للطلب كما استلمه النظام، بما في ذلك السعر وقت الشراء والاختيارات والمحادثة والأحداث.</p>
     </div>
-    <a class="ghost-button" href="/admin/orders">العودة للطلبات</a>
+    <div class="order-header-actions"><button type="button" class="primary-button" data-open-order-payment><i class="bi bi-cash-coin" aria-hidden="true"></i> تسجيل الدفع</button><a class="ghost-button" href="/admin/orders">العودة للطلبات</a></div>
   </div>
 </section>
 
@@ -22,40 +22,76 @@
   <article class="metric-card"><div><span class="metric-label">الشحن</span><strong>{{ shipping_status_labels.get(order.shipping_status, "غير محدد") }}</strong></div></article>
   <article class="metric-card"><div><span class="metric-label">مجموعة التسعير</span><strong>#{{ order.pricing_group_id or "—" }}</strong></div></article>
 </section>
-<section class="panel" style="margin-top:12px">
-  <div class="panel-heading">
-    <div>
-      <span class="eyebrow">التواصل</span>
-      <h3>محادثة الطلب</h3>
-    </div>
-    {% if order_unread_messages > 0 %}
-      <span class="status-pill">{{ order_unread_messages }} جديدة</span>
-    {% endif %}
-  </div>
-  <div class="mini-callout">
-    <strong>
-      {% if order_conversation %}
-        هذه محادثة واحدة مرتبطة بالطلب وتحتوي كامل الرسائل والتحديثات.
-      {% else %}
-        لم تبدأ محادثة الطلب بعد.
-      {% endif %}
-    </strong>
-    <span>رسائل العميل والإدارة والنظام والتحديثات المرتبطة بالطلب تظهر في نفس المحادثة.</span>
-  </div>
-  <div style="margin-top:10px">
-    {% if order_conversation %}
-      <a class="primary-button" href="{{ url_for('admin.conversation_detail_page', conversation_id=order_conversation.id) }}">فتح محادثة الطلب{% if order_unread_messages > 0 %} · {{ order_unread_messages }} جديدة{% endif %}</a>
-    {% else %}
-      <form method="post">
-        <input type="hidden" name="action" value="message">
-        <textarea name="body" rows="2" required placeholder="اكتب أول رسالة للعميل..."></textarea>
-        <button class="primary-button" style="margin-top:8px" type="submit">إنشاء المحادثة وإرسال</button>
-      </form>
-    {% endif %}
-  </div>
-</section>
+<style>
+.order-detail-page{--order-line:#e3eaf2;--order-muted:#667085;--order-ink:#172033;--order-accent:#1d65d8;max-width:1200px;margin-inline:auto;padding-bottom:28px}
+.order-detail-page .module-header{margin-bottom:12px}
+.order-detail-page .split-heading{align-items:center;gap:14px}
+.order-detail-page .order-header-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.order-detail-page .order-header-actions .primary-button,.order-detail-page .order-header-actions .ghost-button{display:inline-flex;gap:7px;align-items:center;justify-content:center;text-decoration:none;min-height:40px}
+.order-detail-page .metric-grid{gap:9px}
+.order-detail-page .metric-card{min-width:0;border:1px solid var(--order-line);border-radius:15px}
+.order-detail-page .metric-card strong{overflow-wrap:anywhere}
+.order-detail-page .order-detail-tabs{display:flex;gap:7px;margin:14px 0;padding:7px;border:1px solid var(--order-line);border-radius:15px;background:var(--surface,#fff);overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.order-detail-page .order-tab-button{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid transparent;border-radius:11px;min-height:42px;padding:9px 14px;background:transparent;color:var(--order-muted);font:inherit;font-size:12px;font-weight:850;cursor:pointer;scroll-snap-align:start;white-space:nowrap}
+.order-detail-page .order-tab-button[aria-selected=true]{background:#eaf2ff;border-color:#cbdcff;color:#174ea6;box-shadow:inset 0 0 0 1px #d9e7ff}
+.order-detail-page .order-tab-panel[hidden]{display:none!important}
+.order-detail-page .order-tab-panel{min-width:0;animation:orderPanelIn .16s ease-out}
+.order-detail-page .order-panel-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.order-detail-page .order-panel-heading h3{margin:0;font-size:15px}
+.order-detail-page .order-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.order-detail-page .order-action-disclosure{border:1px solid var(--order-line);border-radius:13px;background:var(--surface-soft,#f8fafc);padding:0 11px;margin-top:10px;min-width:0}
+.order-detail-page .order-action-disclosure>summary{list-style:none;display:flex;align-items:center;gap:9px;min-height:47px;cursor:pointer;font-size:12px;font-weight:900;color:var(--order-ink);user-select:none}
+.order-detail-page .order-action-disclosure>summary::-webkit-details-marker{display:none}
+.order-detail-page .order-action-disclosure>summary>i:first-child{font-size:16px;color:var(--order-accent)}
+.order-detail-page .order-disclosure-chevron{margin-inline-start:auto;transition:transform .18s ease;color:var(--order-muted)}
+.order-detail-page .order-action-disclosure[open]>summary{border-bottom:1px solid var(--order-line);margin-bottom:12px}
+.order-detail-page .order-action-disclosure[open] .order-disclosure-chevron{transform:rotate(180deg)}
+.order-detail-page .order-action-disclosure .form-stack{display:grid;gap:11px;padding-bottom:12px;min-width:0}
+.order-detail-page .order-action-disclosure input,.order-detail-page .order-action-disclosure select,.order-detail-page .order-action-disclosure textarea{width:100%;max-width:100%;box-sizing:border-box}
+.order-detail-page .order-tab-panel>.panel,.order-detail-page .order-tab-panel .panel{border:1px solid var(--order-line);border-radius:16px}
+.order-detail-page .order-tab-panel .entity-grid{gap:9px}
+.order-detail-page .order-tab-panel .entity-field,.order-detail-page .order-tab-panel .stack-row{min-width:0;overflow-wrap:anywhere}
+.order-detail-page .order-accounting-payment-overlay{align-items:flex-start;justify-content:center;overflow-y:auto;overscroll-behavior:contain;padding:max(10px,env(safe-area-inset-top)) 12px max(14px,env(safe-area-inset-bottom))}
+.order-detail-page .order-accounting-payment-overlay .accounting-modal-sheet{width:min(100%,700px);max-height:none;overflow:visible;position:relative;isolation:isolate;margin:auto 0;border-radius:18px;padding:clamp(12px,2vw,20px)}
+.order-detail-page .accounting-order-payment-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.order-detail-page .accounting-order-payment-form>.accounting-voucher-field{display:grid;align-content:start;gap:7px;min-width:0}
+.order-detail-page .accounting-order-payment-form>.accounting-voucher-field:nth-child(4){grid-column:1/-1}
+.order-detail-page .accounting-order-payment-form input,.order-detail-page .accounting-order-payment-form select{min-width:0;width:100%;box-sizing:border-box}
+.order-detail-page .order-accounting-payment-overlay .account-tree-picker{position:relative}
+.order-detail-page .order-accounting-payment-overlay .account-tree-picker.is-open{z-index:10050}
+.order-detail-page .order-accounting-payment-overlay .account-picker-panel{z-index:10060;max-height:min(460px,55vh);overflow:hidden;box-shadow:0 18px 50px #17203335}
+.order-detail-page .order-accounting-payment-overlay .account-picker-tree{max-height:min(330px,38vh);overflow:auto;overscroll-behavior:contain}
+.order-detail-page .accounting-voucher-form-actions{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--order-line)}
+.order-detail-page .accounting-voucher-form-actions>span{font-size:11px;line-height:1.7;color:var(--order-muted);flex:1 1 220px}
+.order-detail-page .accounting-voucher-submit{min-height:44px}
+@keyframes orderPanelIn{from{opacity:.6;transform:translateY(3px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:720px){
+ .order-detail-page .split-heading{align-items:flex-start;flex-direction:column}
+ .order-detail-page .order-header-actions{width:100%;display:grid;grid-template-columns:1fr 1fr}
+ .order-detail-page .order-header-actions>*{width:100%;box-sizing:border-box}
+ .order-detail-page .metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .order-detail-page .order-detail-tabs{margin-inline:-2px;gap:5px;padding:5px}
+ .order-detail-page .order-tab-button{min-height:40px;padding:8px 11px;font-size:11px}
+ .order-detail-page .order-action-grid{grid-template-columns:minmax(0,1fr)}
+ .order-detail-page .accounting-order-payment-form{grid-template-columns:minmax(0,1fr)}
+ .order-detail-page .accounting-order-payment-form>.accounting-voucher-field:nth-child(4),.order-detail-page .accounting-voucher-form-actions{grid-column:auto}
+ .order-detail-page .accounting-voucher-form-actions{align-items:stretch;flex-direction:column}
+ .order-detail-page .accounting-voucher-submit{width:100%;justify-content:center}
+ .order-detail-page .order-accounting-payment-overlay{padding:8px}
+ .order-detail-page .order-accounting-payment-overlay .accounting-modal-sheet{width:100%;box-sizing:border-box}
+}
+@media(prefers-reduced-motion:reduce){.order-detail-page .order-tab-panel{animation:none}}
+</style>
 
-<section class="two-panel">
+<nav class="order-detail-tabs" role="tablist" aria-label="أقسام تفاصيل الطلب">
+  <button type="button" class="order-tab-button" role="tab" id="orderTabSummary" aria-selected="true" aria-controls="orderPanelSummary" data-order-tab="summary"><i class="bi bi-card-text" aria-hidden="true"></i> الملخص</button>
+  <button type="button" class="order-tab-button" role="tab" tabindex="-1" aria-selected="false" aria-controls="orderPanelItems" data-order-tab="items"><i class="bi bi-bag" aria-hidden="true"></i> الأصناف</button>
+  <button type="button" class="order-tab-button" role="tab" tabindex="-1" aria-selected="false" aria-controls="orderPanelActions" data-order-tab="actions"><i class="bi bi-sliders" aria-hidden="true"></i> الإجراءات</button>
+  <button type="button" class="order-tab-button" role="tab" tabindex="-1" aria-selected="false" aria-controls="orderPanelPayments" data-order-tab="payments"><i class="bi bi-receipt" aria-hidden="true"></i> الدفع والسجل</button>
+  <button type="button" class="order-tab-button" role="tab" tabindex="-1" aria-selected="false" aria-controls="orderPanelShipping" data-order-tab="shipping"><i class="bi bi-truck" aria-hidden="true"></i> الشحن والإرجاع</button>
+  <button type="button" class="order-tab-button" role="tab" tabindex="-1" aria-selected="false" aria-controls="orderPanelCommunication" data-order-tab="communication"><i class="bi bi-chat-dots" aria-hidden="true"></i> المحادثة</button>
+</nav>
+<section class="order-tab-panel" id="orderPanelSummary" role="tabpanel" aria-labelledby="orderTabSummary" data-order-tab-panel="summary">
   <article class="panel">
     <div class="panel-heading"><div><span class="eyebrow">العميل</span><h3>{{ order.customer.name or "بدون اسم" }}</h3></div></div>
     <div class="entity-grid">
@@ -70,75 +106,9 @@
       <span>{{ order.address_snapshot.district or "" }} {{ order.address_snapshot.street or "" }} {{ order.address_snapshot.landmark or "" }}</span>
     </div>
   </article>
-
-  <article class="panel">
-    <div class="panel-heading"><div><span class="eyebrow">إدارة قبل التنفيذ</span><h3>تعديل المحتوى ورسوم التوصيل</h3></div></div>
-    {% if order.status in ["created","awaiting_payment"] %}
-    <form method="post" class="form-stack">
-      <input type="hidden" name="action" value="edit">
-      {% for item in order_items %}
-      <label>الكمية — {{ item.name }} / {{ item.sku }}
-        <input name="qty_{{ item.id }}" type="number" min="0" value="{{ item.qty }}">
-      </label>
-      {% endfor %}
-      <label>ملاحظة الطلب<textarea name="customer_note" rows="2">{{ order.customer_note or "" }}</textarea></label>
-      <button class="primary-button">حفظ التعديل وإعادة الحساب</button>
-    </form>
-    <form method="post" class="form-stack" style="margin-top:10px">
-      <input type="hidden" name="action" value="shipping_fee">
-      <label>رسوم التوصيل النهائية <input name="shipping_fee" type="number" min="0" step="0.01" value="{{ order.shipping }}"></label>
-      <label>ملاحظة الرسوم<textarea name="shipping_note" rows="2">{{ order.shipping_override_note or "" }}</textarea></label>
-      <button class="ghost-button">تعيين/تحديث رسوم التوصيل</button>
-    </form>
-    {% else %}
-      <span class="muted">التعديل متاح فقط قبل بدء التنفيذ.</span>
-    {% endif %}
-  </article>
-  <article class="panel">
-    <div class="panel-heading"><div><span class="eyebrow">إدارة الحالة</span><h3>تشغيل الطلب</h3></div></div>
-    <form method="post" class="form-stack">
-      <input type="hidden" name="action" value="status">
-      <label>الحالة
-        <select name="status" id="orderStatusSelect" data-current-status="{{ order.status }}" data-payment-status="{{ order.payment_status }}">
-          {% for status in status_choices %}<option value="{{ status }}" {% if order.status == status %}selected{% endif %}>{{ order_status_labels.get(status, "حالة غير معروفة") }}</option>{% endfor %}
-        </select>
-      </label>
-      <label>ملاحظة داخلية<textarea name="note" rows="3" placeholder="سبب التغيير أو ملاحظة للمراجعة"></textarea></label>
-      <button class="primary-button" type="submit">حفظ الحالة</button>
-    </form>
-  </article>
 </section>
-
-<div class="accounting-modal-overlay order-accounting-payment-overlay" id="orderAccountingPaymentModal" {% if not payment_form_open %}hidden{% endif %}>
-  <div class="accounting-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="orderAccountingPaymentTitle">
-    <div class="accounting-modal-title">
-      <div><span class="eyebrow">المحاسبة · حساب العميل بالريال اليمني</span><h3 id="orderAccountingPaymentTitle">تسجيل دفع الطلب {{ order.order_no }}</h3><p class="muted" style="font-size:10px;margin-top:5px">{{ (order.customer.name if order.customer else None) or ('عميل #' ~ order.customer_id) }} · المبلغ الافتراضي شامل التوصيل</p></div>
-      <button type="button" class="icon-button" data-close-order-accounting-payment aria-label="إغلاق"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-    </div>
-    <div class="accounting-payment-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>سيُسجّل قيد قيمة الطلب على حساب العميل، ثم يُسجّل قيد الدفعة من الصندوق إلى حساب العميل. تُحوّل العملة المختارة تلقائيًا إلى الريال اليمني في دفتر العميل.</span></div>
-    <form method="post" class="accounting-order-payment-form" id="orderAccountingPaymentForm">
-      <input type="hidden" name="action" value="record_account_payment">
-      <label class="accounting-voucher-field"><span>المبلغ الإجمالي للطلب · شامل التوصيل</span>
-        <input name="amount" id="orderAccountingPaymentAmount" type="number" min="0.0001" step="0.0001" inputmode="decimal" value="{{ order.total }}" required data-money-words data-money-words-target="#orderAccountingPaymentWords" data-money-currency="{{ (currencies|selectattr('id','equalto',order.currency_id)|map(attribute='code')|first) or 'YER' }}">
-        <span class="accounting-amount-words" id="orderAccountingPaymentWords" aria-live="polite"></span>
-      </label>
-      <label class="accounting-voucher-field"><span>عملة الدفع</span>
-        <select name="currency_id" id="orderAccountingPaymentCurrency" required>
-          {% for currency in currencies %}<option value="{{ currency.id }}" data-currency-code="{{ currency.code }}" {% if currency.id == order.currency_id %}selected{% endif %}>{{ currency.name_ar }} · {{ currency.code }}</option>{% endfor %}
-        </select>
-      </label>
-      <label class="accounting-voucher-field"><span>المصدر الحسابي · الصندوق</span>
-        {{ account_picker('cash_account_id','الصندوق',cash_tree,placeholder='اختر صندوق التحصيل',allowed_ids=cashbox_ids,required=True,picker_id='orderAccountingCashPicker') }}
-      </label>
-      <div class="accounting-voucher-form-actions">
-        <span>حساب العميل محفوظ بالريال اليمني؛ لا تتغير عملة دفتر العميل.</span>
-        <button type="submit" class="accounting-voucher-submit is-receipt"><i class="bi bi-check2-circle" aria-hidden="true"></i> حفظ الدفع وترحيله</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<section class="panel" style="margin-top:12px">
+<section class="order-tab-panel" id="orderPanelItems" role="tabpanel" data-order-tab-panel="items" hidden>
+  <section class="panel" style="margin-top:12px">
   <div class="panel-heading"><div><span class="eyebrow">الأصناف</span><h3>ما طلبه العميل فعليًا</h3></div><span class="status-pill">{{ order_items|length }}</span></div>
   <div class="stack-list">
     {% for item in order_items %}
@@ -168,8 +138,53 @@
     {% else %}<span class="muted">لا توجد أصناف.</span>{% endfor %}
   </div>
 </section>
-
-<section class="two-panel" style="margin-top:12px">
+</section>
+<section class="order-tab-panel" id="orderPanelActions" role="tabpanel" data-order-tab-panel="actions" hidden>
+  <div class="order-action-grid"><article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">إدارة قبل التنفيذ</span><h3>تعديل المحتوى ورسوم التوصيل</h3></div></div>
+    {% if order.status in ["created","awaiting_payment"] %}
+    <details class="order-action-disclosure"><summary><i class="bi bi-pencil-square" aria-hidden="true"></i><span>تعديل الأصناف وملاحظة الطلب</span><i class="bi bi-chevron-down order-disclosure-chevron" aria-hidden="true"></i></summary>
+    <form method="post" class="form-stack">
+      <input type="hidden" name="action" value="edit">
+      {% for item in order_items %}
+      <label>الكمية — {{ item.name }} / {{ item.sku }}
+        <input name="qty_{{ item.id }}" type="number" min="0" value="{{ item.qty }}">
+      </label>
+      {% endfor %}
+      <label>ملاحظة الطلب<textarea name="customer_note" rows="2">{{ order.customer_note or "" }}</textarea></label>
+      <button class="primary-button">حفظ التعديل وإعادة الحساب</button>
+    </form>
+    </details>
+    <details class="order-action-disclosure"><summary><i class="bi bi-truck" aria-hidden="true"></i><span>تعديل رسوم التوصيل</span><i class="bi bi-chevron-down order-disclosure-chevron" aria-hidden="true"></i></summary>
+    <form method="post" class="form-stack" style="margin-top:10px">
+      <input type="hidden" name="action" value="shipping_fee">
+      <label>رسوم التوصيل النهائية <input name="shipping_fee" type="number" min="0" step="0.01" value="{{ order.shipping }}"></label>
+      <label>ملاحظة الرسوم<textarea name="shipping_note" rows="2">{{ order.shipping_override_note or "" }}</textarea></label>
+      <button class="ghost-button">تعيين/تحديث رسوم التوصيل</button>
+    </form>
+    </details>
+    {% else %}
+      <span class="muted">التعديل متاح فقط قبل بدء التنفيذ.</span>
+    {% endif %}
+  </article>
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">إدارة الحالة</span><h3>تشغيل الطلب</h3></div></div>
+    <details class="order-action-disclosure"><summary><i class="bi bi-arrow-repeat" aria-hidden="true"></i><span>تغيير حالة الطلب</span><i class="bi bi-chevron-down order-disclosure-chevron" aria-hidden="true"></i></summary>
+    <form method="post" class="form-stack">
+      <input type="hidden" name="action" value="status">
+      <label>الحالة
+        <select name="status" id="orderStatusSelect" data-current-status="{{ order.status }}" data-payment-status="{{ order.payment_status }}">
+          {% for status in status_choices %}<option value="{{ status }}" {% if order.status == status %}selected{% endif %}>{{ order_status_labels.get(status, "حالة غير معروفة") }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>ملاحظة داخلية<textarea name="note" rows="3" placeholder="سبب التغيير أو ملاحظة للمراجعة"></textarea></label>
+      <button class="primary-button" type="submit">حفظ الحالة</button>
+    </form>
+    </details>
+  </article></div>
+</section>
+<section class="order-tab-panel" id="orderPanelPayments" role="tabpanel" data-order-tab-panel="payments" hidden>
+  <section class="two-panel" style="margin-top:12px">
   <article class="panel">
     <div class="panel-heading"><div><span class="eyebrow">التسلسل الزمني</span><h3>كل ما حدث للطلب</h3></div></div>
     <div class="stack-list">
@@ -191,8 +206,9 @@
     </div>
   </article>
 </section>
-
-<section class="two-panel" style="margin-top:12px">
+</section>
+<section class="order-tab-panel" id="orderPanelShipping" role="tabpanel" data-order-tab-panel="shipping" hidden>
+  <section class="two-panel" style="margin-top:12px">
   <article class="panel">
     <div class="panel-heading"><div><span class="eyebrow">الشحن</span><h3>التتبع والأحداث</h3></div></div>
     <div class="stack-list">
@@ -216,14 +232,97 @@
     </div>
   </article>
 </section>
+</section>
+<section class="order-tab-panel" id="orderPanelCommunication" role="tabpanel" data-order-tab-panel="communication" hidden>
+  <section class="panel" style="margin-top:12px">
+  <div class="panel-heading">
+    <div>
+      <span class="eyebrow">التواصل</span>
+      <h3>محادثة الطلب</h3>
+    </div>
+    {% if order_unread_messages > 0 %}
+      <span class="status-pill">{{ order_unread_messages }} جديدة</span>
+    {% endif %}
+  </div>
+  <div class="mini-callout">
+    <strong>
+      {% if order_conversation %}
+        هذه محادثة واحدة مرتبطة بالطلب وتحتوي كامل الرسائل والتحديثات.
+      {% else %}
+        لم تبدأ محادثة الطلب بعد.
+      {% endif %}
+    </strong>
+    <span>رسائل العميل والإدارة والنظام والتحديثات المرتبطة بالطلب تظهر في نفس المحادثة.</span>
+  </div>
+  <div style="margin-top:10px">
+    {% if order_conversation %}
+      <a class="primary-button" href="{{ url_for('admin.conversation_detail_page', conversation_id=order_conversation.id) }}">فتح محادثة الطلب{% if order_unread_messages > 0 %} · {{ order_unread_messages }} جديدة{% endif %}</a>
+    {% else %}
+      <details class="order-action-disclosure order-message-disclosure"><summary><i class="bi bi-chat-dots" aria-hidden="true"></i><span>بدء محادثة وإرسال رسالة</span><i class="bi bi-chevron-down order-disclosure-chevron" aria-hidden="true"></i></summary>
+      <form method="post" class="form-stack">
+        <input type="hidden" name="action" value="message">
+        <textarea name="body" rows="2" required placeholder="اكتب أول رسالة للعميل..."></textarea>
+        <button class="primary-button" style="margin-top:8px" type="submit">إنشاء المحادثة وإرسال</button>
+      </form>
+      </details>
+    {% endif %}
+  </div>
+</section>
+</section>
+<div class="accounting-modal-overlay order-accounting-payment-overlay" id="orderAccountingPaymentModal" {% if not payment_form_open %}hidden{% endif %}>
+  <div class="accounting-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="orderAccountingPaymentTitle">
+    <div class="accounting-modal-title">
+      <div><span class="eyebrow">المحاسبة · حساب العميل بالريال اليمني</span><h3 id="orderAccountingPaymentTitle">تسجيل دفع الطلب {{ order.order_no }}</h3><p class="muted" style="font-size:10px;margin-top:5px">{{ (order.customer.name if order.customer else None) or ('عميل #' ~ order.customer_id) }} · المبلغ الافتراضي شامل التوصيل</p></div>
+      <button type="button" class="icon-button" data-close-order-accounting-payment aria-label="إغلاق"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+    </div>
+    <div class="accounting-payment-note"><i class="bi bi-info-circle" aria-hidden="true"></i><span>سيُسجّل قيد قيمة الطلب على حساب العميل، ثم يُسجّل قيد الدفعة من الصندوق إلى حساب العميل. تُحوّل العملة المختارة تلقائيًا إلى الريال اليمني في دفتر العميل.</span></div>
+    <form method="post" class="accounting-order-payment-form" id="orderAccountingPaymentForm">
+      <input type="hidden" name="action" value="record_account_payment">
+      <label class="accounting-voucher-field"><span>المبلغ الإجمالي للطلب · شامل التوصيل</span>
+        <input name="amount" id="orderAccountingPaymentAmount" type="number" min="0.0001" step="0.0001" inputmode="decimal" value="{{ order.total }}" required data-money-words data-money-words-target="#orderAccountingPaymentWords" data-money-currency="{{ (currencies|selectattr('id','equalto',order.currency_id)|map(attribute='code')|first) or 'YER' }}">
+        <span class="accounting-amount-words" id="orderAccountingPaymentWords" aria-live="polite"></span>
+      </label>
+      <label class="accounting-voucher-field"><span>عملة الدفع</span>
+        <select name="currency_id" id="orderAccountingPaymentCurrency" required>
+          {% for currency in currencies %}<option value="{{ currency.id }}" data-currency-code="{{ currency.code }}" {% if currency.id == order.currency_id %}selected{% endif %}>{{ currency.name_ar }} · {{ currency.code }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="accounting-voucher-field"><span>المصدر الحسابي · الصندوق</span>
+        {{ account_picker('cash_account_id','الصندوق',cash_tree,placeholder='اختر صندوق التحصيل',allowed_ids=cashbox_ids,required=True,picker_id='orderAccountingCashPicker') }}
+      </label>
+      <div class="accounting-voucher-form-actions">
+        <span>حساب العميل محفوظ بالريال اليمني؛ لا تتغير عملة دفتر العميل.</span>
+        <button type="submit" class="accounting-voucher-submit is-receipt"><i class="bi bi-check2-circle" aria-hidden="true"></i> حفظ الدفع وترحيله</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 
 <script>
 (() => {
+  const tabs=Array.from(document.querySelectorAll("[data-order-tab]"));
+  const panels=Array.from(document.querySelectorAll("[data-order-tab-panel]"));
+  function activateTab(name,moveFocus=false){
+    tabs.forEach(tab=>{const active=tab.dataset.orderTab===name;tab.setAttribute("aria-selected",String(active));tab.tabIndex=active?0:-1;if(active&&moveFocus)tab.focus();});
+    panels.forEach(panel=>{panel.hidden=panel.dataset.orderTabPanel!==name;});
+  }
+  tabs.forEach((tab,index)=>{
+    tab.addEventListener("click",()=>activateTab(tab.dataset.orderTab));
+    tab.addEventListener("keydown",event=>{
+      if(!["ArrowLeft","ArrowRight","Home","End"].includes(event.key))return;
+      event.preventDefault();
+      let next=index;
+      if(event.key==="Home")next=0;else if(event.key==="End")next=tabs.length-1;
+      else next=(index+(event.key==="ArrowLeft"?1:-1)+tabs.length)%tabs.length;
+      activateTab(tabs[next].dataset.orderTab,true);
+    });
+  });
   const select=document.getElementById("orderStatusSelect");
   const modal=document.getElementById("orderAccountingPaymentModal");
   const close=()=>{if(modal)modal.hidden=true;document.body.classList.remove("accounting-modal-open");};
-  const open=()=>{if(modal)modal.hidden=false;document.body.classList.add("accounting-modal-open");setTimeout(()=>document.querySelector('#orderAccountingCashPicker [data-account-trigger]')?.focus(),25);};
+  const open=()=>{if(modal){modal.hidden=false;modal.scrollTop=0;}document.body.classList.add("accounting-modal-open");setTimeout(()=>document.querySelector('#orderAccountingCashPicker [data-account-trigger]')?.focus(),25);};
+  document.querySelectorAll("[data-open-order-payment]").forEach(button=>button.addEventListener("click",open));
   if(select){
     select.addEventListener("change",()=>{
       if(select.value==="paid" && select.dataset.paymentStatus!=="paid"){
@@ -257,4 +356,5 @@
   });
 })();
 </script>
+</div>
 {% endblock %}
