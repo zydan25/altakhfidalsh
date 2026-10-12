@@ -826,11 +826,18 @@ def register_accounting_views(admin_bp):
                 if old:
                     reverse_customer_operation(old, admin_id=_actor_id(), reason="تعديل قيد يومية العميل")
                     db.session.flush()
-                side = (request.form.get("side") or "").strip()
+                credit_amount = (request.form.get("amount_credit") or "").strip()
+                debit_amount = (request.form.get("amount_debit") or "").strip()
+                has_credit = bool(credit_amount) and Decimal(credit_amount) > 0
+                has_debit = bool(debit_amount) and Decimal(debit_amount) > 0
+                if has_credit == has_debit:
+                    raise ValueError("أدخل مبلغًا واحدًا فقط: في حقل «له» أو «عليه».")
+                side = "credit" if has_credit else "debit"
+                entered_amount = credit_amount if has_credit else debit_amount
                 operation = create_customer_operation(
                     operation_type="daybook",
                     customer_id=request.form.get("customer_id", type=int),
-                    entered_amount=request.form.get("amount"),
+                    entered_amount=entered_amount,
                     currency_code="YER",
                     operation_date=_parse_date(request.form.get("operation_date"), date.today()),
                     contra_account_id=request.form.get("contra_account_id", type=int),
