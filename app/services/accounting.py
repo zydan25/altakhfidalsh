@@ -206,6 +206,8 @@ def ensure_accounting_permissions(session=None):
             permission.is_active = True
         permissions[code] = permission
 
+    # Materialize newly inserted permission IDs before creating RolePermission rows.
+    session.flush()
     with session.no_autoflush:
         roles = session.query(Role).filter_by(is_active=True).all()
         system_manage = session.query(Permission).filter_by(code="system.manage", is_active=True).first()
@@ -230,7 +232,7 @@ def ensure_accounting_permissions(session=None):
                     role_id=role.id, permission_id=permission.id
                 ).first() if permission.id else None
             if not assigned and permission.id not in existing_pairs:
-                session.add(RolePermission(role_id=role.id, permission=permission))
+                session.add(RolePermission(role_id=role.id, permission_id=permission.id))
 
 
 def ensure_accounting_setup(session=None, *, backfill_parties=True):
@@ -520,3 +522,28 @@ def ledger_balance(account_id, *, currency_code=None, start_date=None, end_date=
     if end_date:
         query = query.filter(AccountingJournalEntry.entry_date <= end_date)
     return D(query.scalar())
+
+_ACCOUNTING_EVENTS_REGISTERED = False
+
+
+def _auto_create_party_accounts(session, flush_context, instances):
+    pending_customers = [row for row in session.new if isinstance(row, Customer)]
+    pending_staff = [row for row in session.new if isinstance(row, Admin)]
+    if not pending_customers and not pending_staff:
+        return
+    # The listener runs within the same transaction as the party creation.
+    ensure_chart(session)
+    for customer in pending_customers:
+        if not customer.ledger_account_id and not customer.ledger_account:
+            ensure_customer_account(customer, session)
+    for staff in pending_staff:
+        if not staff.ledger_account_id and not staff.ledger_account:
+            ensure_admin_account(staff, session)
+
+
+def register_accounting_events():
+    """Register auto-subledger creation once, for API and admin-created parties alike."""
+    global _ACCOUNTING_EVENTS_REGISTERED
+    if not _ACCOUNTING_EVENTS_REGISTERED:
+        event.listen(Session, "before_flush", _auto_create_party_accounts)
+        _ACCOUNTING_EVENTS_REGISTERED = True
