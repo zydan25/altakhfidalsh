@@ -1298,12 +1298,14 @@ class CatalogService:
                     compare_price, input_currency_id
                 )
             product.compare_at_price = compare_price
-        # Base product currency is deliberately SAR, regardless of the
-        # currency selected in the admin price-entry form.
-        sar = Currency.query.filter_by(code="SAR", is_active=True).first()
-        if sar is None:
-            raise LookupError("SAR currency is not configured")
-        product.base_currency_id = sar.id
+        # When a price is supplied, the submitted amount is normalized above and
+        # its stored/base currency becomes SAR. Metadata-only edits must not alter
+        # the currency marker on a pre-existing record.
+        if "base_price" in payload or "compare_at_price" in payload:
+            sar = Currency.query.filter_by(code="SAR", is_active=True).first()
+            if sar is None:
+                raise LookupError("SAR currency is not configured")
+            product.base_currency_id = sar.id
         db.session.commit()
         if was_published:
             try:
