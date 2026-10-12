@@ -103,3 +103,152 @@ body.water-admin-theme{background:var(--bg);color:var(--text);font-size:15px;min
 @media(min-width:900px){.water-admin-theme .admin-sidebar{width:var(--sidebar-width)}.water-admin-theme .main-content{margin-inline-start:var(--sidebar-width)}html[dir=rtl] .water-admin-theme .main-content{margin-inline-start:0;margin-inline-end:var(--sidebar-width)}.water-admin-theme .page-content{padding:25px 22px 48px}.water-admin-theme .dashboard-actions-panel{padding:24px}.water-admin-theme .dashboard-tile-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.water-admin-theme .dashboard-tile{min-height:156px}.water-admin-theme .dashboard-metric-grid{grid-template-columns:repeat(5,minmax(0,1fr))}.water-admin-theme .entity-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:899.98px){.water-admin-theme .admin-sidebar{width:min(316px,88vw);transform:translateX(110%)}.water-admin-theme .admin-sidebar.is-open{transform:translateX(0)}.water-admin-theme .main-content{margin:0}.water-admin-theme .topbar{grid-template-columns:45px minmax(0,1fr) auto;min-height:72px;padding:8px 12px}.water-admin-theme .topbar-actions .ghost-button{width:42px;min-width:42px;padding:0;font-size:17px}.water-admin-theme .topbar-actions .ghost-button span{display:none}.water-admin-theme .page-content{padding:15px 12px calc(90px + env(safe-area-inset-bottom))}.water-admin-theme .mobile-bottom-nav{position:fixed;inset-inline:0;bottom:0;z-index:22;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;padding:7px 5px max(7px,env(safe-area-inset-bottom));background:rgba(255,255,255,.98);border-top:1px solid #e1e7f0;box-shadow:0 -5px 20px rgba(15,23,42,.045);backdrop-filter:blur(16px)}.water-admin-theme .mobile-bottom-nav a,.water-admin-theme .mobile-bottom-nav button{min-width:0;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;border-radius:12px;color:#778397;text-decoration:none}.water-admin-theme .mobile-bottom-nav span{font-size:18px;line-height:1}.water-admin-theme .mobile-bottom-nav small{font-size:9px;font-weight:850}.water-admin-theme .mobile-bottom-nav .is-current{color:#1a56db;background:#eef4ff}.water-admin-theme .dashboard-actions-panel{padding:15px 12px}.water-admin-theme .dashboard-tile-grid{gap:9px}.water-admin-theme .dashboard-tile{min-height:137px;padding:13px 6px;border-radius:18px}.water-admin-theme .dashboard-tile-icon{font-size:29px}.water-admin-theme .dashboard-tile-copy strong{font-size:13px}.water-admin-theme .dashboard-tile-copy small{font-size:9px}.water-admin-theme .dashboard-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.water-admin-theme .table-wrap,.water-admin-theme .table-responsive{overflow-x:auto;max-width:100%}.water-admin-theme table{min-width:560px}}
 @media(max-width:370px){.water-admin-theme .topbar{grid-template-columns:40px minmax(0,1fr) auto;gap:6px;padding-inline:8px}.water-admin-theme .topbar-title h1{font-size:16px}.water-admin-theme .icon-button,.water-admin-theme .avatar-button{min-width:39px;min-height:39px}.water-admin-theme .dashboard-tile{min-height:126px}.water-admin-theme .dashboard-tile-copy small{display:none}.water-admin-theme .dashboard-tile-icon{font-size:26px}}
+
+/* Theme-two only: searchable card lists and organized settings pages. */
+.water-admin-theme .water-list-toolbar{position:relative;display:grid;gap:12px;padding:14px;margin:12px 0 14px;border:1px solid #e1e7f0;border-radius:18px;background:#fff;box-shadow:0 4px 18px rgba(15,23,42,.035)}
+.water-admin-theme .water-search-field,.water-admin-theme .water-sort-field{display:grid;gap:7px;min-width:0;color:#475467;font-size:11px;font-weight:900}
+.water-admin-theme .water-search-field>span,.water-admin-theme .water-sort-field>span{display:flex;align-items:center;gap:6px}
+.water-admin-theme .water-search-field>span i,.water-admin-theme .water-sort-field>span i{color:#1a56db;font-size:14px}
+.water-admin-theme .water-search-field input,.water-admin-theme .water-sort-field select{width:100%;min-width:0;min-height:44px;border:1px solid #d9e2ef;border-radius:12px;background:#fbfcff;color:#19283b;padding:10px 12px;font-size:13px}
+.water-admin-theme .water-search-field input::placeholder{color:#98a2b3}
+.water-admin-theme .water-filter-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;color:#667085;font-size:11px;font-weight:800}
+.water-admin-theme .water-text-button{border:0;background:transparent;color:#1a56db;font-size:11px;font-weight:900;padding:5px 2px;cursor:pointer}
+.water-admin-theme .water-filter-tabs{display:flex;gap:7px;max-width:100%;overflow-x:auto;padding:2px 0 5px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.water-admin-theme .water-filter-tabs button{flex:0 0 auto;min-height:36px;border:1px solid #dfe6f0;border-radius:999px;background:#fff;color:#5f6b7b;padding:7px 13px;font-size:11px;font-weight:900;white-space:nowrap;cursor:pointer}
+.water-admin-theme .water-filter-tabs button.is-active{background:#1a56db;border-color:#1a56db;color:#fff;box-shadow:0 4px 10px rgba(26,86,219,.16)}
+.water-admin-theme .water-list-toolbar-row{display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}
+.water-admin-theme .water-filter-empty[hidden]{display:none!important}
+.water-admin-theme .water-filter-empty{margin:10px 0;padding:30px 18px;min-height:150px;display:grid;justify-items:center;align-content:center;gap:8px;text-align:center;color:#667085;border-style:dashed}
+.water-admin-theme .water-filter-empty>i{width:45px;height:45px;display:grid;place-items:center;border-radius:14px;background:#eaf2ff;color:#1a56db;font-size:21px}
+.water-admin-theme .water-filter-empty strong{font-size:14px;color:#172033}
+.water-admin-theme .water-filter-empty span{font-size:12px}
+.water-admin-theme .water-filter-hidden{display:none!important}
+
+/* Product catalogue: image-first cards plus searchable hierarchical category selector. */
+.water-admin-theme .product-filter-tools{grid-template-columns:minmax(0,1fr);overflow:visible}
+.water-admin-theme .product-category-picker{position:relative;min-width:0}
+.water-admin-theme .product-category-trigger{width:100%;min-height:47px;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:9px;padding:8px 12px;border:1px solid #d9e2ef;border-radius:13px;background:#fbfcff;color:#475467;text-align:center;cursor:pointer}
+.water-admin-theme .product-category-trigger>span{font-size:11px;font-weight:900;color:#667085}
+.water-admin-theme .product-category-trigger>strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;color:#1a56db;font-size:13px;font-weight:950}
+.water-admin-theme .product-category-trigger>i{color:#77869a}
+.water-admin-theme .product-category-menu{position:absolute;top:calc(100% + 7px);inset-inline:0;z-index:80;padding:10px;border:1px solid #dce5f1;border-radius:16px;background:#fff;box-shadow:0 18px 42px rgba(15,23,42,.15)}
+.water-admin-theme .product-category-menu[hidden]{display:none!important}
+.water-admin-theme .product-category-menu-head{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;padding-bottom:9px;border-bottom:1px solid #edf0f5}
+.water-admin-theme .product-category-menu-head .primary-button{min-height:40px;padding:0 13px}
+.water-admin-theme .product-category-menu-head input{min-width:0;min-height:40px;border:1px solid #d9e2ef;border-radius:11px;padding:8px 10px}
+.water-admin-theme .product-category-options{display:grid;gap:4px;max-height:260px;overflow:auto;padding-top:8px;overscroll-behavior:contain}
+.water-admin-theme .product-category-choice{width:100%;min-height:39px;padding:8px 11px;border:1px solid transparent;border-radius:10px;background:#fff;color:#344054;text-align:right;font-size:12px;font-weight:750;cursor:pointer}
+.water-admin-theme .product-category-choice:hover,.water-admin-theme .product-category-choice.is-selected{background:#edf4ff;border-color:#d7e5ff;color:#1747b7}
+.water-admin-theme .product-category-choice.water-filter-hidden{display:none!important}
+.water-admin-theme .water-filter-summary{grid-column:1/-1}
+.water-admin-theme .admin-product-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-items:stretch}
+.water-admin-theme .admin-product-card{display:flex;flex-direction:column;align-items:stretch;gap:8px;min-width:0;min-height:100%;padding:12px 9px 10px;overflow:visible;border:1px solid #e0e6ef;border-radius:19px;background:rgba(255,255,255,.52);box-shadow:0 3px 13px rgba(15,23,42,.025);transition:border-color .16s,box-shadow .16s,background .16s}
+.water-admin-theme .admin-product-card:hover{background:#fff;border-color:#bfd2f5;box-shadow:0 8px 22px rgba(15,23,42,.06)}
+.water-admin-theme .admin-product-card.is-archived{background:#f4f6f9;opacity:.8}
+.water-admin-theme .admin-product-card-media{width:78px;height:78px;flex:0 0 78px;margin:0 auto 2px;border-radius:15px;background:#eaf0f8;border:1px solid #e5ebf4;overflow:hidden}
+.water-admin-theme .admin-product-card-media img{object-fit:contain;background:#fff}
+.water-admin-theme .admin-product-card-placeholder{color:#8b9bb2;font-size:28px}
+.water-admin-theme .admin-product-card-status{right:auto;left:3px;bottom:3px}
+.water-admin-theme .admin-product-card-status .status-pill{padding:4px 6px;font-size:9px;line-height:1.1}
+.water-admin-theme .admin-product-card-menu{top:6px;right:6px}
+.water-admin-theme .admin-product-menu-trigger{width:29px;height:29px;border:1px solid #e5eaf2;background:#fff;color:#344054;box-shadow:0 2px 8px rgba(15,23,42,.08)}
+.water-admin-theme .admin-product-menu{top:31px;right:0;z-index:90;min-width:145px;border-color:#e0e7f0}
+.water-admin-theme .admin-product-card-body{display:flex;flex-direction:column;align-items:stretch;min-width:0;padding:0 2px}
+.water-admin-theme .admin-product-card-title-row{flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center}
+.water-admin-theme .admin-product-card-title{display:-webkit-box;width:100%;min-height:32px;color:#101828;font-size:12px;font-weight:950;text-align:center;overflow-wrap:anywhere}
+.water-admin-theme .admin-product-card-sku{font-size:9px;color:#8792a2}
+.water-admin-theme .admin-product-card-price-row{justify-content:center;flex-wrap:wrap;gap:5px;margin-top:4px}
+.water-admin-theme .admin-product-card-price-row strong{font-size:14px;color:#172033}
+.water-admin-theme .admin-product-card-price-row span{font-size:10px;color:#6b778b}
+.water-admin-theme .admin-product-card-price-row del{margin:0;color:#98a2b3;font-size:10px}
+.water-admin-theme .admin-product-card-stats{justify-content:center;gap:5px;margin-top:8px}
+.water-admin-theme .admin-product-card-stats span{font-size:9px;color:#59677b;background:#f1f5fa;border:1px solid #e8edf4;border-radius:9px;padding:4px 6px}
+.water-admin-theme .admin-product-card-stats span i{color:#1a56db}
+.water-admin-theme .admin-product-category-tags{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin-top:8px}
+.water-admin-theme .admin-product-category-tags span{max-width:100%;padding:4px 7px;border-radius:999px;background:#edf4ff;color:#1a56db;font-size:9px;font-weight:850;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.water-admin-theme .admin-product-card-actions{display:grid;grid-template-columns:1fr;gap:6px;margin-top:auto;padding-top:10px}
+.water-admin-theme .admin-product-card-actions .primary-button,.water-admin-theme .admin-product-card-actions .ghost-button{width:100%;min-width:0;min-height:35px;margin:0;padding:6px 5px;border-radius:10px;font-size:10px;text-align:center}
+.water-admin-theme .admin-product-card-actions .ghost-button{background:#fff}
+.water-admin-theme .admin-product-list-header{align-items:center}
+.water-admin-theme .catalog-view-tabs{gap:7px;margin-top:12px;padding:3px 0 6px}
+.water-admin-theme .catalog-view-tabs a{padding:8px 13px;border:1px solid #dfe6f0;border-radius:999px;background:#fff;color:#475467;font-size:11px;font-weight:900;text-decoration:none}
+.water-admin-theme .catalog-view-tabs a.is-current{background:#1a56db;border-color:#1a56db;color:#fff}
+.water-admin-theme .catalog-view-tabs a span{margin-inline-start:4px;padding:2px 6px;border-radius:99px;background:#ffffff30}
+.water-admin-theme .module-toolbar-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+
+/* Subscriber-like customer/order cards with compact icons and consistent action buttons. */
+.water-admin-theme .entity-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.water-admin-theme .entity-card{min-width:0;padding:13px 11px;border-radius:17px;box-shadow:0 3px 14px rgba(15,23,42,.035)}
+.water-admin-theme .entity-field{min-width:0;padding-bottom:8px;border-bottom:1px solid #eef1f6}
+.water-admin-theme .entity-field:last-of-type{border-bottom:0}
+.water-admin-theme .entity-label{display:block;margin-bottom:4px;color:#78869a;font-size:10px;font-weight:800}
+.water-admin-theme .entity-field strong{display:block;color:#1c2738;font-size:12px;font-weight:900;overflow-wrap:anywhere}
+.water-admin-theme .entity-card>.primary-button{width:100%;min-height:39px;margin-top:7px;border-radius:11px;font-size:11px}
+.water-admin-theme .water-record-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.water-admin-theme .water-record-icon{width:43px;height:43px;display:grid;place-items:center;border-radius:14px;background:#eaf2ff;color:#1a56db;font-size:21px}
+.water-admin-theme .water-record-id{padding:5px 8px;border-radius:8px;background:#f1f5fb;color:#60718a;font-size:10px;font-weight:900}
+.water-admin-theme .manage-card-header{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.water-admin-theme .manage-card-title{display:flex;align-items:center;gap:8px;min-width:0}
+.water-admin-theme .manage-card-title strong{font-size:13px;font-weight:950;overflow-wrap:anywhere}
+.water-admin-theme .manage-card-logo{width:74px;height:74px;margin:5px auto 12px;display:grid;place-items:center;border:1px solid #e4ebf5;border-radius:18px;background:#f7faff;color:#1a56db;font-size:31px;overflow:hidden}
+.water-admin-theme .manage-card-logo img{width:100%;height:100%;object-fit:contain;background:#fff}
+.water-admin-theme .manage-card details>summary{min-height:38px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#f8fbff}
+.water-admin-theme .manage-card form>.ghost-button{width:100%;min-height:36px;border-radius:10px;background:#fff}
+.water-admin-theme .manage-grid{align-items:stretch}
+.water-admin-theme .manage-card{display:flex;flex-direction:column}
+.water-admin-theme .manage-card .entity-field{margin-top:7px}
+.water-admin-theme .manage-card>details,.water-admin-theme .manage-card>form{margin-top:auto!important}
+
+/* Tabbed, mobile-first settings views; tabs only exist in the alternate theme. */
+.water-admin-theme .water-tab-layout{display:grid;gap:12px;margin:12px 0 18px}
+.water-admin-theme .water-admin-tabs{display:flex;align-items:center;gap:7px;max-width:100%;overflow-x:auto;padding:3px 1px 8px;border-bottom:1px solid #e3eaf3;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.water-admin-theme .water-admin-tab{flex:0 0 auto;min-height:39px;padding:8px 13px;border:1px solid #dfe6f0;border-radius:11px;background:#fff;color:#59677b;font-size:11px;font-weight:900;white-space:nowrap;cursor:pointer}
+.water-admin-theme .water-admin-tab.is-active{background:#1a56db;border-color:#1a56db;color:#fff;box-shadow:0 4px 12px rgba(26,86,219,.16)}
+.water-admin-theme .water-tab-pane{display:grid;gap:12px;min-width:0}
+.water-admin-theme .water-tab-pane[hidden]{display:none!important}
+.water-admin-theme .water-tab-pane>.general-images-setting,.water-admin-theme .water-tab-pane>.developer-signature-setting,.water-admin-theme .water-tab-pane>.panel,.water-admin-theme .water-tab-pane>.two-panel{margin:0 0 2px}
+.water-admin-theme .water-tab-pane .panel{min-width:0}
+.water-admin-theme .water-pds-tabs{margin:0 0 12px;padding-inline:2px}
+.water-admin-theme .pds-page .pds-panel{border:1px solid #e1e7f0;border-radius:18px;background:#fff;box-shadow:0 4px 16px rgba(15,23,42,.035);overflow:hidden}
+.water-admin-theme .pds-page .pds-hero{border:1px solid #e1e7f0;border-radius:18px;background:#fff;box-shadow:0 4px 16px rgba(15,23,42,.035)}
+.water-admin-theme .pds-page .pds-head{padding:15px 16px;background:#f8fbff;border-bottom:1px solid #e8eef6}
+.water-admin-theme .pds-page .pds-head h3{font-size:15px;font-weight:950;color:#182230}
+.water-admin-theme .pds-page .pds-head .eyebrow{color:#1a56db}
+.water-admin-theme .pds-page .pds-grid,.water-admin-theme .pds-page .pds-colors,.water-admin-theme .pds-page .sort-wrap,.water-admin-theme .pds-page .box-designer{padding:13px}
+.water-admin-theme .pds-page .sort-item,.water-admin-theme .pds-page .detail-box{border-color:#e1e7f0;border-radius:12px;background:#fbfcff}
+.water-admin-theme .pds-page .sort-index{background:#1a56db}
+.water-admin-theme .pds-page .pds-check{background:#f7faff;border-color:#e0e9f7}
+.water-admin-theme .pds-page .save-bar{bottom:8px;border-color:#dae5f3;border-radius:15px;box-shadow:0 8px 25px rgba(15,23,42,.12)}
+.water-admin-theme .pds-page .water-pds-hidden{display:none!important}
+@media(min-width:600px){
+ .water-admin-theme .water-list-toolbar{grid-template-columns:repeat(2,minmax(0,1fr));align-items:end;padding:16px}
+ .water-admin-theme .product-filter-tools{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .water-admin-theme .water-list-toolbar-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .water-admin-theme .admin-product-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+ .water-admin-theme .admin-product-card{padding:14px 11px 11px}
+ .water-admin-theme .admin-product-card-media{width:91px;height:91px;flex-basis:91px}
+ .water-admin-theme .admin-product-card-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .water-admin-theme .water-tab-pane>.two-panel{grid-template-columns:minmax(0,1fr)}
+}
+@media(min-width:900px){
+ .water-admin-theme .water-list-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .water-admin-theme .product-filter-tools{grid-template-columns:1.2fr 1fr 1fr}
+ .water-admin-theme .water-list-toolbar-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .water-admin-theme .admin-product-cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
+ .water-admin-theme .admin-product-card{padding:16px 12px 12px}
+ .water-admin-theme .admin-product-card-media{width:104px;height:104px;flex-basis:104px}
+ .water-admin-theme .entity-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .water-admin-theme .water-tab-pane>.two-panel{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:440px){
+ .water-admin-theme .water-list-toolbar{padding:11px}
+ .water-admin-theme .admin-product-cards{gap:8px}
+ .water-admin-theme .admin-product-card{padding:11px 7px 8px;border-radius:16px}
+ .water-admin-theme .admin-product-card-media{width:68px;height:68px;flex-basis:68px}
+ .water-admin-theme .admin-product-card-title{font-size:11px}
+ .water-admin-theme .admin-product-card-actions{gap:5px}
+ .water-admin-theme .admin-product-card-actions .primary-button,.water-admin-theme .admin-product-card-actions .ghost-button{font-size:9px}
+ .water-admin-theme .entity-grid{gap:8px}
+ .water-admin-theme .entity-card{padding:11px 9px}
+ .water-admin-theme .water-record-icon{width:38px;height:38px}
+}
