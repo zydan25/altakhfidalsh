@@ -45,8 +45,20 @@
         <label>العلامة التجارية<div class="reference-field"><select id="productBrand" name="brand_id"><option value="">بدون علامة</option></select><button class="ghost-button reference-add-button" type="button" data-open-modal="quickBrandModal">＋ إضافة</button></div></label>
       </div>
       <div class="pro-builder-grid">
-        <label>السعر الأساسي SAR<input id="productPrice" name="base_price" value="{{ product.base_price }}" required type="number" min="0" step="0.0001" inputmode="decimal"></label>
-        <label>السعر قبل الخصم<input id="productCompareAtPrice" name="compare_at_price" value="{{ product.compare_at_price or '' }}" type="number" min="0" step="0.0001" inputmode="decimal"></label>
+        <label>{% if product_input_currency_enabled %}السعر المدخل{% else %}السعر الأساسي SAR{% endif %}<input id="productPrice" name="base_price" value="{{ product.base_price }}" required type="number" min="0" step="0.0001" inputmode="decimal"><small id="productPriceSarPreview" class="muted" style="display:block;margin-top:5px">يُحفظ السعر دائمًا بالريال السعودي.</small></label>
+        <label>السعر قبل الخصم<input id="productCompareAtPrice" name="compare_at_price" value="{{ product.compare_at_price or '' }}" type="number" min="0" step="0.0001" inputmode="decimal"><small id="productCompareSarPreview" class="muted" style="display:block;margin-top:5px">السعر بعد التحويل إلى SAR.</small></label>
+        <label class="span-full">عملة إدخال السعر
+          {% if product_input_currency_enabled %}
+            <select id="productInputCurrency">
+              {% for currency in currencies if currency._product_sar_factor is not none %}
+              <option value="{{ currency.id }}" data-sar-factor="{{ currency._product_sar_factor }}" {% if currency.code == "SAR" %}selected{% endif %}>{{ currency.code }} — {{ currency.name_ar }}</option>
+              {% endfor %}
+            </select>
+          {% else %}
+            <input type="hidden" id="productInputCurrency" value="{{ sar_currency_id }}">
+            <input type="text" value="SAR — الريال السعودي" disabled aria-label="عملة السعر">
+          {% endif %}
+        </label>
       </div>
       <label>نوع المنتج<input id="productType" name="product_type" value="{{ product.product_type or '' }}"></label>
       <label>المادة<input id="productMaterial" name="material" value="{{ product.material or '' }}"></label>
@@ -441,6 +453,45 @@
   </section>
 </div>
 
-<script src="{{ url_for('admin.static', filename='product-wizard.js') }}?v=20261008-3" defer></script>
-<script src="{{ url_for('admin.static', filename='product-wizard-pro.js') }}?v=20261008-8" defer></script>
+<script src="{{ url_for('admin.static', filename='product-wizard.js') }}?v=20261012-9" defer></script>
+<script src="{{ url_for('admin.static', filename='product-wizard-pro.js') }}?v=20261012-9" defer></script>
+<script>
+(() => {
+  const currency = document.getElementById("productInputCurrency");
+  const price = document.getElementById("productPrice");
+  const compare = document.getElementById("productCompareAtPrice");
+  if (!currency || !price) return;
+  const basePreview = document.getElementById("productPriceSarPreview");
+  const comparePreview = document.getElementById("productCompareSarPreview");
+  const getFactor = () => Number(currency.selectedOptions?.[0]?.dataset.sarFactor || 1);
+  let previousFactor = getFactor();
+  const refresh = () => {
+    const factor = getFactor();
+    const p = Number(price.value);
+    if (basePreview) basePreview.textContent = price.value !== "" && Number.isFinite(p) && p >= 0
+      ? "سيُحفظ السعر الأساسي: " + (p * factor).toLocaleString("en-US", {maximumFractionDigits:4}) + " SAR"
+      : "يُحفظ السعر دائمًا بالريال السعودي.";
+    const c = Number(compare?.value || 0);
+    if (comparePreview) comparePreview.textContent = compare?.value && Number.isFinite(c) && c >= 0
+      ? "سيُحفظ سعر ما قبل الخصم: " + (c * factor).toLocaleString("en-US", {maximumFractionDigits:4}) + " SAR"
+      : "السعر بعد التحويل إلى SAR.";
+  };
+  currency.addEventListener("change", () => {
+    const nextFactor = getFactor();
+    if (previousFactor > 0 && nextFactor > 0 && previousFactor !== nextFactor) {
+      [price, compare].forEach(input => {
+        if (input?.value !== "") {
+          const value = Number(input.value);
+          if (Number.isFinite(value)) input.value = (value * previousFactor / nextFactor).toFixed(4).replace(/\.?0+$/, "");
+        }
+      });
+    }
+    previousFactor = nextFactor;
+    refresh();
+  });
+  price.addEventListener("input", refresh);
+  compare?.addEventListener("input", refresh);
+  refresh();
+})();
+</script>
 {% endblock %}
