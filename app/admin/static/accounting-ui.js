@@ -38,6 +38,7 @@
     function show(open){
       if(!panel||!trigger)return;
       panel.hidden=!open;
+      picker.classList.toggle("is-open",open);
       trigger.setAttribute("aria-expanded",String(open));
       if(open){setTimeout(()=>search?.focus(),25);}
       else if(search&&search.value) {
@@ -126,7 +127,7 @@
     const hidden=$("[data-customer-value]",picker),label=$("[data-customer-label]",picker);
     const empty=$("[data-customer-no-results]",picker),clear=$("[data-customer-clear]",picker);
     const options=$$("[data-customer-option]",picker);
-    function show(open){if(!panel||!trigger)return;panel.hidden=!open;trigger.setAttribute("aria-expanded",String(open));if(open)setTimeout(()=>search?.focus(),25);else if(search)search.value="";}
+    function show(open){if(!panel||!trigger)return;panel.hidden=!open;picker.classList.toggle("is-open",open);trigger.setAttribute("aria-expanded",String(open));if(open)setTimeout(()=>search?.focus(),25);else if(search)search.value="";}
     function filter(){
       const q=norm(search?.value);
       let visible=0;
