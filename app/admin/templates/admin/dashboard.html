@@ -1,6 +1,57 @@
 {% extends "admin/base.html" %}
 
 {% block content %}
+{% if admin_layout_theme == "water" %}
+<section class="water-dashboard">
+  <article class="panel dashboard-actions-panel">
+    <div class="dashboard-heading">
+      <div><span class="eyebrow">الرئيسية</span><h2>إجراءات سريعة</h2></div>
+      <span class="dashboard-heading-icon"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i></span>
+    </div>
+    <div class="dashboard-quick-actions" dir="rtl">
+      <a class="dashboard-quick-action" href="/admin/products/new"><i class="bi bi-plus-lg" aria-hidden="true"></i><span>إضافة منتج</span></a>
+      <a class="dashboard-quick-action" href="/admin/orders"><i class="bi bi-bag-plus" aria-hidden="true"></i><span>الطلبات</span></a>
+      <a class="dashboard-quick-action" href="/admin/promotions/coupons"><i class="bi bi-ticket-perforated" aria-hidden="true"></i><span>الكوبونات</span></a>
+    </div>
+    <div class="dashboard-tile-grid">
+      {% for href, icon, label, subtitle, key in [
+        ("/admin/orders", "bi-bag-check-fill", "الطلبات", "إدارة الطلبات والمبيعات", "orders"),
+        ("/admin/payments", "bi-credit-card-2-front-fill", "المدفوعات", "الدفع وإثباتات السداد", ""),
+        ("/admin/products", "bi-box-seam-fill", "المنتجات", "إدارة الأصناف والمخزون", "products"),
+        ("/admin/categories", "bi-diagram-3-fill", "التصنيفات", "تنظيم أقسام المتجر", "categories"),
+        ("/admin/customers", "bi-people-fill", "العملاء", "حسابات وعناوين العملاء", "customers"),
+        ("/admin/pricing/groups", "bi-currency-exchange", "التسعير", "العملات ومجموعات الأسعار", ""),
+        ("/admin/chat", "bi-chat-dots-fill", "المحادثات", "التواصل وخدمة العملاء", "conversations"),
+        ("/admin/promotions/coupons", "bi-ticket-perforated-fill", "العروض والكوبونات", "الحملات والخصومات", ""),
+        ("/admin/reports", "bi-bar-chart-fill", "التقارير", "تقارير ومؤشرات المتجر", ""),
+        ("/admin/system/admins", "bi-person-badge-fill", "الموظفون", "المستخدمون والصلاحيات", ""),
+        ("/admin/system/layout", "bi-palette-fill", "مظهر لوحة الإدارة", "تغيير الثيم من الإعدادات", "")
+      ] %}
+      <a class="dashboard-tile" href="{{ href }}">
+        <span class="dashboard-tile-icon"><i class="bi {{ icon }}" aria-hidden="true"></i></span>
+        <span class="dashboard-tile-copy"><strong>{{ label }}</strong><small>{{ subtitle }}</small>
+        {% if key %}<em>{{ metrics.get(key, 0) }}</em>{% endif %}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </article>
+  <section class="dashboard-overview">
+    <div class="dashboard-overview-heading"><h3>نظرة سريعة على المتجر</h3><span class="muted">ملخص السجلات الحالية</span></div>
+    <div class="dashboard-metric-grid">
+      {% for key, label, icon in [
+        ("products", "المنتجات", "bi-box-seam"),
+        ("categories", "التصنيفات", "bi-diagram-3"),
+        ("orders", "الطلبات", "bi-bag-check"),
+        ("customers", "العملاء", "bi-people"),
+        ("conversations", "المحادثات", "bi-chat-dots")
+      ] %}
+      <article class="dashboard-metric"><span class="dashboard-metric-icon"><i class="bi {{ icon }}" aria-hidden="true"></i></span><span>{{ label }}</span><strong>{{ metrics.get(key, 0) }}</strong></article>
+      {% endfor %}
+    </div>
+  </section>
+</section>
+{% else %}
+
 <section class="hero-row">
   <div>
     <p class="eyebrow">نواة التشغيل</p>
@@ -59,4 +110,6 @@
     </div>
   </article>
 </section>
+
+{% endif %}
 {% endblock %}
