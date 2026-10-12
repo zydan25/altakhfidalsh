@@ -219,3 +219,21 @@
 .customer-picker-option{color:#25364d}
 .customer-picker-option strong{color:#25364d}
 .customer-picker-option:hover{background:#eaf2ff}
+
+/* Keep the open account/customer dropdown above neighboring form fields. */
+.account-tree-picker.is-open,.customer-tree-picker.is-open{z-index:10050!important;position:relative}
+.account-tree-picker.is-open>.account-picker-panel,.customer-tree-picker.is-open>.account-picker-panel{z-index:10060!important}
+.accounting-voucher-form,.accounting-voucher-field,.accounting-customer-operation-form,.accounting-order-payment-form{overflow:visible}
+.accounting-tree-search-card{margin:10px 0 7px}
+.accounting-tree-inline-search{display:flex;align-items:center;gap:8px;margin:10px 0;padding:8px 11px;border:1px solid #d5e3f7;border-radius:12px;background:#f5f9ff}
+.accounting-tree-inline-search i{color:#175cd3}
+.accounting-tree-inline-search input{width:100%;min-width:0;border:0;outline:0;background:transparent;font-size:12px;color:#1d2939}
+.accounting-tree-inline-search .accounting-tree-search-hint{flex:0 0 auto;padding:4px 7px;border-radius:7px;background:#eaf2ff;color:#175cd3;font-size:9px;font-weight:950}
+.accounting-tree-node[hidden]{display:none!important}
+.accounting-tree-node.matching-search>.accounting-tree-row{box-shadow:0 0 0 2px rgba(23,92,211,.15);border-color:#85b7ff}
+.accounting-tree-row.is-group{background:linear-gradient(110deg,#edf5ff,#fbfdff);border-color:#cfe0f8}
+.accounting-tree-row.is-group .accounting-tree-name strong{color:#173e75}
+.accounting-tree-row:not(.is-group) .accounting-tree-name strong{color:#344054}
+.accounting-tree-row-balance strong{color:#067647}
+.accounting-form-grid [data-money-words]{font-weight:800;color:#344054}
+.accounting-amount-words{display:block;min-height:19px;padding-top:4px;color:#c62828;font-size:12px;line-height:1.5;font-weight:950}
