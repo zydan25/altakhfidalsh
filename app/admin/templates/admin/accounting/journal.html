@@ -50,6 +50,12 @@
     <div class="accounting-entry-head"><span class="accounting-entry-number">{{ entry.number }}</span><span class="accounting-entry-date">{{ entry.entry_date }}</span><span class="accounting-entry-currency">{{ entry.currency_code }}</span></div>
     <strong class="accounting-entry-description">{{ entry.description }}</strong>
     <div class="accounting-entry-totals"><span><small>المدين</small><strong>{{ "%.2f"|format(entry._debit_total|float) }}</strong></span><span><small>الدائن</small><strong>{{ "%.2f"|format(entry._credit_total|float) }}</strong></span><span><small>الحالة</small><strong>{{ {"posted":"مرحّل","draft":"مسودة","void":"معكوس"}.get(entry.status,entry.status) }}</strong></span></div>
+    {% if entry.status == "posted" and entry.source_type != "reverse" and not entry.reversed_entry_id %}
+    <form method="post" action="/admin/accounting/journal/{{ entry.id }}/reverse" class="accounting-reverse-form" onsubmit="return confirm('سيتم إنشاء قيد عكسي وإلغاء أثر هذا القيد. هل تريد الاستمرار؟')">
+      <label>سبب العكس<input name="reason" placeholder="سبب التصحيح (اختياري)"></label>
+      <button class="ghost-button danger-button compact" type="submit"><i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> عكس القيد</button>
+    </form>
+    {% endif %}
     <details class="accounting-entry-lines"><summary>عرض تفاصيل القيد ({{ entry.lines|length }} سطر)</summary>
       <div class="table-wrap"><table><thead><tr><th>الحساب</th><th>البيان</th><th>مدين</th><th>دائن</th></tr></thead><tbody>
         {% for line in entry.lines %}<tr><td>{{ line.account.code }} · {{ line.account.name }}</td><td>{{ line.description or "—" }}</td><td>{{ "%.2f"|format(line.debit|float) }}</td><td>{{ "%.2f"|format(line.credit|float) }}</td></tr>{% endfor %}
