@@ -547,6 +547,7 @@ def register_accounting_views(admin_bp):
             entries=entries,
             accounts=_postable_accounts(),
             currencies=_currency_options(),
+            **_account_picker_context(),
             query=query,
             source=source,
             currency=currency,
