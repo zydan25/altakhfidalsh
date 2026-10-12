@@ -1342,6 +1342,7 @@ class Order(TimestampMixin, db.Model):
     id = db.Column(Integer, primary_key=True)
     order_no = db.Column(String(60), nullable=False, unique=True)
     customer_id = db.Column(ForeignKey("customers.id"), nullable=False)
+    customer = db.relationship("Customer", foreign_keys=[customer_id])
     address_snapshot = db.Column(db.JSON, nullable=False)
     city_id = db.Column(ForeignKey("cities.id"))
     currency_id = db.Column(ForeignKey("currencies.id"), nullable=False)
