@@ -184,6 +184,8 @@ def register_accounting_views(admin_bp):
             pending_sales=pending_sales,
             latest_entries=latest_entries,
             latest_vouchers=latest_vouchers,
+            success=request.args.get("success"),
+            error=request.args.get("error"),
             **_context(),
         )
 
@@ -248,6 +250,8 @@ def register_accounting_views(admin_bp):
                     account.is_active = request.form.get("is_active") == "on"
                     account.allow_manual_posting = (not account.is_group) and request.form.get("allow_manual_posting") == "on"
                 elif action == "toggle":
+                    if account.is_group and account.children:
+                        raise ValueError("لا يمكن تعطيل حساب تجميعي يحتوي فروعًا؛ عطّل الحسابات الفرعية أولًا.")
                     account.is_active = not account.is_active
                 elif action == "delete":
                     raise ValueError("لا يُحذف الحساب من السجل المحاسبي؛ عطّله بدلًا من ذلك حتى تبقى القيود والتقارير سليمة.")
@@ -370,6 +374,7 @@ def register_accounting_views(admin_bp):
             currency=currency,
             start=start,
             end=end,
+            today=date.today(),
             error=error,
             success=request.args.get("success") or success,
             **_context(),
@@ -407,10 +412,29 @@ def register_accounting_views(admin_bp):
             vouchers=vouchers,
             accounts=_postable_accounts(),
             currencies=_currency_options(),
+            today=date.today(),
             error=error,
             success=request.args.get("success"),
             **_context(),
         )
+
+    @admin_bp.post("/accounting/journal/<int:entry_id>/reverse")
+    def accounting_journal_reverse(entry_id):
+        _ready()
+        try:
+            entry = db.session.get(AccountingJournalEntry, entry_id)
+            if entry is None:
+                raise ValueError("القيد غير موجود.")
+            reversal = reverse_entry(
+                entry,
+                admin_id=_actor_id(),
+                reason=request.form.get("reason") or "تصحيح محاسبي",
+            )
+            db.session.commit()
+            return redirect(url_for("admin.accounting_journal", success=f"تم عكس القيد إلى {reversal.number}."))
+        except (ValueError, TypeError) as exc:
+            db.session.rollback()
+            return redirect(url_for("admin.accounting_journal", q=request.form.get("query") or "", success=str(exc)))
 
     @admin_bp.post("/accounting/vouchers/<int:voucher_id>/void")
     def accounting_voucher_void(voucher_id):
@@ -428,7 +452,7 @@ def register_accounting_views(admin_bp):
             return redirect(url_for("admin.accounting_vouchers", success=f"تم إلغاء السند {voucher.number} بقيد عكسي."))
         except (ValueError, TypeError) as exc:
             db.session.rollback()
-            return redirect(url_for("admin.accounting_vouchers", success=str(exc)))
+            return redirect(url_for("admin.accounting_vouchers", error=str(exc)))
 
     @admin_bp.post("/accounting/sales/post")
     def accounting_post_sales():
