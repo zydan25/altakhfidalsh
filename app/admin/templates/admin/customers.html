@@ -5,9 +5,24 @@
   <h2>العملاء</h2>
   <p class="muted">ملف العميل يجمع الحساب والعناوين ومجموعة التسعير والطلبات والمحادثات والمحفظة والإشعارات.</p>
 </section>
-<section class="entity-grid">
+{% if admin_layout_theme == "water" %}
+<section class="water-list-toolbar" data-customer-controls aria-label="بحث وفرز العملاء">
+  <label class="water-search-field"><span><i class="bi bi-search" aria-hidden="true"></i> البحث عن عميل</span><input id="customerSearch" type="search" placeholder="الاسم أو الهاتف أو رمز الدعوة..." autocomplete="off"></label>
+  <div class="water-filter-tabs" role="group" aria-label="حالة العملاء">
+    <button type="button" class="is-active" data-customer-group="all">الكل</button>
+    <button type="button" data-customer-group="complete">مكتمل التسجيل</button>
+    <button type="button" data-customer-group="incomplete">يحتاج إكمال التسجيل</button>
+    <button type="button" data-customer-group="invited">لديه دعوات</button>
+  </div>
+  <label class="water-sort-field"><span><i class="bi bi-sort-down" aria-hidden="true"></i> ترتيب العملاء</span><select id="customerSort"><option value="newest">الأحدث تسجيلًا</option><option value="oldest">الأقدم تسجيلًا</option><option value="invites">الأكثر دعوة</option><option value="name">حسب الاسم</option></select></label>
+  <div class="water-filter-summary"><span id="customerResultsCount">عرض {{ customers|length }} عميل</span><button type="button" id="clearCustomerFilters" class="water-text-button">إعادة ضبط</button></div>
+</section>
+<div class="water-filter-empty panel" id="customerFilterEmpty" hidden><i class="bi bi-people" aria-hidden="true"></i><strong>لا يوجد عملاء مطابقون</strong><span>جرّب عبارة بحث أو تبويبًا آخر.</span></div>
+{% endif %}
+<section class="entity-grid" id="adminCustomerCards">
 {% for customer in customers %}
-<article class="entity-card panel">
+<article class="entity-card panel" data-customer-id="{{ customer.id }}" data-customer-search="{{ ((customer.name or '') ~ ' ' ~ customer.phone_normalized ~ ' ' ~ (customer.invite_code or '') ~ ' ' ~ (customer.city_id or ''))|lower }}" data-onboarding="{{ 'complete' if customer.onboarding_completed else 'incomplete' }}" data-invites="{{ customer.invited_count }}">
+  {% if admin_layout_theme == "water" %}<div class="water-record-top"><span class="water-record-icon"><i class="bi bi-person-fill" aria-hidden="true"></i></span><span class="water-record-id">#{{ customer.id }}</span></div>{% endif %}
   <div class="entity-field"><span class="entity-label">العميل</span><strong>{{ customer.name or "بدون اسم" }}</strong></div>
   <div class="entity-field"><span class="entity-label">الهاتف</span><strong dir="ltr">{{ customer.phone_normalized }}</strong></div>
   <div class="entity-field"><span class="entity-label">المدينة</span><strong>#{{ customer.city_id or "—" }}</strong></div>
@@ -20,4 +35,5 @@
 <section class="empty-state panel"><div class="empty-icon">◎</div><h3>لا يوجد عملاء</h3></section>
 {% endfor %}
 </section>
+{% if admin_layout_theme == "water" %}<script src="{{ url_for('admin.static', filename='water-admin.js') }}?v=20261012-1" defer></script>{% endif %}
 {% endblock %}
