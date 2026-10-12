@@ -4182,6 +4182,24 @@ def register_entity_views(admin_bp):
                         row.value = "true" if enabled else "false"
                         row.value_type = "boolean"
                     success = "تم حفظ إعداد الصور العامة للمنتجات."
+                elif action=="save_product_input_currency":
+                    enabled = request.form.get("enabled") == "on"
+                    row = AppSetting.query.filter_by(
+                        group_code="storefront",
+                        key="product_input_currency_enabled",
+                    ).first()
+                    if row is None:
+                        row = AppSetting(
+                            group_code="storefront",
+                            key="product_input_currency_enabled",
+                            value="true" if enabled else "false",
+                            value_type="boolean",
+                        )
+                        db.session.add(row)
+                    else:
+                        row.value = "true" if enabled else "false"
+                        row.value_type = "boolean"
+                    success = "تم حفظ إعداد عملة إدخال أسعار المنتجات."
                 elif action=="create":
                     group=(request.form.get("group_code") or "").strip(); key=(request.form.get("key") or "").strip()
                     if not group or not key: raise ValueError("المجموعة والمفتاح مطلوبان.")
@@ -4214,6 +4232,14 @@ def register_entity_views(admin_bp):
         ).first()
         general_images_enabled = setting_is_enabled(general_images_setting, default=True)
 
+        product_input_currency_setting = AppSetting.query.filter_by(
+            group_code="storefront",
+            key="product_input_currency_enabled",
+        ).first()
+        product_input_currency_enabled = setting_is_enabled(
+            product_input_currency_setting, default=False
+        )
+
         order_status_section_setting = AppSetting.query.filter_by(
             group_code="storefront",
             key="account_order_status_section_enabled",
@@ -4238,6 +4264,7 @@ def register_entity_views(admin_bp):
             success=success,
             error=error,
             general_images_enabled=general_images_enabled,
+            product_input_currency_enabled=product_input_currency_enabled,
             order_status_section_enabled=order_status_section_enabled,
             developer_signature_style=developer_signature_style,
             **build_admin_context(),
