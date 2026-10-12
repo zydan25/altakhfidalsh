@@ -392,21 +392,14 @@ def create_voucher(*, voucher_type, voucher_date, amount, currency_code, from_ac
     if from_account.id == to_account.id:
         raise ValueError("لا يمكن استخدام الحساب نفسه طرفًا مدينًا ودائنًا.")
 
-    if voucher_type == "receipt":
-        lines = [
-            {"account": to_account, "debit": amount, "credit": 0},
-            {"account": from_account, "debit": 0, "credit": amount},
-        ]
-    elif voucher_type == "payment":
-        lines = [
-            {"account": from_account, "debit": amount, "credit": 0},
-            {"account": to_account, "debit": 0, "credit": amount},
-        ]
-    else:
-        lines = [
-            {"account": to_account, "debit": amount, "credit": 0},
-            {"account": from_account, "debit": 0, "credit": amount},
-        ]
+    # Voucher direction is explicit in the selected accounts:
+    # for receipt, choose the source/receivable as "from" and cash as "to";
+    # for payment, choose cash as "from" and the expense/payable as "to";
+    # for transfer/adjustment, "from" decreases while "to" increases.
+    lines = [
+        {"account": to_account, "debit": amount, "credit": 0},
+        {"account": from_account, "debit": 0, "credit": amount},
+    ]
 
     prefix = {"receipt": "RV", "payment": "PV", "transfer": "TV", "adjustment": "AV"}[voucher_type]
     entry = create_posted_entry(
@@ -473,7 +466,7 @@ def post_unposted_sales(*, admin_id, limit=500, session=None):
             skipped += 1
             continue
         customer_account = ensure_customer_account(customer, session)
-        paid = (getattr(order, "payment_status", "") or "").lower() in {"paid", "succeeded", "captured", "complete", "completed"}
+        paid = (getattr(order, "payment_status", "") or "").lower() in {"paid", "success", "successful", "succeeded", "captured", "complete", "completed"}
         debit_account = chart["payment_clearing"] if paid else customer_account
         created = order.created_at
         entry_date = created.date() if created else date.today()
