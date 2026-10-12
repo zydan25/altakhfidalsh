@@ -560,37 +560,121 @@ def register_accounting_views(admin_bp):
     def accounting_vouchers():
         _ready()
         error = None
+        success = request.args.get("success")
         if request.method == "POST":
+            edit_id = request.form.get("edit_id", type=int)
+            old_voucher = db.session.get(AccountingVoucher, edit_id) if edit_id else None
             try:
                 voucher_type = (request.form.get("voucher_type") or "receipt").strip()
+                counterpart_id = request.form.get("account_id", type=int)
+                cash_id = request.form.get("cash_account_id", type=int)
+                if voucher_type not in {"receipt", "payment"}:
+                    raise ValueError("اختر سند قبض أو سند صرف.")
+                if not counterpart_id or not cash_id:
+                    raise ValueError("اختر الحساب والصندوق من شجرة الحسابات.")
+                if not account_is_in_cash_tree(cash_id, db.session):
+                    raise ValueError("حساب المصدر يجب أن يكون من شجرة الصناديق.")
+                if counterpart_id == cash_id:
+                    raise ValueError("لا يمكن اختيار الحساب نفسه طرفًا وصندوقًا.")
+                description = (request.form.get("description") or "").strip()
+                if not description:
+                    raise ValueError("البيان مطلوب.")
+                voucher_date = _parse_date(request.form.get("voucher_date"), date.today())
+                if old_voucher:
+                    if old_voucher.status != "posted":
+                        raise ValueError("لا يمكن تعديل سند ملغى.")
+                    old_entry = db.session.get(AccountingJournalEntry, old_voucher.journal_entry_id)
+                    reverse_entry(
+                        old_entry,
+                        admin_id=_actor_id(),
+                        reason=f"تعديل السند {old_voucher.number}",
+                    )
+                    old_voucher.status = "void"
+                if voucher_type == "receipt":
+                    from_id, to_id = counterpart_id, cash_id
+                else:
+                    from_id, to_id = cash_id, counterpart_id
                 voucher = create_voucher(
                     voucher_type=voucher_type,
-                    voucher_date=_parse_date(request.form.get("voucher_date"), date.today()),
+                    voucher_date=voucher_date,
                     amount=request.form.get("amount"),
-                    currency_code=(request.form.get("currency_code") or "SAR").strip().upper(),
-                    from_account_id=request.form.get("from_account_id", type=int),
-                    to_account_id=request.form.get("to_account_id", type=int),
-                    beneficiary=request.form.get("beneficiary"),
-                    description=request.form.get("description"),
+                    currency_code="YER",
+                    from_account_id=from_id,
+                    to_account_id=to_id,
+                    beneficiary=None,
+                    description=description,
                     admin_id=_actor_id(),
                 )
                 db.session.commit()
-                return redirect(url_for("admin.accounting_vouchers", success=f"تم إصدار السند {voucher.number}."))
-            except (ValueError, TypeError) as exc:
+                message = f"تم إصدار السند {voucher.number} بالريال اليمني."
+                if old_voucher:
+                    message = f"تم تعديل السند بعكس السابق وإصدار سند جديد {voucher.number}."
+                return redirect(url_for("admin.accounting_vouchers", success=message))
+            except (ValueError, TypeError, LookupError) as exc:
                 db.session.rollback()
                 error = str(exc)
+
         vouchers = AccountingVoucher.query.order_by(
             AccountingVoucher.voucher_date.desc(), AccountingVoucher.id.desc()
-        ).limit(300).all()
+        ).limit(500).all()
+        picker_context = _account_picker_context()
+        editing_id = request.args.get("edit", type=int)
+        editing_voucher = db.session.get(AccountingVoucher, editing_id) if editing_id else None
+        if editing_voucher and editing_voucher.status != "posted":
+            error = error or "لا يمكن تعديل سند ملغى."
+            editing_voucher = None
+        selected_type = (
+            editing_voucher.voucher_type
+            if editing_voucher and editing_voucher.voucher_type in {"receipt", "payment"}
+            else request.args.get("new", "receipt")
+            if request.args.get("new") in {"receipt", "payment"}
+            else "receipt"
+        )
+        selected_counterpart_id = None
+        selected_cash_id = None
+        if editing_voucher:
+            if editing_voucher.voucher_type == "receipt":
+                selected_counterpart_id = editing_voucher.from_account_id
+                selected_cash_id = editing_voucher.to_account_id
+            elif editing_voucher.voucher_type == "payment":
+                selected_counterpart_id = editing_voucher.to_account_id
+                selected_cash_id = editing_voucher.from_account_id
         return render_template(
             "admin/accounting/vouchers.html",
-            title="السندات المحاسبية",
+            title="السندات",
             vouchers=vouchers,
-            accounts=_postable_accounts(),
             currencies=_currency_options(),
             today=date.today(),
             error=error,
-            success=request.args.get("success"),
+            success=success,
+            editing_voucher=editing_voucher,
+            selected_type=selected_type,
+            selected_counterpart_id=selected_counterpart_id,
+            selected_cash_id=selected_cash_id,
+            account_picker_context=picker_context,
+            **picker_context,
+            **_context(),
+        )
+
+    @admin_bp.get("/accounting/vouchers/<int:voucher_id>")
+    def accounting_voucher_detail(voucher_id):
+        _ready()
+        voucher = db.session.get(AccountingVoucher, voucher_id)
+        if voucher is None:
+            return render_template(
+                "admin/accounting/voucher_detail.html",
+                title="السند غير موجود",
+                voucher=None,
+                error="السند المطلوب غير موجود.",
+                **_context(),
+            ), 404
+        entry = db.session.get(AccountingJournalEntry, voucher.journal_entry_id)
+        return render_template(
+            "admin/accounting/voucher_detail.html",
+            title=f"السند {voucher.number}",
+            voucher=voucher,
+            entry=entry,
+            error=None,
             **_context(),
         )
 
