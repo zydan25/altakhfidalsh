@@ -128,6 +128,16 @@ def build_admin_context():
     page_item_map = []
 
     for source in NAVIGATION:
+        if source.label == "المحاسبة":
+            # Keep accounting links out of the sidebar for roles that cannot open the module.
+            # System managers can still discover the new section before its permission rows
+            # are first seeded by an authenticated accounting request.
+            try:
+                from .security import can_access
+                if not (can_access("accounting.view") or can_access("system.manage")):
+                    continue
+            except Exception:
+                continue
         children = [
             NavItem(
                 label=item.label,
