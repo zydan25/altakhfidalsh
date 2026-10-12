@@ -1770,12 +1770,131 @@ def register_entity_views(admin_bp):
         return _render("أهداف البانرات", ["ID", "Banner", "النوع", "الهدف", "الرابط"],
                        [[x.id, x.banner_id, x.target_type, x.target_id or "—", x.url or "—"] for x in rows], "المحتوى والمتجر")
 
-    @admin_bp.get("/category-circles")
+    @admin_bp.route("/category-circles", methods=["GET", "POST"])
     def category_circles():
-        from ..models import Category
-        rows = Category.query.filter(Category.is_active.is_(True), Category.display_style == "circle").order_by(Category.sort_order, Category.name).limit(200).all()
-        return _render("دوائر الفئات", ["ID", "الفئة", "الأب", "الترتيب"],
-                       [[x.id, x.name, x.parent_id or "—", x.sort_order] for x in rows], "المحتوى والمتجر")
+        from ..models import Category, Badge, MediaAsset
+        error = None
+        success = None
+        if request.method == "POST":
+            try:
+                action = (request.form.get("action") or "create").strip()
+                category_id = request.form.get("id", type=int)
+                row = db.session.get(Category, category_id) if category_id else None
+
+                if action == "create":
+                    name = (request.form.get("name") or "").strip()
+                    if not name:
+                        raise ValueError("اسم الفئة مطلوب.")
+                    parent_id = request.form.get("parent_id", type=int) or None
+                    if parent_id:
+                        parent = db.session.get(Category, parent_id)
+                        if parent is None or not parent.is_active:
+                            raise ValueError("الفئة الأب غير موجودة أو غير نشطة.")
+                    slug = (request.form.get("slug") or "").strip().lower() or _unique_slug(
+                        Category, name, fallback="category"
+                    )
+                    if Category.query.filter(Category.parent_id == parent_id, Category.slug == slug).first():
+                        raise ValueError("المعرّف المختصر مستخدم داخل الفئة الأب نفسها.")
+                    row = Category(
+                        name=name,
+                        slug=slug,
+                        parent_id=parent_id,
+                        display_style="circle",
+                        sort_order=request.form.get("sort_order", 0, type=int) or 0,
+                        badge_id=request.form.get("badge_id", type=int) or None,
+                        is_featured=request.form.get("is_featured") == "on",
+                    )
+                    db.session.add(row)
+                    db.session.flush()
+                    icon_file = request.files.get("icon_file")
+                    if icon_file and icon_file.filename:
+                        assets = MediaService.save_generic_files([icon_file], "categories")
+                        if assets:
+                            row.icon_asset_id = assets[0]["id"]
+                    success = "تم إنشاء دائرة الفئة."
+                elif row is None:
+                    raise ValueError("الفئة غير موجودة.")
+                elif action == "update":
+                    name = (request.form.get("name") or "").strip()
+                    slug = (request.form.get("slug") or "").strip().lower()
+                    if not name or not slug:
+                        raise ValueError("اسم الفئة والمعرّف المختصر مطلوبان.")
+                    parent_id = request.form.get("parent_id", type=int) or None
+                    if parent_id == row.id:
+                        raise ValueError("لا يمكن جعل الفئة أبًا لنفسها.")
+                    if parent_id:
+                        parent = db.session.get(Category, parent_id)
+                        if parent is None or not parent.is_active:
+                            raise ValueError("الفئة الأب غير موجودة أو غير نشطة.")
+                        cursor = parent
+                        seen = {row.id}
+                        while cursor:
+                            if cursor.id in seen:
+                                raise ValueError("هذا الترتيب سيُنشئ حلقة في شجرة الفئات.")
+                            seen.add(cursor.id)
+                            cursor = db.session.get(Category, cursor.parent_id) if cursor.parent_id else None
+                    duplicate = Category.query.filter(
+                        Category.id != row.id,
+                        Category.parent_id == parent_id,
+                        Category.slug == slug,
+                    ).first()
+                    if duplicate:
+                        raise ValueError("المعرّف المختصر مستخدم داخل الفئة الأب نفسها.")
+                    row.name = name
+                    row.slug = slug
+                    row.parent_id = parent_id
+                    row.sort_order = request.form.get("sort_order", 0, type=int) or 0
+                    row.badge_id = request.form.get("badge_id", type=int) or None
+                    row.is_featured = request.form.get("is_featured") == "on"
+                    row.display_style = "circle"
+                    icon_file = request.files.get("icon_file")
+                    if icon_file and icon_file.filename:
+                        assets = MediaService.save_generic_files([icon_file], "categories")
+                        if assets:
+                            row.icon_asset_id = assets[0]["id"]
+                    success = "تم تحديث دائرة الفئة."
+                elif action == "remove_circle":
+                    row.display_style = "list"
+                    success = "تمت إزالة الفئة من عرض الدوائر مع الاحتفاظ بالفئة وارتباطاتها."
+                elif action == "archive":
+                    row.is_active = False
+                    success = "تمت أرشفة الفئة وإخفاؤها من المتجر."
+                elif action == "restore":
+                    row.is_active = True
+                    row.display_style = "circle"
+                    success = "تمت استعادة دائرة الفئة."
+                else:
+                    raise ValueError("إجراء دائرة الفئة غير معروف.")
+                db.session.commit()
+            except (ValueError, TypeError, OSError) as exc:
+                db.session.rollback()
+                error = str(exc)
+
+        rows = (
+            Category.query
+            .filter(Category.is_active.is_(True), Category.display_style == "circle")
+            .order_by(Category.sort_order, Category.name)
+            .limit(500)
+            .all()
+        )
+        parents = Category.query.filter(Category.is_active.is_(True)).order_by(Category.name).all()
+        badges = Badge.query.filter(Badge.is_active.is_(True)).order_by(Badge.name).all()
+        icon_ids = {row.icon_asset_id for row in rows if row.icon_asset_id}
+        asset_map = {
+            asset.id: asset.url
+            for asset in MediaAsset.query.filter(MediaAsset.id.in_(icon_ids)).all()
+        } if icon_ids else {}
+        return render_template(
+            "admin/category_circles.html",
+            title="دوائر الفئات",
+            rows=rows,
+            parents=parents,
+            badges=badges,
+            asset_map=asset_map,
+            success=success,
+            error=error,
+            **build_admin_context(),
+        )
 
     @admin_bp.route("/badges", methods=["GET", "POST"])
     def badges():
