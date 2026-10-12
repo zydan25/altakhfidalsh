@@ -1,35 +1,53 @@
 {% extends "admin/base.html" %}
+{% from "admin/accounting/_account_picker.html" import account_picker %}
 {% block content %}
-<section class="module-header"><span class="eyebrow">المحاسبة · مستندات الحركة</span><h2>السندات المحاسبية</h2><p class="muted">سند القبض والصرف والتحويل ينشئ قيدًا متوازنًا تلقائيًا. الإلغاء لا يمحو السند بل ينشئ قيدًا عكسيًا ويحفظ أثره.</p></section>
+<section class="module-header accounting-voucher-head"><span class="eyebrow">المحاسبة · سندات القبض والصرف</span><h2>السندات</h2><p class="muted">سند قبض أخضر وسند صرف أحمر. كل سند ينشئ قيدًا مزدوجًا متوازنًا بالريال اليمني، ويُلغى بقيد عكسي دون حذف التاريخ.</p>
+<div class="accounting-voucher-toolbar">
+<button type="button" class="accounting-voucher-kind-btn is-receipt" data-accounting-voucher-open="receipt"><i class="bi bi-box-arrow-in-down"></i> سند قبض</button>
+<button type="button" class="accounting-voucher-kind-btn is-payment" data-accounting-voucher-open="payment"><i class="bi bi-box-arrow-up"></i> سند صرف</button>
+<a class="accounting-voucher-kind-btn" href="/admin/accounting/journal?source=voucher"><i class="bi bi-journal-text"></i> القيود</a>
+<a class="accounting-voucher-kind-btn" href="/admin/accounting/reports"><i class="bi bi-bar-chart-line"></i> التقارير</a></div></section>
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
-<details class="panel accounting-form-panel" open>
-  <summary class="accounting-form-summary"><span><i class="bi bi-receipt" aria-hidden="true"></i> إصدار سند جديد</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
-  <form method="post" class="form-stack accounting-form-grid">
-    <label>نوع السند<select name="voucher_type" id="accountingVoucherType"><option value="receipt">سند قبض</option><option value="payment">سند صرف</option><option value="transfer">سند تحويل</option><option value="adjustment">تسوية</option></select></label>
-    <label>التاريخ<input name="voucher_date" type="date" value="{{ now_date or '' }}" required></label>
-    <label>المبلغ<input name="amount" type="number" min="0.0001" step="0.0001" required></label>
-    <label>العملة<select name="currency_code" required>{% for currency_row in currencies %}<option value="{{ currency_row.code }}" {% if currency_row.code == "SAR" %}selected{% endif %}>{{ currency_row.name }} · {{ currency_row.code }}</option>{% endfor %}</select></label>
-    <label>الحساب المقابل (من)<select name="from_account_id" required><option value="">اختر الحساب</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.code }} · {{ account.name }}</option>{% endfor %}</select></label>
-    <label>الحساب المستلم/المقابل (إلى)<select name="to_account_id" required><option value="">اختر الحساب</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.code }} · {{ account.name }}</option>{% endfor %}</select></label>
-    <label>المستفيد أو الجهة<input name="beneficiary" placeholder="اختياري"></label>
-    <label class="accounting-form-wide">البيان<input name="description" required placeholder="سبب السند أو تفاصيل الحركة"></label>
-    <button class="primary-button" type="submit"><i class="bi bi-check-circle" aria-hidden="true"></i> إصدار السند وترحيله</button>
-  </form>
-</details>
-<section class="accounting-entry-list">
-  {% for voucher in vouchers %}
-  <article class="panel accounting-entry-card">
-    <div class="accounting-entry-head"><span class="accounting-entry-number">{{ voucher.number }}</span><span class="accounting-entry-date">{{ voucher.voucher_date }}</span><span class="accounting-entry-currency">{{ voucher.currency_code }}</span></div>
-    <strong class="accounting-entry-description">{{ voucher.description }}</strong>
-    <div class="accounting-entry-totals">
-      <span><small>نوع السند</small><strong>{{ {"receipt":"قبض","payment":"صرف","transfer":"تحويل","adjustment":"تسوية"}.get(voucher.voucher_type,voucher.voucher_type) }}</strong></span>
-      <span><small>المبلغ</small><strong>{{ "%.2f"|format(voucher.amount|float) }}</strong></span>
-      <span><small>الحالة</small><strong>{{ "مرحّل" if voucher.status == "posted" else "ملغى بعكس محاسبي" }}</strong></span>
-    </div>
-    <div class="accounting-voucher-account-pair"><span>{{ voucher.from_account.code }} · {{ voucher.from_account.name }}</span><i class="bi bi-arrow-left-right" aria-hidden="true"></i><span>{{ voucher.to_account.code }} · {{ voucher.to_account.name }}</span></div>
-    <a class="ghost-button compact" href="/admin/accounting/journal?q={{ voucher.journal_entry.number|urlencode }}">عرض القيد المرتبط</a>
-    {% if voucher.status == "posted" %}<form method="post" action="/admin/accounting/vouchers/{{ voucher.id }}/void" onsubmit="return confirm('سيتم إنشاء قيد عكسي لإلغاء هذا السند. هل تريد الاستمرار؟')"><button type="submit" class="ghost-button danger-button compact">إلغاء السند بقيد عكسي</button></form>{% endif %}
-  </article>
-  {% else %}<div class="empty-state panel"><h3>لا توجد سندات</h3><p class="muted">ابدأ بإصدار سند قبض أو صرف أو تحويل.</p></div>{% endfor %}
+<div class="accounting-modal-overlay" id="accountingVoucherModal" {% if not show_composer %}hidden{% endif %}>
+<div class="accounting-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="accountingVoucherTitle">
+<div class="accounting-modal-title"><div><span class="eyebrow">مستند مالي رسمي · YER</span><h3 id="accountingVoucherTitle">{{ "تعديل السند " ~ editing_voucher.number if editing_voucher else "إصدار سند" }}</h3></div><button type="button" class="icon-button" data-accounting-modal-close aria-label="إغلاق"><i class="bi bi-x-lg"></i></button></div>
+<div class="accounting-type-switch"><button type="button" data-voucher-kind="receipt" class="{% if selected_type == 'receipt' %}is-active{% endif %}"><i class="bi bi-box-arrow-in-down"></i> قبض</button><button type="button" data-voucher-kind="payment" class="{% if selected_type == 'payment' %}is-active{% endif %}"><i class="bi bi-box-arrow-up"></i> صرف</button></div>
+<form method="post" id="accountingVoucherForm" class="accounting-voucher-form">
+{% if editing_voucher %}<input type="hidden" name="edit_id" value="{{ editing_voucher.id }}">{% endif %}<input type="hidden" name="voucher_type" id="accountingVoucherType" value="{{ selected_type }}">
+<label class="accounting-voucher-field"><span>الحساب</span>{{ account_picker('account_id','الحساب',account_tree,selected_id=selected_counterpart_id,placeholder='اختر الحساب',allowed_ids=counterpart_ids,selected_label=account_label_map.get(selected_counterpart_id),required=True,picker_id='voucherCounterpartPicker') }}</label>
+<label class="accounting-voucher-field"><span>المبلغ · ريال يمني</span><input name="amount" type="number" min="0.0001" step="0.0001" inputmode="decimal" required placeholder="أدخل المبلغ" value="{{ editing_voucher.amount if editing_voucher else '' }}" id="accountingVoucherAmount" data-money-words data-money-words-target="#voucherAmountWords" data-money-currency="YER"><span class="accounting-amount-words" id="voucherAmountWords" aria-live="polite"></span></label>
+<label class="accounting-voucher-field"><span>المصدر الحسابي · الصندوق</span>{{ account_picker('cash_account_id','الصندوق',cash_tree,selected_id=selected_cash_id,placeholder='اختر صندوقًا',allowed_ids=cashbox_ids,selected_label=account_label_map.get(selected_cash_id),required=True,picker_id='voucherCashPicker') }}</label>
+<label class="accounting-voucher-field"><span>تاريخ السند</span><input name="voucher_date" type="date" value="{{ editing_voucher.voucher_date if editing_voucher else today }}" required></label>
+<label class="accounting-voucher-field accounting-voucher-description"><span>البيان</span><input name="description" value="{{ editing_voucher.description if editing_voucher else '' }}" required placeholder="اكتب سبب القبض أو الصرف"></label>
+<div class="accounting-voucher-form-actions"><span>سيُحفظ السند ويُرحّل القيد معًا</span><button type="submit" id="accountingVoucherSubmit" class="accounting-voucher-submit {% if selected_type == 'receipt' %}is-receipt{% else %}is-payment{% endif %}"><i class="bi bi-check2-circle"></i> {{ "عكس السند السابق وإصدار البديل" if editing_voucher else ("إصدار سند قبض" if selected_type == "receipt" else "إصدار سند صرف") }}</button></div>
+</form></div></div>
+<section class="panel accounting-voucher-list-tools"><div class="accounting-voucher-list-head"><div><span class="eyebrow">سجل الحركات</span><h3>السندات المسجلة</h3><small id="accountingVoucherCount">{{ vouchers|length }} سند</small></div></div>
+<div class="accounting-voucher-filters"><label><span>بحث</span><input id="accountingVoucherSearch" type="search" placeholder="رقم السند أو الحساب أو البيان"></label><label><span>الفرز</span><select id="accountingVoucherSort"><option value="latest">الأحدث</option><option value="oldest">الأقدم</option><option value="highest">الأعلى مبلغًا</option><option value="lowest">الأقل مبلغًا</option><option value="receipt">سندات القبض</option><option value="payment">سندات الصرف</option></select></label></div></section>
+<section class="accounting-voucher-list" id="accountingVoucherCards">
+{% for voucher in vouchers %}
+{% set is_void = voucher.status != "posted" or (voucher.journal_entry and (voucher.journal_entry.status == "void" or voucher.journal_entry.reversed_entry_id)) %}
+{% set counterpart = voucher.from_account if voucher.voucher_type == "receipt" else voucher.to_account %}{% set cashbox = voucher.to_account if voucher.voucher_type == "receipt" else voucher.from_account %}
+<article class="accounting-voucher-card {% if voucher.voucher_type == 'receipt' %}is-receipt{% else %}is-payment{% endif %}" data-accounting-voucher-card data-voucher-id="{{ voucher.id }}" data-voucher-type="{{ voucher.voucher_type }}" data-voucher-amount="{{ voucher.amount }}" data-voucher-date="{{ voucher.voucher_date }}" data-voucher-search="{{ (voucher.number ~ ' ' ~ voucher.description ~ ' ' ~ (counterpart.name if counterpart else '') ~ ' ' ~ (cashbox.name if cashbox else ''))|lower }}">
+<div class="accounting-voucher-card-head"><span class="accounting-voucher-card-icon"><i class="bi {% if voucher.voucher_type == 'receipt' %}bi-arrow-down-left-circle-fill{% else %}bi-arrow-up-right-circle-fill{% endif %}"></i></span><div class="accounting-voucher-title"><strong>{{ voucher.number }}</strong><small>{{ "سند قبض" if voucher.voucher_type == "receipt" else "سند صرف" }} · {{ voucher.voucher_date }}</small></div><span class="accounting-voucher-state {{ 'is-void' if is_void else 'is-posted' }}">{{ "ملغى بعكس" if is_void else "مرحّل" }}</span></div>
+<div class="accounting-voucher-amount">{{ "%.2f"|format(voucher.amount|float) }} <small>ر.ي</small></div><p class="accounting-voucher-description">{{ voucher.description }}</p>
+<div class="accounting-voucher-flow"><div><small>الحساب</small><strong>{{ counterpart.name if counterpart else "—" }}</strong><span>{{ counterpart.code if counterpart else "" }}</span></div><i class="bi bi-arrow-left-right"></i><div><small>المصدر الحسابي</small><strong>{{ cashbox.name if cashbox else "—" }}</strong><span>{{ cashbox.code if cashbox else "" }}</span></div></div>
+<div class="accounting-voucher-card-actions"><a href="/admin/accounting/vouchers/{{ voucher.id }}"><i class="bi bi-eye"></i> التفاصيل</a>{% if not is_void %}<a href="/admin/accounting/vouchers?edit={{ voucher.id }}"><i class="bi bi-pencil-square"></i> تعديل</a><form method="post" action="/admin/accounting/vouchers/{{ voucher.id }}/void" onsubmit="return confirm('سيتم عكس السند بقيد عكسي ولن يُحذف. متابعة؟')"><button class="danger"><i class="bi bi-arrow-counterclockwise"></i> عكس السند</button></form>{% endif %}<a href="/admin/accounting/journal?q={{ voucher.journal_entry.number|urlencode }}"><i class="bi bi-journal-check"></i> القيد</a></div>
+</article>
+{% else %}<div class="empty-state panel"><i class="bi bi-receipt-cutoff"></i><h3>لا توجد سندات حتى الآن</h3><p>ابدأ من زر القبض أو الصرف أعلاه.</p></div>{% endfor %}
 </section>
+<script>
+(() => {
+ const modal=document.getElementById("accountingVoucherModal"),typeField=document.getElementById("accountingVoucherType"),submit=document.getElementById("accountingVoucherSubmit");
+ function setKind(kind){if(!["receipt","payment"].includes(kind))return;if(typeField)typeField.value=kind;document.querySelectorAll("[data-voucher-kind]").forEach(b=>b.classList.toggle("is-active",b.dataset.voucherKind===kind));if(submit){submit.classList.toggle("is-receipt",kind==="receipt");submit.classList.toggle("is-payment",kind==="payment");if(!{{ 'true' if editing_voucher else 'false' }})submit.innerHTML=kind==="receipt"?"<i class='bi bi-check2-circle'></i> إصدار سند قبض":"<i class='bi bi-check2-circle'></i> إصدار سند صرف";}}
+ document.querySelectorAll("[data-accounting-voucher-open]").forEach(b=>b.addEventListener("click",()=>{if(modal)modal.hidden=false;setKind(b.dataset.accountingVoucherOpen);document.body.classList.add("accounting-modal-open");}));
+ document.querySelectorAll("[data-voucher-kind]").forEach(b=>b.addEventListener("click",()=>setKind(b.dataset.voucherKind)));
+ document.querySelectorAll("[data-accounting-modal-close]").forEach(b=>b.addEventListener("click",()=>{if(modal)modal.hidden=true;document.body.classList.remove("accounting-modal-open");}));
+ modal?.addEventListener("click",e=>{if(e.target===modal){modal.hidden=true;document.body.classList.remove("accounting-modal-open");}});
+ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&modal&&!modal.hidden){modal.hidden=true;document.body.classList.remove("accounting-modal-open");}});
+ const search=document.getElementById("accountingVoucherSearch"),sort=document.getElementById("accountingVoucherSort"),wrap=document.getElementById("accountingVoucherCards"),count=document.getElementById("accountingVoucherCount");
+ function filter(){const term=(search?.value||"").toLowerCase().trim(),kind=sort?.value||"latest";const cards=Array.from(wrap?.querySelectorAll("[data-accounting-voucher-card]")||[]);const shown=cards.filter(card=>{const text=!term||(card.dataset.voucherSearch||"").includes(term),type=!["receipt","payment"].includes(kind)||card.dataset.voucherType===kind;card.hidden=!(text&&type);return text&&type;});shown.sort((a,b)=>{if(kind==="highest"||kind==="lowest"){const delta=Number(a.dataset.voucherAmount||0)-Number(b.dataset.voucherAmount||0);return kind==="highest"?-delta:delta;}if(kind==="oldest")return String(a.dataset.voucherDate).localeCompare(String(b.dataset.voucherDate));return Number(b.dataset.voucherId)-Number(a.dataset.voucherId);});shown.forEach(card=>wrap?.appendChild(card));if(count)count.textContent=shown.length+" سند";}
+ search?.addEventListener("input",filter);sort?.addEventListener("change",filter);filter();
+ document.getElementById("accountingVoucherForm")?.addEventListener("submit",e=>{const a=document.querySelector('#voucherCounterpartPicker [data-account-value]')?.value,c=document.querySelector('#voucherCashPicker [data-account-value]')?.value,amount=Number(document.getElementById("accountingVoucherAmount")?.value||0);if(!a||!c||!Number.isFinite(amount)||amount<=0){e.preventDefault();alert("اختر الحساب والصندوق وأدخل مبلغًا أكبر من صفر.");}});
+})();
+</script>
 {% endblock %}
