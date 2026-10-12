@@ -1,0 +1,54 @@
+{% extends "admin/base.html" %}
+{% from "admin/accounting/_account_picker.html" import account_picker %}
+{% from "admin/accounting/_customer_picker.html" import customer_picker %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المحاسبة · أرصدة العملاء</span><h2>يوميات العملاء</h2><p class="muted">قيود سريعة على حساب العميل. «له» يزيد رصيد العميل الدائن، و«عليه» يسجل مبلغًا مدينًا عليه. كل حركة تصبح قيدًا يوميًا كاملًا قابلًا للتتبع.</p>
+<div class="accounting-voucher-toolbar"><button type="button" class="accounting-voucher-kind-btn" data-customer-operation-open><i class="bi bi-plus-circle"></i> إضافة قيد يومية</button><a class="accounting-voucher-kind-btn is-receipt" href="/admin/accounting/insurance?new=1"><i class="bi bi-shield-check"></i> إضافة تأمين</a><a class="accounting-voucher-kind-btn" href="/admin/accounting/accounts"><i class="bi bi-diagram-3"></i> شجرة الحسابات</a></div></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<div class="accounting-modal-overlay" id="customerOperationModal" {% if not show_form %}hidden{% endif %}>
+<div class="accounting-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="daybookFormTitle">
+<div class="accounting-modal-title"><div><span class="eyebrow">قيد يومية · YER</span><h3 id="daybookFormTitle">{{ "تعديل قيد اليومية" if editing_operation else "إضافة قيد يومية للعميل" }}</h3></div><button type="button" class="icon-button" data-accounting-modal-close aria-label="إغلاق"><i class="bi bi-x-lg"></i></button></div>
+<form method="post" class="accounting-customer-operation-form" id="daybookForm">
+{% if editing_operation %}<input type="hidden" name="operation_id" value="{{ editing_operation.id }}">{% endif %}
+<label class="accounting-voucher-field"><span>العميل *</span>{{ customer_picker('customer_id',customers,selected_id=editing_operation.customer_id if editing_operation else None,placeholder='اختر العميل',required=True,picker_id='daybookCustomerPicker') }}</label>
+<div class="accounting-daybook-side-fields">
+<label class="accounting-voucher-field"><span class="accounting-side-label is-credit">له · دائن</span><input name="amount_credit" type="number" min="0.0001" step="0.0001" inputmode="decimal" placeholder="المبلغ الذي له" value="{{ editing_operation.entered_amount if editing_operation and editing_side == 'credit' else '' }}" data-money-words data-money-words-target="#daybookCreditWords" data-money-currency="YER"><span class="accounting-amount-words" id="daybookCreditWords" aria-live="polite"></span></label>
+<label class="accounting-voucher-field"><span class="accounting-side-label is-debit">عليه · مدين</span><input name="amount_debit" type="number" min="0.0001" step="0.0001" inputmode="decimal" placeholder="المبلغ الذي عليه" value="{{ editing_operation.entered_amount if editing_operation and editing_side == 'debit' else '' }}" data-money-words data-money-words-target="#daybookDebitWords" data-money-currency="YER"><span class="accounting-amount-words" id="daybookDebitWords" aria-live="polite"></span></label>
+</div>
+<label class="accounting-voucher-field"><span>المصدر الحسابي *</span>{{ account_picker('contra_account_id','الحساب المقابل',account_tree,selected_id=editing_operation.contra_account_id if editing_operation else None,placeholder='اختر الحساب المقابل',allowed_ids=postable_ids,selected_label=account_label_map.get(editing_operation.contra_account_id) if editing_operation else None,required=True,picker_id='daybookContraPicker') }}</label>
+<label class="accounting-voucher-field"><span>التاريخ</span><input name="operation_date" type="date" value="{{ editing_operation.operation_date if editing_operation else today }}" required></label>
+<label class="accounting-voucher-field"><span>البيان *</span><input name="description" value="{{ editing_operation.description if editing_operation else '' }}" required placeholder="اكتب سبب القيد بالتفصيل"></label>
+<div class="accounting-voucher-form-actions"><span>أدخل مبلغًا واحدًا فقط: «له» أو «عليه».</span><button type="submit" class="accounting-voucher-submit"><i class="bi bi-check2-circle"></i> {{ "حفظ التعديل بقيد عكسي" if editing_operation else "حفظ وترحيل قيد اليومية" }}</button></div>
+</form></div></div>
+<section class="panel accounting-voucher-list-tools"><div class="accounting-voucher-list-head"><div><span class="eyebrow">حركات العملاء</span><h3>سجل يوميات العملاء</h3><small>{{ operations|length }} قيد</small></div></div></section>
+<section class="accounting-voucher-list">
+{% for operation in operations %}
+<article class="accounting-ledger-operation-card">
+<div class="accounting-voucher-card-head"><span class="accounting-voucher-card-icon"><i class="bi bi-person-lines-fill"></i></span><div class="accounting-voucher-title"><strong>{{ operation.customer.name or ("عميل #" ~ operation.customer_id) }}</strong><small>{{ operation.operation_date }} · قيد #{{ operation.id }}</small></div><span class="accounting-voucher-state {{ 'is-void' if operation.status != 'posted' else 'is-posted' }}">{{ operation.ui_status }}</span></div>
+<div class="accounting-voucher-amount {% if operation.ui_side == 'debit' %}is-debit{% else %}is-credit{% endif %}">{{ "%.2f"|format(operation.amount_yer|float) }} <small>ر.ي</small></div>
+<div class="accounting-operation-side"><span class="{{ 'is-credit' if operation.ui_side == 'credit' else 'is-debit' }}">{{ operation.ui_side_label }} · {{ "دائن" if operation.ui_side == "credit" else "مدين" }}</span></div>
+<div class="accounting-voucher-flow"><div><small>حساب العميل</small><strong>{{ operation.customer.ledger_account.name if operation.customer and operation.customer.ledger_account else "—" }}</strong></div><i class="bi bi-arrow-left-right"></i><div><small>المصدر الحسابي</small><strong>{{ operation.contra_account.name if operation.contra_account else "—" }}</strong><span>{{ operation.contra_account.code if operation.contra_account else "" }}</span></div></div>
+<p class="accounting-voucher-description">{{ operation.description or "—" }}</p>
+<div class="accounting-voucher-card-actions"><a href="/admin/accounting/customers/{{ operation.customer_id }}"><i class="bi bi-person-vcard"></i> كشف حساب العميل</a>{% if operation.journal_entry %}<a href="/admin/accounting/journal?q={{ operation.journal_entry.number|urlencode }}"><i class="bi bi-journal-check"></i> القيد</a>{% endif %}{% if operation.status == "posted" %}<a href="/admin/accounting/customer-daybook?edit={{ operation.id }}"><i class="bi bi-pencil-square"></i> تعديل</a>{% endif %}</div>
+</article>
+{% else %}<div class="empty-state panel"><i class="bi bi-journal-text"></i><h3>لا توجد قيود يومية بعد</h3><p>ابدأ من زر «إضافة قيد يومية».</p></div>{% endfor %}
+</section>
+<script>
+(() => {
+ const modal=document.getElementById("customerOperationModal");
+ document.querySelectorAll("[data-customer-operation-open]").forEach(button=>button.addEventListener("click",()=>{if(modal)modal.hidden=false;document.body.classList.add("accounting-modal-open");setTimeout(()=>document.querySelector('#daybookCustomerPicker [data-customer-trigger]')?.focus(),25);}));
+ document.querySelectorAll("[data-accounting-modal-close]").forEach(button=>button.addEventListener("click",()=>{if(modal)modal.hidden=true;document.body.classList.remove("accounting-modal-open");}));
+ modal?.addEventListener("click",event=>{if(event.target===modal){modal.hidden=true;document.body.classList.remove("accounting-modal-open");}});
+ document.addEventListener("keydown",event=>{if(event.key==="Escape"&&modal&&!modal.hidden){modal.hidden=true;document.body.classList.remove("accounting-modal-open");}});
+ const credit=document.querySelector('#daybookForm [name="amount_credit"]'),debit=document.querySelector('#daybookForm [name="amount_debit"]');
+ credit?.addEventListener("input",()=>{if(Number(credit.value)>0&&debit)debit.value="";});
+ debit?.addEventListener("input",()=>{if(Number(debit.value)>0&&credit)credit.value="";});
+ document.getElementById("daybookForm")?.addEventListener("submit",event=>{
+   const customer=document.querySelector('#daybookCustomerPicker [data-customer-value]')?.value;
+   const source=document.querySelector('#daybookContraPicker [data-account-value]')?.value;
+   const c=Number(credit?.value||0),d=Number(debit?.value||0);
+   if(!customer||!source||((c>0)===(d>0))){event.preventDefault();alert("اختر العميل والمصدر، وأدخل مبلغًا واحدًا فقط في «له» أو «عليه».");return;}
+ });
+})();
+</script>
+{% endblock %}
