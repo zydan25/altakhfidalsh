@@ -884,6 +884,37 @@ def register_accounting_views(admin_bp):
             **_context(),
         )
 
+    @admin_bp.get("/accounting/customers")
+    def accounting_customers():
+        _ready()
+        query = (request.args.get("q") or "").strip()
+        customers_query = Customer.query
+        if query:
+            like = f"%{query}%"
+            customers_query = customers_query.filter(
+                Customer.name.ilike(like)
+                | Customer.phone_normalized.ilike(like)
+                | Customer.invite_code.ilike(like)
+            )
+        customers = customers_query.order_by(Customer.name, Customer.id.desc()).limit(1000).all()
+        rows = []
+        for customer in customers:
+            account = customer.ledger_account
+            raw_balance = ledger_balance(account.id, currency_code="YER") if account else Decimal("0")
+            rows.append({
+                "customer": customer,
+                "account": account,
+                "balance": -raw_balance,
+                "movement_count": CustomerLedgerOperation.query.filter_by(customer_id=customer.id).count(),
+            })
+        return render_template(
+            "admin/accounting/customers.html",
+            title="حسابات العملاء",
+            rows=rows,
+            query=query,
+            **_context(),
+        )
+
     @admin_bp.get("/accounting/customers/<int:customer_id>")
     def accounting_customer_statement(customer_id):
         _ready()
