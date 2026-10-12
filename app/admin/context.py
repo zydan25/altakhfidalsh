@@ -91,6 +91,35 @@ ACTOR_LABELS = {
 }
 
 
+
+ADMIN_THEME_ICONS = {
+    "section:الرئيسية":"bi-house-door-fill","section:الكتالوج":"bi-box-seam-fill",
+    "section:المحتوى والمتجر":"bi-shop-window","section:التسعير":"bi-currency-exchange",
+    "section:المبيعات والطلبات":"bi-bag-check-fill","section:العملاء والتواصل":"bi-people-fill",
+    "section:الترويج والمالية":"bi-megaphone-fill","section:التكاملات":"bi-plug-fill","section:النظام":"bi-gear-fill",
+    "/admin/":"bi-grid-1x2-fill","/admin/tasks":"bi-list-check","/admin/notifications":"bi-bell-fill",
+    "/admin/products":"bi-box-seam-fill","/admin/products/new":"bi-plus-square-fill","/admin/products/drafts":"bi-file-earmark-text-fill",
+    "/admin/categories":"bi-diagram-3-fill","/admin/category-home-display":"bi-grid-fill","/admin/category-strip":"bi-view-stacked",
+    "/admin/brands":"bi-tags-fill","/admin/options":"bi-palette2","/admin/size-guides":"bi-rulers",
+    "/admin/inventory":"bi-boxes","/admin/media":"bi-images","/admin/badges":"bi-patch-check-fill",
+    "/admin/catalog/policies":"bi-shield-check","/admin/storefront/pages":"bi-file-text-fill","/admin/storefront/sections":"bi-layout-text-window-reverse",
+    "/admin/banners":"bi-images","/admin/banner-targets":"bi-link-45deg","/admin/category-circles":"bi-circle",
+    "/admin/side-categories":"bi-list-nested","/admin/trends":"bi-graph-up-arrow","/admin/trends/display-settings":"bi-card-image",
+    "/admin/product-detail-settings":"bi-sliders","/admin/looks":"bi-stars","/admin/store-locations":"bi-geo-alt-fill",
+    "/admin/campaigns":"bi-megaphone-fill","/admin/storefront/collections":"bi-stars","/admin/pricing/groups":"bi-currency-exchange",
+    "/admin/pricing/currencies":"bi-cash-coin","/admin/pricing/exchange-rates":"bi-arrow-left-right","/admin/geo":"bi-geo-fill",
+    "/admin/pricing/location-adjustments":"bi-sliders2","/admin/pricing/customer-overrides":"bi-person-gear","/admin/pricing/preview":"bi-calculator-fill",
+    "/admin/orders":"bi-bag-check-fill","/admin/payments":"bi-credit-card-2-front-fill","/admin/payments/proofs":"bi-receipt",
+    "/admin/shipping":"bi-truck","/admin/shipping/rates":"bi-signpost-2-fill","/admin/returns":"bi-arrow-return-left",
+    "/admin/warranty":"bi-shield-check","/admin/reviews":"bi-star-fill","/admin/customers":"bi-people-fill",
+    "/admin/customers/addresses":"bi-pin-map-fill","/admin/chat":"bi-chat-dots-fill","/admin/attachments":"bi-paperclip",
+    "/admin/promotions/coupons":"bi-ticket-perforated-fill","/admin/promotions/gifts":"bi-gift-fill",
+    "/admin/finance/wallets":"bi-wallet2","/admin/finance/wallet-ledger":"bi-journal-text","/admin/reports":"bi-bar-chart-fill",
+    "/admin/whatsapp":"bi-whatsapp","/admin/system/admins":"bi-person-badge-fill","/admin/system/roles":"bi-shield-lock-fill",
+    "/admin/system/audit":"bi-clock-history","/admin/system/theme":"bi-palette-fill","/admin/system/layout":"bi-layout-wtf",
+    "/admin/system/settings":"bi-gear-fill","/admin/system/features":"bi-toggles"
+}
+
 def build_admin_context():
     current_path = request.path
     sections = []
@@ -141,6 +170,8 @@ def build_admin_context():
     return {
         "navigation": sections,
         "theme_css_vars": css_vars,
+        "admin_layout_theme": theme_values.get("layout_theme", "classic") if theme_values.get("layout_theme", "classic") in {"classic", "water"} else "classic",
+        "admin_theme_icons": ADMIN_THEME_ICONS,
         "current_path": current_path,
         "page_item_map": page_item_map,
         "order_status_labels": ORDER_STATUS_LABELS,
