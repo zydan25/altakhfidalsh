@@ -164,3 +164,41 @@
  .accounting-voucher-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
  .accounting-voucher-list{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* Customer account operations and the order-payment modal, shared by both admin layouts. */
+.accounting-payment-note{display:flex;align-items:flex-start;gap:8px;margin:10px 0 13px;padding:10px;border:1px solid #d8e6fb;border-radius:11px;background:#f3f7ff;color:#475467;font-size:10px;line-height:1.7}
+.accounting-payment-note>i{flex:0 0 auto;margin-top:2px;color:#175cd3;font-size:15px}
+.accounting-order-payment-form,.accounting-customer-operation-form{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.accounting-daybook-side-fields{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.accounting-side-label{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:950}
+.accounting-side-label:before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:currentColor}
+.accounting-side-label.is-credit{color:#067647}
+.accounting-side-label.is-debit{color:#b42318}
+.accounting-voucher-amount.is-receipt{color:#067647}
+.accounting-voucher-amount.is-payment{color:#b42318}
+.accounting-operation-side{display:flex;align-items:center}
+.accounting-operation-side>span{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:8px;font-size:10px;font-weight:950}
+.accounting-operation-side .is-credit{background:#ecfdf3;color:#067647}
+.accounting-operation-side .is-debit{background:#fff1f0;color:#b42318}
+.accounting-child-account{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:9px;align-items:center;padding:10px;border-bottom:1px solid #edf0f5;color:inherit;text-decoration:none}
+.accounting-child-account:last-child{border-bottom:0}
+.accounting-child-account>span{display:grid;gap:4px;min-width:0}
+.accounting-child-account strong{font-size:11px;font-weight:950;overflow-wrap:anywhere}
+.accounting-child-account small{font-size:9px;color:#8491a5}
+.accounting-child-account b{font-size:10px;direction:ltr;white-space:nowrap}
+.accounting-child-account>i{color:#98a2b3}
+.accounting-voucher-form-actions>span{line-height:1.55}
+.order-accounting-payment-overlay{z-index:600}
+@media(min-width:620px){
+ .accounting-order-payment-form,.accounting-customer-operation-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .accounting-order-payment-form .accounting-voucher-form-actions,.accounting-customer-operation-form .accounting-voucher-form-actions{grid-column:1/-1}
+ .accounting-daybook-side-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:360px){
+ .accounting-voucher-flow{grid-template-columns:minmax(0,1fr)}
+ .accounting-voucher-flow>i{display:none}
+ .accounting-voucher-flow>div{padding:7px;border-radius:8px;background:#f7f9fc}
+ .accounting-voucher-toolbar{gap:5px}
+ .accounting-voucher-kind-btn{min-height:35px;padding:6px 8px;font-size:10px}
+ .accounting-voucher-amount{font-size:17px}
+}
