@@ -1273,7 +1273,12 @@ def register_entity_views(admin_bp):
             except (ValueError,OSError) as exc:
                 db.session.rollback(); error=str(exc)
         rows=Brand.query.filter_by(is_active=True).order_by(Brand.name).all()
-        records=[{"id":x.id,"title":x.name,"badge":f"#{x.id}","edit_action":"update","archive_action":"archive",
+        logo_asset_ids = {x.logo_asset_id for x in rows if x.logo_asset_id}
+        logo_urls = {
+            asset.id: asset.url
+            for asset in MediaAsset.query.filter(MediaAsset.id.in_(logo_asset_ids)).all()
+        } if logo_asset_ids else {}
+        records=[{"id":x.id,"title":x.name,"badge":f"#{x.id}","image_url":logo_urls.get(x.logo_asset_id),"edit_action":"update","archive_action":"archive",
             "edit_fields":[{"name":"name","label":"اسم العلامة","required":True,"value":x.name},{"name":"slug","label":"Slug","dir":"ltr","value":x.slug},{"name":"logo_file","label":"استبدال الشعار","type":"file","accept":"image/*"}],
             "fields":[{"label":"Slug","value":x.slug,"dir":"ltr"},{"label":"الشعار","value":f"Asset #{x.logo_asset_id}" if x.logo_asset_id else "بدون شعار"}]} for x in rows]
         return render_template("admin/manage.html",title="العلامات التجارية",section="الكتالوج",description="إضافة وتعديل وأرشفة العلامات التجارية مع Slug تلقائي.",fields=[{"name":"name","label":"اسم العلامة","required":True},{"name":"slug","label":"Slug","dir":"ltr"},{"name":"logo_file","label":"الشعار","type":"file","accept":"image/*"}],records=records,modal_id="brandAddModal",success=success,error=error,**_ctx())
