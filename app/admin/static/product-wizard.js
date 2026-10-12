@@ -1562,6 +1562,7 @@
       description: document.getElementById("productDescription").value,
       slug: document.getElementById("productSlug").value.trim(),
       base_price: document.getElementById("productPrice").value,
+      input_currency_id: document.getElementById("productInputCurrency")?.value || null,
       material: document.getElementById("productMaterial").value,
       care_instructions: document.getElementById("productCare").value,
       compare_at_price: document.getElementById("productCompareAtPrice").value || null,
