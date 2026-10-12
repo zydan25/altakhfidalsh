@@ -19,6 +19,8 @@ from ..models import (
     MediaAsset,
     ProductVariant,
     ProductBadge,
+    StockInventory,
+    OrderItem,
     Badge,
 )
 
@@ -412,16 +414,80 @@ def register_admin_routes(admin_bp):
             currency.id: currency.code
             for currency in Currency.query.filter(Currency.id.in_(currency_ids)).all()
         } if currency_ids else {}
+
+        # Theme-two catalog filters use lightweight aggregates. These are display-only
+        # values; product, inventory and order operations remain in their existing services.
+        all_categories = Category.query.order_by(Category.parent_id, Category.sort_order, Category.name).all()
+        category_by_id = {row.id: row for row in all_categories}
+        category_labels = {}
+        for category in all_categories:
+            parts = [category.name]
+            parent_id = category.parent_id
+            seen = {category.id}
+            while parent_id and parent_id in category_by_id and parent_id not in seen:
+                parent = category_by_id[parent_id]
+                parts.append(parent.name)
+                seen.add(parent.id)
+                parent_id = parent.parent_id
+            category_labels[category.id] = " / ".join(reversed(parts))
+        category_options = [
+            {"id": row.id, "label": category_labels[row.id]}
+            for row in all_categories if row.is_active
+        ]
+
+        category_ids_by_product = {}
+        if product_ids:
+            for product_id, category_id in (
+                db.session.query(ProductCategory.product_id, ProductCategory.category_id)
+                .filter(ProductCategory.product_id.in_(product_ids))
+                .all()
+            ):
+                category_ids_by_product.setdefault(product_id, []).append(category_id)
+
+        stock_quantities = {}
+        if product_ids:
+            stock_quantities = dict(
+                db.session.query(ProductVariant.product_id, func.coalesce(func.sum(StockInventory.available), 0))
+                .join(StockInventory, StockInventory.variant_id == ProductVariant.id)
+                .filter(
+                    ProductVariant.product_id.in_(product_ids),
+                    ProductVariant.is_active.is_(True),
+                )
+                .group_by(ProductVariant.product_id)
+                .all()
+            )
+
+        ordered_quantities = {}
+        if product_ids:
+            ordered_quantities = dict(
+                db.session.query(OrderItem.product_id, func.coalesce(func.sum(OrderItem.qty), 0))
+                .join(Order, Order.id == OrderItem.order_id)
+                .filter(
+                    OrderItem.product_id.in_(product_ids),
+                    OrderItem.product_id.isnot(None),
+                    Order.status.notin_(("cancelled", "canceled")),
+                )
+                .group_by(OrderItem.product_id)
+                .all()
+            )
+
         for item in items:
             item._admin_image_url = media_map.get(item.id)
             item._admin_currency_code = currencies_map.get(item.base_currency_id, "")
             item._admin_variant_count = int(variant_counts.get(item.id, 0))
             item._admin_badge_count = int(badge_counts.get(item.id, 0))
+            item._admin_category_ids = category_ids_by_product.get(item.id, [])
+            item._admin_category_names = [
+                category_labels[cid] for cid in item._admin_category_ids if cid in category_labels
+            ]
+            item._admin_stock_quantity = int(stock_quantities.get(item.id, 0) or 0)
+            item._admin_order_quantity = int(ordered_quantities.get(item.id, 0) or 0)
 
         return render_template(
             "admin/products.html",
             title="المنتجات",
             products=items,
+            category_options=category_options,
             view=view,
             active_count=active_count,
             archived_count=archived_count,
