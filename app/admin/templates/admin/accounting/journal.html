@@ -1,5 +1,5 @@
-{% from "admin/accounting/_account_picker.html" import account_picker %}
 {% extends "admin/base.html" %}
+{% from "admin/accounting/_account_picker.html" import account_picker %}
 {% block content %}
 <section class="module-header"><span class="eyebrow">المحاسبة · التسجيلات</span><h2>القيود اليومية</h2><p class="muted">كل قيد مرحّل يجب أن يتوازن إجمالي المدين مع إجمالي الدائن. القيود المرحلة تحفظ أثرًا تدقيقيًا ولا تحذف مباشرة.</p></section>
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
