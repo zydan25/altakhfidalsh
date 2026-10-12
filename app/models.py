@@ -1942,6 +1942,39 @@ class AccountingVoucher(TimestampMixin, db.Model):
     )
 
 
+class CustomerLedgerOperation(TimestampMixin, db.Model):
+    """Auditable customer ledger operation backed by a balanced journal entry."""
+    __tablename__ = "customer_ledger_operations"
+
+    id = db.Column(Integer, primary_key=True)
+    operation_type = db.Column(String(30), nullable=False, index=True)
+    customer_id = db.Column(ForeignKey("customers.id", ondelete="RESTRICT"), nullable=False, index=True)
+    order_id = db.Column(ForeignKey("orders.id", ondelete="RESTRICT"), index=True)
+    operation_date = db.Column(db.Date, nullable=False, index=True)
+    amount_yer = db.Column(Numeric(24, 4), nullable=False)
+    entered_amount = db.Column(Numeric(24, 4), nullable=False)
+    entered_currency_code = db.Column(String(16), nullable=False, default="YER", server_default="YER")
+    exchange_rate_to_yer = db.Column(Numeric(24, 12), nullable=False, default=1, server_default="1")
+    cash_account_id = db.Column(ForeignKey("ledger_accounts.id", ondelete="RESTRICT"))
+    contra_account_id = db.Column(ForeignKey("ledger_accounts.id", ondelete="RESTRICT"))
+    journal_entry_id = db.Column(ForeignKey("accounting_journal_entries.id", ondelete="RESTRICT"), unique=True)
+    description = db.Column(String(500))
+    status = db.Column(String(20), nullable=False, default="posted", server_default="posted")
+    created_by_admin_id = db.Column(ForeignKey("admins.id", ondelete="SET NULL"))
+    customer = db.relationship("Customer", foreign_keys=[customer_id])
+    order = db.relationship("Order", foreign_keys=[order_id])
+    cash_account = db.relationship("LedgerAccount", foreign_keys=[cash_account_id])
+    contra_account = db.relationship("LedgerAccount", foreign_keys=[contra_account_id])
+    journal_entry = db.relationship("AccountingJournalEntry", foreign_keys=[journal_entry_id])
+    creator = db.relationship("Admin", foreign_keys=[created_by_admin_id])
+    __table_args__ = (
+        CheckConstraint("operation_type IN ('insurance','daybook','order_sale','order_payment')", name="ck_customer_ledger_operation_type"),
+        CheckConstraint("amount_yer > 0 AND entered_amount > 0", name="ck_customer_ledger_operation_amount"),
+        CheckConstraint("status IN ('posted','void')", name="ck_customer_ledger_operation_status"),
+        Index("ix_customer_ledger_operation_customer_date", "customer_id", "operation_date", "id"),
+    )
+
+
 class AuditLog(TimestampMixin, db.Model):
     __tablename__ = "audit_logs"
 
