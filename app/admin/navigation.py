@@ -82,7 +82,12 @@ NAVIGATION = [
     NavSection("المحاسبة", "¤", [
         NavItem("نظرة عامة", "/admin/accounting", "▦"),
         NavItem("شجرة الحسابات", "/admin/accounting/accounts", "≡"),
+        NavItem("حسابات العملاء", "/admin/accounting/customers", "♙"),
+        NavItem("تأمينات العملاء", "/admin/accounting/insurance", "▣"),
+        NavItem("يوميات العملاء", "/admin/accounting/customer-daybook", "↔"),
         NavItem("القيود اليومية", "/admin/accounting/journal", "↔"),
+        NavItem("دفتر الأستاذ", "/admin/accounting/ledger", "▤"),
+        NavItem("المطابقة وميزان المراجعة", "/admin/accounting/reconciliation", "✓"),
         NavItem("السندات", "/admin/accounting/vouchers", "▤"),
         NavItem("التقارير المحاسبية", "/admin/accounting/reports", "▥"),
     ]),
