@@ -83,3 +83,84 @@
  .accounting-tree-row-actions{grid-column:auto}
  .accounting-tree-row-main strong{font-size:12px}
 }
+
+.customer-tree-picker{position:relative}
+.customer-picker-options{max-height:285px;overflow:auto;padding:6px 0;overscroll-behavior:contain}
+.customer-picker-option{display:grid;grid-template-columns:30px minmax(0,1fr) auto;align-items:center;gap:8px;width:100%;min-height:47px;padding:7px 6px;border:0;border-bottom:1px solid #eff2f6;background:#fff;text-align:right;cursor:pointer}
+.customer-picker-option:hover,.customer-picker-option:focus-visible{background:#edf4ff;outline:none}
+.customer-picker-avatar{width:29px;height:29px;display:grid;place-items:center;border-radius:10px;background:#edf4ff;color:#175cd3}
+.customer-picker-option strong{display:block;font-size:11px;font-weight:950;color:#344054}
+.customer-picker-option small{display:block;margin-top:3px;color:#8491a5;font-size:9px}
+.customer-picker-check{color:#067647;opacity:0}
+.customer-picker-option:focus .customer-picker-check,.customer-picker-option:hover .customer-picker-check{opacity:1}
+.customer-picker-option[hidden]{display:none!important}
+.accounting-inline-check{display:flex!important;align-items:center;gap:7px;font-size:11px}
+.accounting-inline-check input{width:17px;height:17px;flex:0 0 17px}
+.accounting-tree-icon{width:28px;height:28px;display:grid;place-items:center;flex:0 0 28px;border-radius:9px;background:#edf4ff;color:#175cd3}
+.accounting-tree-icon i{font-size:14px}
+.accounting-tree-name{display:block;min-width:0;overflow:hidden}
+.accounting-tree-name strong{display:block;overflow-wrap:anywhere}
+.accounting-tree-name small{display:block;overflow-wrap:anywhere}
+.accounting-tree-row.is-inactive{opacity:.55;background:#f6f7f9}
+.accounting-tree-row-actions details{position:relative}
+.accounting-tree-edit>summary{list-style:none;display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:29px;padding:4px 8px;border:1px solid #dce5f0;border-radius:8px;background:#fff;color:#475467;font-size:9px;font-weight:900;cursor:pointer}
+.accounting-tree-edit>summary::-webkit-details-marker{display:none}
+.accounting-edit-form{display:grid;gap:8px;margin-top:8px;padding:10px;border:1px solid #dce5f0;border-radius:11px;background:#fff;min-width:min(82vw,300px)}
+.accounting-edit-form>label{display:grid;gap:5px;font-size:10px;font-weight:850}
+.accounting-edit-form input,.accounting-edit-form select{width:100%;min-width:0}
+.accounting-system-flag{display:inline-flex;align-items:center;gap:4px;font-size:9px;color:#6941c6}
+.accounting-voucher-toolbar{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:12px}
+.accounting-voucher-kind-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:39px;padding:8px 12px;border:1px solid #dce5f0;border-radius:11px;background:#fff;text-decoration:none;color:#344054;font-size:11px;font-weight:950}
+.accounting-voucher-kind-btn.is-receipt{background:#ecfdf3;color:#067647;border-color:#a6f4c5}
+.accounting-voucher-kind-btn.is-payment{background:#fff1f0;color:#b42318;border-color:#fecdca}
+.accounting-voucher-form{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.accounting-voucher-field{display:grid;gap:6px;min-width:0;font-size:11px;font-weight:950;color:#344054}
+.accounting-voucher-field>input{width:100%;min-width:0;min-height:45px;padding:9px 12px;border:1px solid #d4dde9;border-radius:12px;background:#fff;font-size:13px}
+.accounting-voucher-field>span:first-child{font-size:11px;font-weight:950}
+.accounting-voucher-description{grid-column:1/-1}
+.accounting-voucher-form-actions{display:grid;gap:10px;padding-top:11px;border-top:1px solid #edf0f5}
+.accounting-voucher-form-actions>span{font-size:10px;color:#8491a5}
+.accounting-voucher-submit{width:100%;min-height:43px;border:0;border-radius:11px;background:#175cd3;color:white;font-size:12px;font-weight:950}
+.accounting-voucher-submit.is-receipt{background:#039855}
+.accounting-voucher-submit.is-payment{background:#d92d20}
+.accounting-modal-open{overflow:hidden}
+.accounting-voucher-list-tools{padding:12px;margin:11px 0}
+.accounting-voucher-list-head{display:flex;justify-content:space-between;gap:9px;margin-bottom:10px}
+.accounting-voucher-list-head h3{font-size:13px;margin:3px 0}
+.accounting-voucher-list-head small{font-size:9px;color:#8491a5}
+.accounting-voucher-filters{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.accounting-voucher-filters label{display:grid;gap:5px;font-size:10px;font-weight:900}
+.accounting-voucher-filters input,.accounting-voucher-filters select{width:100%;min-width:0;min-height:39px;border:1px solid #d9e2ee;border-radius:10px;padding:8px;font-size:11px}
+.accounting-voucher-list{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.accounting-voucher-card{display:grid;gap:10px;padding:12px;border:1px solid #e0e7f0;border-radius:16px;background:#fff;box-shadow:0 3px 12px rgba(16,24,40,.04);min-width:0}
+.accounting-voucher-card.is-receipt{border-top:3px solid #12b76a}
+.accounting-voucher-card.is-payment{border-top:3px solid #f04438}
+.accounting-voucher-card[hidden]{display:none!important}
+.accounting-voucher-card-head{display:flex;align-items:center;gap:9px;min-width:0}
+.accounting-voucher-card-icon{width:38px;height:38px;display:grid;place-items:center;flex:0 0 38px;border-radius:12px;background:#ecfdf3;color:#039855;font-size:20px}
+.accounting-voucher-card.is-payment .accounting-voucher-card-icon{background:#fff1f0;color:#d92d20}
+.accounting-voucher-title{display:grid;gap:4px;min-width:0}
+.accounting-voucher-title strong{font-size:11px;font-weight:950;direction:ltr;overflow-wrap:anywhere}
+.accounting-voucher-title small{font-size:9px;color:#8491a5}
+.accounting-voucher-state{margin-inline-start:auto;white-space:nowrap;font-size:9px;font-weight:950;padding:5px 7px;border-radius:999px;background:#ecfdf3;color:#067647}
+.accounting-voucher-state.is-void{background:#fff1f0;color:#b42318}
+.accounting-voucher-amount{font-size:20px;line-height:1.2;font-weight:950;color:#027a48;direction:ltr;text-align:right}
+.accounting-voucher-card.is-payment .accounting-voucher-amount{color:#b42318}
+.accounting-voucher-amount small{font-size:10px;font-weight:850}
+.accounting-voucher-description{margin:0;padding:8px;border-radius:9px;background:#f7f9fc;color:#344054;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.accounting-voucher-flow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:7px}
+.accounting-voucher-flow>div{display:grid;gap:4px;min-width:0}
+.accounting-voucher-flow small{font-size:9px;color:#8491a5}
+.accounting-voucher-flow strong{font-size:10px;font-weight:950;overflow-wrap:anywhere}
+.accounting-voucher-flow span{font-size:8px;color:#98a2b3;direction:ltr}
+.accounting-voucher-flow>i{color:#98a2b3}
+.accounting-voucher-card-actions{display:flex;gap:6px;flex-wrap:wrap;padding-top:9px;border-top:1px solid #edf0f5}
+.accounting-voucher-card-actions a,.accounting-voucher-card-actions button{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:32px;padding:5px 8px;border:1px solid #dce5f0;border-radius:9px;background:#fff;color:#475467;text-decoration:none;font-size:9px;font-weight:900}
+.accounting-voucher-card-actions button.danger{color:#b42318;border-color:#fecdca;background:#fff7f6}
+@media(min-width:620px){
+ .accounting-voucher-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .accounting-voucher-form-actions{grid-column:1/-1;grid-template-columns:minmax(0,1fr) auto;align-items:center}
+ .accounting-voucher-submit{width:auto;padding-inline:18px}
+ .accounting-voucher-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .accounting-voucher-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
