@@ -759,6 +759,8 @@ def register_operation_routes(admin_bp):
                         assets = MediaService.save_generic_files([cover], "looks")
                         if assets:
                             look.cover_asset_id = assets[0]["id"]
+                    elif request.form.get("remove_cover") == "on":
+                        look.cover_asset_id = None
                     success = "تم تحديث الإطلالة." if action == "look_update" else "تم إنشاء الإطلالة."
                 elif action == "look_add_target":
                     look_id = request.form.get("look_id", type=int)
