@@ -38,16 +38,11 @@
             <label>تنتهي في<input name="ends_at" type="datetime-local"></label>
             <label class="form-field-wide">الوصف<textarea name="description" rows="2" placeholder="وصف اختياري"></textarea></label>
             {% if admin_layout_theme == "water" %}
-            {% if admin_layout_theme == "water" %}
-            {% if admin_layout_theme == "water" %}
             <div class="look-current-cover">
               <span class="field-help">معاينة الغلاف</span>
               <span class="look-no-cover"><i class="bi bi-image" aria-hidden="true"></i> اختر صورة لتظهر هنا قبل الحفظ</span>
             </div>
             <label class="form-field-wide">صورة الغلاف<input name="cover_image" type="file" accept="image/*" data-look-cover-preview><small class="field-help">ستظهر معاينة الصورة الجديدة قبل الحفظ.</small></label>
-            {% else %}
-            <label class="form-field-wide">صورة الغلاف<input name="cover_image" type="file" accept="image/*"></label>
-            {% endif %}
             {% else %}
             <label class="form-field-wide">صورة الغلاف<input name="cover_image" type="file" accept="image/*"></label>
             {% endif %}
@@ -181,13 +176,10 @@
               {% if asset %}<img src="{{ asset.url }}" alt="غلاف {{ look.name }}" loading="lazy">{% else %}<span class="look-no-cover"><i class="bi bi-image" aria-hidden="true"></i> لا توجد صورة غلاف</span>{% endif %}
             </div>
             <label class="form-field-wide">استبدال صورة الغلاف<input name="cover_image" type="file" accept="image/*" data-look-cover-preview><small class="field-help">اترك الحقل فارغًا للاحتفاظ بالغلاف الحالي.</small></label>
-            {% if asset %}<label class="check-row form-field-wide look-remove-cover"><input name="remove_cover" type="checkbox"><span><i class="bi bi-trash3" aria-hidden="true"></i> حذف الغلاف الحالي</span></label>
+            {% if asset %}<label class="check-row form-field-wide look-remove-cover"><input name="remove_cover" type="checkbox"><span><i class="bi bi-trash3" aria-hidden="true"></i> حذف الغلاف الحالي</span></label>{% endif %}
             {% else %}
             <label class="form-field-wide">الغلاف<input name="cover_image" type="file" accept="image/*"></label>
             {% endif %}
-            {% else %}
-            <label class="form-field-wide">الغلاف<input name="cover_image" type="file" accept="image/*"></label>
-            {% endif %}{% endif %}
             <label class="check-row form-field-wide"><input name="show_on_home" type="checkbox" {% if look.show_on_home %}checked{% endif %}><span><strong>إظهارها في الرئيسية</strong></span></label>
             <button class="primary-button form-field-wide">حفظ التعديلات</button>
           </form>
