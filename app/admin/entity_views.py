@@ -1017,6 +1017,7 @@ def register_entity_views(admin_bp):
     @admin_bp.route("/system/roles", methods=["GET", "POST"])
     def roles():
         from ..models import Permission, Role, RolePermission
+        from sqlalchemy.exc import IntegrityError
         error=None; success=None
         if request.method=="POST":
             try:
@@ -1026,7 +1027,7 @@ def register_entity_views(admin_bp):
                     if not code or not name: raise ValueError("اسم الدور والكود مطلوبان.")
                     if Role.query.filter_by(code=code).first(): raise ValueError("كود الدور مستخدم مسبقًا.")
                     row=Role(name=name,code=code); db.session.add(row); db.session.flush()
-                    for pid in request.form.getlist("permission_ids"): db.session.add(RolePermission(role_id=row.id,permission_id=int(pid)))
+                    for pid in {int(value) for value in request.form.getlist("permission_ids") if str(value).isdigit() and int(value) in {permission.id for permission in permissions}}: db.session.add(RolePermission(role_id=row.id,permission_id=pid))
                     success="تم إنشاء الدور."
                 elif row is None: raise ValueError("الدور غير موجود.")
                 elif action=="archive": row.is_active=False; success="تمت أرشفة الدور."
@@ -1035,11 +1036,16 @@ def register_entity_views(admin_bp):
                     if not name or not code: raise ValueError("اسم الدور والكود مطلوبان.")
                     if Role.query.filter(Role.id!=row.id,Role.code==code).first(): raise ValueError("كود الدور مستخدم مسبقًا.")
                     row.name=name; row.code=code; RolePermission.query.filter_by(role_id=row.id).delete()
-                    for pid in request.form.getlist("permission_ids"): db.session.add(RolePermission(role_id=row.id,permission_id=int(pid)))
+                    for pid in {int(value) for value in request.form.getlist("permission_ids") if str(value).isdigit() and int(value) in {permission.id for permission in permissions}}: db.session.add(RolePermission(role_id=row.id,permission_id=pid))
                     success="تم تحديث الدور."
                 else: raise ValueError("إجراء الدور غير معروف.")
                 db.session.commit()
-            except (ValueError,TypeError) as exc: db.session.rollback(); error=str(exc)
+            except IntegrityError:
+                db.session.rollback()
+                error="تعذر حفظ الدور بسبب تعارض في الاسم أو الكود أو الصلاحيات. راجع القيم وحاول مجددًا."
+            except (ValueError, TypeError, OverflowError) as exc:
+                db.session.rollback()
+                error=str(exc)
         rows=Role.query.filter_by(is_active=True).order_by(Role.name).all()
         permissions=Permission.query.filter_by(is_active=True).order_by(Permission.code).all()
         role_perms={row.id:{rp.permission_id for rp in RolePermission.query.filter_by(role_id=row.id).all()} for row in rows}
