@@ -16,7 +16,6 @@ from ..models import (
     LedgerAccount,
     Order,
 )
-)
 from ..services.accounting import (
     ACCOUNT_TYPES,
     create_posted_entry,
