@@ -252,3 +252,57 @@ body.water-admin-theme{background:var(--bg);color:var(--text);font-size:15px;min
  .water-admin-theme .entity-card{padding:11px 9px}
  .water-admin-theme .water-record-icon{width:38px;height:38px}
 }
+
+/* Always-visible settings sections with tab-like jump navigation (alternate theme only). */
+.water-admin-theme .water-settings-organizer{display:grid;gap:10px;margin:12px 0 20px}
+.water-admin-theme .water-settings-tabs,.water-admin-theme .water-pds-tabs{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:7px;padding:4px 2px 9px;max-width:100%;border-bottom:1px solid #dfe7f1;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+.water-admin-theme .water-admin-tab{flex:0 0 auto;max-width:85vw;white-space:nowrap;min-height:40px;border:1px solid #dce5f1;border-radius:12px;background:#fff;color:#4b5d73;padding:9px 13px;font-size:11px;font-weight:900;cursor:pointer}
+.water-admin-theme .water-admin-tab.is-active{background:#1a56db;color:#fff;border-color:#1a56db;box-shadow:0 4px 12px rgba(26,86,219,.15)}
+.water-admin-theme .water-tabs-hint{margin:0;padding:9px 11px;border:1px solid #dbeafe;border-radius:12px;background:#eff6ff;color:#31558b;font-size:11px;line-height:1.7}
+.water-admin-theme .water-settings-groups{display:grid;gap:22px}
+.water-admin-theme .water-settings-group{display:grid;gap:12px;min-width:0;scroll-margin-top:92px}
+.water-admin-theme .water-settings-group-heading{padding:12px 14px;border-inline-start:4px solid #1a56db;border-radius:12px;background:linear-gradient(90deg,#f8fbff,#edf4ff);scroll-margin-top:92px}
+.water-admin-theme .water-settings-group-heading h3{margin:0;font-size:15px;font-weight:950;color:#1b2d49}
+.water-admin-theme .water-settings-group-heading p{margin:5px 0 0;font-size:11px;color:#667085;line-height:1.6}
+.water-admin-theme .water-settings-group>.general-images-setting,.water-admin-theme .water-settings-group>.developer-signature-setting,.water-admin-theme .water-settings-group>section.panel,.water-admin-theme .water-settings-group>.two-panel{margin:0!important}
+.water-admin-theme .water-settings-group>.two-panel{grid-template-columns:minmax(0,1fr);gap:12px}
+.water-admin-theme .water-settings-group .form-stack{min-width:0}
+.water-admin-theme .water-settings-group label{overflow-wrap:anywhere}
+.water-admin-theme .water-settings-group input,.water-admin-theme .water-settings-group select,.water-admin-theme .water-settings-group textarea{max-width:100%;box-sizing:border-box}
+.water-admin-theme .water-pds-navigation{display:grid;gap:9px;margin:0 0 12px;min-width:0}
+.water-admin-theme .pds-page .pds-panel{scroll-margin-top:96px}
+.water-admin-theme .pds-page .pds-hero{scroll-margin-top:96px}
+.water-admin-theme .pds-page .pds-grid{grid-template-columns:minmax(0,1fr);gap:12px}
+.water-admin-theme .pds-page .pds-colors{grid-template-columns:minmax(0,1fr);gap:12px}
+.water-admin-theme .pds-page .pds-grid label,.water-admin-theme .pds-page .pds-colors label{display:grid;grid-template-columns:minmax(0,1fr);gap:7px;min-width:0;font-size:12px;line-height:1.65}
+.water-admin-theme .pds-page input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]),.water-admin-theme .pds-page select,.water-admin-theme .pds-page textarea{width:100%;max-width:100%;min-width:0;box-sizing:border-box}
+.water-admin-theme .pds-page .pds-check{display:flex!important;flex-direction:row!important;align-items:center;gap:9px;min-width:0;padding:11px;border-radius:12px;font-size:11px}
+.water-admin-theme .pds-page .pds-check input{flex:0 0 auto;width:18px!important;height:18px}
+.water-admin-theme .pds-page .detail-box-head{flex-wrap:wrap;align-items:center;gap:7px}
+.water-admin-theme .pds-page .detail-box-head .group-title{flex:1 1 140px;width:100%;min-width:0;box-sizing:border-box}
+.water-admin-theme .pds-page .detail-box-head .pds-check{flex:0 0 auto}
+.water-admin-theme .pds-page .detail-box-head .sort-actions{margin-inline-start:auto}
+.water-admin-theme .pds-page .detail-box-item{display:grid;grid-template-columns:minmax(0,1fr) repeat(4,30px);gap:5px;min-width:0}
+.water-admin-theme .pds-page .detail-box-item select{width:100%;min-width:0;grid-column:1/-1}
+.water-admin-theme .pds-page .detail-box-item button,.water-admin-theme .pds-page .sort-actions button{min-width:30px;min-height:30px;border:1px solid #d5e0ef;border-radius:9px;background:#fff;color:#344054;font-weight:900}
+.water-admin-theme .pds-page .detail-box-add{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.water-admin-theme .pds-page .detail-box-add select{width:100%;min-width:0}
+.water-admin-theme .pds-page .detail-box-add button{min-height:40px}
+.water-admin-theme .pds-page .sort-item{display:flex;flex-wrap:wrap;gap:7px;align-items:center;padding:10px}
+.water-admin-theme .pds-page .sort-name{min-width:0;overflow-wrap:anywhere}
+.water-admin-theme .pds-page .save-bar{position:sticky;bottom:max(8px,env(safe-area-inset-bottom));padding:10px;border:1px solid #d7e4f5;background:rgba(255,255,255,.97);backdrop-filter:blur(12px)}
+.water-admin-theme .pds-page .save-bar button,.water-admin-theme .pds-page .save-bar .primary-button{width:100%;min-height:46px}
+.water-admin-theme .pds-page .designer-toolbar button{min-height:40px;flex:1 1 145px}
+@media(min-width:650px){
+ .water-admin-theme .pds-page .pds-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .water-admin-theme .pds-page .pds-colors{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .water-admin-theme .water-settings-group>.two-panel{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .water-admin-theme .pds-page .detail-box-item{grid-template-columns:minmax(0,1fr) repeat(4,30px)}
+ .water-admin-theme .pds-page .detail-box-item select{grid-column:auto}
+}
+@media(max-width:380px){
+ .water-admin-theme .water-admin-tab{padding-inline:10px;font-size:10px;min-height:38px}
+ .water-admin-theme .pds-page .pds-head{padding:12px}
+ .water-admin-theme .pds-page .sort-wrap,.water-admin-theme .pds-page .box-designer,.water-admin-theme .pds-page .pds-grid,.water-admin-theme .pds-page .pds-colors{padding:10px}
+ .water-admin-theme .pds-page .detail-box-head .sort-actions{width:100%;justify-content:flex-end}
+}
