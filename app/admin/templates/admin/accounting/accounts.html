@@ -25,10 +25,8 @@
   <article class="accounting-tree-stat"><span>القيود المرحلة</span><strong>{{ stats.journal_count }}</strong></article>
 </section>
 
-<section class="panel accounting-tree-search-card">
-  <div class="panel-heading"><div><span class="eyebrow">بحث وانتقال مباشر</span><h3>ابحث عن حساب</h3></div></div>
-  {{ account_picker('account_search','بحث عن حساب',account_tree,placeholder='اضغط لفتح شجرة الحسابات والبحث',mode='navigate',required=False,picker_id='accountNavigationPicker') }}
-  <p class="muted" style="font-size:10px;margin:8px 0 0">افتح الفروع الصغيرة داخل القائمة؛ عند اختيار الحساب تنتقل إلى تفاصيله مباشرة.</p>
+<section class="accounting-tree-search-card">
+  <label class="accounting-tree-inline-search" for="accountingTreeSearch"><i class="bi bi-search" aria-hidden="true"></i><input id="accountingTreeSearch" type="search" placeholder="ابحث في شجرة الحسابات بالاسم أو الرمز..." autocomplete="off"><span class="accounting-tree-search-hint">تصفية</span></label>
 </section>
 
 <details class="panel accounting-form-panel" {% if error %}open{% endif %}>
@@ -38,6 +36,7 @@
     <label>الحساب الأب<select name="parent_id" required><option value="">اختر حسابًا رئيسيًا أو تجميعيًا</option>{% for parent in parent_options %}<option value="{{ parent.id }}">{{ parent.code }} · {{ parent.name }}</option>{% endfor %}</select></label>
     <label>اسم الحساب<input name="name" required placeholder="مثال: مصروفات الإنترنت"></label>
     <label>رمز الحساب<input name="code" dir="ltr" placeholder="توليد تلقائي إذا تركته فارغًا"></label>
+    <label>الرصيد الافتتاحي · ريال يمني<input name="opening_balance" id="accountOpeningBalance" type="number" min="0" step="0.0001" inputmode="decimal" value="0" placeholder="0.00" data-money-words data-money-words-target="#accountOpeningBalanceWords" data-money-currency="YER"><span class="accounting-amount-words" id="accountOpeningBalanceWords" aria-live="polite"></span><small class="muted">عند إدخاله يُرحّل قيد افتتاحي متوازن تلقائيًا. اتركه صفرًا إذا لم يوجد رصيد سابق.</small></label>
     <label>الوصف<input name="description" placeholder="وصف اختياري"></label>
     <label class="accounting-inline-check"><input type="checkbox" name="is_group"><span>حساب تجميعي يحتوي فروعًا</span></label>
     <button class="primary-button" type="submit"><i class="bi bi-check2-circle" aria-hidden="true"></i> حفظ الحساب</button>
@@ -102,6 +101,34 @@
     if(btn){btn.setAttribute("aria-expanded","false");const i=btn.querySelector("i");if(i)i.className="bi bi-chevron-left";}
     children.querySelectorAll(":scope > [data-accounting-tree-node]").forEach(close);
   }
+  const search=document.getElementById("accountingTreeSearch");
+  function filterNode(node,term){
+    const own=(node.dataset.accountingSearch||"").toLocaleLowerCase("ar").includes(term);
+    const children=node.querySelector(":scope > [data-accounting-tree-children]");
+    let descendants=false;
+    if(children){
+      children.querySelectorAll(":scope > [data-accounting-tree-node]").forEach(child=>{
+        if(filterNode(child,term))descendants=true;
+      });
+      if(term && descendants){
+        children.hidden=false;
+        const toggle=node.querySelector(":scope > .accounting-tree-row [data-accounting-tree-toggle]");
+        if(toggle){toggle.setAttribute("aria-expanded","true");const icon=toggle.querySelector("i");if(icon)icon.className="bi bi-chevron-down";}
+      } else if(term) {
+        children.hidden=true;
+      } else {
+        close(node);
+      }
+    }
+    const match=!term||own||descendants;
+    node.hidden=Boolean(term)&&!match;
+    node.classList.toggle("matching-search",Boolean(term)&&own);
+    return match;
+  }
+  search?.addEventListener("input",()=>{
+    const term=(search.value||"").trim().toLocaleLowerCase("ar");
+    root.querySelectorAll(":scope > [data-accounting-tree-node]").forEach(node=>filterNode(node,term));
+  });
   root.querySelectorAll("[data-accounting-tree-toggle]").forEach(button=>{
     button.addEventListener("click",()=>{
       const node=button.closest("[data-accounting-tree-node]");
