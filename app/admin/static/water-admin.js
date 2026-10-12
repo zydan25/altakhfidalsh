@@ -135,7 +135,13 @@
     cards.forEach((card, i) => { card.dataset.defaultOrder = String(i); });
     const search = $("#orderSearch"), payment = $("#orderPaymentFilter"), sortSelect = $("#orderSort");
     const count = $("#orderResultsCount"), empty = $("#orderFilterEmpty"), clear = $("#clearOrderFilters");
-    const tabs = $$("[data-order-group]", toolbar); let group = "all";
+    const tabs = $("[data-order-group]", toolbar); let group = "all";
+    const customerPicker = $("[data-order-customer-picker]", toolbar);
+    const customerTrigger = $("#orderCustomerTrigger"), customerMenu = $("#orderCustomerMenu");
+    const customerSearch = $("#orderCustomerSearch"), customerSearchButton = $("#orderCustomerSearchButton");
+    const customerLabel = $("#selectedOrderCustomer");
+    const customerChoices = $(".water-customer-choice", toolbar);
+    let selectedCustomer = "";
     const newStatuses = new Set(["created", "awaiting_payment"]);
     const processing = new Set(["paid", "processing", "shipped", "in_transit", "intransit", "shiped"]);
     const completed = new Set(["delivered", "completed"]), cancelled = new Set(["cancelled", "canceled"]);
@@ -151,7 +157,8 @@
       const matched = cards.filter((card) => {
         const textMatch = !term || norm(card.dataset.orderSearch).includes(term);
         const payMatch = paymentValue === "all" || norm(card.dataset.paymentStatus) === paymentValue;
-        const show = textMatch && payMatch && inGroup(norm(card.dataset.orderStatus));
+        const customerMatch = !selectedCustomer || String(card.dataset.orderCustomerId || "") === selectedCustomer;
+        const show = textMatch && payMatch && customerMatch && inGroup(norm(card.dataset.orderStatus));
         card.classList.toggle("water-filter-hidden", !show);
         return show;
       });
@@ -174,10 +181,48 @@
     search && search.addEventListener("input", apply);
     payment && payment.addEventListener("change", apply);
     sortSelect && sortSelect.addEventListener("change", apply);
+
+    function filterCustomerChoices() {
+      const term = norm(customerSearch && customerSearch.value);
+      customerChoices.forEach((choice) => choice.classList.toggle("water-filter-hidden",
+        Boolean(term) && !norm(choice.dataset.customerSearch || choice.textContent).includes(term)));
+    }
+    customerTrigger && customerTrigger.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const open = customerMenu && customerMenu.hidden;
+      setHidden(customerMenu, !open);
+      customerTrigger.setAttribute("aria-expanded", String(Boolean(open)));
+      if (open && customerSearch) customerSearch.focus();
+    });
+    customerChoices.forEach((choice) => choice.addEventListener("click", () => {
+      selectedCustomer = choice.dataset.orderCustomerChoice || "";
+      if (customerLabel) customerLabel.textContent = choice.dataset.customerLabel || choice.textContent.trim();
+      customerChoices.forEach((row) => row.classList.toggle("is-selected", row === choice));
+      setHidden(customerMenu, true);
+      customerTrigger && customerTrigger.setAttribute("aria-expanded", "false");
+      apply();
+    }));
+    customerSearch && customerSearch.addEventListener("input", filterCustomerChoices);
+    customerSearchButton && customerSearchButton.addEventListener("click", filterCustomerChoices);
+    customerSearch && customerSearch.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") { event.preventDefault(); filterCustomerChoices(); }
+      if (event.key === "Escape") { setHidden(customerMenu, true); customerTrigger && customerTrigger.setAttribute("aria-expanded", "false"); }
+    });
+    document.addEventListener("click", (event) => {
+      if (customerPicker && customerMenu && !customerPicker.contains(event.target)) {
+        setHidden(customerMenu, true);
+        customerTrigger && customerTrigger.setAttribute("aria-expanded", "false");
+      }
+    });
+
     clear && clear.addEventListener("click", () => {
       if (search) search.value = "";
       if (payment) payment.value = "all";
       if (sortSelect) sortSelect.value = "newest";
+      if (customerSearch) customerSearch.value = "";
+      const allCustomers = customerChoices.find((choice) => !choice.dataset.orderCustomerChoice);
+      if (allCustomers) allCustomers.click();
+      filterCustomerChoices();
       group = "all";
       tabs.forEach((button) => button.classList.toggle("is-active", button.dataset.orderGroup === "all"));
       apply();
