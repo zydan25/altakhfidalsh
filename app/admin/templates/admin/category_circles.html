@@ -1,0 +1,111 @@
+{% extends "admin/base.html" %}
+{% block content %}
+{% if admin_layout_theme == "water" %}
+<style>
+.water-circle-page{display:grid;gap:13px}
+.water-circle-intro{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.water-circle-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.water-circle-card{min-width:0;padding:11px;border:1px solid #e1e7f0;border-radius:17px;background:#fff;box-shadow:0 4px 15px rgba(15,23,42,.035);display:grid;align-content:start;gap:10px}
+.water-circle-card-top{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.water-circle-image{width:62px;height:62px;margin:0 auto;display:grid;place-items:center;border:1px solid #e2eaf4;border-radius:50%;background:#f6f9ff;color:#1a56db;font-size:24px;overflow:hidden}
+.water-circle-image img{width:100%;height:100%;object-fit:cover}
+.water-circle-title{text-align:center;min-width:0}
+.water-circle-title strong{display:block;overflow-wrap:anywhere;color:#182230;font-size:12px;font-weight:950}
+.water-circle-title small{display:block;margin-top:4px;color:#8390a4;font-size:9px;direction:ltr;overflow-wrap:anywhere}
+.water-circle-meta{display:grid;gap:6px;padding-top:8px;border-top:1px solid #edf1f6}
+.water-circle-meta span{font-size:10px;color:#667085;display:flex;justify-content:space-between;gap:6px}
+.water-circle-meta b{color:#344054;text-align:left;overflow-wrap:anywhere}
+.water-circle-actions{display:grid;grid-template-columns:1fr;gap:6px;margin-top:auto}
+.water-circle-actions .primary-button,.water-circle-actions .ghost-button{width:100%;min-height:36px;border-radius:10px;font-size:10px}
+.water-circle-edit{border-top:1px solid #e5ebf4;padding-top:9px}
+.water-circle-edit summary{display:flex;justify-content:center;align-items:center;min-height:36px;border:1px solid #dce5f1;border-radius:10px;background:#f8fbff;color:#344054;cursor:pointer;font-weight:900;font-size:11px}
+.water-circle-form{display:grid;gap:9px;margin-top:10px}
+.water-circle-form label{display:grid;gap:5px;font-size:11px;font-weight:850}
+.water-circle-form input,.water-circle-form select{width:100%;min-width:0;box-sizing:border-box}
+.water-circle-create{margin-bottom:3px}
+.water-circle-create summary{cursor:pointer;list-style:none}
+.water-circle-create summary::-webkit-details-marker{display:none}
+.water-circle-create-form{padding-top:12px}
+.water-circle-caveat{font-size:10px;line-height:1.7;color:#667085;background:#f5f8fd;border-radius:11px;padding:10px}
+@media(min-width:620px){.water-circle-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.water-circle-card{padding:13px}.water-circle-image{width:72px;height:72px}}
+@media(min-width:1000px){.water-circle-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:360px){.water-circle-grid{gap:7px}.water-circle-card{padding:9px}.water-circle-image{width:54px;height:54px}}
+</style>
+<section class="water-circle-page">
+  <header class="water-circle-intro">
+    <div><span class="eyebrow">المحتوى والمتجر</span><h2>دوائر الفئات</h2><p class="muted">إدارة صور الدوائر وترتيبها وتعديل بياناتها دون التأثير على المنتجات المرتبطة بالفئة.</p></div>
+    <span class="status-pill">{{ rows|length }} دائرة</span>
+  </header>
+  {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+  {% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+  <details class="panel water-circle-create">
+    <summary class="primary-button"><i class="bi bi-plus-circle" aria-hidden="true"></i> إضافة دائرة فئة</summary>
+    <form method="post" enctype="multipart/form-data" class="water-circle-form water-circle-create-form">
+      <input type="hidden" name="action" value="create">
+      <label>اسم الفئة<input name="name" required></label>
+      <label>المعرّف المختصر (Slug)<input name="slug" dir="ltr" placeholder="يُنشأ تلقائيًا إن تركته فارغًا"></label>
+      <label>الفئة الأب<select name="parent_id"><option value="">فئة رئيسية</option>{% for parent in parents %}<option value="{{ parent.id }}">{{ parent.name }}</option>{% endfor %}</select></label>
+      <label>ترتيب العرض<input name="sort_order" type="number" value="0"></label>
+      <label>الشارة<select name="badge_id"><option value="">بدون شارة</option>{% for badge in badges %}<option value="{{ badge.id }}">{{ badge.name }}</option>{% endfor %}</select></label>
+      <label>صورة الدائرة<input name="icon_file" type="file" accept="image/*"></label>
+      <label class="check-row"><input type="checkbox" name="is_featured"><span>فئة مميزة</span></label>
+      <button class="primary-button" type="submit">حفظ الدائرة</button>
+    </form>
+  </details>
+
+  <div class="water-circle-caveat"><i class="bi bi-info-circle" aria-hidden="true"></i> زر «حذف الدائرة» يزيل عرضها الدائري فقط ويحتفظ بالفئة وعلاقات المنتجات والطلبات. أما «أرشفة الفئة» فتخفي الفئة كاملة عن المتجر.</div>
+
+  <section class="water-circle-grid">
+  {% for category in rows %}
+    <article class="water-circle-card">
+      <div class="water-circle-card-top"><span class="status-pill">نشطة</span><span class="water-record-id">#{{ category.id }}</span></div>
+      <div class="water-circle-image">{% if asset_map.get(category.icon_asset_id) %}<img src="{{ asset_map.get(category.icon_asset_id) }}" alt="{{ category.name }}" loading="lazy">{% else %}<i class="bi bi-grid-3x3-gap-fill" aria-hidden="true"></i>{% endif %}</div>
+      <div class="water-circle-title"><strong>{{ category.name }}</strong><small>{{ category.slug }}</small></div>
+      <div class="water-circle-meta">
+        <span>الفئة الأب <b>{% if category.parent_id %}{{ (parents|selectattr("id","equalto",category.parent_id)|map(attribute="name")|first) or ("#" ~ category.parent_id) }}{% else %}رئيسية{% endif %}</b></span>
+        <span>الترتيب <b>{{ category.sort_order }}</b></span>
+        <span>التمييز <b>{{ "مميزة" if category.is_featured else "عادية" }}</b></span>
+      </div>
+      <div class="water-circle-actions">
+        <details class="water-circle-edit">
+          <summary><i class="bi bi-pencil-square" aria-hidden="true"></i> تعديل الدائرة</summary>
+          <form method="post" enctype="multipart/form-data" class="water-circle-form">
+            <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ category.id }}">
+            <label>اسم الفئة<input name="name" value="{{ category.name }}" required></label>
+            <label>المعرّف المختصر<input name="slug" value="{{ category.slug }}" dir="ltr" required></label>
+            <label>الفئة الأب<select name="parent_id"><option value="">فئة رئيسية</option>{% for parent in parents %}{% if parent.id != category.id %}<option value="{{ parent.id }}" {% if category.parent_id == parent.id %}selected{% endif %}>{{ parent.name }}</option>{% endif %}{% endfor %}</select></label>
+            <label>ترتيب العرض<input name="sort_order" type="number" value="{{ category.sort_order }}"></label>
+            <label>الشارة<select name="badge_id"><option value="">بدون شارة</option>{% for badge in badges %}<option value="{{ badge.id }}" {% if category.badge_id == badge.id %}selected{% endif %}>{{ badge.name }}</option>{% endfor %}</select></label>
+            <label>استبدال صورة الدائرة<input name="icon_file" type="file" accept="image/*"></label>
+            <label class="check-row"><input type="checkbox" name="is_featured" {% if category.is_featured %}checked{% endif %}><span>فئة مميزة</span></label>
+            <button type="submit" class="primary-button">حفظ التعديلات</button>
+          </form>
+        </details>
+        <form method="post" onsubmit="return confirm('إزالة هذه الفئة من الدوائر؟ ستبقى الفئة ومنتجاتها محفوظة.');">
+          <input type="hidden" name="action" value="remove_circle"><input type="hidden" name="id" value="{{ category.id }}">
+          <button class="ghost-button" type="submit"><i class="bi bi-x-circle" aria-hidden="true"></i> حذف الدائرة</button>
+        </form>
+        <form method="post" onsubmit="return confirm('أرشفة الفئة وإخفاؤها من المتجر؟');">
+          <input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ category.id }}">
+          <button class="ghost-button" type="submit"><i class="bi bi-archive" aria-hidden="true"></i> أرشفة الفئة</button>
+        </form>
+      </div>
+    </article>
+  {% else %}
+    <div class="empty-state panel" style="grid-column:1/-1"><i class="bi bi-grid-3x3-gap" aria-hidden="true"></i><h3>لا توجد دوائر نشطة</h3><p class="muted">أنشئ دائرة جديدة أو غيّر نمط عرض إحدى الفئات إلى دائرة.</p></div>
+  {% endfor %}
+  </section>
+</section>
+{% else %}
+<section class="module-header"><span class="eyebrow">المحتوى والمتجر</span><h2>دوائر الفئات</h2><p class="muted">عرض الدوائر النشطة كما كانت في التصميم السابق.</p></section>
+<section class="panel">
+  <div class="panel-heading"><h3>الدوائر النشطة</h3><span class="status-pill">{{ rows|length }}</span></div>
+  <div class="stack-list">
+    {% for category in rows %}
+      <div class="option-record"><div class="option-record-main"><span class="color-swatch large">{% if asset_map.get(category.icon_asset_id) %}<img src="{{ asset_map.get(category.icon_asset_id) }}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%">{% else %}◉{% endif %}</span><div><strong>{{ category.name }}</strong><small>{{ category.slug }} · #{{ category.id }} · ترتيب {{ category.sort_order }}</small></div></div></div>
+    {% else %}<span class="muted">لا توجد دوائر نشطة.</span>{% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}
