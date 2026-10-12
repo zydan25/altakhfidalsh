@@ -198,6 +198,34 @@
   </form>
 </section>
 
+<section class="general-images-setting product-input-currency-setting">
+  <form method="post">
+    <input type="hidden" name="action" value="save_product_input_currency">
+    <div class="general-images-setting-head">
+      <div style="display:flex;align-items:flex-start;min-width:0">
+        <span class="setting-card-icon" aria-hidden="true">ر.س</span>
+        <div class="general-images-setting-copy">
+          <span class="eyebrow">الكتالوج · العملات</span>
+          <h3>السماح باختيار عملة إدخال سعر المنتج</h3>
+          <p>عند التفعيل يظهر اختيار العملة في إضافة المنتج وتعديل برو. يحوّل النظام السعر المدخل بسعر الصرف الساري ويحفظه دائمًا بالريال السعودي SAR، دون تغيير المنتجات القديمة.</p>
+        </div>
+      </div>
+      <label class="setting-switch" title="تفعيل اختيار عملة إدخال سعر المنتج">
+        <input type="checkbox" name="enabled" {% if product_input_currency_enabled %}checked{% endif %} onchange="this.form.submit()">
+        <span class="setting-switch-track"><span class="setting-switch-thumb"></span></span>
+        <span class="setting-switch-label">{% if product_input_currency_enabled %}مفعل{% else %}الريال السعودي فقط{% endif %}</span>
+      </label>
+    </div>
+    <div class="general-images-setting-note">
+      {% if product_input_currency_enabled %}
+        الإعداد مفعّل. تظهر فقط العملات التي لها سعر صرف سارٍ؛ ولا يسمح النظام بحفظ سعر بعملة لا يتوفر لها سعر صرف صالح.
+      {% else %}
+        الإعداد متوقف افتراضيًا للحفاظ على السلوك الحالي؛ تبقى حقول السعر بالريال السعودي فقط.
+      {% endif %}
+    </div>
+  </form>
+</section>
+
 <section class="panel" style="margin-bottom:12px">
   <div class="panel-heading"><div><span class="eyebrow">إعدادات التطبيق العميل</span><h3>بيانات التواصل والموقع</h3></div></div>
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap">
