@@ -1,0 +1,20 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المحاسبة · حساب العميل</span>{% if customer %}<h2>كشف حساب · {{ customer.name or "بدون اسم" }}</h2><p class="muted">{{ customer.phone_normalized }} · حساب العميل بالريال اليمني فقط</p>{% else %}<h2>كشف حساب عميل</h2>{% endif %}
+{% if customer %}<div class="accounting-voucher-toolbar"><a class="accounting-voucher-kind-btn" href="/admin/accounting/customers"><i class="bi bi-people"></i> حسابات العملاء</a><a class="accounting-voucher-kind-btn" href="/admin/accounting/customer-daybook?new=1"><i class="bi bi-journal-text"></i> قيد يومية</a><a class="accounting-voucher-kind-btn is-receipt" href="/admin/accounting/insurance?new=1"><i class="bi bi-shield-check"></i> تأمين</a></div>{% endif %}</section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if customer %}
+<section class="accounting-summary-grid">
+  <article class="panel accounting-summary-card"><div><small>الرصيد الدائن للعميل · YER</small><strong>{{ "%.2f"|format(customer_credit_balance|float) }}</strong></div></article>
+  <article class="panel accounting-summary-card"><div><small>الرصيد المحاسبي مدين − دائن</small><strong>{{ "%.2f"|format(closing|float) }}</strong></div></article>
+  <article class="panel accounting-summary-card"><div><small>رقم الحساب</small><strong>{{ account.code }}</strong></div></article>
+</section>
+<form method="get" class="panel accounting-filter-form"><label>من<input name="start" type="date" value="{{ start }}"></label><label>إلى<input name="end" type="date" value="{{ end }}"></label><button class="primary-button" type="submit"><i class="bi bi-search"></i> عرض الفترة</button></form>
+<section class="panel accounting-report-table"><div class="panel-heading"><div><span class="eyebrow">كشف حركات الحساب</span><h3>القيود اليومية</h3></div></div>
+<div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>رقم القيد</th><th>البيان</th><th>عليه · مدين</th><th>له · دائن</th><th>الرصيد المحاسبي</th></tr></thead><tbody>
+{% for row in movements %}<tr><td>{{ row.entry.entry_date }}</td><td><a href="/admin/accounting/journal?q={{ row.entry.number|urlencode }}">{{ row.entry.number }}</a></td><td>{{ row.line.description or row.entry.description }}</td><td>{{ "%.2f"|format(row.line.debit|float) }}</td><td>{{ "%.2f"|format(row.line.credit|float) }}</td><td>{{ "%.2f"|format(row.balance|float) }}</td></tr>{% else %}<tr><td colspan="6">لا توجد حركات في الفترة المحددة.</td></tr>{% endfor %}
+</tbody></table></div></section>
+<section class="panel accounting-report-table"><div class="panel-heading"><div><span class="eyebrow">مصدر الحركات</span><h3>التأمينات ويوميات العملاء والطلبات</h3></div></div>
+<div class="accounting-voucher-list">{% for operation in operations %}<article class="accounting-ledger-operation-card"><div class="accounting-voucher-card-head"><span class="accounting-voucher-title"><strong>{{ {"insurance":"تأمين عميل","daybook":"يومية عميل","order_sale":"قيمة طلب","order_payment":"دفعة طلب"}.get(operation.operation_type,operation.operation_type) }} · #{{ operation.id }}</strong><small>{{ operation.operation_date }} · {{ "%.2f"|format(operation.amount_yer|float) }} ر.ي</small></span><span class="accounting-voucher-state {{ 'is-void' if operation.status != 'posted' else 'is-posted' }}">{{ "معكوس" if operation.status != 'posted' else "مرحل" }}</span></div><p class="accounting-voucher-description">{{ operation.description or "—" }}</p>{% if operation.order %}<a href="/admin/orders/{{ operation.order.id }}" class="accounting-voucher-kind-btn">الطلب {{ operation.order.order_no }}</a>{% endif %}{% if operation.journal_entry %}<a href="/admin/accounting/journal?q={{ operation.journal_entry.number|urlencode }}" class="accounting-voucher-kind-btn">عرض القيد {{ operation.journal_entry.number }}</a>{% endif %}</article>{% else %}<p class="muted">لا توجد حركات مرتبطة خلال الفترة.</p>{% endfor %}</div></section>
+{% endif %}
+{% endblock %}
