@@ -589,7 +589,7 @@ def account_is_in_cash_tree(account_id, session=None):
     seen = set()
     while account and account.id not in seen:
         if account.id == root.id:
-            return not account.is_group
+            return True
         seen.add(account.id)
         account = session.get(LedgerAccount, account.parent_id) if account.parent_id else None
     return False
