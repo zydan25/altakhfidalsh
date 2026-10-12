@@ -1,0 +1,29 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المحاسبة · مستند الحركة</span><h2>تفاصيل السند {{ voucher.number if voucher else "" }}</h2>
+<div class="accounting-voucher-toolbar"><a class="accounting-voucher-kind-btn" href="/admin/accounting/vouchers"><i class="bi bi-arrow-right"></i> العودة للسندات</a>{% if voucher %}<a class="accounting-voucher-kind-btn" href="/admin/accounting/journal?q={{ voucher.journal_entry.number|urlencode }}"><i class="bi bi-journal-check"></i> القيد المرتبط</a>{% endif %}<button class="accounting-voucher-kind-btn" type="button" onclick="window.print()"><i class="bi bi-printer"></i> طباعة</button></div></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if voucher %}
+<section class="panel accounting-voucher-document">
+  <div class="accounting-voucher-document-head">
+    <div><span class="eyebrow">سند محاسبي رسمي</span><strong class="accounting-voucher-document-number">{{ voucher.number }}</strong><small>{{ voucher.voucher_date }} · {{ voucher.currency_code }}</small></div>
+    <span class="accounting-voucher-document-state {{ 'is-void' if voucher.status != 'posted' else 'is-posted' }}">{{ "ملغى بعكس محاسبي" if voucher.status != "posted" else "مرحّل" }}</span>
+  </div>
+  <div class="accounting-voucher-document-amount"><span>المبلغ</span><strong>{{ "%.2f"|format(voucher.amount|float) }} <small>ر.ي</small></strong></div>
+  <div class="accounting-voucher-document-type {{ 'is-receipt' if voucher.voucher_type == 'receipt' else 'is-payment' }}"><i class="bi {% if voucher.voucher_type == 'receipt' %}bi-box-arrow-in-down{% else %}bi-box-arrow-up{% endif %}"></i><strong>{{ {"receipt":"سند قبض","payment":"سند صرف","transfer":"سند تحويل","adjustment":"تسوية"}.get(voucher.voucher_type,voucher.voucher_type) }}</strong></div>
+  <dl class="accounting-voucher-document-data">
+    <div><dt>الحساب</dt><dd>{{ (voucher.from_account.code ~ " · " ~ voucher.from_account.name) if voucher.from_account else "—" }}</dd></div>
+    <div><dt>المصدر الحسابي / الصندوق</dt><dd>{{ (voucher.to_account.code ~ " · " ~ voucher.to_account.name) if voucher.to_account else "—" }}</dd></div>
+    <div><dt>المستفيد</dt><dd>{{ voucher.beneficiary or "—" }}</dd></div>
+    <div><dt>البيان</dt><dd>{{ voucher.description }}</dd></div>
+    <div><dt>أنشئ بواسطة</dt><dd>{{ voucher.creator.username if voucher.creator else "النظام" }}</dd></div>
+  </dl>
+</section>
+<section class="panel accounting-report-table">
+  <div class="panel-heading"><div><span class="eyebrow">القيد المزدوج</span><h3>تفاصيل القيد {{ entry.number }}</h3></div><span class="accounting-entry-currency">{{ entry.currency_code }}</span></div>
+  <div class="table-wrap"><table><thead><tr><th>الحساب</th><th>البيان</th><th>مدين</th><th>دائن</th></tr></thead><tbody>
+    {% for line in entry.lines %}<tr><td>{{ line.account.code }} · {{ line.account.name }}</td><td>{{ line.description or entry.description }}</td><td>{{ "%.2f"|format(line.debit|float) }}</td><td>{{ "%.2f"|format(line.credit|float) }}</td></tr>{% endfor %}
+  </tbody><tfoot><tr><th colspan="2">الإجمالي</th><th>{{ "%.2f"|format(entry.totals()[0]|float) }}</th><th>{{ "%.2f"|format(entry.totals()[1]|float) }}</th></tr></tfoot></table></div>
+</section>
+{% endif %}
+{% endblock %}
