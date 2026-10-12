@@ -208,63 +208,116 @@
   function initSettingsTabs() {
     const root = $(".page-content");
     if (!root || !$$(".module-header h2", root).some((heading) => heading.textContent.trim() === "الإعدادات")) return;
+
     const direct = Array.from(root.children);
-    const headingText = (el) => norm($("h3", el) && $("h3", el).textContent);
-    const findDirect = (selector, phrase) => direct.find((el) => el.matches(selector) && headingText(el).includes(norm(phrase)));
+    const headingText = (element) => {
+      const heading = $("h3", element);
+      return norm(heading ? heading.textContent : "");
+    };
+    const findDirect = (selector, phrase) =>
+      direct.find((element) => element.matches(selector) && headingText(element).includes(norm(phrase)));
+
     const appearance = findDirect(".general-images-setting", "مظهر لوحة التحكم");
-    const signature = direct.find((el) => el.classList.contains("developer-signature-setting"));
-    const account = direct.find((el) => el.classList.contains("account-status-setting"));
+    const signature = direct.find((element) => element.classList.contains("developer-signature-setting"));
+    const account = direct.find((element) => element.classList.contains("account-status-setting"));
     const productImages = findDirect(".general-images-setting", "إظهار الصور العامة");
     const contact = findDirect("section.panel", "بيانات التواصل والموقع");
     const splash = findDirect("section.panel", "مدة شاشة البداية");
-    const advanced = direct.find((el) => el.classList.contains("two-panel"));
+    const advanced = direct.find((element) => element.classList.contains("two-panel"));
+
     const groups = [
-      {label:"مظهر اللوحة", nodes:[appearance]},
-      {label:"هوية التطبيق", nodes:[signature]},
-      {label:"واجهة المتجر", nodes:[account, productImages, contact, splash]},
-      {label:"الإعدادات المتقدمة", nodes:[advanced]}
-    ].map((g) => ({label:g.label,nodes:g.nodes.filter(Boolean)})).filter((g) => g.nodes.length);
-    const allNodes = groups.flatMap((g) => g.nodes);
+      { label: "مظهر اللوحة", description: "اختيار الثيم وألوان لوحة الإدارة", nodes: [appearance] },
+      { label: "هوية التطبيق", description: "تخصيص هوية التطبيق وتوقيع التطوير", nodes: [signature] },
+      { label: "واجهة المتجر", description: "إعدادات ظهور أقسام العميل والصور وبيانات المتجر", nodes: [account, productImages, contact, splash] },
+      { label: "الإعدادات المتقدمة", description: "إنشاء الإعدادات العامة الموجودة وتعديلها", nodes: [advanced] }
+    ].map((group) => ({ ...group, nodes: group.nodes.filter(Boolean) })).filter((group) => group.nodes.length);
+
+    const allNodes = groups.flatMap((group) => group.nodes);
     if (allNodes.length < 3) return;
-    const marker = document.createComment("water-settings-tabs");
-    root.insertBefore(marker, allNodes[0]);
-    const layout = document.createElement("section"); layout.className = "water-tab-layout water-settings-tab-layout";
-    const nav = document.createElement("div"); nav.className = "water-admin-tabs"; nav.setAttribute("role","tablist"); nav.setAttribute("aria-label","أقسام الإعدادات");
-    const panes = document.createElement("div"); panes.className = "water-tab-panes";
+
+    const layout = document.createElement("section");
+    layout.className = "water-settings-organizer";
+    const nav = document.createElement("nav");
+    nav.className = "water-admin-tabs water-settings-tabs";
+    nav.setAttribute("aria-label", "انتقال سريع بين أقسام الإعدادات");
+    const hint = document.createElement("p");
+    hint.className = "water-tabs-hint";
+    hint.textContent = "جميع الإعدادات محفوظة وتظهر أسفل بعضها؛ استخدم هذه الأزرار للانتقال السريع فقط.";
+    const groupsRoot = document.createElement("div");
+    groupsRoot.className = "water-settings-groups";
     const buttons = [];
-    groups.forEach((g,index) => {
-      const button = document.createElement("button"); button.type = "button"; button.className = "water-admin-tab";
-      button.setAttribute("role","tab"); button.setAttribute("aria-selected", index === 0 ? "true" : "false"); button.textContent = g.label;
-      nav.appendChild(button); buttons.push(button);
-      const pane = document.createElement("div"); pane.className = "water-tab-pane"; pane.setAttribute("role","tabpanel"); pane.hidden = index !== 0;
-      g.nodes.forEach((node) => pane.appendChild(node)); panes.appendChild(pane);
+
+    groups.forEach((group, index) => {
+      const wrapper = document.createElement("section");
+      wrapper.className = "water-settings-group";
+      wrapper.id = "water-settings-group-" + index;
+      const heading = document.createElement("header");
+      heading.className = "water-settings-group-heading";
+      const title = document.createElement("h3");
+      title.textContent = group.label;
+      const description = document.createElement("p");
+      description.textContent = group.description;
+      heading.append(title, description);
+      wrapper.appendChild(heading);
+      group.nodes.forEach((node) => wrapper.appendChild(node));
+      groupsRoot.appendChild(wrapper);
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "water-admin-tab";
+      button.textContent = group.label;
+      button.setAttribute("aria-controls", wrapper.id);
       button.addEventListener("click", () => {
-        buttons.forEach((b,i) => { const active = i === index; b.classList.toggle("is-active",active); b.setAttribute("aria-selected",String(active)); });
-        $$(".water-tab-pane",panes).forEach((p,i) => { p.hidden = i !== index; });
+        wrapper.scrollIntoView({ behavior: "smooth", block: "start" });
+        buttons.forEach((other) => other.classList.toggle("is-active", other === button));
       });
+      nav.appendChild(button);
+      buttons.push(button);
     });
+
     buttons[0] && buttons[0].classList.add("is-active");
-    layout.append(nav,panes); root.insertBefore(layout,marker); marker.remove();
+    layout.append(nav, hint, groupsRoot);
+    root.insertBefore(layout, allNodes[0]);
   }
 
   function initProductDetailTabs() {
-    const page = $(".pds-page"); if (!page) return;
-    const panels = $$(".pds-panel", page); if (panels.length < 2) return;
-    const nav = document.createElement("div"); nav.className = "water-admin-tabs water-pds-tabs";
-    nav.setAttribute("role","tablist"); nav.setAttribute("aria-label","أقسام إعدادات تفاصيل الصنف");
+    const page = $(".pds-page");
+    if (!page) return;
+    const panels = $$(".pds-panel", page);
+    if (panels.length < 2) return;
+
+    const nav = document.createElement("nav");
+    nav.className = "water-admin-tabs water-pds-tabs";
+    nav.setAttribute("aria-label", "انتقال سريع بين أقسام إعدادات تفاصيل الصنف");
+    const hint = document.createElement("p");
+    hint.className = "water-tabs-hint";
+    hint.textContent = "لم يتم إخفاء أي إعداد. جميع الأقسام والخيارات تبقى ظاهرة؛ اضغط على اسم القسم للانتقال إليه.";
     const buttons = [];
-    function activate(index) {
-      buttons.forEach((button,i) => { const active = i === index; button.classList.toggle("is-active",active); button.setAttribute("aria-selected",String(active)); });
-      panels.forEach((panel,i) => panel.classList.toggle("water-pds-hidden",i !== index));
-    }
-    panels.forEach((panel,index) => {
-      const heading = $("h3",panel);
-      const button = document.createElement("button"); button.type = "button"; button.className = "water-admin-tab";
-      button.setAttribute("role","tab"); button.setAttribute("aria-selected",index === 0 ? "true":"false");
-      button.textContent = heading ? heading.textContent.trim() : ("القسم " + (index + 1));
-      button.addEventListener("click",() => activate(index)); nav.appendChild(button); buttons.push(button);
+
+    panels.forEach((panel, index) => {
+      panel.id = panel.id || ("water-product-detail-section-" + index);
+      const heading = $("h3", panel);
+      const label = heading ? heading.textContent.trim() : ("القسم " + (index + 1));
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "water-admin-tab";
+      button.textContent = label;
+      button.setAttribute("aria-controls", panel.id);
+      button.addEventListener("click", () => {
+        panel.scrollIntoView({ behavior: "smooth", block: "start" });
+        buttons.forEach((other) => other.classList.toggle("is-active", other === button));
+      });
+      nav.appendChild(button);
+      buttons.push(button);
     });
-    panels[0].parentNode.insertBefore(nav,panels[0]); activate(0);
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "water-pds-navigation";
+    toolbar.append(nav, hint);
+    panels[0].parentNode.insertBefore(toolbar, panels[0]);
+    buttons[0] && buttons[0].classList.add("is-active");
+    // All original .pds-panel sections remain in normal document flow. The navigation
+    // only scrolls to them; it never hides controls, forms, fields or save actions.
   }
 
   function init() {
