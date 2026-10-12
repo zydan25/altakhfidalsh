@@ -294,18 +294,127 @@ def register_entity_views(admin_bp):
 
         error = None
         success = None
+        payment_form_open = request.args.get("payment") == "1"
         if request.method == "POST":
             action = (request.form.get("action") or "").strip()
             try:
                 if action == "status":
+                    requested_status = str(request.form["status"])
+                    if requested_status == "paid" and (order.payment_status or "").lower() != "paid":
+                        payment_form_open = True
+                        raise ValueError("لتسجيل الطلب مدفوعًا استخدم نافذة تسجيل الدفع المحاسبي؛ سيتم قيد قيمة الطلب والدفع على حساب العميل معًا.")
                     CommerceService.transition_order(
                         order.id,
-                        str(request.form["status"]),
+                        requested_status,
                         actor_type="admin",
                         actor_id=session.get("admin_id"),
                         note=(request.form.get("note") or "").strip() or None,
                     )
                     success = "تم تحديث حالة الطلب."
+                elif action == "record_account_payment":
+                    from datetime import datetime, timezone
+                    from ..models import Currency, CustomerLedgerOperation
+                    from ..services.accounting import create_customer_operation, ensure_accounting_setup, account_is_in_cash_tree
+                    ensure_accounting_setup(db.session, backfill_parties=True)
+                    if (order.status or "").lower() in {"cancelled", "canceled", "returned", "void"}:
+                        raise ValueError("لا يمكن تسجيل دفعة لطلب ملغى أو مرتجع.")
+                    if (order.payment_status or "").lower() == "paid":
+                        raise ValueError("هذا الطلب مسجل كمدفوع بالفعل.")
+                    amount = request.form.get("amount")
+                    currency_id = request.form.get("currency_id", type=int)
+                    cash_account_id = request.form.get("cash_account_id", type=int)
+                    currency = db.session.get(Currency, currency_id) if currency_id else None
+                    if currency is None or not currency.is_active:
+                        raise ValueError("اختر عملة دفع نشطة.")
+                    if not cash_account_id or not account_is_in_cash_tree(cash_account_id, db.session):
+                        raise ValueError("اختر حسابًا تفصيليًا من شجرة الصناديق.")
+                    try:
+                        payment_amount = Decimal(str(amount or "0")).quantize(Decimal("0.0001"))
+                    except (InvalidOperation, ValueError, TypeError) as exc:
+                        raise ValueError("مبلغ الدفع غير صحيح.") from exc
+                    if payment_amount <= 0:
+                        raise ValueError("أدخل مبلغ دفع أكبر من صفر.")
+
+                    order_currency = db.session.get(Currency, order.currency_id)
+                    if order_currency is None or not order_currency.is_active:
+                        raise ValueError("عملة الطلب غير نشطة؛ لا يمكن ترحيل المبيعات.")
+
+                    sale_operation = CustomerLedgerOperation.query.filter_by(
+                        operation_type="order_sale",
+                        order_id=order.id,
+                        status="posted",
+                    ).order_by(CustomerLedgerOperation.id.asc()).first()
+                    if sale_operation is None:
+                        # The order amount is captured in its original currency and
+                        # converted to the customer's fixed YER ledger at posting time.
+                        sale_operation = create_customer_operation(
+                            operation_type="order_sale",
+                            customer_id=order.customer_id,
+                            order_id=order.id,
+                            entered_amount=order.total,
+                            currency_code=order_currency.code,
+                            description=f"قيمة الطلب {order.order_no} شامل التوصيل",
+                            admin_id=session.get("admin_id"),
+                        )
+                        db.session.flush()
+
+                    payment_operation = create_customer_operation(
+                        operation_type="order_payment",
+                        customer_id=order.customer_id,
+                        order_id=order.id,
+                        entered_amount=payment_amount,
+                        currency_code=currency.code,
+                        cash_account_id=cash_account_id,
+                        description=f"دفعة محاسبية للطلب {order.order_no}",
+                        admin_id=session.get("admin_id"),
+                    )
+                    db.session.flush()
+
+                    # Preserve payment history in the application's existing payment
+                    # table in addition to the customer ledger/journal.
+                    method = PaymentMethod.query.filter_by(code="accounting_cash").first()
+                    if method is None:
+                        method = PaymentMethod(
+                            name="تحصيل نقدي محاسبي",
+                            code="accounting_cash",
+                            provider="manual_cash",
+                            supports_proof=False,
+                            settings_json={"type": "cash", "description": "تحصيل نقدي مسجل من لوحة الإدارة"},
+                            is_active=True,
+                        )
+                        db.session.add(method)
+                        db.session.flush()
+                    order.payment_method_id = method.id
+                    db.session.add(PaymentTransaction(
+                        order_id=order.id,
+                        method_id=method.id,
+                        amount=payment_amount,
+                        currency_id=currency.id,
+                        provider_ref=f"acct-ledger-op-{payment_operation.id}",
+                        status="paid",
+                        paid_at=datetime.now(timezone.utc),
+                    ))
+
+                    paid_yer = db.session.query(func.coalesce(func.sum(CustomerLedgerOperation.amount_yer), 0)).filter(
+                        CustomerLedgerOperation.order_id == order.id,
+                        CustomerLedgerOperation.operation_type == "order_payment",
+                        CustomerLedgerOperation.status == "posted",
+                    ).scalar() or Decimal("0")
+                    sale_yer = Decimal(str(sale_operation.amount_yer or 0))
+                    if Decimal(str(paid_yer)) >= sale_yer:
+                        order.payment_status = "paid"
+                        if order.status in {"created", "awaiting_payment"}:
+                            CommerceService.transition_order(
+                                order.id,
+                                "paid",
+                                actor_type="admin",
+                                actor_id=session.get("admin_id"),
+                                note="تم تسجيل الدفع وترحيله محاسبيًا إلى حساب العميل.",
+                            )
+                        success = f"تم تسجيل الدفعة وترحيلها. اكتملت قيمة الطلب {order.order_no} وأصبح مدفوعًا."
+                    else:
+                        order.payment_status = "partially_paid"
+                        success = f"تم تسجيل الدفعة بالريال اليمني. الطلب {order.order_no} مدفوع جزئيًا، ويمكن تسجيل دفعة أخرى لاحقًا."
                 elif action == "edit":
                     if order.status != "created":
                         raise ValueError("لا يمكن تعديل الطلب بعد تأكيده.")
@@ -373,9 +482,11 @@ def register_entity_views(admin_bp):
                     success = "تم إرسال الرسالة للعميل."
                 else:
                     raise ValueError("إجراء الطلب غير معروف.")
-            except (KeyError, ValueError, LookupError) as exc:
+            except (KeyError, ValueError, LookupError, InvalidOperation) as exc:
                 db.session.rollback()
                 error = str(exc)
+                if action == "record_account_payment":
+                    payment_form_open = True
 
             order = db.session.get(Order, order_id)
             if success:
@@ -410,6 +521,13 @@ def register_entity_views(admin_bp):
                 if message.get("sender_type") == "customer"
                 and not message.get("read_at")
             )
+        from ..models import Currency
+        from .accounting_views import _account_picker_context
+        from ..services.accounting import ensure_accounting_setup
+        ensure_accounting_setup(db.session, backfill_parties=True)
+        db.session.commit()
+        accounting_picker = _account_picker_context()
+        active_currencies = Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
         return render_template(
             "admin/order_detail.html",
             title=f"الطلب {order.order_no}",
@@ -417,6 +535,9 @@ def register_entity_views(admin_bp):
             order_items=detail.get("items", []),
             order_conversation=order_conversation,
             order_unread_messages=order_unread_messages,
+            payment_form_open=payment_form_open,
+            currencies=active_currencies,
+            **accounting_picker,
             status_choices=(
                 "created", "awaiting_payment", "paid", "processing",
                 "shipped", "in_transit", "delivered", "returned", "cancelled",
