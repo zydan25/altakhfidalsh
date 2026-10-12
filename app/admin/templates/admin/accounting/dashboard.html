@@ -1,0 +1,52 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">المحاسبة · نظرة عامة</span>
+  <h2>النظام المحاسبي</h2>
+  <p class="muted">شجرة حسابات مترابطة، قيود يومية متوازنة، سندات مرتبطة بقيودها، وترحيل للمبيعات من سجل الطلبات.</p>
+</section>
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+<section class="metric-grid accounting-metrics">
+  <article class="metric-card"><span class="metric-icon"><i class="bi bi-diagram-3-fill" aria-hidden="true"></i></span><div><span class="metric-label">الحسابات النشطة</span><strong>{{ account_count }}</strong></div></article>
+  <article class="metric-card"><span class="metric-icon"><i class="bi bi-journal-check" aria-hidden="true"></i></span><div><span class="metric-label">القيود المرحلة</span><strong>{{ journal_count }}</strong></div></article>
+  <article class="metric-card"><span class="metric-icon"><i class="bi bi-receipt" aria-hidden="true"></i></span><div><span class="metric-label">السندات المرحلة</span><strong>{{ voucher_count }}</strong></div></article>
+  <article class="metric-card"><span class="metric-icon"><i class="bi bi-cart-check-fill" aria-hidden="true"></i></span><div><span class="metric-label">طلبات تحتاج ترحيل المبيعات</span><strong>{{ pending_sales }}</strong></div></article>
+</section>
+<section class="accounting-shortcuts">
+  <a href="/admin/accounting/accounts"><i class="bi bi-diagram-3-fill" aria-hidden="true"></i><strong>شجرة الحسابات</strong><span>الحسابات الرئيسية والفرعية</span></a>
+  <a href="/admin/accounting/journal"><i class="bi bi-journal-text" aria-hidden="true"></i><strong>القيود اليومية</strong><span>إنشاء ومراجعة القيود المزدوجة</span></a>
+  <a href="/admin/accounting/vouchers"><i class="bi bi-receipt-cutoff" aria-hidden="true"></i><strong>السندات</strong><span>قبض وصرف وتحويل</span></a>
+  <a href="/admin/accounting/reports"><i class="bi bi-bar-chart-line-fill" aria-hidden="true"></i><strong>التقارير</strong><span>ملخص الإيرادات والمصروفات والأرصدة</span></a>
+</section>
+<section class="panel accounting-sales-panel">
+  <div class="panel-heading"><div><span class="eyebrow">المبيعات</span><h3>ترحيل المبيعات المحفوظة</h3><p class="muted">يرحّل كل طلب غير ملغى لم يُرحّل سابقًا إلى دفتر الأستاذ مرة واحدة فقط. الطلبات غير المدفوعة تُسجّل على حساب العميل، والمدفوعة على حساب مبالغ التحصيل الإلكتروني.</p></div></div>
+  <form method="post" action="/admin/accounting/sales/post" onsubmit="return confirm('سيتم إنشاء قيود محاسبية للطلبات غير المرحلة. هل تريد المتابعة؟')"><button class="primary-button" type="submit"><i class="bi bi-journal-arrow-up" aria-hidden="true"></i> ترحيل المبيعات غير المرحلة</button></form>
+</section>
+<section class="two-panel accounting-latest-grid">
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">آخر الحركات</span><h3>القيود اليومية</h3></div><a class="ghost-button compact" href="/admin/accounting/journal">عرض الكل</a></div>
+    <div class="stack-list">
+      {% for entry in latest_entries %}
+      <a class="accounting-recent-row" href="/admin/accounting/journal?q={{ entry.number|urlencode }}">
+        <span class="accounting-recent-icon"><i class="bi bi-journal-check" aria-hidden="true"></i></span>
+        <span><strong>{{ entry.number }}</strong><small>{{ entry.description }}</small><small>{{ entry.entry_date }} · {{ entry.currency_code }}</small></span>
+        <span class="accounting-recent-amount">{{ "%.2f"|format(entry.totals()[0]|float) }}</span>
+      </a>
+      {% else %}<p class="muted">لا توجد قيود مرحلة حتى الآن.</p>{% endfor %}
+    </div>
+  </article>
+  <article class="panel">
+    <div class="panel-heading"><div><span class="eyebrow">آخر السندات</span><h3>سجل السندات</h3></div><a class="ghost-button compact" href="/admin/accounting/vouchers">عرض الكل</a></div>
+    <div class="stack-list">
+      {% for voucher in latest_vouchers %}
+      <div class="accounting-recent-row">
+        <span class="accounting-recent-icon"><i class="bi bi-receipt" aria-hidden="true"></i></span>
+        <span><strong>{{ voucher.number }}</strong><small>{{ {"receipt":"سند قبض","payment":"سند صرف","transfer":"سند تحويل","adjustment":"تسوية"}.get(voucher.voucher_type,voucher.voucher_type) }} · {{ voucher.description }}</small><small>{{ voucher.voucher_date }} · {{ voucher.currency_code }}</small></span>
+        <span class="accounting-recent-amount">{{ "%.2f"|format(voucher.amount|float) }}</span>
+      </div>
+      {% else %}<p class="muted">لا توجد سندات حتى الآن.</p>{% endfor %}
+    </div>
+  </article>
+</section>
+{% endblock %}
