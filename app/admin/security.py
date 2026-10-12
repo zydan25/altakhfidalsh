@@ -201,6 +201,18 @@ def init_admin_security(admin_bp):
         if not session.get("admin_id") and not current_app.config.get("ADMIN_DEV_BYPASS", False):
             from flask import redirect, url_for
             return redirect(url_for("admin.login", next=request.path))
+        # The first authenticated visit seeds only the accounting chart/permissions.
+        # This happens before permission evaluation so existing system managers can
+        # enter the new module without needing a manual database edit first.
+        if request.path.startswith("/admin/accounting"):
+            try:
+                from ..extensions import db
+                from ..services.accounting import ensure_accounting_setup
+                ensure_accounting_setup(db.session)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                return {"error": "accounting_setup_unavailable", "message": "تعذر تجهيز نواة المحاسبة. تحقّق من تطبيق ترحيلات قاعدة البيانات."}, 503
         if code and not can_access(code):
             return {"error": "forbidden", "permission": code}, 403
         return None
