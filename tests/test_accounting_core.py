@@ -69,7 +69,7 @@ def test_receipt_voucher_creates_balanced_journal_and_reversal(app):
             voucher_type="receipt",
             voucher_date=date.today(),
             amount="75",
-            currency_code="SAR",
+            currency_code="YER",
             from_account_id=customer.ledger_account_id,
             to_account_id=chart["main_cash"].id,
             beneficiary="عميل سند",
