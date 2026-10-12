@@ -79,6 +79,13 @@ NAVIGATION = [
         NavItem("الإشعارات", "/admin/notifications", "!"),
         NavItem("الملفات", "/admin/attachments", "↗"),
     ]),
+    NavSection("المحاسبة", "¤", [
+        NavItem("نظرة عامة", "/admin/accounting", "▦"),
+        NavItem("شجرة الحسابات", "/admin/accounting/accounts", "≡"),
+        NavItem("القيود اليومية", "/admin/accounting/journal", "↔"),
+        NavItem("السندات", "/admin/accounting/vouchers", "▤"),
+        NavItem("التقارير المحاسبية", "/admin/accounting/reports", "▥"),
+    ]),
     NavSection("الترويج والمالية", "☆", [
         NavItem("الكوبونات", "/admin/promotions/coupons", "%"),
         NavItem("الهدايا", "/admin/promotions/gifts", "☆"),
