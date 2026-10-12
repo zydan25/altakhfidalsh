@@ -22,8 +22,8 @@
 <section class="entity-grid" id="adminCustomerCards">
 {% for customer in customers %}
 <article class="entity-card panel" data-customer-id="{{ customer.id }}" data-customer-search="{{ ((customer.name or '') ~ ' ' ~ customer.phone_normalized ~ ' ' ~ (customer.invite_code or '') ~ ' ' ~ (customer.city_id or ''))|lower }}" data-onboarding="{{ 'complete' if customer.onboarding_completed else 'incomplete' }}" data-invites="{{ customer.invited_count }}">
-  {% if admin_layout_theme == "water" %}<div class="water-record-top"><span class="water-record-icon"><i class="bi bi-person-fill" aria-hidden="true"></i></span><span class="water-record-id">#{{ customer.id }}</span></div>{% endif %}
-  <div class="entity-field"><span class="entity-label">العميل</span><strong>{{ customer.name or "بدون اسم" }}</strong></div>
+  {% if admin_layout_theme == "water" %}<div class="water-customer-card-head"><span class="water-customer-avatar"><i class="bi bi-person-fill" aria-hidden="true"></i></span><span class="water-record-id">#{{ customer.id }}</span><span class="water-customer-status {{ 'is-complete' if customer.onboarding_completed else 'is-incomplete' }}">{{ "مكتمل" if customer.onboarding_completed else "غير مكتمل" }}</span></div>{% endif %}
+  <div class="entity-field water-customer-main"><span class="entity-label">العميل</span><strong>{{ customer.name or "بدون اسم" }}</strong></div>
   <div class="entity-field"><span class="entity-label">الهاتف</span><strong dir="ltr">{{ customer.phone_normalized }}</strong></div>
   <div class="entity-field"><span class="entity-label">المدينة</span><strong>#{{ customer.city_id or "—" }}</strong></div>
   <div class="entity-field"><span class="entity-label">الحالة</span><strong>{{ customer.status }}</strong></div>
