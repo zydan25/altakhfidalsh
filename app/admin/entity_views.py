@@ -253,10 +253,20 @@ def register_entity_views(admin_bp):
     @admin_bp.get("/orders")
     def orders():
         rows = Order.query.order_by(Order.id.desc()).limit(200).all()
+        # A separate customer directory powers the order-page quick picker.
+        # The filter is display-only and never mutates order records.
+        order_customer_options = (
+            Customer.query
+            .filter(Customer.is_active.is_(True))
+            .order_by(Customer.name, Customer.id.desc())
+            .limit(1000)
+            .all()
+        )
         return render_template(
             "admin/orders.html",
             title="الطلبات",
             orders=rows,
+            order_customer_options=order_customer_options,
             **build_admin_context(),
         )
 
