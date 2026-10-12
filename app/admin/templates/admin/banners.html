@@ -21,7 +21,7 @@
   {% for banner in banners %}
     {% set asset = asset_map.get(banner.mobile_asset_id or banner.image_asset_id) %}
     <article class="banner-sort-card" draggable="true" data-banner-id="{{ banner.id }}">
-      <span class="drag-handle">⋮⋮</span><img src="{{ asset.url if asset else '' }}" alt="{{ banner.name }}"><div><strong>{{ banner.name }}</strong><small class="muted">{{ "نشط" if banner.status=="active" else "مسودة" }} · {{ banner.duration }} ث</small></div><span class="status-pill">#{{ loop.index }}</span>
+      <span class="drag-handle">⋮⋮</span>{% if asset %}<img src="{{ asset.url }}" alt="{{ banner.name }}" loading="lazy">{% else %}<span class="banner-sort-placeholder"><i class="bi bi-image" aria-hidden="true"></i></span>{% endif %}<div><strong>{{ banner.name }}</strong><small class="muted">{{ "نشط" if banner.status=="active" else "مسودة" }} · {{ banner.duration }} ث</small></div><span class="status-pill">#{{ loop.index }}</span>
     </article>
   {% else %}<div class="empty-state">لا توجد بانرات بعد.</div>{% endfor %}
   </div>
@@ -34,7 +34,8 @@
   {% set mobile_asset = asset_map.get(banner.mobile_asset_id) %}
   <article class="panel banner-admin-card">
     <div class="banner-preview-shell">
-      <div class="banner-preview-image" style="background-image:url('{{ asset.url if asset else "" }}')">
+      <div class="banner-preview-image" {% if asset %}style="background-image:url('{{ asset.url }}')"{% endif %}>
+        {% if not asset %}<div class="banner-preview-no-image"><i class="bi bi-image" aria-hidden="true"></i><span>لا توجد صورة · مسودة</span></div>{% endif %}
         <div class="banner-preview-overlay" style="background:{{ banner.overlay_background_color }};opacity:{{ banner.overlay_opacity }};"></div>
         <div class="banner-preview-content banner-pos-{{ banner.position_text }}">
           {% if banner.overlay_text %}<span class="banner-floating-text">{{ banner.overlay_text }}</span>{% endif %}
