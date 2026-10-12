@@ -37,7 +37,12 @@
             <label>تبدأ من<input name="starts_at" type="datetime-local"></label>
             <label>تنتهي في<input name="ends_at" type="datetime-local"></label>
             <label class="form-field-wide">الوصف<textarea name="description" rows="2" placeholder="وصف اختياري"></textarea></label>
-            <label class="form-field-wide">صورة الغلاف<input name="cover_image" type="file" accept="image/*"></label>
+            <div class="look-current-cover">
+              <span class="field-help">الغلاف الحالي</span>
+              {% if asset %}<img src="{{ asset.url }}" alt="غلاف {{ look.name }}" loading="lazy">{% else %}<span class="look-no-cover"><i class="bi bi-image" aria-hidden="true"></i> لا توجد صورة غلاف</span>{% endif %}
+            </div>
+            <label class="form-field-wide">استبدال صورة الغلاف<input name="cover_image" type="file" accept="image/*" data-look-cover-preview><small class="field-help">ستظهر معاينة الصورة الجديدة قبل الحفظ.</small></label>
+            {% if asset %}<label class="check-row form-field-wide look-remove-cover"><input name="remove_cover" type="checkbox"><span><i class="bi bi-trash3" aria-hidden="true"></i> حذف الغلاف الحالي</span></label>{% endif %}
             <label class="check-row form-field-wide"><input name="show_on_home" type="checkbox" checked><span><strong>إظهارها في الرئيسية</strong></span></label>
           </div>
           <button class="primary-button">حفظ الإطلالة</button>
@@ -189,5 +194,17 @@
     type.addEventListener("change",sync); sync();
   });
 })();
+</script>
+<script>
+document.querySelectorAll("[data-look-cover-preview]").forEach(function(input){
+  input.addEventListener("change",function(){
+    const file=this.files&&this.files[0];if(!file||!file.type.startsWith("image/"))return;
+    const form=this.closest("form");const preview=form&&form.querySelector(".look-current-cover");
+    if(!preview)return;
+    let img=preview.querySelector("img");if(!img){preview.textContent="";img=document.createElement("img");img.alt="معاينة الغلاف الجديد";preview.appendChild(img);}
+    if(img.dataset.objectUrl)URL.revokeObjectURL(img.dataset.objectUrl);
+    img.dataset.objectUrl=URL.createObjectURL(file);img.src=img.dataset.objectUrl;
+  });
+});
 </script>
 {% endblock %}
