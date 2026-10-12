@@ -69,8 +69,22 @@
         <h3>السعر والعملة</h3>
         <p class="hint">أدخل السعر الحالي والسعر المرجعي قبل الخصم، بينما تنسيق العرض والألوان يُدار لاحقًا.</p>
         <div class="product-create-fields">
-          <label>السعر الأساسي<input name="base_price" required type="number" inputmode="decimal" min="0" step="0.0001" placeholder="0"></label>
-          <label>العملة<select name="base_currency_id" required><option value="">اختر العملة</option>{% for currency in currencies %}<option value="{{ currency.id }}" {% if currency.code == "SAR" %}selected{% endif %}>{{ currency.code }} — {{ currency.name_ar }}</option>{% endfor %}</select></label>
+          <label>{% if product_input_currency_enabled %}السعر المدخل{% else %}السعر الأساسي (SAR){% endif %}
+            <input id="productInputPrice" name="base_price" required type="number" inputmode="decimal" min="0" step="0.0001" placeholder="0">
+            <small id="productSarPreview" class="muted" style="display:block;margin-top:5px;line-height:1.5">سيُحفظ السعر الأساسي بالريال السعودي SAR.</small>
+          </label>
+          <label>عملة الإدخال
+            {% if product_input_currency_enabled %}
+              <select id="productInputCurrency" name="base_currency_id" required>
+                {% for currency in currencies if currency._product_sar_factor is not none %}
+                <option value="{{ currency.id }}" data-sar-factor="{{ currency._product_sar_factor }}" {% if currency.code == "SAR" %}selected{% endif %}>{{ currency.code }} — {{ currency.name_ar }}</option>
+                {% endfor %}
+              </select>
+            {% else %}
+              <input type="hidden" id="productInputCurrency" name="base_currency_id" value="{{ sar_currency_id }}">
+              <input type="text" value="SAR — الريال السعودي" disabled aria-label="عملة السعر">
+            {% endif %}
+          </label>
         </div>
       </section>
     </div>
@@ -106,4 +120,22 @@
     </div>
   </form>
 </div>
+<script>
+(() => {
+  const price = document.getElementById("productInputPrice");
+  const currency = document.getElementById("productInputCurrency");
+  const preview = document.getElementById("productSarPreview");
+  if (!price || !currency || !preview) return;
+  const factor = () => Number(currency.selectedOptions?.[0]?.dataset.sarFactor || 1);
+  const refresh = () => {
+    const value = Number(price.value);
+    preview.textContent = price.value !== "" && Number.isFinite(value) && value >= 0
+      ? "السعر الذي سيُحفظ: " + (value * factor()).toLocaleString("en-US", {maximumFractionDigits:4}) + " SAR"
+      : "سيُحفظ السعر الأساسي بالريال السعودي SAR.";
+  };
+  price.addEventListener("input", refresh);
+  currency.addEventListener("change", refresh);
+  refresh();
+})();
+</script>
 {% endblock %}
