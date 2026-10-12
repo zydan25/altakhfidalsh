@@ -263,11 +263,20 @@ def register_entity_views(admin_bp):
             .limit(1000)
             .all()
         )
+        # Some older deployments have an Order model without a loaded relationship;
+        # use an explicit map so the page never depends on Order.customer being defined.
+        customer_ids = {row.customer_id for row in rows if row.customer_id}
+        customer_ids.update(row.id for row in order_customer_options)
+        customer_map = {
+            item.id: item
+            for item in Customer.query.filter(Customer.id.in_(customer_ids)).all()
+        } if customer_ids else {}
         return render_template(
             "admin/orders.html",
             title="الطلبات",
             orders=rows,
             order_customer_options=order_customer_options,
+            customer_map=customer_map,
             **build_admin_context(),
         )
 
