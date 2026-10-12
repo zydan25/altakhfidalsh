@@ -1,0 +1,35 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المحاسبة · مستندات الحركة</span><h2>السندات المحاسبية</h2><p class="muted">سند القبض والصرف والتحويل ينشئ قيدًا متوازنًا تلقائيًا. الإلغاء لا يمحو السند بل ينشئ قيدًا عكسيًا ويحفظ أثره.</p></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<details class="panel accounting-form-panel" open>
+  <summary class="accounting-form-summary"><span><i class="bi bi-receipt" aria-hidden="true"></i> إصدار سند جديد</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+  <form method="post" class="form-stack accounting-form-grid">
+    <label>نوع السند<select name="voucher_type" id="accountingVoucherType"><option value="receipt">سند قبض</option><option value="payment">سند صرف</option><option value="transfer">سند تحويل</option><option value="adjustment">تسوية</option></select></label>
+    <label>التاريخ<input name="voucher_date" type="date" value="{{ now_date or '' }}" required></label>
+    <label>المبلغ<input name="amount" type="number" min="0.0001" step="0.0001" required></label>
+    <label>العملة<select name="currency_code" required>{% for currency_row in currencies %}<option value="{{ currency_row.code }}" {% if currency_row.code == "SAR" %}selected{% endif %}>{{ currency_row.name }} · {{ currency_row.code }}</option>{% endfor %}</select></label>
+    <label>الحساب المقابل (من)<select name="from_account_id" required><option value="">اختر الحساب</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.code }} · {{ account.name }}</option>{% endfor %}</select></label>
+    <label>الحساب المستلم/المقابل (إلى)<select name="to_account_id" required><option value="">اختر الحساب</option>{% for account in accounts %}<option value="{{ account.id }}">{{ account.code }} · {{ account.name }}</option>{% endfor %}</select></label>
+    <label>المستفيد أو الجهة<input name="beneficiary" placeholder="اختياري"></label>
+    <label class="accounting-form-wide">البيان<input name="description" required placeholder="سبب السند أو تفاصيل الحركة"></label>
+    <button class="primary-button" type="submit"><i class="bi bi-check-circle" aria-hidden="true"></i> إصدار السند وترحيله</button>
+  </form>
+</details>
+<section class="accounting-entry-list">
+  {% for voucher in vouchers %}
+  <article class="panel accounting-entry-card">
+    <div class="accounting-entry-head"><span class="accounting-entry-number">{{ voucher.number }}</span><span class="accounting-entry-date">{{ voucher.voucher_date }}</span><span class="accounting-entry-currency">{{ voucher.currency_code }}</span></div>
+    <strong class="accounting-entry-description">{{ voucher.description }}</strong>
+    <div class="accounting-entry-totals">
+      <span><small>نوع السند</small><strong>{{ {"receipt":"قبض","payment":"صرف","transfer":"تحويل","adjustment":"تسوية"}.get(voucher.voucher_type,voucher.voucher_type) }}</strong></span>
+      <span><small>المبلغ</small><strong>{{ "%.2f"|format(voucher.amount|float) }}</strong></span>
+      <span><small>الحالة</small><strong>{{ "مرحّل" if voucher.status == "posted" else "ملغى بعكس محاسبي" }}</strong></span>
+    </div>
+    <div class="accounting-voucher-account-pair"><span>{{ voucher.from_account.code }} · {{ voucher.from_account.name }}</span><i class="bi bi-arrow-left-right" aria-hidden="true"></i><span>{{ voucher.to_account.code }} · {{ voucher.to_account.name }}</span></div>
+    <a class="ghost-button compact" href="/admin/accounting/journal?q={{ voucher.journal_entry.number|urlencode }}">عرض القيد المرتبط</a>
+    {% if voucher.status == "posted" %}<form method="post" action="/admin/accounting/vouchers/{{ voucher.id }}/void" onsubmit="return confirm('سيتم إنشاء قيد عكسي لإلغاء هذا السند. هل تريد الاستمرار؟')"><button type="submit" class="ghost-button danger-button compact">إلغاء السند بقيد عكسي</button></form>{% endif %}
+  </article>
+  {% else %}<div class="empty-state panel"><h3>لا توجد سندات</h3><p class="muted">ابدأ بإصدار سند قبض أو صرف أو تحويل.</p></div>{% endfor %}
+</section>
+{% endblock %}
