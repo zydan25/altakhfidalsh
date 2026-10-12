@@ -2,14 +2,24 @@
 {% block content %}
 <section class="module-header"><span class="eyebrow">النظام</span><h2>الأدوار والصلاحيات</h2><p class="muted">إنشاء دور وتحديد الصلاحيات التي يحصل عليها.</p></section>
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<style>
+{% if admin_layout_theme == "water" %}
+.roles-permission-list{display:grid;grid-template-columns:minmax(0,1fr);gap:7px;max-height:340px;overflow:auto;padding:8px;border:1px solid #e1e7f0;border-radius:13px;background:#f8fbff}
+.roles-permission-list .check-row{align-items:flex-start;padding:8px 9px;border:1px solid #e5ebf4;border-radius:10px;background:#fff}
+.roles-permission-list .check-row span{min-width:0;overflow-wrap:anywhere}
+.roles-permission-list .check-row strong{font-size:11px}
+.roles-permission-list .check-row small{display:block;margin-top:3px;color:#667085;font-size:10px;line-height:1.45}
+@media(min-width:700px){.roles-permission-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+{% endif %}
+</style>
 <section class="two-panel">
 <article class="panel"><div class="panel-heading"><div><span class="eyebrow">دور</span><h3>إنشاء دور</h3></div></div>
-<form method="post" class="form-stack"><label>الاسم<input name="name" required></label><label>Code<input name="code" required dir="ltr"></label><div class="checklist">{% for permission in permissions %}<label class="check-row"><input type="checkbox" name="permission_ids" value="{{ permission.id }}"><span><strong>{{ permission.code }}</strong><small>{{ permission.name }}</small></span></label>{% endfor %}</div><button class="primary-button">إنشاء الدور</button></form>
+<form method="post" class="form-stack"><label>الاسم<input name="name" required></label><label>Code<input name="code" required dir="ltr"></label><div class="checklist roles-permission-list">{% for permission in permissions %}<label class="check-row"><input type="checkbox" name="permission_ids" value="{{ permission.id }}"><span><strong>{{ permission.code }}</strong><small>{{ permission.name }}</small></span></label>{% endfor %}</div><button class="primary-button">إنشاء الدور</button></form>
 </article>
 <article class="panel"><div class="panel-heading"><div><span class="eyebrow">الأدوار</span><h3>السجل</h3></div><span class="status-pill">{{ roles|length }}</span></div>
 <div class="stack-list">{% for row in roles %}<details class="panel" style="padding:12px"><summary><strong>{{ row.name }}</strong> <span class="muted">· {{ row.code }}</span></summary>
 <form method="post" class="form-stack" style="margin-top:10px"><input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ row.id }}"><label>الاسم<input name="name" value="{{ row.name }}" required></label><label>Code<input name="code" value="{{ row.code }}" required dir="ltr"></label>
-<div class="checklist">{% for permission in permissions %}<label class="check-row"><input type="checkbox" name="permission_ids" value="{{ permission.id }}" {% if permission.id in role_perms.get(row.id,set()) %}checked{% endif %}><span><strong>{{ permission.code }}</strong><small>{{ permission.name }}</small></span></label>{% endfor %}</div><button class="primary-button">حفظ التعديل</button></form>
+<div class="checklist">{% for permission in permissions %}<label class="check-row"><input type="checkbox" name="permission_ids" value="{{ permission.id }}" {% if permission.id in role_perms.get(row.id, []) %}checked{% endif %}><span><strong>{{ permission.code }}</strong><small>{{ permission.name }}</small></span></label>{% endfor %}</div><button class="primary-button">حفظ التعديل</button></form>
 <form method="post" style="margin-top:8px"><input type="hidden" name="action" value="archive"><input type="hidden" name="id" value="{{ row.id }}"><button class="ghost-button">أرشفة الدور</button></form></details>{% else %}<span class="muted">لا توجد أدوار فعالة.</span>{% endfor %}</div></article>
 </section>
 {% endblock %}
