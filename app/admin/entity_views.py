@@ -1019,6 +1019,11 @@ def register_entity_views(admin_bp):
     def roles():
         from ..models import Permission, Role, RolePermission
         from sqlalchemy.exc import IntegrityError
+        from ..services.accounting import ensure_accounting_permissions
+        # Keep the new accounting permissions available in the existing role editor,
+        # even before an administrator opens the accounting screens.
+        ensure_accounting_permissions(db.session)
+        db.session.commit()
         error=None; success=None
         permissions = Permission.query.filter_by(is_active=True).order_by(Permission.code).all()
         valid_permission_ids = {permission.id for permission in permissions}
