@@ -1,0 +1,15 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المحاسبة · الحسابات الفرعية</span><h2>حسابات العملاء</h2><p class="muted">لكل عميل حساب محاسبي خاص يُنشأ تلقائيًا؛ الرصيد يعرض بالريال اليمني، حتى إن أُنشئ الطلب بعملة أخرى.</p><div class="accounting-voucher-toolbar"><a class="accounting-voucher-kind-btn" href="/admin/accounting/customer-daybook?new=1"><i class="bi bi-journal-plus"></i> يومية عميل</a><a class="accounting-voucher-kind-btn is-receipt" href="/admin/accounting/insurance?new=1"><i class="bi bi-shield-check"></i> تأمين</a><a class="accounting-voucher-kind-btn" href="/admin/accounting/ledger"><i class="bi bi-journal-text"></i> دفتر الأستاذ</a></div></section>
+<form class="panel accounting-voucher-filters" method="get"><label><span>بحث العميل</span><input name="q" value="{{ query }}" placeholder="الاسم أو الهاتف أو رمز الدعوة"></label><button class="primary-button" type="submit"><i class="bi bi-search"></i> بحث</button></form>
+<section class="accounting-voucher-list">
+{% for row in rows %}
+<article class="accounting-voucher-card">
+<div class="accounting-voucher-card-head"><span class="accounting-voucher-card-icon"><i class="bi bi-person-vcard"></i></span><div class="accounting-voucher-title"><strong>{{ row.customer.name or "بدون اسم" }}</strong><small>{{ row.customer.phone_normalized }} · العميل #{{ row.customer.id }}</small></div><span class="accounting-voucher-state is-posted">حساب مخصص</span></div>
+<div class="accounting-voucher-amount {% if row.balance >= 0 %}is-receipt{% else %}is-payment{% endif %}">{{ "%.2f"|format(row.balance|float) }} <small>ر.ي</small></div>
+<div class="accounting-voucher-flow"><div><small>رقم الحساب</small><strong>{{ row.account.code if row.account else "سيُنشأ تلقائيًا عند أول حركة" }}</strong></div><i class="bi bi-arrow-left-right"></i><div><small>الحركات المسجلة</small><strong>{{ row.movement_count }}</strong></div></div>
+<div class="accounting-voucher-card-actions"><a href="/admin/accounting/customers/{{ row.customer.id }}"><i class="bi bi-file-earmark-bar-graph"></i> كشف الحساب</a><a href="/admin/accounting/customer-daybook?new=1"><i class="bi bi-journal-plus"></i> قيد يومية</a><a href="/admin/accounting/insurance?new=1"><i class="bi bi-shield-check"></i> تأمين</a></div>
+</article>
+{% else %}<div class="empty-state panel"><h3>لا يوجد عملاء مطابقون</h3></div>{% endfor %}
+</section>
+{% endblock %}
