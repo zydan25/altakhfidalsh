@@ -1019,6 +1019,8 @@ def register_entity_views(admin_bp):
         from ..models import Permission, Role, RolePermission
         from sqlalchemy.exc import IntegrityError
         error=None; success=None
+        permissions = Permission.query.filter_by(is_active=True).order_by(Permission.code).all()
+        valid_permission_ids = {permission.id for permission in permissions}
         if request.method=="POST":
             try:
                 action=(request.form.get("action") or "create").strip(); row=db.session.get(Role,request.form.get("id",type=int))
@@ -1027,7 +1029,7 @@ def register_entity_views(admin_bp):
                     if not code or not name: raise ValueError("اسم الدور والكود مطلوبان.")
                     if Role.query.filter_by(code=code).first(): raise ValueError("كود الدور مستخدم مسبقًا.")
                     row=Role(name=name,code=code); db.session.add(row); db.session.flush()
-                    for pid in {int(value) for value in request.form.getlist("permission_ids") if str(value).isdigit() and int(value) in {permission.id for permission in permissions}}: db.session.add(RolePermission(role_id=row.id,permission_id=pid))
+                    for pid in {int(value) for value in request.form.getlist("permission_ids") if str(value).isdigit() and int(value) in valid_permission_ids}: db.session.add(RolePermission(role_id=row.id,permission_id=pid))
                     success="تم إنشاء الدور."
                 elif row is None: raise ValueError("الدور غير موجود.")
                 elif action=="archive": row.is_active=False; success="تمت أرشفة الدور."
@@ -1036,7 +1038,7 @@ def register_entity_views(admin_bp):
                     if not name or not code: raise ValueError("اسم الدور والكود مطلوبان.")
                     if Role.query.filter(Role.id!=row.id,Role.code==code).first(): raise ValueError("كود الدور مستخدم مسبقًا.")
                     row.name=name; row.code=code; RolePermission.query.filter_by(role_id=row.id).delete()
-                    for pid in {int(value) for value in request.form.getlist("permission_ids") if str(value).isdigit() and int(value) in {permission.id for permission in permissions}}: db.session.add(RolePermission(role_id=row.id,permission_id=pid))
+                    for pid in {int(value) for value in request.form.getlist("permission_ids") if str(value).isdigit() and int(value) in valid_permission_ids}: db.session.add(RolePermission(role_id=row.id,permission_id=pid))
                     success="تم تحديث الدور."
                 else: raise ValueError("إجراء الدور غير معروف.")
                 db.session.commit()
