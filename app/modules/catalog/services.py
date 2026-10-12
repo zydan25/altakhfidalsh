@@ -16,6 +16,8 @@ from ...models import (
     CategoryHomeDisplaySetting,
     Color,
     Currency,
+    ExchangeRate,
+    AppSetting,
     MediaAsset,
     Product,
     ProductCategory,
@@ -1011,6 +1013,81 @@ class CatalogService:
         return [CatalogService._serialize_product(row) for row in rows]
 
     @staticmethod
+    def product_input_currency_enabled():
+        setting = AppSetting.query.filter_by(
+            group_code="storefront",
+            key="product_input_currency_enabled",
+        ).first()
+        return str(setting.value or "").strip().lower() in {
+            "1", "true", "yes", "on", "enabled"
+        } if setting is not None else False
+
+    @staticmethod
+    def product_currency_sar_factor(currency_id, as_of=None):
+        """Return SAR value of one input-currency unit using a currently valid FX rate."""
+        sar = Currency.query.filter_by(code="SAR", is_active=True).first()
+        if sar is None:
+            raise LookupError("عملة الريال السعودي SAR غير مفعّلة في إعدادات العملات.")
+        try:
+            source = db.session.get(Currency, int(currency_id)) if currency_id not in (None, "") else sar
+        except (TypeError, ValueError):
+            source = None
+        if source is None or not source.is_active:
+            raise ValueError("عملة الإدخال غير موجودة أو غير مفعّلة.")
+        if source.id == sar.id or source.code == "SAR":
+            return Decimal("1")
+
+        as_of = as_of or datetime.now(timezone.utc)
+
+        def active_rate(query):
+            return query.filter(
+                ExchangeRate.valid_from <= as_of,
+                or_(ExchangeRate.valid_to.is_(None), ExchangeRate.valid_to > as_of),
+            ).order_by(ExchangeRate.valid_from.desc(), ExchangeRate.id.desc()).first()
+
+        # Exchange-rate management stores SAR -> foreign currency; invert this
+        # quote to convert an input amount back into the product's SAR price.
+        direct = active_rate(ExchangeRate.query.filter_by(
+            base_currency_id=sar.id,
+            quote_currency_id=source.id,
+        ))
+        if direct is not None:
+            rate = Decimal(str(direct.rate or 0))
+            if rate <= 0:
+                raise ValueError(f"سعر صرف {source.code} غير صالح.")
+            return Decimal("1") / rate
+
+        # Tolerate a historical reverse-direction record as well.
+        inverse = active_rate(ExchangeRate.query.filter_by(
+            base_currency_id=source.id,
+            quote_currency_id=sar.id,
+        ))
+        if inverse is not None:
+            rate = Decimal(str(inverse.rate or 0))
+            if rate <= 0:
+                raise ValueError(f"سعر صرف {source.code} غير صالح.")
+            return rate
+
+        raise ValueError(f"لا يوجد سعر صرف سارٍ للعملة {source.code} إلى الريال السعودي.")
+
+    @staticmethod
+    def convert_product_price_to_sar(amount, input_currency_id=None):
+        """Normalize an admin-entered product price to SAR while keeping storage SAR-only."""
+        try:
+            value = Decimal(str(amount))
+        except (InvalidOperation, ValueError, TypeError) as exc:
+            raise ValueError("سعر المنتج غير صحيح.") from exc
+        if value < 0:
+            raise ValueError("سعر المنتج لا يمكن أن يكون سالبًا.")
+
+        sar = Currency.query.filter_by(code="SAR", is_active=True).first()
+        if sar is None:
+            raise LookupError("عملة الريال السعودي SAR غير مفعّلة في إعدادات العملات.")
+        source_id = input_currency_id if CatalogService.product_input_currency_enabled() else sar.id
+        factor = CatalogService.product_currency_sar_factor(source_id)
+        return (value * factor).quantize(Decimal("0.0001"))
+
+    @staticmethod
     def _require_sar(currency_id):
         currency = db.session.get(Currency, currency_id)
         if currency is None or currency.code != "SAR":
@@ -1196,17 +1273,37 @@ class CatalogService:
                     raise ValueError("brand not found")
                 product.brand_id = int(brand_id)
 
+        input_currency_id = (
+            payload.get("input_currency_id")
+            if CatalogService.product_input_currency_enabled()
+            else None
+        )
         if "base_price" in payload:
             price = Decimal(str(payload["base_price"]))
             if price < 0:
                 raise ValueError("price cannot be negative")
-            product.base_price = price
+            product.base_price = CatalogService.convert_product_price_to_sar(
+                price, input_currency_id
+            )
         if "compare_at_price" in payload:
-            product.compare_at_price = (
+            compare_price = (
                 Decimal(str(payload["compare_at_price"]))
                 if payload["compare_at_price"] not in (None, "")
                 else None
             )
+            if compare_price is not None:
+                if compare_price < 0:
+                    raise ValueError("compare-at price cannot be negative")
+                compare_price = CatalogService.convert_product_price_to_sar(
+                    compare_price, input_currency_id
+                )
+            product.compare_at_price = compare_price
+        # Base product currency is deliberately SAR, regardless of the
+        # currency selected in the admin price-entry form.
+        sar = Currency.query.filter_by(code="SAR", is_active=True).first()
+        if sar is None:
+            raise LookupError("SAR currency is not configured")
+        product.base_currency_id = sar.id
         db.session.commit()
         if was_published:
             try:
