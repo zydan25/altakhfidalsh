@@ -532,6 +532,13 @@ def register_admin_routes(admin_bp):
     def product_new():
         context = _navigation_context()
         currencies = Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
+        sar_currency = Currency.query.filter_by(code="SAR", is_active=True).first()
+        product_input_currency_enabled = CatalogService.product_input_currency_enabled()
+        for currency in currencies:
+            try:
+                currency._product_sar_factor = str(CatalogService.product_currency_sar_factor(currency.id))
+            except (LookupError, ValueError):
+                currency._product_sar_factor = None
         categories = Category.query.filter_by(is_active=True).order_by(Category.name).all()
         category_tree = _category_tree_rows()
         error = None
@@ -541,14 +548,16 @@ def register_admin_routes(admin_bp):
             name = (request.form.get("name") or "").strip()
             description = (request.form.get("description") or "").strip()
             base_price_raw = (request.form.get("base_price") or "").strip()
-            base_currency_id = request.form.get("base_currency_id", type=int)
+            input_currency_id = request.form.get("base_currency_id", type=int)
             category_ids = request.form.getlist("category_ids", type=int)
             legacy_category_id = request.form.get("category_id", type=int)
             if not category_ids and legacy_category_id:
                 category_ids = [legacy_category_id]
 
-            if not sku or not name or not base_price_raw or not base_currency_id:
-                error = "SKU واسم المنتج والسعر والعملة الأساسية حقول مطلوبة."
+            if not sar_currency:
+                error = "عملة الريال السعودي SAR غير مفعّلة في إعدادات العملات."
+            elif not sku or not name or not base_price_raw or (product_input_currency_enabled and not input_currency_id):
+                error = "SKU واسم المنتج والسعر حقول مطلوبة؛ اختر عملة الإدخال إذا كانت مفعّلة."
             else:
                 try:
                     base_price = Decimal(base_price_raw)
@@ -556,6 +565,13 @@ def register_admin_routes(admin_bp):
                     error = "السعر الأساسي غير صحيح."
                 if error is None and base_price < 0:
                     error = "السعر الأساسي لا يمكن أن يكون سالبًا."
+                if error is None:
+                    try:
+                        base_price = CatalogService.convert_product_price_to_sar(
+                            base_price, input_currency_id if product_input_currency_enabled else sar_currency.id
+                        )
+                    except (ValueError, LookupError, InvalidOperation) as exc:
+                        error = str(exc)
 
             if error is None:
                 if Product.query.filter_by(sku=sku).first():
@@ -569,7 +585,7 @@ def register_admin_routes(admin_bp):
                     name=name,
                     slug=slug,
                     description=description or None,
-                    base_currency_id=base_currency_id,
+                    base_currency_id=sar_currency.id,
                     base_price=base_price,
                     status="draft",
                 )
@@ -603,6 +619,8 @@ def register_admin_routes(admin_bp):
             "admin/product_form.html",
             title="إضافة منتج",
             currencies=currencies,
+            sar_currency_id=sar_currency.id if sar_currency else "",
+            product_input_currency_enabled=product_input_currency_enabled,
             categories=categories,
             category_tree=category_tree,
             error=error,
@@ -686,6 +704,14 @@ def register_admin_routes(admin_bp):
     def product_edit_pro(product_id):
         context = _navigation_context()
         from ..models import AppSetting
+        currencies = Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
+        sar_currency = Currency.query.filter_by(code="SAR", is_active=True).first()
+        product_input_currency_enabled = CatalogService.product_input_currency_enabled()
+        for currency in currencies:
+            try:
+                currency._product_sar_factor = str(CatalogService.product_currency_sar_factor(currency.id))
+            except (LookupError, ValueError):
+                currency._product_sar_factor = None
         product = db.session.get(Product, product_id)
         if product is None:
             return render_template(
@@ -718,6 +744,9 @@ def register_admin_routes(admin_bp):
             product_id=product.id,
             product=product,
             categories=categories,
+            currencies=currencies,
+            sar_currency_id=sar_currency.id if sar_currency else "",
+            product_input_currency_enabled=product_input_currency_enabled,
             category_tree=category_tree,
             selected_category_ids=selected_category_ids,
             wizard_references=CatalogService.product_reference_data(product_id=product.id),
