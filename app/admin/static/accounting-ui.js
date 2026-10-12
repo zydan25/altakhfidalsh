@@ -116,6 +116,47 @@
   document.addEventListener("DOMContentLoaded",initAccountPickers);
   initAccountPickers();
 
+
+
+  function initCustomerPicker(picker){
+    if(picker.dataset.customerPickerReady==="1")return;
+    picker.dataset.customerPickerReady="1";
+    const trigger=$("[data-customer-trigger]",picker),panel=$("[data-customer-panel]",picker);
+    const search=$("[data-customer-search]",picker),searchButton=$("[data-customer-search-submit]",picker);
+    const hidden=$("[data-customer-value]",picker),label=$("[data-customer-label]",picker);
+    const empty=$("[data-customer-no-results]",picker),clear=$("[data-customer-clear]",picker);
+    const options=$("[data-customer-option]",picker);
+    function show(open){if(!panel||!trigger)return;panel.hidden=!open;trigger.setAttribute("aria-expanded",String(open));if(open)setTimeout(()=>search?.focus(),25);else if(search)search.value="";}
+    function filter(){
+      const q=norm(search?.value);
+      let visible=0;
+      options.forEach(option=>{const ok=!q||norm(option.dataset.customerSearch||option.textContent).includes(q);option.hidden=!ok;if(ok)visible++;});
+      if(empty)empty.hidden=visible>0;
+    }
+    trigger?.addEventListener("click",event=>{event.stopPropagation();show(panel?.hidden!==false);});
+    options.forEach(option=>option.addEventListener("click",()=>{
+      if(hidden)hidden.value=option.dataset.customerId||"";
+      if(label)label.textContent=option.dataset.customerLabel||option.textContent.trim();
+      picker.classList.add("has-selection");
+      show(false);
+      hidden?.dispatchEvent(new Event("change",{bubbles:true}));
+    }));
+    search?.addEventListener("input",filter);
+    searchButton?.addEventListener("click",filter);
+    search?.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();filter();}if(event.key==="Escape")show(false);});
+    clear?.addEventListener("click",()=>{
+      if(hidden)hidden.value="";
+      if(label)label.textContent=picker.dataset.placeholder||"اختر العميل";
+      picker.classList.remove("has-selection");show(false);
+      hidden?.dispatchEvent(new Event("change",{bubbles:true}));
+    });
+    document.addEventListener("click",event=>{if(!picker.contains(event.target))show(false);});
+    document.addEventListener("keydown",event=>{if(event.key==="Escape"&&panel&&!panel.hidden)show(false);});
+  }
+  function initCustomerPickers(){ $("[data-customer-picker]").forEach(initCustomerPicker); }
+  document.addEventListener("DOMContentLoaded",initCustomerPickers);
+  initCustomerPickers();
+
   const ones=["صفر","واحد","اثنان","ثلاثة","أربعة","خمسة","ستة","سبعة","ثمانية","تسعة"];
   const teens=["عشرة","أحد عشر","اثنا عشر","ثلاثة عشر","أربعة عشر","خمسة عشر","ستة عشر","سبعة عشر","ثمانية عشر","تسعة عشر"];
   const tens=["","","عشرون","ثلاثون","أربعون","خمسون","ستون","سبعون","ثمانون","تسعون"];
