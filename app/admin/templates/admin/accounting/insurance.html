@@ -1,0 +1,47 @@
+{% extends "admin/base.html" %}
+{% from "admin/accounting/_account_picker.html" import account_picker %}
+{% from "admin/accounting/_customer_picker.html" import customer_picker %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المحاسبة · حسابات العملاء</span><h2>تأمينات العملاء</h2><p class="muted">إضافة مبلغ إلى رصيد العميل: يُسجّل الصندوق مدينًا وحساب العميل دائنًا بالريال اليمني. تعديل التأمين يحافظ على الأثر المحاسبي بقيد عكسي ثم قيد بديل.</p>
+<div class="accounting-voucher-toolbar"><button type="button" class="accounting-voucher-kind-btn is-receipt" data-customer-operation-open><i class="bi bi-plus-circle"></i> إضافة تأمين</button><a class="accounting-voucher-kind-btn" href="/admin/accounting/accounts"><i class="bi bi-diagram-3"></i> شجرة الحسابات</a><a class="accounting-voucher-kind-btn" href="/admin/accounting/customer-daybook"><i class="bi bi-journal-text"></i> يوميات العملاء</a></div></section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<div class="accounting-modal-overlay" id="customerOperationModal" {% if not show_form %}hidden{% endif %}>
+<div class="accounting-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="insuranceFormTitle">
+<div class="accounting-modal-title"><div><span class="eyebrow">قيد محاسبي · YER</span><h3 id="insuranceFormTitle">{{ "تعديل التأمين" if editing_operation else "إضافة تأمين للعميل" }}</h3></div><button type="button" class="icon-button" data-accounting-modal-close aria-label="إغلاق"><i class="bi bi-x-lg"></i></button></div>
+<form method="post" class="accounting-customer-operation-form" id="insuranceForm">
+{% if editing_operation %}<input type="hidden" name="operation_id" value="{{ editing_operation.id }}">{% endif %}
+<label class="accounting-voucher-field"><span>العميل *</span>{{ customer_picker('customer_id',customers,selected_id=editing_operation.customer_id if editing_operation else None,placeholder='اختر العميل',required=True,picker_id='insuranceCustomerPicker') }}</label>
+<label class="accounting-voucher-field"><span>مبلغ التأمين · ريال يمني *</span><input name="amount" type="number" min="0.0001" step="0.0001" inputmode="decimal" required placeholder="أدخل مبلغ التأمين" value="{{ editing_operation.entered_amount if editing_operation else '' }}" data-money-words data-money-words-target="#insuranceAmountWords" data-money-currency="YER"><span class="accounting-amount-words" id="insuranceAmountWords" aria-live="polite"></span></label>
+<label class="accounting-voucher-field"><span>اختر الصندوق *</span>{{ account_picker('cash_account_id','الصندوق',cash_tree,selected_id=editing_operation.cash_account_id if editing_operation else None,placeholder='اختر صندوقًا',allowed_ids=cashbox_ids,selected_label=account_label_map.get(editing_operation.cash_account_id) if editing_operation else None,required=True,picker_id='insuranceCashPicker') }}</label>
+<label class="accounting-voucher-field"><span>تاريخ التأمين *</span><input name="operation_date" type="date" value="{{ editing_operation.operation_date if editing_operation else today }}" required></label>
+<label class="accounting-voucher-field"><span>البيان (اختياري)</span><input name="description" value="{{ editing_operation.description if editing_operation else '' }}" placeholder="مثال: تأمين طلب أو تأمين ضمان"></label>
+<div class="accounting-voucher-form-actions"><span>يُمنع تكرار تأمين للعميل بالمبلغ نفسه في اليوم نفسه.</span><button class="accounting-voucher-submit is-receipt" type="submit"><i class="bi bi-check2-circle"></i> {{ "حفظ التعديل بقيد عكسي" if editing_operation else "حفظ التأمين وترحيله" }}</button></div>
+</form></div></div>
+<section class="panel accounting-voucher-list-tools"><div class="accounting-voucher-list-head"><div><span class="eyebrow">السجل المحاسبي</span><h3>التأمينات المسجلة</h3><small>{{ operations|length }} حركة</small></div></div></section>
+<section class="accounting-voucher-list">
+{% for operation in operations %}
+<article class="accounting-voucher-card is-receipt">
+<div class="accounting-voucher-card-head"><span class="accounting-voucher-card-icon"><i class="bi bi-shield-check"></i></span><div class="accounting-voucher-title"><strong>{{ operation.customer.name or ("عميل #" ~ operation.customer_id) }}</strong><small>{{ operation.operation_date }} · تأمين #{{ operation.id }}</small></div><span class="accounting-voucher-state {{ 'is-void' if operation.status != 'posted' else 'is-posted' }}">{{ operation.ui_status }}</span></div>
+<div class="accounting-voucher-amount">{{ "%.2f"|format(operation.amount_yer|float) }} <small>ر.ي</small></div>
+<div class="accounting-voucher-flow"><div><small>حساب العميل</small><strong>{{ operation.customer.ledger_account.code if operation.customer and operation.customer.ledger_account else "—" }}</strong><span>{{ operation.customer.ledger_account.name if operation.customer and operation.customer.ledger_account else "" }}</span></div><i class="bi bi-arrow-left-right"></i><div><small>الصندوق</small><strong>{{ operation.cash_account.name if operation.cash_account else "—" }}</strong><span>{{ operation.cash_account.code if operation.cash_account else "" }}</span></div></div>
+{% if operation.description %}<p class="accounting-voucher-description">{{ operation.description }}</p>{% endif %}
+<div class="accounting-voucher-card-actions"><a href="/admin/accounting/customers/{{ operation.customer_id }}"><i class="bi bi-person-vcard"></i> كشف العميل</a>{% if operation.journal_entry %}<a href="/admin/accounting/journal?q={{ operation.journal_entry.number|urlencode }}"><i class="bi bi-journal-check"></i> القيد</a>{% endif %}{% if operation.status == 'posted' %}<a href="/admin/accounting/insurance?edit={{ operation.id }}"><i class="bi bi-pencil-square"></i> تعديل</a>{% endif %}</div>
+</article>
+{% else %}<div class="empty-state panel"><i class="bi bi-shield-check"></i><h3>لا توجد تأمينات بعد</h3><p>ابدأ من زر «إضافة تأمين».</p></div>{% endfor %}
+</section>
+<script>
+(() => {
+ const modal=document.getElementById("customerOperationModal");
+ document.querySelectorAll("[data-customer-operation-open]").forEach(button=>button.addEventListener("click",()=>{if(modal)modal.hidden=false;document.body.classList.add("accounting-modal-open");setTimeout(()=>document.querySelector('#insuranceCustomerPicker [data-customer-trigger]')?.focus(),25);}));
+ document.querySelectorAll("[data-accounting-modal-close]").forEach(button=>button.addEventListener("click",()=>{if(modal)modal.hidden=true;document.body.classList.remove("accounting-modal-open");}));
+ modal?.addEventListener("click",event=>{if(event.target===modal){modal.hidden=true;document.body.classList.remove("accounting-modal-open");}});
+ document.addEventListener("keydown",event=>{if(event.key==="Escape"&&modal&&!modal.hidden){modal.hidden=true;document.body.classList.remove("accounting-modal-open");}});
+ document.getElementById("insuranceForm")?.addEventListener("submit",event=>{
+   const customer=document.querySelector('#insuranceCustomerPicker [data-customer-value]')?.value;
+   const cash=document.querySelector('#insuranceCashPicker [data-account-value]')?.value;
+   const amount=Number(document.querySelector('#insuranceForm [name="amount"]')?.value||0);
+   if(!customer||!cash||amount<=0){event.preventDefault();alert("اختر العميل والصندوق وأدخل مبلغًا أكبر من صفر.");}
+ });
+})();
+</script>
+{% endblock %}
