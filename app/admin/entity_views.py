@@ -395,7 +395,7 @@ def register_entity_views(admin_bp):
                             provider="manual_cash",
                             supports_proof=False,
                             settings_json={"type": "cash", "description": "تحصيل نقدي مسجل من لوحة الإدارة"},
-                            is_active=True,
+                            is_active=False,
                         )
                         db.session.add(method)
                         db.session.flush()
