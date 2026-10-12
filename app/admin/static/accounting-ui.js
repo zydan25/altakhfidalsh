@@ -190,7 +190,9 @@
     const amount=Number(raw);
     if(!Number.isFinite(amount)||amount<0)return "";
     const whole=Math.floor(amount), fractional=Math.round((amount-whole)*100);
-    const currencyLabel=(currency||"YER").toUpperCase()==="YER"?"ريال يمني":(currency||"ريال");
+    const code=(currency||"YER").toUpperCase();
+    const currencyNames={YER:"ريال يمني",SAR:"ريال سعودي",USD:"دولار أمريكي",EUR:"يورو",AED:"درهم إماراتي",KWD:"دينار كويتي",QAR:"ريال قطري",OMR:"ريال عماني",BHD:"دينار بحريني",EGP:"جنيه مصري",GBP:"جنيه إسترليني",TRY:"ليرة تركية"};
+    const currencyLabel=currencyNames[code]||("عملة "+code);
     let text=intWords(whole)+" "+currencyLabel;
     if(fractional)text+=" و"+intWords(fractional)+" فلس";
     return text+" فقط لا غير";
