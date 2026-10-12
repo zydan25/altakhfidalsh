@@ -1,6 +1,7 @@
-const CACHE = "altakhfidalsh-admin-v5";
+const CACHE = "altakhfidalsh-admin-v6";
 const STATIC_SHELL = [
   "/admin/static/admin.css",
+  "/admin/static/water-theme.css",
   "/admin/static/admin.js",
   "/admin/static/manifest.json",
   "/admin/static/icon.svg"
