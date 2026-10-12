@@ -467,6 +467,8 @@ def register_accounting_views(admin_bp):
             closing=balance,
             movements=movements,
             children_summaries=children_summaries,
+            parent_tree=_flatten_account_tree(_account_tree(LedgerAccount.query.order_by(LedgerAccount.code).all())),
+            account_type_labels=ACCOUNT_TYPES,
             error=None,
             **_context(),
         )
@@ -651,6 +653,7 @@ def register_accounting_views(admin_bp):
             selected_type=selected_type,
             selected_counterpart_id=selected_counterpart_id,
             selected_cash_id=selected_cash_id,
+            show_composer=bool(editing_voucher or request.args.get("new") in {"receipt", "payment"}),
             account_picker_context=picker_context,
             **picker_context,
             **_context(),
