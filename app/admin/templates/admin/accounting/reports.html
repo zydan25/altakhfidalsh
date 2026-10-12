@@ -1,0 +1,33 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header"><span class="eyebrow">المحاسبة · التحليل المالي</span><h2>التقارير المحاسبية</h2><p class="muted">أرصدة الحسابات، وحركة المدين والدائن، وملخص الإيرادات والمصروفات. تُعرض كل عملة مستقلة عن الأخرى حتى لا تختلط الأرصدة.</p></section>
+<form method="get" class="panel accounting-filter-form">
+  <label>من<input type="date" name="start" value="{{ start }}"></label>
+  <label>إلى<input type="date" name="end" value="{{ end }}"></label>
+  <label>العملة<select name="currency"><option value="">جميع العملات (مجموعات مستقلة)</option>{% for currency_row in currencies %}<option value="{{ currency_row.code }}" {% if selected_currency == currency_row.code %}selected{% endif %}>{{ currency_row.name }} · {{ currency_row.code }}</option>{% endfor %}</select></label>
+  <button class="primary-button" type="submit"><i class="bi bi-filter-circle" aria-hidden="true"></i> تطبيق الفترة</button>
+</form>
+{% if summaries %}
+<section class="accounting-summary-grid">
+  {% for currency_code, summary in summaries.items() %}
+  <article class="panel accounting-summary-card">
+    <span class="accounting-entry-currency">{{ currency_code }}</span>
+    <div><small>الإيرادات</small><strong>{{ "%.2f"|format(summary.revenue|float) }}</strong></div>
+    <div><small>المصروفات</small><strong>{{ "%.2f"|format(summary.expenses|float) }}</strong></div>
+    <div class="accounting-net-value"><small>صافي الفترة</small><strong>{{ "%.2f"|format(summary.net|float) }}</strong></div>
+    <div class="accounting-entry-totals"><span><small>المدين</small><strong>{{ "%.2f"|format(summary.debit|float) }}</strong></span><span><small>الدائن</small><strong>{{ "%.2f"|format(summary.credit|float) }}</strong></span></div>
+  </article>
+  {% endfor %}
+</section>
+{% else %}<div class="empty-state panel"><h3>لا توجد حركات في الفترة المحددة</h3><p class="muted">سيظهر ملخص الإيرادات والمصروفات بعد ترحيل قيود أو مبيعات.</p></div>{% endif %}
+<section class="panel accounting-report-table">
+  <div class="panel-heading"><div><span class="eyebrow">ميزان حركة الحسابات</span><h3>تفاصيل الفترة</h3></div></div>
+  <div class="table-wrap"><table><thead><tr><th>رمز</th><th>الحساب</th><th>العملة</th><th>افتتاحي</th><th>مدين</th><th>دائن</th><th>ختامي</th><th></th></tr></thead><tbody>
+  {% for row in rows %}<tr>
+    <td>{{ row.code }}</td><td>{{ row.name }}</td><td>{{ row.currency_code }}</td>
+    <td>{{ "%.2f"|format(row.opening|float) }}</td><td>{{ "%.2f"|format(row.debit|float) }}</td><td>{{ "%.2f"|format(row.credit|float) }}</td><td>{{ "%.2f"|format(row.closing|float) }}</td>
+    <td><a class="ghost-button compact" href="/admin/accounting/reports/accounts/{{ row.id }}?currency={{ row.currency_code|urlencode }}&start={{ start }}&end={{ end }}">كشف الحساب</a></td>
+  </tr>{% else %}<tr><td colspan="8">لا توجد حركات حسابات ضمن الفترة المحددة.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+{% endblock %}
