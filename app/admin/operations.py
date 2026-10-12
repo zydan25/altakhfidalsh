@@ -761,6 +761,10 @@ def register_operation_routes(admin_bp):
                             look.cover_asset_id = assets[0]["id"]
                     elif request.form.get("remove_cover") == "on":
                         look.cover_asset_id = None
+                        look.status = "draft"
+                    if not look.cover_asset_id and look.status == "active":
+                        # An active look without an image has no meaningful client-facing tile.
+                        look.status = "draft"
                     success = "تم تحديث الإطلالة." if action == "look_update" else "تم إنشاء الإطلالة."
                 elif action == "look_add_target":
                     look_id = request.form.get("look_id", type=int)
