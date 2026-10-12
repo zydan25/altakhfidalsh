@@ -1,0 +1,57 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">المحاسبة · الدليل المحاسبي</span><h2>شجرة الحسابات</h2>
+  <p class="muted">تدرج الحسابات الرئيسي والفرعي. الحسابات النظامية وحسابات العملاء والموظفين مرتبطة بسجلاتها ولا يمكن حذفها مع وجود حركات.</p>
+</section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+<details class="panel accounting-form-panel" {% if error %}open{% endif %}>
+  <summary class="accounting-form-summary"><span><i class="bi bi-plus-circle" aria-hidden="true"></i> إنشاء حساب جديد</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+  <form method="post" class="form-stack accounting-form-grid">
+    <input type="hidden" name="action" value="create">
+    <label>الحساب الأب التجميعي<select name="parent_id" required><option value="">اختر الحساب الأب</option>{% for parent in parent_options %}<option value="{{ parent.id }}">{{ parent.code }} · {{ parent.name }}</option>{% endfor %}</select></label>
+    <label>اسم الحساب<input name="name" required placeholder="مثال: مصروفات الإنترنت"></label>
+    <label>رمز الحساب<input name="code" dir="ltr" placeholder="اتركه فارغًا للتوليد التلقائي"></label>
+    <label>الوصف<input name="description" placeholder="وصف اختياري"></label>
+    <label class="check-row"><input type="checkbox" name="is_group"><span>حساب تجميعي يحتوي حسابات فرعية</span></label>
+    <button class="primary-button" type="submit">حفظ الحساب</button>
+  </form>
+</details>
+<section class="accounting-account-list">
+{% for node in tree %}
+  {% set account = node.account %}
+  <article class="panel accounting-account-card {% if not account.is_active %}is-account-inactive{% endif %}" style="--account-depth:{{ node.depth }}">
+    <div class="accounting-account-heading">
+      <span class="accounting-account-code">{{ account.code }}</span>
+      <span class="accounting-account-type">{{ account_type_labels.get(account.account_type,account.account_type) }}</span>
+      <span class="accounting-account-state {{ 'is-active' if account.is_active else 'is-off' }}">{{ "نشط" if account.is_active else "معطل" }}</span>
+    </div>
+    <div class="accounting-account-title"><strong>{{ account.name }}</strong>{% if account.system_key %}<span class="accounting-system-lock"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i> نظامي</span>{% endif %}</div>
+    <div class="accounting-account-meta">
+      <span>{{ "حساب تجميعي" if account.is_group else "حساب تفصيلي" }}</span>
+      <span>{{ "يسمح بالقيد" if account.allow_manual_posting else "غير قابل للقيد المباشر" }}</span>
+      {% if account.description %}<span>{{ account.description }}</span>{% endif %}
+    </div>
+    {% if balances.get(account.id) %}
+    <div class="accounting-currency-balances">{% for balance in balances.get(account.id,[]) %}<span><small>{{ balance.currency }}</small><strong>{{ "%.2f"|format(balance.balance|float) }}</strong></span>{% endfor %}</div>
+    {% endif %}
+    {% if not account.system_key %}
+    <details class="accounting-edit-panel">
+      <summary><i class="bi bi-pencil-square" aria-hidden="true"></i> تعديل الحساب</summary>
+      <form method="post" class="form-stack accounting-form-grid">
+        <input type="hidden" name="action" value="update"><input type="hidden" name="id" value="{{ account.id }}">
+        <label>الاسم<input name="name" value="{{ account.name }}" required></label>
+        <label>الحساب الأب<select name="parent_id" required>{% for parent in parent_options if parent.id != account.id %}<option value="{{ parent.id }}" {% if parent.id == account.parent_id %}selected{% endif %}>{{ parent.code }} · {{ parent.name }}</option>{% endfor %}</select></label>
+        <label>الوصف<input name="description" value="{{ account.description or '' }}"></label>
+        <label class="check-row"><input type="checkbox" name="is_active" {% if account.is_active %}checked{% endif %}><span>الحساب نشط</span></label>
+        {% if not account.is_group %}<label class="check-row"><input type="checkbox" name="allow_manual_posting" {% if account.allow_manual_posting %}checked{% endif %}><span>السماح بالقيد المباشر</span></label>{% endif %}
+        <button class="primary-button" type="submit">حفظ التعديلات</button>
+      </form>
+    </details>
+    <form method="post" class="accounting-toggle-form"><input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="{{ account.id }}"><button class="ghost-button compact" type="submit">{{ "تعطيل الحساب" if account.is_active else "إعادة تفعيل الحساب" }}</button></form>
+    {% endif %}
+  </article>
+{% else %}<div class="empty-state panel"><h3>لا توجد حسابات</h3></div>{% endfor %}
+</section>
+{% endblock %}
