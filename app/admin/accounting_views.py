@@ -21,6 +21,7 @@ from ..services.accounting import (
     create_posted_entry,
     create_voucher,
     ensure_accounting_setup,
+    ensure_chart,
     ledger_balance,
     post_unposted_sales,
     reverse_entry,
