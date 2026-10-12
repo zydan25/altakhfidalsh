@@ -1,0 +1,68 @@
+{% extends "admin/base.html" %}
+{% block content %}
+<section class="module-header">
+  <span class="eyebrow">النظام · الهوية</span>
+  <h2>مظهر لوحة الإدارة</h2>
+  <p class="muted">اختر تصميم لوحة الإدارة. يمكنك الرجوع إلى التصميم الحالي في أي وقت، ولن تتغير البيانات أو الوظائف أو الصلاحيات.</p>
+</section>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+{% if success %}<div class="alert success">{{ success }}</div>{% endif %}
+
+<style>
+.layout-theme-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.layout-theme-option{display:block;position:relative;cursor:pointer;min-width:0}
+.layout-theme-option>input{position:absolute;opacity:0;pointer-events:none}
+.layout-theme-card{display:block;height:100%;padding:14px;border:1px solid var(--border);border-radius:18px;background:var(--surface);box-shadow:var(--shadow);transition:.18s}
+.layout-theme-option>input:checked+.layout-theme-card{border-color:#1a56db;box-shadow:0 0 0 3px #1a56db20,0 12px 28px #0f172a0b}
+.layout-theme-preview{height:148px;border-radius:12px;overflow:hidden;display:grid;grid-template-columns:36% 1fr;background:#f4f7fb;border:1px solid #dbe4f0;margin-bottom:12px}
+.layout-theme-preview-side{padding:10px 7px;background:#fff;border-inline-end:1px solid #dbe4f0;display:grid;align-content:start;gap:6px}
+.layout-theme-preview-side b{font-size:9px;color:#172033}
+.layout-theme-preview-side i{height:7px;border-radius:9px;background:#e5e7eb;display:block}
+.layout-theme-preview-main{padding:10px;display:grid;align-content:start;gap:8px}
+.layout-theme-preview-head{height:15px;border-radius:6px;background:#fff;border:1px solid #dbe4f0}
+.layout-theme-preview-actions{height:20px;border-radius:8px;background:#fff;box-shadow:0 3px 8px #0f172a0b}
+.layout-theme-preview-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.layout-theme-preview-grid i{height:30px;background:#f4f7fb;border:1px solid #e1e7ef;border-radius:8px;display:block}
+.layout-theme-preview-water .layout-theme-preview-side b{color:#1a56db}
+.layout-theme-preview-water .layout-theme-preview-side i:nth-child(2){background:#1a56db}
+.layout-theme-preview-classic .layout-theme-preview-side b{color:#7c3aed}
+.layout-theme-preview-classic .layout-theme-preview-side i:nth-child(2){background:#7c3aed}
+.layout-theme-option-title{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:900}
+.layout-theme-option-title small{font-size:11px;color:var(--muted);font-weight:700}
+.layout-theme-option-desc{display:block;color:var(--muted);font-size:12px;line-height:1.7;margin-top:6px}
+.layout-theme-bottom{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}
+.layout-theme-note{font-size:12px;color:var(--muted);line-height:1.7}
+@media(max-width:640px){.layout-theme-options{grid-template-columns:1fr}.layout-theme-preview{height:134px}}
+</style>
+
+<form method="post">
+  <div class="layout-theme-options">
+    <label class="layout-theme-option">
+      <input type="radio" name="layout_theme" value="classic" {% if current_theme == "classic" %}checked{% endif %}>
+      <span class="layout-theme-card">
+        <span class="layout-theme-preview layout-theme-preview-classic">
+          <span class="layout-theme-preview-side"><b>التخفيض</b><i></i><i></i><i></i><i></i></span>
+          <span class="layout-theme-preview-main"><i class="layout-theme-preview-head"></i><i class="layout-theme-preview-actions"></i><span class="layout-theme-preview-grid"><i></i><i></i><i></i><i></i></span></span>
+        </span>
+        <span class="layout-theme-option-title"><span>الثيم الحالي</span>{% if current_theme == "classic" %}<small>مفعل حاليًا</small>{% endif %}</span>
+        <span class="layout-theme-option-desc">يحافظ على واجهة لوحة الإدارة الحالية كما هي.</span>
+      </span>
+    </label>
+    <label class="layout-theme-option">
+      <input type="radio" name="layout_theme" value="water" {% if current_theme == "water" %}checked{% endif %}>
+      <span class="layout-theme-card">
+        <span class="layout-theme-preview layout-theme-preview-water">
+          <span class="layout-theme-preview-side"><b>التخفيض الصح</b><i></i><i></i><i></i><i></i></span>
+          <span class="layout-theme-preview-main"><i class="layout-theme-preview-head"></i><i class="layout-theme-preview-actions"></i><span class="layout-theme-preview-grid"><i></i><i></i><i></i><i></i></span></span>
+        </span>
+        <span class="layout-theme-option-title"><span>الثيم الجديد</span>{% if current_theme == "water" %}<small>مفعل حاليًا</small>{% endif %}</span>
+        <span class="layout-theme-option-desc">ألوان زرقاء فاتحة، أيقونات واضحة، لوحة تحكم ببطاقات سريعة، وقوائم ونماذج محسنة للهاتف والكمبيوتر.</span>
+      </span>
+    </label>
+  </div>
+  <div class="panel layout-theme-bottom">
+    <span class="layout-theme-note">هذا الاختيار يغير المظهر فقط ولا يمس قواعد البيانات أو عمليات الطلبات والتسعير والمخزون.</span>
+    <button type="submit" class="primary-button">حفظ مظهر لوحة الإدارة</button>
+  </div>
+</form>
+{% endblock %}
