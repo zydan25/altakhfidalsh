@@ -1,24 +1,28 @@
 <!doctype html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" data-admin-layout="{{ admin_layout_theme }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#7c3aed">
+  <meta name="theme-color" content="{{ '#1a56db' if admin_layout_theme == 'water' else '#7c3aed' }}">
   <link rel="manifest" href="{{ url_for('admin.static', filename='manifest.json') }}">
   <link rel="icon" href="{{ url_for('admin.static', filename='icon.svg') }}" type="image/svg+xml">
   <title>{{ title }} · التخفيض</title>
   <link rel="stylesheet" href="{{ url_for('admin.static', filename='admin.css') }}?v=20261008-8">
+  {% if admin_layout_theme == "water" %}
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="{{ url_for('admin.static', filename='water-theme.css') }}?v=20261012-1">
+  {% endif %}
 </head>
-<body{% if theme_css_vars %} style="{{ theme_css_vars }}"{% endif %}>
+<body{% if admin_layout_theme == "water" %} class="water-admin-theme"{% endif %}{% if theme_css_vars %} style="{{ theme_css_vars }}"{% endif %}>
   <div class="app-shell">
     <div id="drawerOverlay" class="drawer-overlay" hidden></div>
 
     <aside id="adminSidebar" class="admin-sidebar" aria-label="القائمة الرئيسية">
       <div class="brand-block">
-        <div class="brand-mark">ت</div>
+        <div class="brand-mark">{% if admin_layout_theme == "water" %}<i class="bi bi-bag-heart-fill" aria-hidden="true"></i>{% else %}ت{% endif %}</div>
         <div>
-          <strong>التخفيض</strong>
-          <span>إدارة التجارة الإلكترونية</span>
+          <strong>{% if admin_layout_theme == "water" %}التخفيض الصح{% else %}التخفيض{% endif %}</strong>
+          <span>{% if admin_layout_theme == "water" %}لوحة التحكم والإدارة{% else %}إدارة التجارة الإلكترونية{% endif %}</span>
         </div>
       </div>
 
@@ -26,7 +30,7 @@
         {% for section in navigation %}
         <section class="nav-section {% if section.active %}is-active-parent{% endif %}" data-nav-section="{{ loop.index0 }}">
           <button class="nav-section-button" type="button" aria-expanded="{{ 'true' if section.active else 'false' }}">
-            <span class="nav-icon">{{ section.icon }}</span>
+            <span class="nav-icon">{% if admin_layout_theme == "water" %}<i class="bi {{ admin_theme_icons.get('section:' ~ section.label, 'bi-grid') }}" aria-hidden="true"></i>{% else %}{{ section.icon }}{% endif %}</span>
             <span class="nav-label">{{ section.label }}</span>
             <span class="nav-chevron" aria-hidden="true">⌄</span>
           </button>
@@ -34,7 +38,7 @@
           <div class="nav-children" {% if not section.active %}hidden{% endif %}>
             {% for child in section.children %}
             <a class="nav-child {% if current_path == child.route or current_path.startswith(child.route + '/') %}is-current{% endif %}" href="{{ child.route }}">
-              <span class="nav-child-icon">{{ child.icon }}</span>
+              <span class="nav-child-icon">{% if admin_layout_theme == "water" %}<i class="bi {{ admin_theme_icons.get(child.route, 'bi-circle') }}" aria-hidden="true"></i>{% else %}{{ child.icon }}{% endif %}</span>
               <span>{{ child.label }}</span>
               {% if child.badge_key and badge_counts.get(child.badge_key, 0) > 0 %}
               <span class="nav-badge" data-badge-key="{{ child.badge_key }}">{{ badge_counts[child.badge_key] }}</span>
@@ -49,14 +53,14 @@
 
     <main class="main-content">
       <header class="topbar">
-        <button id="menuButton" class="icon-button" type="button" aria-controls="adminSidebar" aria-expanded="false">☰</button>
+        <button id="menuButton" class="icon-button" type="button" aria-controls="adminSidebar" aria-expanded="false">{% if admin_layout_theme == "water" %}<i class="bi bi-list" aria-hidden="true"></i>{% else %}☰{% endif %}</button>
         <div class="topbar-title">
-          <span class="eyebrow">الإدارة</span>
+          <span class="eyebrow">{% if admin_layout_theme == "water" %}التخفيض الصح{% else %}الإدارة{% endif %}</span>
           <h1>{{ title }}</h1>
         </div>
         <div class="topbar-actions">
-          <a class="ghost-button" href="/" target="_blank" rel="noreferrer">معاينة المتجر</a>
-          <a class="avatar-button" href="/admin/logout" aria-label="تسجيل خروج المدير">م</a>
+          <a class="ghost-button" href="/" target="_blank" rel="noreferrer">{% if admin_layout_theme == "water" %}<i class="bi bi-shop" aria-hidden="true"></i> <span>معاينة المتجر</span>{% else %}معاينة المتجر{% endif %}</a>
+          <a class="avatar-button" href="/admin/logout" aria-label="تسجيل خروج المدير">{% if admin_layout_theme == "water" %}<i class="bi bi-box-arrow-right" aria-hidden="true"></i>{% else %}م{% endif %}</a>
         </div>
       </header>
 
@@ -64,11 +68,11 @@
         {% block content %}{% endblock %}
       </section>
       <nav class="mobile-bottom-nav" aria-label="اختصارات الإدارة">
-        <a href="/admin/" class="{% if current_path == '/admin/' %}is-current{% endif %}"><span>⌂</span><small>الرئيسية</small></a>
-        <a href="/admin/products" class="{% if current_path.startswith('/admin/products') %}is-current{% endif %}"><span>□</span><small>المنتجات</small></a>
-        <a href="/admin/orders" class="{% if current_path.startswith('/admin/orders') %}is-current{% endif %}"><span>▣</span><small>الطلبات</small></a>
-        <a href="/admin/chat" class="{% if current_path.startswith('/admin/chat') %}is-current{% endif %}"><span>…</span><small>المحادثات</small></a>
-        <button id="mobileMoreButton" type="button"><span>☰</span><small>المزيد</small></button>
+        <a href="/admin/" class="{% if current_path == '/admin/' %}is-current{% endif %}"><span>{% if admin_layout_theme == "water" %}<i class="bi bi-house-door-fill"></i>{% else %}⌂{% endif %}</span><small>الرئيسية</small></a>
+        <a href="/admin/products" class="{% if current_path.startswith('/admin/products') %}is-current{% endif %}"><span>{% if admin_layout_theme == "water" %}<i class="bi bi-box-seam-fill"></i>{% else %}□{% endif %}</span><small>المنتجات</small></a>
+        <a href="/admin/orders" class="{% if current_path.startswith('/admin/orders') %}is-current{% endif %}"><span>{% if admin_layout_theme == "water" %}<i class="bi bi-bag-check-fill"></i>{% else %}▣{% endif %}</span><small>الطلبات</small></a>
+        <a href="/admin/chat" class="{% if current_path.startswith('/admin/chat') %}is-current{% endif %}"><span>{% if admin_layout_theme == "water" %}<i class="bi bi-chat-dots-fill"></i>{% else %}…{% endif %}</span><small>المحادثات</small></a>
+        <button id="mobileMoreButton" type="button"><span>{% if admin_layout_theme == "water" %}<i class="bi bi-list"></i>{% else %}☰{% endif %}</span><small>المزيد</small></button>
       </nav>
     </main>
   </div>
