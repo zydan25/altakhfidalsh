@@ -983,7 +983,9 @@ def register_accounting_views(admin_bp):
         start = _parse_date(request.args.get("start"), date.today().replace(day=1))
         end = _parse_date(request.args.get("end"), date.today())
         account_id = request.args.get("account_id", type=int)
-        currency = (request.args.get("currency") or "").strip().upper()
+        # Never calculate a running balance by adding different currencies.
+        # Once an account is selected, default to the customer's native ledger currency.
+        currency = (request.args.get("currency") or ("YER" if account_id else "")).strip().upper()
         query = (
             db.session.query(AccountingJournalLine, AccountingJournalEntry)
             .join(AccountingJournalEntry, AccountingJournalEntry.id == AccountingJournalLine.entry_id)
