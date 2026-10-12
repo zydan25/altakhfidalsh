@@ -33,7 +33,7 @@
 {%- endmacro %}
 
 {% macro account_picker(name, title, tree, selected_id=None, placeholder='اختر الحساب', allowed_ids=None, mode='select', selected_label=None, required=True, picker_id=None) -%}
-<div class="account-tree-picker" data-account-picker data-picker-mode="{{ mode }}" data-picker-name="{{ name }}" {% if picker_id %}id="{{ picker_id }}"{% endif %}>
+<div class="account-tree-picker" data-account-picker data-picker-mode="{{ mode }}" data-picker-name="{{ name }}" data-placeholder="{{ placeholder }}" {% if picker_id %}id="{{ picker_id }}"{% endif %}>
   {% if mode == 'select' %}<input type="hidden" name="{{ name }}" value="{{ selected_id or '' }}" data-account-value {% if required %}required{% endif %}>{% endif %}
   <button type="button" class="account-picker-trigger" data-account-trigger aria-haspopup="tree" aria-expanded="false">
     <span data-account-label>{{ selected_label or placeholder }}</span><i class="bi bi-chevron-down" aria-hidden="true"></i>
@@ -44,7 +44,7 @@
       <button type="button" class="account-picker-search-button" data-account-search-submit><i class="bi bi-search" aria-hidden="true"></i> بحث</button>
     </div>
     <div class="account-picker-selected-hint" data-account-selected-hint hidden></div>
-    <div class="account-picker-tree" role="tree">
+    <div class="account-picker-tree" data-account-tree role="tree">
       {{ render_account_nodes(tree, picker_id or name, mode, allowed_ids) }}
     </div>
     <div class="account-picker-no-results" data-account-no-results hidden>لا توجد حسابات مطابقة.</div>
