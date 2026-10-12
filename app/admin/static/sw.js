@@ -1,5 +1,5 @@
 // Previous generation: altakhfidalsh-admin-v5. Keep this reference for upgrade diagnostics and tests.
-const CACHE = "altakhfidalsh-admin-v11";
+const CACHE = "altakhfidalsh-admin-v12";
 const STATIC_SHELL = [
   "/admin/static/admin.css",
   "/admin/static/water-theme.css",
