@@ -6,6 +6,7 @@ from decimal import Decimal, InvalidOperation
 from flask import redirect, render_template, request, session, url_for
 
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import (
@@ -252,7 +253,7 @@ def register_entity_views(admin_bp):
 
     @admin_bp.get("/orders")
     def orders():
-        rows = Order.query.order_by(Order.id.desc()).limit(200).all()
+        rows = Order.query.options(joinedload(Order.customer)).order_by(Order.id.desc()).limit(200).all()
         # A separate customer directory powers the order-page quick picker.
         # The filter is display-only and never mutates order records.
         order_customer_options = (
