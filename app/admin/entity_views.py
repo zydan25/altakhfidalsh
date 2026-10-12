@@ -1775,6 +1775,20 @@ def register_entity_views(admin_bp):
         from ..models import Category, Badge, MediaAsset
         error = None
         success = None
+        if request.method == "GET" and build_admin_context().get("admin_layout_theme") != "water":
+            legacy_rows = (
+                Category.query
+                .filter(Category.is_active.is_(True), Category.display_style == "circle")
+                .order_by(Category.sort_order, Category.name)
+                .limit(200)
+                .all()
+            )
+            return _render(
+                "دوائر الفئات",
+                ["ID", "الفئة", "الأب", "الترتيب"],
+                [[row.id, row.name, row.parent_id or "—", row.sort_order] for row in legacy_rows],
+                "المحتوى والمتجر",
+            )
         if request.method == "POST":
             try:
                 action = (request.form.get("action") or "create").strip()
