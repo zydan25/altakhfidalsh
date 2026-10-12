@@ -1,0 +1,105 @@
+:root{--bg:#f4f7fb;--surface:#fff;--surface-soft:#f8fafc;--border:#e1e7f0;--text:#111827;--muted:#667085;--accent:#1a56db;--accent-strong:#1747b7;--accent-soft:#eaf2ff;--success:#0f766e;--sidebar-width:300px;--radius:18px;--shadow:0 4px 18px rgba(15,23,42,.045);--shadow-hover:0 12px 28px rgba(15,23,42,.09);--ring:0 0 0 3px rgba(26,86,219,.14)}
+body.water-admin-theme{background:var(--bg);color:var(--text);font-size:15px;min-height:100vh}
+.water-admin-theme .app-shell,.water-admin-theme .main-content{background:var(--bg);min-width:0}
+.water-admin-theme .admin-sidebar{background:#fff;border-color:var(--border);box-shadow:0 8px 34px rgba(15,23,42,.045)}
+.water-admin-theme .brand-block{min-height:86px;padding:14px 17px;border-bottom:1px solid var(--border);gap:12px}
+.water-admin-theme .brand-mark{width:46px;height:46px;border-radius:15px;background:linear-gradient(145deg,#1a56db,#1693dd);color:#fff;font-size:22px;box-shadow:0 7px 16px #1a56db33;display:grid;place-items:center}
+.water-admin-theme .brand-block strong{font-size:16px;font-weight:950;color:#101828}
+.water-admin-theme .brand-block span{font-size:11px;color:#738096}
+.water-admin-theme .tree-nav{padding:12px 11px 24px}
+.water-admin-theme .nav-section{border:1px solid #e7ebf2;border-radius:14px;overflow:hidden;margin-bottom:8px;background:#fff;box-shadow:0 2px 6px #0f172a05}
+.water-admin-theme .nav-section-button{min-height:49px;padding:0 12px;grid-template-columns:28px minmax(0,1fr) 18px;gap:9px;background:#fff;text-align:start}
+.water-admin-theme .nav-section-button .nav-icon{width:28px;height:28px;border-radius:9px;background:#edf4ff;color:#1a56db;display:grid;place-items:center;font-size:15px}
+.water-admin-theme .nav-section.is-active-parent>.nav-section-button{background:#f4f8ff}
+.water-admin-theme .nav-section.is-active-parent>.nav-section-button .nav-label{color:#1747b7}
+.water-admin-theme .nav-label{font-size:13px;font-weight:900;color:#1f2937}
+.water-admin-theme .nav-chevron{font-size:14px;color:#8491a5}
+.water-admin-theme .nav-children{background:#fbfcfe;border-top:1px solid #edf0f5;padding:6px}
+.water-admin-theme .nav-child{min-height:43px;grid-template-columns:27px minmax(0,1fr) auto;gap:8px;padding:0 9px;border-radius:10px;color:#344054;font-size:12px;font-weight:700}
+.water-admin-theme .nav-child-icon{color:#7b8799;font-size:14px}
+.water-admin-theme .nav-child:hover{background:#eff5ff;color:#1a56db}
+.water-admin-theme .nav-child.is-current{background:#eaf2ff;color:#1747b7;box-shadow:inset -3px 0 0 #1a56db}
+.water-admin-theme .nav-child.is-current .nav-child-icon{color:#1a56db}
+.water-admin-theme .nav-badge{min-width:21px;height:21px;border-radius:7px;background:#dceaff;color:#1a56db;font-size:10px}
+.water-admin-theme .nav-child.is-current .nav-badge{background:#1a56db;color:#fff}
+.water-admin-theme .topbar{position:sticky;top:0;z-index:20;min-height:76px;padding:8px 16px;grid-template-columns:46px minmax(0,1fr) auto;gap:10px;background:rgba(255,255,255,.96);border-bottom:1px solid var(--border);backdrop-filter:blur(14px);box-shadow:0 2px 8px rgba(15,23,42,.025)}
+.water-admin-theme .topbar-title .eyebrow{font-size:10px;color:#667085;font-weight:800;margin-bottom:3px}
+.water-admin-theme .topbar-title h1{font-size:clamp(17px,2.7vw,22px);font-weight:950;line-height:1.4;color:#111827;overflow-wrap:anywhere}
+.water-admin-theme .icon-button,.water-admin-theme .avatar-button{min-width:44px;min-height:44px;border:1px solid #e0e6ef;border-radius:13px;background:#fff;color:#243247;display:inline-grid;place-items:center;font-size:22px}
+.water-admin-theme .avatar-button{border:0;background:#1a56db;color:#fff;text-decoration:none;font-size:18px}
+.water-admin-theme .topbar-actions{gap:7px}
+.water-admin-theme .ghost-button{min-height:42px;border:1px solid #dce4ef;border-radius:12px;background:#fff;color:#334155;text-decoration:none;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.water-admin-theme .ghost-button:hover{border-color:#a9c8ff;background:#f7faff;color:#1747b7}
+.water-admin-theme .page-content{width:min(1240px,100%);margin:0 auto;padding:20px 14px 44px}
+.water-admin-theme .module-header{margin-bottom:16px}
+.water-admin-theme .module-header h2,.water-admin-theme .hero-row h2{color:#101828;font-weight:950;line-height:1.35}
+.water-admin-theme .eyebrow{font-size:11px;color:#78869a;font-weight:900}
+.water-admin-theme .muted{color:#667085;line-height:1.75}
+.water-admin-theme .panel,.water-admin-theme .metric-card,.water-admin-theme .entity-card,.water-admin-theme .chart-card{background:#fff;border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);color:var(--text)}
+.water-admin-theme .panel{padding:17px}
+.water-admin-theme .panel-heading{align-items:center;margin-bottom:13px}
+.water-admin-theme .panel h3{font-size:16px;font-weight:900;color:#182230}
+.water-admin-theme .primary-button,.water-admin-theme button.primary-button{min-height:46px;padding:0 18px;border:1px solid #1a56db;border-radius:13px;background:linear-gradient(135deg,#1a56db,#2874e8);color:#fff;font-size:13px;font-weight:900;text-decoration:none;box-shadow:0 5px 13px #1a56db24;cursor:pointer}
+.water-admin-theme .primary-button:hover{background:#1747b7;transform:translateY(-1px)}
+.water-admin-theme .primary-button:focus-visible,.water-admin-theme .ghost-button:focus-visible,.water-admin-theme .icon-button:focus-visible{outline:none;box-shadow:var(--ring)}
+.water-admin-theme .alert{padding:12px 14px;border-radius:13px;border-width:1px;font-size:13px}
+.water-admin-theme .alert.error{background:#fff5f3;border-color:#ffd7d2;color:#b42318}
+.water-admin-theme .alert.success{background:#ecfdf3;border-color:#abefc6;color:#067647}
+.water-admin-theme .two-panel,.water-admin-theme .form-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:13px}
+.water-admin-theme .form-stack{gap:14px}
+.water-admin-theme .form-stack label,.water-admin-theme form label{color:#344054;font-size:12px;font-weight:850}
+.water-admin-theme input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=file]),.water-admin-theme select,.water-admin-theme textarea{width:100%;min-width:0;min-height:45px;padding:10px 12px;border:1px solid #d9e1ec;border-radius:12px;background:#fff;color:#172033;font-size:13px;box-shadow:0 1px 2px #10182805;transition:border-color .15s,box-shadow .15s}
+.water-admin-theme textarea{min-height:110px;resize:vertical}
+.water-admin-theme input[type=color]{width:100%;min-height:44px;border:1px solid #d9e1ec;border-radius:12px;padding:4px;background:#fff}
+.water-admin-theme input[type=checkbox],.water-admin-theme input[type=radio]{accent-color:#1a56db}
+.water-admin-theme input[type=file]{max-width:100%;font-size:12px}
+.water-admin-theme input:focus,.water-admin-theme select:focus,.water-admin-theme textarea:focus{outline:none;border-color:#84adff;box-shadow:0 0 0 3px rgba(26,86,219,.11)}
+.water-admin-theme table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid #e5eaf2;border-radius:13px;overflow:hidden;background:#fff}
+.water-admin-theme th{background:#f4f7fb;color:#4b5c73;font-size:11px;font-weight:950}
+.water-admin-theme th,.water-admin-theme td{padding:10px 11px;border-bottom:1px solid #edf0f5;text-align:right;vertical-align:middle}
+.water-admin-theme td{font-size:12px;color:#344054}
+.water-admin-theme tr:last-child td{border-bottom:0}
+.water-admin-theme .entity-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:11px}
+.water-admin-theme .entity-card{padding:14px;display:grid;gap:9px}
+.water-admin-theme .entity-field{min-width:0;padding-bottom:7px;border-bottom:1px solid #eef1f6}
+.water-admin-theme .entity-field:last-child{padding-bottom:0;border-bottom:0}
+.water-admin-theme .entity-label{display:block;color:#78869a;font-size:10px;font-weight:800;margin-bottom:3px}
+.water-admin-theme .entity-field strong{font-size:13px;overflow-wrap:anywhere}
+.water-admin-theme .stack-list{display:grid;gap:10px}
+.water-admin-theme details.panel{padding:13px}
+.water-admin-theme summary{cursor:pointer;color:#243247;line-height:1.6}
+.water-admin-theme .empty-state{min-height:230px;border:1px dashed #cbd6e5;border-radius:18px;background:#fff}
+.water-admin-theme .empty-icon{color:#1a56db}
+.water-admin-theme .status-pill{background:#eafaf1;color:#027a48;font-weight:900}
+.water-admin-theme .mobile-bottom-nav{display:none}
+.water-admin-theme .water-dashboard{display:grid;gap:15px}
+.water-admin-theme .dashboard-actions-panel{padding:19px;border-radius:22px;background:transparent;box-shadow:none;border-color:#e3e9f2}
+.water-admin-theme .dashboard-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 15px}
+.water-admin-theme .dashboard-heading h2{font-size:clamp(21px,4vw,27px);font-weight:950;margin:3px 0 0;color:#111827}
+.water-admin-theme .dashboard-heading-icon{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#e6efff;color:#1a56db;font-size:17px}
+.water-admin-theme .dashboard-quick-actions{display:flex;gap:9px;padding:10px;background:#fff;border:1px solid #edf0f5;border-radius:19px;box-shadow:0 4px 16px rgba(15,23,42,.045);overflow-x:auto;margin-bottom:18px}
+.water-admin-theme .dashboard-quick-action{display:inline-flex;flex:1 0 0;min-width:95px;align-items:center;justify-content:center;gap:7px;white-space:nowrap;padding:10px 11px;border:1px solid #e0e7f0;border-radius:14px;background:linear-gradient(180deg,#fff,#f8fbff);color:#263347;text-decoration:none;font-size:12px;font-weight:900;box-shadow:0 2px 6px rgba(15,23,42,.025);transition:.15s}
+.water-admin-theme .dashboard-quick-action i{color:#1a56db;font-size:15px}
+.water-admin-theme .dashboard-quick-action:hover{background:#eef5ff;border-color:#b7d0ff;color:#1747b7}
+.water-admin-theme .dashboard-tile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.water-admin-theme .dashboard-tile{position:relative;min-width:0;min-height:144px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:11px;padding:17px 9px;border:1px solid #e0e6ef;border-radius:20px;background:rgba(255,255,255,.3);color:#101828;text-decoration:none;transition:transform .15s,border-color .15s,background .15s}
+.water-admin-theme .dashboard-tile:hover{background:#fff;border-color:#b8d0fa;transform:translateY(-2px);box-shadow:0 8px 20px rgba(15,23,42,.045);color:#1747b7}
+.water-admin-theme .dashboard-tile-icon{width:46px;height:46px;display:grid;place-items:center;font-size:30px;color:#111827}
+.water-admin-theme .dashboard-tile-copy{display:grid;justify-items:center;gap:4px;min-width:0}
+.water-admin-theme .dashboard-tile-copy strong{font-size:14px;line-height:1.35;font-weight:950}
+.water-admin-theme .dashboard-tile-copy small{font-size:10px;color:#6b778b;line-height:1.5}
+.water-admin-theme .dashboard-tile-copy em{position:absolute;top:9px;inset-inline-start:10px;min-width:23px;height:23px;padding:0 5px;display:grid;place-items:center;border-radius:8px;background:#eaf2ff;color:#1a56db;font-size:10px;font-style:normal;font-weight:950}
+.water-admin-theme .dashboard-overview{display:grid;gap:10px}
+.water-admin-theme .dashboard-overview-heading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:7px;padding:0 3px}
+.water-admin-theme .dashboard-overview-heading h3{margin:0;font-size:16px;font-weight:950}
+.water-admin-theme .dashboard-overview-heading .muted{font-size:11px}
+.water-admin-theme .dashboard-metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.water-admin-theme .dashboard-metric{display:grid;grid-template-columns:36px minmax(0,1fr);align-items:center;column-gap:10px;row-gap:3px;padding:13px;border:1px solid #e1e7f0;border-radius:15px;background:#fff}
+.water-admin-theme .dashboard-metric-icon{width:36px;height:36px;display:grid;place-items:center;border-radius:12px;background:#eaf2ff;color:#1a56db;font-size:16px;grid-row:span 2}
+.water-admin-theme .dashboard-metric span:not(.dashboard-metric-icon){font-size:11px;color:#667085}
+.water-admin-theme .dashboard-metric strong{font-size:18px;font-weight:950}
+.water-admin-theme .drawer-overlay{background:rgba(15,23,42,.40);backdrop-filter:blur(2px)}
+@media(min-width:620px){.water-admin-theme .two-panel,.water-admin-theme .form-layout{grid-template-columns:repeat(2,minmax(0,1fr))}.water-admin-theme .entity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.water-admin-theme .dashboard-tile-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.water-admin-theme .dashboard-metric-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(min-width:900px){.water-admin-theme .admin-sidebar{width:var(--sidebar-width)}.water-admin-theme .main-content{margin-inline-start:var(--sidebar-width)}html[dir=rtl] .water-admin-theme .main-content{margin-inline-start:0;margin-inline-end:var(--sidebar-width)}.water-admin-theme .page-content{padding:25px 22px 48px}.water-admin-theme .dashboard-actions-panel{padding:24px}.water-admin-theme .dashboard-tile-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.water-admin-theme .dashboard-tile{min-height:156px}.water-admin-theme .dashboard-metric-grid{grid-template-columns:repeat(5,minmax(0,1fr))}.water-admin-theme .entity-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:899.98px){.water-admin-theme .admin-sidebar{width:min(316px,88vw);transform:translateX(110%);inset-inline-start:auto;inset-inline-end:0;border-inline-start:1px solid var(--border);border-inline-end:0}.water-admin-theme .admin-sidebar.is-open{transform:translateX(0)}.water-admin-theme .main-content{margin:0}.water-admin-theme .topbar{grid-template-columns:45px minmax(0,1fr) auto;min-height:72px;padding:8px 12px}.water-admin-theme .topbar-actions .ghost-button{width:42px;min-width:42px;padding:0;font-size:17px}.water-admin-theme .topbar-actions .ghost-button span{display:none}.water-admin-theme .page-content{padding:15px 12px calc(90px + env(safe-area-inset-bottom))}.water-admin-theme .mobile-bottom-nav{position:fixed;inset-inline:0;bottom:0;z-index:22;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0;padding:7px 5px max(7px,env(safe-area-inset-bottom));background:rgba(255,255,255,.98);border-top:1px solid #e1e7f0;box-shadow:0 -5px 20px rgba(15,23,42,.045);backdrop-filter:blur(16px)}.water-admin-theme .mobile-bottom-nav a,.water-admin-theme .mobile-bottom-nav button{min-width:0;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;border-radius:12px;color:#778397;text-decoration:none}.water-admin-theme .mobile-bottom-nav span{font-size:18px;line-height:1}.water-admin-theme .mobile-bottom-nav small{font-size:9px;font-weight:850}.water-admin-theme .mobile-bottom-nav .is-current{color:#1a56db;background:#eef4ff}.water-admin-theme .dashboard-actions-panel{padding:15px 12px}.water-admin-theme .dashboard-tile-grid{gap:9px}.water-admin-theme .dashboard-tile{min-height:137px;padding:13px 6px;border-radius:18px}.water-admin-theme .dashboard-tile-icon{font-size:29px}.water-admin-theme .dashboard-tile-copy strong{font-size:13px}.water-admin-theme .dashboard-tile-copy small{font-size:9px}.water-admin-theme .dashboard-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.water-admin-theme .table-wrap,.water-admin-theme .table-responsive{overflow-x:auto;max-width:100%}.water-admin-theme table{min-width:560px}}
+@media(max-width:370px){.water-admin-theme .topbar{grid-template-columns:40px minmax(0,1fr) auto;gap:6px;padding-inline:8px}.water-admin-theme .topbar-title h1{font-size:16px}.water-admin-theme .icon-button,.water-admin-theme .avatar-button{min-width:39px;min-height:39px}.water-admin-theme .dashboard-tile{min-height:126px}.water-admin-theme .dashboard-tile-copy small{display:none}.water-admin-theme .dashboard-tile-icon{font-size:26px}}
