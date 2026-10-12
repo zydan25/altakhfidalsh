@@ -136,8 +136,17 @@ def ensure_chart(session=None):
     session = session or db.session
     # The commerce catalog continues to price in its existing base currency;
     # accounting party balances are posted in YER as the customer-ledger currency.
-    with session.no_autoflush:
-        yer_currency = session.query(Currency).filter_by(code="YER").first()
+    # Before-flush listeners may call ensure_chart repeatedly within the
+    # same unit of work. A pending YER Currency is not returned by a query
+    # executed under no_autoflush, so inspect session.new first to avoid
+    # scheduling duplicate rows that violate currencies.code uniqueness.
+    yer_currency = next(
+        (row for row in session.new if isinstance(row, Currency) and row.code == "YER"),
+        None,
+    )
+    if yer_currency is None:
+        with session.no_autoflush:
+            yer_currency = session.query(Currency).filter_by(code="YER").first()
     if yer_currency is None:
         yer_currency = Currency(
             code="YER",
