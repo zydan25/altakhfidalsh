@@ -32,6 +32,8 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
 
     from . import models  # noqa: F401
+    from .services.accounting import register_accounting_events
+    register_accounting_events()
     from .api import api_bp
     from .admin import admin_bp
     from .modules import register_module_blueprints
