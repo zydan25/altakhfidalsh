@@ -206,10 +206,13 @@ def init_admin_security(admin_bp):
         # enter the new module without needing a manual database edit first.
         if request.path.startswith("/admin/accounting"):
             try:
+                from flask import g
                 from ..extensions import db
                 from ..services.accounting import ensure_accounting_setup
-                ensure_accounting_setup(db.session)
-                db.session.commit()
+                if not getattr(g, "accounting_ready", False):
+                    ensure_accounting_setup(db.session)
+                    db.session.commit()
+                    g.accounting_ready = True
             except Exception:
                 db.session.rollback()
                 return {"error": "accounting_setup_unavailable", "message": "تعذر تجهيز نواة المحاسبة. تحقّق من تطبيق ترحيلات قاعدة البيانات."}, 503
