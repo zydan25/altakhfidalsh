@@ -46,9 +46,10 @@ ROOT_ACCOUNTS = [
 ]
 
 CHILD_ACCOUNTS = [
-    ("1100", "النقد والبنوك", "asset", "assets_root", True, "cash_root"),
+    ("1100", "الصناديق", "asset", "assets_root", True, "cash_root"),
     ("1101", "الصندوق الرئيسي", "asset", "cash_root", False, "main_cash"),
-    ("1102", "مبالغ قيد التحصيل الإلكتروني", "asset", "cash_root", False, "payment_clearing"),
+    ("1120", "البنوك والتحصيل الإلكتروني", "asset", "assets_root", True, "bank_root"),
+    ("1121", "مبالغ قيد التحصيل الإلكتروني", "asset", "bank_root", False, "payment_clearing"),
     ("1200", "حسابات العملاء المدينة", "asset", "assets_root", True, "customers_root"),
     ("1300", "حسابات الموظفين", "asset", "assets_root", True, "staff_root"),
     ("2100", "التزامات قصيرة الأجل", "liability", "liabilities_root", True, "payables_root"),
@@ -105,9 +106,15 @@ def _ensure_account(session, *, system_key, code, name, account_type,
                     parent=None, is_group=False, allow_manual_posting=True, description=None):
     account = _find_system_account(session, system_key)
     if account:
-        # Keep links stable; only refresh names for auto-generated party accounts.
-        if system_key.startswith(("customer:", "staff:")):
+        # Keep account IDs and balances stable while refreshing protected system
+        # hierarchy labels/parents when the default chart evolves.
+        if system_key.startswith(("customer:", "staff:")) or system_key in {"cash_root", "bank_root", "payment_clearing"}:
             account.name = name
+        if system_key in {"cash_root", "bank_root", "payment_clearing"}:
+            account.account_type = account_type
+            account.parent = parent
+            account.is_group = is_group
+            account.allow_manual_posting = allow_manual_posting if not is_group else False
         return account
     account = LedgerAccount(
         code=_unique_account_code(session, code),
@@ -325,6 +332,8 @@ def create_posted_entry(*, description, entry_date, currency_code, created_by_ad
             account = _account_by_id(session, account.id)
         debit = D(item.get("debit"), "المدين")
         credit = D(item.get("credit"), "الدائن")
+        if account.system_key and account.system_key.startswith("customer:") and currency_code.upper() != "YER":
+            raise ValueError("حسابات العملاء تحفظ وتُرحّل بالريال اليمني فقط.")
         if debit < 0 or credit < 0 or ((debit > 0) == (credit > 0)):
             raise ValueError("كل سطر يجب أن يحتوي مدينًا أو دائنًا واحدًا بقيمة موجبة.")
         debit_total += debit
@@ -476,7 +485,6 @@ def post_unposted_sales(*, admin_id, limit=500, session=None):
         )
     posted = []
     skipped = 0
-    from .accounting import create_customer_operation, reverse_entry
     for order in orders:
         with session.no_autoflush:
             existing_operation = session.query(CustomerLedgerOperation).filter_by(
