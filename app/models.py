@@ -229,6 +229,8 @@ class Customer(TimestampMixin, ActiveMixin, db.Model):
     onboarding_completed = db.Column(Boolean, nullable=False, default=False)
     status = db.Column(String(40), nullable=False, default="active")
     created_via = db.Column(String(40), nullable=False, default="otp")
+    ledger_account_id = db.Column(ForeignKey("ledger_accounts.id", ondelete="SET NULL"), unique=True)
+    ledger_account = db.relationship("LedgerAccount", foreign_keys=[ledger_account_id])
     __table_args__ = (Index("ix_customer_city_status", "city_id", "status"),)
 
 
@@ -1783,6 +1785,8 @@ class Admin(TimestampMixin, ActiveMixin, db.Model):
     password_hash = db.Column(String(255))
     status = db.Column(String(30), nullable=False, default="active")
     last_login = db.Column(db.DateTime(timezone=True))
+    ledger_account_id = db.Column(ForeignKey("ledger_accounts.id", ondelete="SET NULL"), unique=True)
+    ledger_account = db.relationship("LedgerAccount", foreign_keys=[ledger_account_id])
 
 
 class Role(TimestampMixin, ActiveMixin, db.Model):
@@ -1820,6 +1824,120 @@ class AdminRole(TimestampMixin, db.Model):
     role_id = db.Column(ForeignKey("roles.id", ondelete="CASCADE"), nullable=False)
     __table_args__ = (
         UniqueConstraint("admin_id", "role_id", name="uq_admin_role"),
+    )
+
+# ---------------------------------------------------------------------------
+# Accounting core adapted from kareem: ledger accounts, double-entry journals,
+# vouchers and auditable links to commerce orders.
+# ---------------------------------------------------------------------------
+
+class LedgerAccount(TimestampMixin, ActiveMixin, db.Model):
+    __tablename__ = "ledger_accounts"
+
+    id = db.Column(Integer, primary_key=True)
+    code = db.Column(String(60), nullable=False, unique=True, index=True)
+    name = db.Column(String(180), nullable=False)
+    account_type = db.Column(String(24), nullable=False)
+    parent_id = db.Column(ForeignKey("ledger_accounts.id", ondelete="RESTRICT"))
+    is_group = db.Column(Boolean, nullable=False, default=False, server_default="false")
+    allow_manual_posting = db.Column(Boolean, nullable=False, default=True, server_default="true")
+    system_key = db.Column(String(140), unique=True)
+    description = db.Column(String(300))
+    parent = db.relationship("LedgerAccount", remote_side=[id], backref="children")
+    __table_args__ = (
+        CheckConstraint(
+            "account_type IN ('asset','liability','equity','revenue','expense')",
+            name="ck_ledger_account_type",
+        ),
+        CheckConstraint(
+            "NOT (is_group = TRUE AND allow_manual_posting = TRUE)",
+            name="ck_ledger_group_not_postable",
+        ),
+    )
+
+
+class AccountingJournalEntry(TimestampMixin, db.Model):
+    __tablename__ = "accounting_journal_entries"
+
+    id = db.Column(Integer, primary_key=True)
+    number = db.Column(String(48), nullable=False, unique=True, index=True)
+    entry_date = db.Column(db.Date, nullable=False, index=True)
+    description = db.Column(String(500), nullable=False)
+    status = db.Column(String(20), nullable=False, default="posted", server_default="posted")
+    source_type = db.Column(String(50), nullable=False, default="manual", server_default="manual")
+    source_id = db.Column(Integer)
+    currency_code = db.Column(String(16), nullable=False, default="SAR", server_default="SAR")
+    created_by_admin_id = db.Column(ForeignKey("admins.id", ondelete="SET NULL"))
+    posted_at = db.Column(db.DateTime(timezone=True))
+    reversed_entry_id = db.Column(ForeignKey("accounting_journal_entries.id", ondelete="SET NULL"))
+    lines = db.relationship(
+        "AccountingJournalLine",
+        back_populates="entry",
+        cascade="all, delete-orphan",
+        order_by="AccountingJournalLine.id",
+    )
+    creator = db.relationship("Admin", foreign_keys=[created_by_admin_id])
+    reversed_entry = db.relationship("AccountingJournalEntry", remote_side=[id], foreign_keys=[reversed_entry_id])
+    __table_args__ = (
+        CheckConstraint("status IN ('posted','draft','void')", name="ck_accounting_journal_status"),
+        UniqueConstraint("source_type", "source_id", name="uq_accounting_journal_source"),
+    )
+
+    def totals(self):
+        debit = sum((line.debit or 0 for line in self.lines), 0)
+        credit = sum((line.credit or 0 for line in self.lines), 0)
+        return debit, credit
+
+
+class AccountingJournalLine(db.Model):
+    __tablename__ = "accounting_journal_lines"
+
+    id = db.Column(Integer, primary_key=True)
+    entry_id = db.Column(
+        ForeignKey("accounting_journal_entries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    account_id = db.Column(ForeignKey("ledger_accounts.id", ondelete="RESTRICT"), nullable=False, index=True)
+    description = db.Column(String(500))
+    debit = db.Column(Numeric(24, 4), nullable=False, default=0, server_default="0")
+    credit = db.Column(Numeric(24, 4), nullable=False, default=0, server_default="0")
+    reference = db.Column(String(120))
+    entry = db.relationship("AccountingJournalEntry", back_populates="lines")
+    account = db.relationship("LedgerAccount")
+    __table_args__ = (
+        CheckConstraint("debit >= 0 AND credit >= 0", name="ck_accounting_line_nonnegative"),
+        CheckConstraint("(debit = 0) <> (credit = 0)", name="ck_accounting_line_one_side"),
+    )
+
+
+class AccountingVoucher(TimestampMixin, db.Model):
+    __tablename__ = "accounting_vouchers"
+
+    id = db.Column(Integer, primary_key=True)
+    number = db.Column(String(48), nullable=False, unique=True, index=True)
+    voucher_type = db.Column(String(24), nullable=False)
+    voucher_date = db.Column(db.Date, nullable=False, index=True)
+    amount = db.Column(Numeric(24, 4), nullable=False)
+    currency_code = db.Column(String(16), nullable=False, default="SAR", server_default="SAR")
+    from_account_id = db.Column(ForeignKey("ledger_accounts.id", ondelete="RESTRICT"))
+    to_account_id = db.Column(ForeignKey("ledger_accounts.id", ondelete="RESTRICT"))
+    beneficiary = db.Column(String(180))
+    description = db.Column(String(500), nullable=False)
+    status = db.Column(String(20), nullable=False, default="posted", server_default="posted")
+    journal_entry_id = db.Column(
+        ForeignKey("accounting_journal_entries.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    created_by_admin_id = db.Column(ForeignKey("admins.id", ondelete="SET NULL"))
+    from_account = db.relationship("LedgerAccount", foreign_keys=[from_account_id])
+    to_account = db.relationship("LedgerAccount", foreign_keys=[to_account_id])
+    journal_entry = db.relationship("AccountingJournalEntry", foreign_keys=[journal_entry_id])
+    creator = db.relationship("Admin", foreign_keys=[created_by_admin_id])
+    __table_args__ = (
+        CheckConstraint("voucher_type IN ('receipt','payment','transfer','adjustment')", name="ck_accounting_voucher_type"),
+        CheckConstraint("status IN ('posted','void')", name="ck_accounting_voucher_status"),
+        CheckConstraint("amount > 0", name="ck_accounting_voucher_positive_amount"),
     )
 
 
