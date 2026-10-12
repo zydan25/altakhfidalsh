@@ -730,6 +730,307 @@ def register_accounting_views(admin_bp):
             db.session.rollback()
             return redirect(url_for("admin.accounting_home", error=str(exc)))
 
+    @admin_bp.route("/accounting/insurance", methods=["GET", "POST"])
+    def accounting_insurance():
+        _ready()
+        error = None
+        success = request.args.get("success")
+        editing_id = request.args.get("edit", type=int)
+        editing_operation = db.session.get(CustomerLedgerOperation, editing_id) if editing_id else None
+        if editing_operation and (
+            editing_operation.operation_type != "insurance" or editing_operation.status != "posted"
+        ):
+            editing_operation = None
+            error = "التأمين غير موجود أو تم عكسه مسبقًا."
+        if request.method == "POST":
+            try:
+                operation_id = request.form.get("operation_id", type=int)
+                old = db.session.get(CustomerLedgerOperation, operation_id) if operation_id else None
+                if old and (old.operation_type != "insurance" or old.status != "posted"):
+                    raise ValueError("لا يمكن تعديل تأمين غير مرحّل.")
+                if old:
+                    reverse_customer_operation(old, admin_id=_actor_id(), reason="تعديل بيانات تأمين عميل")
+                    db.session.flush()
+                operation = create_customer_operation(
+                    operation_type="insurance",
+                    customer_id=request.form.get("customer_id", type=int),
+                    entered_amount=request.form.get("amount"),
+                    currency_code="YER",
+                    operation_date=_parse_date(request.form.get("operation_date"), date.today()),
+                    cash_account_id=request.form.get("cash_account_id", type=int),
+                    description=request.form.get("description"),
+                    admin_id=_actor_id(),
+                )
+                db.session.commit()
+                message = "تم تسجيل التأمين وترحيله على حساب العميل."
+                if old:
+                    message = f"تم تعديل التأمين بعكس القيد السابق وإصدار الحركة الجديدة #{operation.id}."
+                return redirect(url_for("admin.accounting_insurance", success=message))
+            except (ValueError, TypeError, LookupError) as exc:
+                db.session.rollback()
+                error = str(exc)
+                editing_operation = db.session.get(CustomerLedgerOperation, request.form.get("operation_id", type=int)) if request.form.get("operation_id") else None
+
+        customers = Customer.query.order_by(Customer.name, Customer.id.desc()).all()
+        picker_context = _account_picker_context()
+        operations = CustomerLedgerOperation.query.filter_by(operation_type="insurance").order_by(
+            CustomerLedgerOperation.operation_date.desc(), CustomerLedgerOperation.id.desc()
+        ).limit(500).all()
+        for operation in operations:
+            operation.ui_status = "ساري" if operation.status == "posted" else "معكوس"
+            operation.ui_customer_balance = (
+                -ledger_balance(operation.customer.ledger_account_id, currency_code="YER")
+                if operation.customer and operation.customer.ledger_account_id else Decimal("0")
+            )
+        return render_template(
+            "admin/accounting/insurance.html",
+            title="تأمينات العملاء",
+            customers=customers,
+            operations=operations,
+            editing_operation=editing_operation,
+            show_form=bool(editing_operation or request.args.get("new")),
+            error=error,
+            success=success,
+            today=date.today(),
+            **picker_context,
+            **_context(),
+        )
+
+    @admin_bp.route("/accounting/customer-daybook", methods=["GET", "POST"])
+    def accounting_customer_daybook():
+        _ready()
+        error = None
+        success = request.args.get("success")
+        editing_id = request.args.get("edit", type=int)
+        editing_operation = db.session.get(CustomerLedgerOperation, editing_id) if editing_id else None
+        if editing_operation and (
+            editing_operation.operation_type != "daybook" or editing_operation.status != "posted"
+        ):
+            editing_operation = None
+            error = "قيد اليومية غير موجود أو تم عكسه مسبقًا."
+        editing_side = "debit"
+        if editing_operation and editing_operation.journal_entry and editing_operation.customer.ledger_account_id:
+            customer_line = next(
+                (line for line in editing_operation.journal_entry.lines
+                 if line.account_id == editing_operation.customer.ledger_account_id),
+                None,
+            )
+            editing_side = "credit" if customer_line and Decimal(str(customer_line.credit or 0)) > 0 else "debit"
+
+        if request.method == "POST":
+            try:
+                operation_id = request.form.get("operation_id", type=int)
+                old = db.session.get(CustomerLedgerOperation, operation_id) if operation_id else None
+                if old and (old.operation_type != "daybook" or old.status != "posted"):
+                    raise ValueError("لا يمكن تعديل قيد يومية غير مرحّل.")
+                if old:
+                    reverse_customer_operation(old, admin_id=_actor_id(), reason="تعديل قيد يومية العميل")
+                    db.session.flush()
+                side = (request.form.get("side") or "").strip()
+                operation = create_customer_operation(
+                    operation_type="daybook",
+                    customer_id=request.form.get("customer_id", type=int),
+                    entered_amount=request.form.get("amount"),
+                    currency_code="YER",
+                    operation_date=_parse_date(request.form.get("operation_date"), date.today()),
+                    contra_account_id=request.form.get("contra_account_id", type=int),
+                    side=side,
+                    description=request.form.get("description"),
+                    admin_id=_actor_id(),
+                )
+                db.session.commit()
+                message = "تم تسجيل قيد يومية العميل وترحيله."
+                if old:
+                    message = f"تم تعديل القيد بعكس الحركة السابقة وإصدار قيد جديد #{operation.id}."
+                return redirect(url_for("admin.accounting_customer_daybook", success=message))
+            except (ValueError, TypeError, LookupError) as exc:
+                db.session.rollback()
+                error = str(exc)
+                editing_operation = db.session.get(CustomerLedgerOperation, request.form.get("operation_id", type=int)) if request.form.get("operation_id") else None
+
+        customers = Customer.query.order_by(Customer.name, Customer.id.desc()).all()
+        picker_context = _account_picker_context()
+        operations = CustomerLedgerOperation.query.filter_by(operation_type="daybook").order_by(
+            CustomerLedgerOperation.operation_date.desc(), CustomerLedgerOperation.id.desc()
+        ).limit(700).all()
+        for operation in operations:
+            customer_account_id = operation.customer.ledger_account_id if operation.customer else None
+            customer_line = next(
+                (line for line in operation.journal_entry.lines if line.account_id == customer_account_id),
+                None,
+            ) if operation.journal_entry and customer_account_id else None
+            operation.ui_side = "credit" if customer_line and Decimal(str(customer_line.credit or 0)) > 0 else "debit"
+            operation.ui_side_label = "له" if operation.ui_side == "credit" else "عليه"
+            operation.ui_status = "ساري" if operation.status == "posted" else "معكوس"
+        return render_template(
+            "admin/accounting/customer_daybook.html",
+            title="يوميات العملاء",
+            customers=customers,
+            operations=operations,
+            editing_operation=editing_operation,
+            editing_side=editing_side,
+            show_form=bool(editing_operation or request.args.get("new")),
+            error=error,
+            success=success,
+            today=date.today(),
+            **picker_context,
+            **_context(),
+        )
+
+    @admin_bp.get("/accounting/customers/<int:customer_id>")
+    def accounting_customer_statement(customer_id):
+        _ready()
+        customer = db.session.get(Customer, customer_id)
+        if customer is None:
+            return render_template(
+                "admin/accounting/customer_statement.html",
+                title="كشف حساب عميل",
+                customer=None,
+                error="العميل غير موجود.",
+                **_context(),
+            ), 404
+        from ..services.accounting import ensure_customer_account
+        account = ensure_customer_account(customer, db.session)
+        db.session.flush()
+        start = _parse_date(request.args.get("start"), date.today().replace(day=1))
+        end = _parse_date(request.args.get("end"), date.today())
+        opening_ledger = ledger_balance(account.id, currency_code="YER", end_date=start - timedelta(days=1))
+        entries = (
+            db.session.query(AccountingJournalEntry)
+            .join(AccountingJournalLine, AccountingJournalLine.entry_id == AccountingJournalEntry.id)
+            .filter(
+                AccountingJournalLine.account_id == account.id,
+                AccountingJournalEntry.status == "posted",
+                AccountingJournalEntry.currency_code == "YER",
+                AccountingJournalEntry.entry_date >= start,
+                AccountingJournalEntry.entry_date <= end,
+            )
+            .order_by(AccountingJournalEntry.entry_date, AccountingJournalEntry.id)
+            .distinct()
+            .all()
+        )
+        movements = []
+        balance = opening_ledger
+        for entry in entries:
+            for line in sorted(entry.lines, key=lambda row: row.id):
+                if line.account_id != account.id:
+                    continue
+                balance += Decimal(str(line.debit or 0)) - Decimal(str(line.credit or 0))
+                movements.append({"entry": entry, "line": line, "balance": balance})
+        operation_rows = CustomerLedgerOperation.query.filter(
+            CustomerLedgerOperation.customer_id == customer.id,
+            CustomerLedgerOperation.operation_date >= start,
+            CustomerLedgerOperation.operation_date <= end,
+        ).order_by(CustomerLedgerOperation.operation_date.desc(), CustomerLedgerOperation.id.desc()).all()
+        return render_template(
+            "admin/accounting/customer_statement.html",
+            title=f"كشف حساب · {customer.name or customer.phone_normalized}",
+            customer=customer,
+            account=account,
+            start=start,
+            end=end,
+            opening=opening_ledger,
+            closing=balance,
+            customer_credit_balance=-balance,
+            movements=movements,
+            operations=operation_rows,
+            error=None,
+            **_context(),
+        )
+
+    @admin_bp.get("/accounting/ledger")
+    def accounting_general_ledger():
+        _ready()
+        start = _parse_date(request.args.get("start"), date.today().replace(day=1))
+        end = _parse_date(request.args.get("end"), date.today())
+        account_id = request.args.get("account_id", type=int)
+        currency = (request.args.get("currency") or "").strip().upper()
+        query = (
+            db.session.query(AccountingJournalLine, AccountingJournalEntry)
+            .join(AccountingJournalEntry, AccountingJournalEntry.id == AccountingJournalLine.entry_id)
+            .filter(
+                AccountingJournalEntry.status == "posted",
+                AccountingJournalEntry.entry_date >= start,
+                AccountingJournalEntry.entry_date <= end,
+            )
+        )
+        account = db.session.get(LedgerAccount, account_id) if account_id else None
+        if account_id:
+            query = query.filter(AccountingJournalLine.account_id == account_id)
+        if currency:
+            query = query.filter(AccountingJournalEntry.currency_code == currency)
+        rows = query.order_by(
+            AccountingJournalEntry.entry_date, AccountingJournalEntry.id, AccountingJournalLine.id
+        ).limit(3000).all()
+        opening = ledger_balance(account_id, currency_code=currency or None, end_date=start - timedelta(days=1)) if account_id else Decimal("0")
+        running = opening
+        movements = []
+        for line, entry in rows:
+            if account_id:
+                running += Decimal(str(line.debit or 0)) - Decimal(str(line.credit or 0))
+                balance = running
+            else:
+                balance = None
+            movements.append({"line": line, "entry": entry, "balance": balance})
+        return render_template(
+            "admin/accounting/ledger.html",
+            title="دفتر الأستاذ",
+            rows=movements,
+            account=account,
+            account_id=account_id,
+            account_start=opening,
+            account_end=running if account_id else None,
+            start=start,
+            end=end,
+            currency=currency,
+            currencies=_currency_options(),
+            **_account_picker_context(),
+            **_context(),
+        )
+
+    @admin_bp.get("/accounting/reconciliation")
+    def accounting_reconciliation():
+        _ready()
+        start = _parse_date(request.args.get("start"), date.today().replace(day=1))
+        end = _parse_date(request.args.get("end"), date.today())
+        currency = (request.args.get("currency") or "").strip().upper()
+        query = (
+            db.session.query(
+                AccountingJournalEntry.currency_code,
+                func.coalesce(func.sum(AccountingJournalLine.debit), 0),
+                func.coalesce(func.sum(AccountingJournalLine.credit), 0),
+            )
+            .join(AccountingJournalLine, AccountingJournalLine.entry_id == AccountingJournalEntry.id)
+            .filter(
+                AccountingJournalEntry.status == "posted",
+                AccountingJournalEntry.entry_date >= start,
+                AccountingJournalEntry.entry_date <= end,
+            )
+        )
+        if currency:
+            query = query.filter(AccountingJournalEntry.currency_code == currency)
+        totals = {}
+        for code, debit, credit in query.group_by(AccountingJournalEntry.currency_code).all():
+            debit_total = Decimal(str(debit or 0))
+            credit_total = Decimal(str(credit or 0))
+            totals[code] = {
+                "debit": debit_total,
+                "credit": credit_total,
+                "difference": debit_total - credit_total,
+                "balanced": abs(debit_total - credit_total) < Decimal("0.0001"),
+            }
+        return render_template(
+            "admin/accounting/reconciliation.html",
+            title="مطابقة الحسابات",
+            start=start,
+            end=end,
+            currency=currency,
+            currencies=_currency_options(),
+            totals=totals,
+            rows=_account_period_rows(start, end, currency or None),
+            **_context(),
+        )
+
     @admin_bp.get("/accounting/reports")
     def accounting_reports():
         _ready()
