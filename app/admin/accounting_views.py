@@ -12,8 +12,10 @@ from ..models import (
     Admin,
     Currency,
     Customer,
+    CustomerLedgerOperation,
     LedgerAccount,
     Order,
+)
 )
 from ..services.accounting import (
     ACCOUNT_TYPES,
@@ -23,6 +25,9 @@ from ..services.accounting import (
     ledger_balance,
     post_unposted_sales,
     reverse_entry,
+    create_customer_operation,
+    reverse_customer_operation,
+    account_is_in_cash_tree,
 )
 
 
@@ -50,9 +55,9 @@ def _parse_date(value, default):
 
 def _currency_options():
     currencies = Currency.query.filter_by(is_active=True).order_by(Currency.code).all()
-    rows = [{"code": row.code, "name": getattr(row, "name", None) or row.code} for row in currencies]
-    if not any(row["code"] == "SAR" for row in rows):
-        rows.insert(0, {"code": "SAR", "name": "ريال سعودي (افتراضي)"})
+    rows = [{"code": row.code, "name": row.name_ar or row.code} for row in currencies]
+    if not any(row["code"] == "YER" for row in rows):
+        rows.insert(0, {"code": "YER", "name": "ريال يمني"})
     return rows
 
 
@@ -65,41 +70,127 @@ def _postable_accounts():
     )
 
 
-def _account_options():
-    accounts = LedgerAccount.query.order_by(LedgerAccount.code).all()
-    return [
-        {
-            "account": row,
-            "label": f"{row.code} · {row.name}" + (" (غير نشط)" if not row.is_active else ""),
-        }
-        for row in accounts
-    ]
-
-
-def _account_tree(accounts):
+def _account_tree(accounts, parent_id=None, depth=0, ancestors=None):
     by_parent = {}
     for account in accounts:
         by_parent.setdefault(account.parent_id, []).append(account)
     for rows in by_parent.values():
         rows.sort(key=lambda row: row.code or "")
+    ancestors = set(ancestors or ())
     result = []
-    visited = set()
-
-    def walk(parent_id=None, depth=0):
-        for row in by_parent.get(parent_id, []):
-            if row.id in visited:
-                continue
-            visited.add(row.id)
-            result.append({"account": row, "depth": depth})
-            walk(row.id, depth + 1)
-
-    walk()
-    # Retain any malformed/orphaned branches visibly rather than silently hiding them.
-    for row in accounts:
-        if row.id not in visited:
-            result.append({"account": row, "depth": 0})
-            walk(row.id, 1)
+    for account in by_parent.get(parent_id, []):
+        if account.id in ancestors:
+            continue
+        branch = _account_tree(
+            accounts,
+            parent_id=account.id,
+            depth=depth + 1,
+            ancestors=ancestors | {account.id},
+        )
+        result.append({"account": account, "depth": depth, "children": branch})
+    if parent_id is None:
+        included = set()
+        def mark(nodes):
+            for node in nodes:
+                included.add(node["account"].id)
+                mark(node["children"])
+        mark(result)
+        # Preserve malformed/orphaned branches in the tree instead of hiding data.
+        for account in accounts:
+            if account.id not in included:
+                branch = _account_tree(
+                    accounts,
+                    parent_id=account.id,
+                    depth=1,
+                    ancestors={account.id},
+                )
+                result.append({"account": account, "depth": 0, "children": branch})
+                included.add(account.id)
     return result
+
+
+def _flatten_account_tree(tree):
+    result = []
+    for node in tree:
+        result.append((node["account"], node["depth"]))
+        result.extend(_flatten_account_tree(node["children"]))
+    return result
+
+
+def _find_tree_node(tree, account_id):
+    for node in tree:
+        if node["account"].id == account_id:
+            return node
+        found = _find_tree_node(node["children"], account_id)
+        if found:
+            return found
+    return None
+
+
+def _cash_tree_data(tree):
+    root = LedgerAccount.query.filter_by(system_key="cash_root").one_or_none()
+    root_node = _find_tree_node(tree, root.id) if root else None
+    cash_tree = [root_node] if root_node else []
+    cash_ids = set()
+    for account, _depth in _flatten_account_tree(cash_tree):
+        if not account.is_group and account.is_active and account.allow_manual_posting:
+            cash_ids.add(account.id)
+    postable_ids = {
+        account.id
+        for account in _postable_accounts()
+    }
+    counterpart_ids = postable_ids - cash_ids
+    return cash_tree, sorted(cash_ids), sorted(counterpart_ids), sorted(postable_ids)
+
+
+def _account_balance_tree(accounts, tree):
+    raw = {}
+    rows = (
+        db.session.query(
+            AccountingJournalLine.account_id,
+            AccountingJournalEntry.currency_code,
+            func.coalesce(func.sum(AccountingJournalLine.debit), 0),
+            func.coalesce(func.sum(AccountingJournalLine.credit), 0),
+        )
+        .join(AccountingJournalEntry, AccountingJournalEntry.id == AccountingJournalLine.entry_id)
+        .filter(AccountingJournalEntry.status == "posted")
+        .group_by(AccountingJournalLine.account_id, AccountingJournalEntry.currency_code)
+        .all()
+    )
+    for account_id, currency, debit, credit in rows:
+        raw.setdefault(account_id, {})[currency] = Decimal(str(debit or 0)) - Decimal(str(credit or 0))
+
+    balances = {}
+    def roll(node):
+        account = node["account"]
+        own = dict(raw.get(account.id, {}))
+        for child in node["children"]:
+            for currency, amount in roll(child).items():
+                own[currency] = own.get(currency, Decimal("0")) + amount
+        balances[account.id] = [
+            {"currency": currency, "balance": amount}
+            for currency, amount in sorted(own.items())
+        ]
+        return own
+    for node in tree:
+        roll(node)
+    return balances
+
+
+def _account_picker_context():
+    accounts = LedgerAccount.query.order_by(LedgerAccount.code).all()
+    tree = _account_tree(accounts)
+    cash_tree, cash_ids, counterpart_ids, postable_ids = _cash_tree_data(tree)
+    labels = {account.id: f"{account.code} · {account.name}" for account in accounts}
+    return {
+        "account_tree": tree,
+        "cash_tree": cash_tree,
+        "cashbox_ids": cash_ids,
+        "counterpart_ids": counterpart_ids,
+        "postable_ids": postable_ids,
+        "account_label_map": labels,
+    }
+
 
 
 def _account_period_rows(start, end, currency=None):
