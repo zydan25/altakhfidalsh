@@ -1,5 +1,5 @@
 from datetime import date, datetime, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from flask import redirect, render_template, request, session, url_for
 from sqlalchemy import func
@@ -325,6 +325,14 @@ def register_accounting_views(admin_bp):
                     if LedgerAccount.query.filter_by(code=code).first():
                         raise ValueError("رمز الحساب مستخدم مسبقًا.")
                     is_group = request.form.get("is_group") == "on"
+                    try:
+                        opening_balance = Decimal((request.form.get("opening_balance") or "0").replace(",", "")).quantize(Decimal("0.0001"))
+                    except (InvalidOperation, ValueError, TypeError):
+                        raise ValueError("الرصيد الافتتاحي يجب أن يكون رقمًا صحيحًا.")
+                    if opening_balance < 0:
+                        raise ValueError("الرصيد الافتتاحي لا يمكن أن يكون سالبًا.")
+                    if is_group and opening_balance:
+                        raise ValueError("الرصيد الافتتاحي يُسجّل للحساب التفصيلي فقط، وليس للحساب التجميعي.")
                     account = LedgerAccount(
                         code=code,
                         name=name,
@@ -336,8 +344,34 @@ def register_accounting_views(admin_bp):
                         is_active=True,
                     )
                     db.session.add(account)
+                    db.session.flush()
+                    if opening_balance:
+                        chart = ensure_chart(db.session)
+                        if account.account_type in {"asset", "expense"}:
+                            opening_lines = [
+                                {"account": account, "debit": opening_balance, "credit": 0, "description": "الرصيد الافتتاحي"},
+                                {"account": chart["opening_equity"], "debit": 0, "credit": opening_balance, "description": "مقابل الأرصدة الافتتاحية"},
+                            ]
+                        else:
+                            opening_lines = [
+                                {"account": chart["opening_equity"], "debit": opening_balance, "credit": 0, "description": "مقابل الأرصدة الافتتاحية"},
+                                {"account": account, "debit": 0, "credit": opening_balance, "description": "الرصيد الافتتاحي"},
+                            ]
+                        create_posted_entry(
+                            description=f"الرصيد الافتتاحي للحساب {account.code} · {account.name}",
+                            entry_date=date.today(),
+                            currency_code="YER",
+                            created_by_admin_id=_actor_id(),
+                            lines=opening_lines,
+                            source_type="account_opening",
+                            source_id=account.id,
+                            prefix="OPEN",
+                        )
                     db.session.commit()
-                    return redirect(url_for("admin.accounting_accounts", success="تم إنشاء الحساب."))
+                    message = "تم إنشاء الحساب."
+                    if opening_balance:
+                        message += " وتم ترحيل الرصيد الافتتاحي بقيد متوازن بالريال اليمني."
+                    return redirect(url_for("admin.accounting_accounts", success=message))
                 account = db.session.get(LedgerAccount, request.form.get("id", type=int))
                 if account is None:
                     raise ValueError("الحساب غير موجود.")
