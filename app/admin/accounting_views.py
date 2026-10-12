@@ -27,8 +27,14 @@ from ..services.accounting import (
 
 
 def _ready():
+    # The security hook prepares chart/permissions before access checks and marks
+    # this request as ready. The fallback keeps tests/direct view invocation safe.
+    from flask import g
+    if getattr(g, "accounting_ready", False):
+        return
     ensure_accounting_setup(db.session, backfill_parties=True)
     db.session.commit()
+    g.accounting_ready = True
 
 
 def _actor_id():
