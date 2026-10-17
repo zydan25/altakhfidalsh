@@ -1,0 +1,55 @@
+name: Unpack client2 source archive
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/unpack-client2.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Extract archive into its own folder under client2
+        shell: bash
+        run: |
+          set -euo pipefail
+          ZIP="client2/Flutter-Multivendor-Mobile-app-for-WooCommerce-Khurshidbek_18.zip"
+          test -f "$ZIP"
+          TMP="$(mktemp -d)"
+          trap 'rm -rf "$TMP"' EXIT
+          unzip -q "$ZIP" -d "$TMP"
+
+          mapfile -t ENTRIES < <(find "$TMP" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)
+          if [ "${#ENTRIES[@]}" -eq 1 ] && [ -d "$TMP/${ENTRIES[0]}" ]; then
+            SOURCE_ROOT="$TMP/${ENTRIES[0]}"
+            DEST="client2/${ENTRIES[0]}"
+          else
+            SOURCE_ROOT="$TMP"
+            DEST="client2/Flutter-Multivendor-Mobile-app-for-WooCommerce-Khurshidbek_18"
+          fi
+
+          mkdir -p "$DEST"
+          cp -a "$SOURCE_ROOT"/. "$DEST"/
+          git add "$DEST"
+
+          rm .github/workflows/unpack-client2.yml
+          git add -A .github/workflows/unpack-client2.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --cached --quiet; then
+            echo "No extracted changes to commit."
+          else
+            git commit -m "Extract client2 Flutter source archive"
+            git push origin HEAD:main
+          fi
