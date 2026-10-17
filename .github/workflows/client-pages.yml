@@ -62,7 +62,7 @@ jobs:
           path = Path('web/index.html')
           html = path.read_text(encoding='utf-8')
           if '<base ' not in html:
-              html = html.replace('<head>', '<head>\\n  <base href="/">', 1)
+              html = html.replace('<head>', '<head>' + chr(10) + '  <base href="/">', 1)
           else:
               import re
               html = re.sub(r'<base href="[^"]*">', '<base href="/">', html, count=1)
