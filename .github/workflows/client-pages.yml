@@ -58,18 +58,29 @@ jobs:
       - name: Patch legacy media package APIs for Flutter 2.2
         working-directory: client2
         run: python tool/patch_legacy_packages.py
-      - name: Configure root base URL for legacy Flutter web
+      - name: Configure base URL for GitHub Pages and custom domain
         working-directory: client2
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
+
           path = Path('web/index.html')
           html = path.read_text(encoding='utf-8')
-          if '<base ' not in html:
-              html = html.replace('<head>', '<head>' + chr(10) + '  <base href="/">', 1)
-          else:
-              import re
-              html = re.sub(r'<base href="[^"]*">', '<base href="/">', html, count=1)
+          # The deployment currently lives at /altakhfidalsh/ on github.io.
+          # If a custom domain is enabled later, its app path will be /.
+          html = re.sub(r'<base\\b[^>]*>', '', html, count=1, flags=re.IGNORECASE)
+          bootstrap = """  <script data-client2-base>
+            (function () {
+              var host = window.location.hostname.toLowerCase();
+              var baseHref = host === 'zydan25.github.io'
+                ? '/altakhfidalsh/'
+                : '/';
+              document.write('<base href="' + baseHref + '">');
+            })();
+          </script>"""
+          if 'data-client2-base' not in html:
+              html = html.replace('<head>', '<head>' + chr(10) + bootstrap, 1)
           path.write_text(html, encoding='utf-8')
           PY
 
@@ -136,6 +147,7 @@ jobs:
           test -s build/web/manifest.json
           test -s build/web/CNAME
           grep -q 'التخفيض الصح' build/web/index.html
+          grep -q 'data-client2-base' build/web/index.html
 
       - name: Upload web build artifact
         uses: actions/upload-artifact@v4
