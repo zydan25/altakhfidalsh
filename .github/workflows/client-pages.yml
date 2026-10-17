@@ -54,12 +54,27 @@ jobs:
         working-directory: client2
         run: flutter pub get
 
+      - name: Configure root base URL for legacy Flutter web
+        working-directory: client2
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('web/index.html')
+          html = path.read_text(encoding='utf-8')
+          if '<base ' not in html:
+              html = html.replace('<head>', '<head>\\n  <base href="/">', 1)
+          else:
+              import re
+              html = re.sub(r'<base href="[^"]*">', '<base href="/">', html, count=1)
+          path.write_text(html, encoding='utf-8')
+          PY
+
       - name: Build Flutter web from client2
         working-directory: client2
         env:
           API_BASE_URL: https://takhfidsh.alattab.site/api/v1
         run: |
-          flutter build web --release --base-href "/" --dart-define=API_BASE_URL="$API_BASE_URL"
+          flutter build web --release --dart-define=API_BASE_URL="$API_BASE_URL"
 
       - name: Prepare Pages metadata and prevent stale cache
         working-directory: client2
