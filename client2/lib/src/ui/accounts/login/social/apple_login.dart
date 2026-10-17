@@ -85,7 +85,7 @@ class AppleLogin extends StatelessWidget {
   _showDialog(BuildContext context) async {
     await showDialog<String>(
       context: context,
-      child: new _SystemPadding(child: new AlertDialog(
+      builder: (BuildContext dialogContext) => new _SystemPadding(child: new AlertDialog(
         contentPadding: const EdgeInsets.all(16.0),
         content: new Row(
           children: <Widget>[
@@ -111,7 +111,7 @@ class AppleLogin extends StatelessWidget {
                 Navigator.pop(context, );
               })
         ],
-      ),),
+      )),
     );
   }
 }
