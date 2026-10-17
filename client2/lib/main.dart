@@ -92,7 +92,8 @@ class _MyAppState extends State<MyApp> {
   Future<void> apiProviderInt() async {
     try {
       await apiProvider.init();
-      await widget.model.fetchAllBlocks();
+      // A stalled legacy HTTP request must not leave the web app on its splash forever.
+      await widget.model.fetchAllBlocks().timeout(const Duration(seconds: 20));
       if (widget.model.blocks != null) {
         // Customer details are optional for the public storefront. A session
         // lookup failure must not prevent the catalogue from rendering.
