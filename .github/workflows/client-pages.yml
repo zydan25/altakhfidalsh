@@ -32,12 +32,13 @@ jobs:
           distribution: temurin
           java-version: "8"
 
-      - name: Set up Flutter matching client2 dependencies
+      - name: Set up Flutter 2.2.3 (first stable web-capable toolchain)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "1.22.6"
+          flutter-version: "2.2.3"
           channel: stable
           cache: true
+          pub-cache: true
 
       - name: Prepare branding assets
         run: |
