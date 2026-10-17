@@ -30,7 +30,7 @@ dependencies:
   url_launcher: ^5.4.11
   timeago: ^2.0.26
   flutter_rating_bar: ^3.2.0
-  webview_flutter: ^0.3.18+1
+  webview_flutter: 2.0.4
   font_awesome_flutter: ^8.5.0
   share: ^0.6.5+4
   place_picker: ^0.9.17
