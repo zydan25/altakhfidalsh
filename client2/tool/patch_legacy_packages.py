@@ -58,6 +58,7 @@ def main() -> int:
             continue
 
         package_hits = 0
+        already_patched = False
         for package_dir in package_dirs:
             for source in package_dir.rglob("*.dart"):
                 try:
@@ -72,13 +73,19 @@ def main() -> int:
                     package_hits += sum(
                         original.count(old) for old in replacements
                     )
-        if package_hits == 0:
+                if any(new in original for new in replacements.values()):
+                    already_patched = True
+        if package_hits:
+            print(f"Patched {package_name}: {package_hits} deprecated API use(s).")
+        elif already_patched:
+            # GitHub Actions may restore a Pub cache already patched by a
+            # previous run. That is expected and must remain a cache hit.
+            print(f"Already compatible: {package_name}.")
+        else:
             errors.append(
-                f"No expected deprecated API was found in {package_name}; "
+                f"No expected legacy or patched API was found in {package_name}; "
                 "the resolved package source may have changed."
             )
-        else:
-            print(f"Patched {package_name}: {package_hits} deprecated API use(s).")
 
     if errors:
         print("\n".join(errors), file=sys.stderr)
