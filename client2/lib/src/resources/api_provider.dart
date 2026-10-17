@@ -30,8 +30,12 @@ class ApiProvider {
   Future init() async {
     filter['flutter_app'] = '1';
     filter['distance'] = '10';
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    _appDocsDir = await getApplicationDocumentsDirectory();
+    await SharedPreferences.getInstance();
+    // path_provider 1.x has no supported web implementation. This directory is
+    // only needed by the legacy native splash-download code, which is disabled.
+    if (!kIsWeb) {
+      _appDocsDir = await getApplicationDocumentsDirectory();
+    }
   }
 
   ApiProvider._internal();
