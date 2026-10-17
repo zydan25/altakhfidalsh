@@ -16,11 +16,11 @@ class ProductDetailsView extends StatelessWidget {
   Widget build(BuildContext context) {
     final id = productId?.trim() ?? '';
     if (id.isEmpty) {
-      return const Directionality(
+      return Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
-          appBar: AppBar(title: Text('تفاصيل المنتج')),
-          body: Center(child: Text('اختر منتجًا لعرض تفاصيله.')),
+          appBar: AppBar(title: const Text('تفاصيل المنتج')),
+          body: const Center(child: Text('اختر منتجًا لعرض تفاصيله.')),
         ),
       );
     }
