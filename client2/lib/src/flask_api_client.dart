@@ -3,19 +3,19 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 /// Loads the saved access token. Keep token storage owned by the app layer.
-typedef AccessTokenReader = Future<String?> Function();
+typedef AccessTokenReader = Future<String> Function();
 
 /// A decoded API failure returned by Flask.
 class FlaskApiException implements Exception {
   const FlaskApiException({
-    required this.statusCode,
-    required this.message,
+    this.statusCode: 0,
+    this.message: '',
     this.payload,
   });
 
   final int statusCode;
   final String message;
-  final Object? payload;
+  final dynamic payload;
 
   @override
   String toString() => 'FlaskApiException($statusCode): $message';
@@ -23,16 +23,13 @@ class FlaskApiException implements Exception {
 
 /// HTTP transport for the existing Flask API.
 ///
-/// The base URL should include the API prefix, for example:
-/// https://takhfidsh.alattab.site/api/v1
-///
-/// This class does not assume WooCommerce response models. Feature adapters
-/// should map decoded JSON into the models expected by the UI.
+/// Keep this file compatible with the Dart language version declared by the
+/// original app (>=2.7.0 <3.0.0). It deliberately contains no UI code.
 class FlaskApiClient {
   FlaskApiClient({
-    String? baseUrl,
-    http.Client? client,
-    AccessTokenReader? accessTokenReader,
+    String baseUrl,
+    http.Client client,
+    AccessTokenReader accessTokenReader,
     this.timeout = const Duration(seconds: 25),
   })  : baseUrl = _normalizeBaseUrl(
           baseUrl ??
@@ -48,7 +45,7 @@ class FlaskApiClient {
   final String baseUrl;
   final http.Client _client;
   final bool _ownsClient;
-  final AccessTokenReader? _accessTokenReader;
+  final AccessTokenReader _accessTokenReader;
   final Duration timeout;
 
   static String _normalizeBaseUrl(String value) {
@@ -60,7 +57,7 @@ class FlaskApiClient {
   }
 
   /// Builds an API URL under [baseUrl] while preserving optional query values.
-  Uri uriFor(String path, {Map<String, Object?>? query}) {
+  Uri uriFor(String path, {Map<String, dynamic> query}) {
     final raw = path.trim();
     if (raw.isEmpty) {
       throw ArgumentError.value(path, 'path', 'Must not be empty.');
@@ -76,19 +73,22 @@ class FlaskApiClient {
     final relativePath = raw.replaceFirst(RegExp(r'^/+'), '');
     final initial = Uri.parse('$baseUrl/$relativePath');
 
-    final params = <String, String>{...initial.queryParameters};
-    query?.forEach((key, value) {
-      if (value == null) return;
-      params[key] = value is Iterable ? value.join(',') : value.toString();
-    });
+    final params = <String, String>{};
+    params.addAll(initial.queryParameters);
+    if (query != null) {
+      query.forEach((key, value) {
+        if (value == null) return;
+        params[key] = value is Iterable ? value.join(',') : value.toString();
+      });
+    }
 
     return initial.replace(queryParameters: params.isEmpty ? null : params);
   }
 
   /// Resolves absolute media links and root-relative Flask paths such as
   /// /media/products/example.jpg. Relative values resolve under the API prefix.
-  String resolveUrl(String? value) {
-    final raw = value?.trim() ?? '';
+  String resolveUrl(String value) {
+    final raw = (value ?? '').trim();
     if (raw.isEmpty) return '';
     if (raw.startsWith('https://') || raw.startsWith('http://')) return raw;
 
@@ -99,42 +99,42 @@ class FlaskApiClient {
     return uriFor(raw).toString();
   }
 
-  Future<dynamic> get(String path, {Map<String, Object?>? query}) =>
+  Future<dynamic> get(String path, {Map<String, dynamic> query}) =>
       _send('GET', path, query: query);
 
   Future<dynamic> post(
     String path, {
-    Map<String, dynamic>? body,
-    Map<String, Object?>? query,
+    Map<String, dynamic> body,
+    Map<String, dynamic> query,
   }) =>
       _send('POST', path, body: body, query: query);
 
   Future<dynamic> patch(
     String path, {
-    Map<String, dynamic>? body,
-    Map<String, Object?>? query,
+    Map<String, dynamic> body,
+    Map<String, dynamic> query,
   }) =>
       _send('PATCH', path, body: body, query: query);
 
   Future<dynamic> put(
     String path, {
-    Map<String, dynamic>? body,
-    Map<String, Object?>? query,
+    Map<String, dynamic> body,
+    Map<String, dynamic> query,
   }) =>
       _send('PUT', path, body: body, query: query);
 
   Future<dynamic> delete(
     String path, {
-    Map<String, Object?>? query,
-    Map<String, dynamic>? body,
+    Map<String, dynamic> query,
+    Map<String, dynamic> body,
   }) =>
       _send('DELETE', path, body: body, query: query);
 
   Future<dynamic> _send(
     String method,
     String path, {
-    Map<String, Object?>? query,
-    Map<String, dynamic>? body,
+    Map<String, dynamic> query,
+    Map<String, dynamic> body,
   }) async {
     final request = http.Request(method, uriFor(path, query: query));
     request.headers['Accept'] = 'application/json';
@@ -158,8 +158,8 @@ class FlaskApiClient {
   Future<dynamic> upload(
     String path, {
     Map<String, String> fields = const {},
-    required List<http.MultipartFile> files,
-    Map<String, Object?>? query,
+    List<http.MultipartFile> files = const [],
+    Map<String, dynamic> query,
   }) async {
     final request = http.MultipartRequest('POST', uriFor(path, query: query));
     request.headers['Accept'] = 'application/json';
@@ -178,8 +178,9 @@ class FlaskApiClient {
   }
 
   dynamic _decodeResponse(http.Response response) {
-    final text = utf8.decode(response.bodyBytes, allowMalformed: true).trim();
-    if (text.isEmpty) {
+    final responseText =
+        utf8.decode(response.bodyBytes, allowMalformed: true).trim();
+    if (responseText.isEmpty) {
       if (response.statusCode >= 200 && response.statusCode < 300) return null;
       throw FlaskApiException(
         statusCode: response.statusCode,
@@ -189,9 +190,9 @@ class FlaskApiClient {
 
     dynamic payload;
     try {
-      payload = jsonDecode(text);
+      payload = jsonDecode(responseText);
     } on FormatException {
-      payload = text;
+      payload = responseText;
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -200,7 +201,8 @@ class FlaskApiClient {
 
     var message = 'تعذر تنفيذ الطلب (${response.statusCode}).';
     if (payload is Map) {
-      final candidate = payload['detail'] ?? payload['error'] ?? payload['message'];
+      final candidate =
+          payload['detail'] ?? payload['error'] ?? payload['message'];
       if (candidate != null && candidate.toString().trim().isNotEmpty) {
         message = candidate.toString();
       }
@@ -222,7 +224,7 @@ class FlaskApiClient {
 
 /// Known customer-facing routes in the existing Flask API. Feature-specific
 /// adapters must still validate and map each response's exact JSON shape.
-abstract final class FlaskEndpoints {
+abstract class FlaskEndpoints {
   static const home = '/storefront/home';
   static const banners = '/storefront/banners';
   static const categories = '/catalog/categories';
