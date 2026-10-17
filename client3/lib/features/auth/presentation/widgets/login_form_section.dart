@@ -23,22 +23,22 @@ class LoginFormSection extends StatefulWidget {
 
 class _LoginFormSectionState extends State<LoginFormSection> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _rememberMe = true;
   bool _obscurePassword = true;
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   void _handleLogin() {
     if (_formKey.currentState!.validate()) {
-      context.read<AuthCubit>().signIn(
-            email: _emailController.text.trim(),
+      context.read<AuthCubit>().signInWithPhone(
+            phone: _phoneController.text.trim(),
             password: _passwordController.text.trim(),
           );
     }
@@ -93,17 +93,16 @@ class _LoginFormSectionState extends State<LoginFormSection> {
             child: Column(
               children: [
                 TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  textDirection: TextDirection.ltr,
                   decoration: const InputDecoration(
-                    prefixIcon: Icon(Iconsax.direct_right),
-                    labelText: TTexts.email,
+                    prefixIcon: Icon(Iconsax.call),
+                    labelText: TTexts.phoneNo,
                   ),
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    return null;
+                    final digits = (value ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+                    return digits.length < 7 ? 'أدخل رقم هاتف صحيحًا.' : null;
                   },
                 ),
                 const SizedBox(height: TSizes.spaceBtwInputFields),

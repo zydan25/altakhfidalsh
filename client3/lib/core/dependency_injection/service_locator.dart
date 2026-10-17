@@ -1,5 +1,8 @@
 import 'package:get_it/get_it.dart';
 import 'package:t_store/core/supabase/supabase_service.dart';
+import 'package:t_store/core/network/flask_api_client.dart';
+import 'package:t_store/core/network/flask_customer_api.dart';
+import 'package:t_store/core/network/flask_session_store.dart';
 
 // Auth
 import 'package:t_store/features/auth/data/repositories/auth_repository_impl.dart';
@@ -102,6 +105,12 @@ final sl = GetIt.instance;
 Future<void> setupServiceLocator() async {
   // ==================== Core ====================
   sl.registerLazySingleton<SupabaseService>(() => SupabaseService.instance);
+  sl.registerLazySingleton<FlaskApiClient>(() => FlaskApiClient(
+        accessTokenProvider: FlaskSessionStore.accessToken,
+      ));
+  sl.registerLazySingleton<FlaskCustomerApi>(
+    () => FlaskCustomerApi(client: sl<FlaskApiClient>()),
+  );
 
   // ==================== Auth ====================
   // Repository
@@ -123,6 +132,7 @@ Future<void> setupServiceLocator() async {
         signOutUsecase: sl(),
         resetPasswordUsecase: sl(),
         getCurrentUserUsecase: sl(),
+        customerApi: sl<FlaskCustomerApi>(),
       ));
 
   // ==================== Products ====================

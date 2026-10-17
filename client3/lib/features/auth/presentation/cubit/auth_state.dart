@@ -58,3 +58,16 @@ class AuthConfirmationResent extends AuthState {
   @override
   List<Object?> get props => [email];
 }
+
+class AuthOtpRequired extends AuthState {
+  const AuthOtpRequired({
+    required this.phone,
+    required this.otpRequestId,
+  });
+
+  final String phone;
+  final int otpRequestId;
+
+  @override
+  List<Object?> get props => [phone, otpRequestId];
+}

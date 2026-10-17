@@ -27,6 +27,7 @@ abstract final class FlaskEndpoints {
   // or productDetail; do not re-calculate them in the Flutter client.
   static const pricingContext = 'pricing/context';
   static const currencies = 'pricing/currencies';
+  static const cities = 'geo/cities';
 
   // OTP/session and profile. These routes require the token after sign-in,
   // except requestOtp and verifyOtp.
