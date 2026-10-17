@@ -1,0 +1,74 @@
+name: Client3 Flutter CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "client3/**"
+      - ".github/workflows/client3-ci.yml"
+  pull_request:
+    paths:
+      - "client3/**"
+      - ".github/workflows/client3-ci.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: client3-flutter-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  android:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+          cache-dependency-path: |
+            client3/android/**/*.gradle
+            client3/android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Set up Flutter matching the source project
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.38.4"
+          channel: stable
+          cache: true
+          pub-cache: true
+
+      - name: Show toolchain versions
+        run: |
+          flutter --version
+          dart --version
+          java -version
+
+      - name: Prepare local placeholder environment
+        working-directory: client3
+        run: |
+          # Build-time placeholder only. This file is ignored and never committed.
+          cp .env.example .env
+
+      - name: Resolve dependencies
+        working-directory: client3
+        run: flutter pub get
+
+      - name: Run tests
+        working-directory: client3
+        run: flutter test
+
+      - name: Analyze Dart code
+        working-directory: client3
+        run: flutter analyze
+
+      - name: Build Android debug APK
+        working-directory: client3
+        run: flutter build apk --debug -t lib/main_development.dart
