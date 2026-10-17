@@ -65,6 +65,11 @@ dependencies:
   lottie: ^0.7.0+1
   webview_cookie_manager: ^1.0.4
 
+dependency_overrides:
+  # Flutter 2.2.x requires intl 0.17.0; the legacy Paystack package still
+  # declares the older 0.16 range. Keep this override isolated and tested.
+  intl: 0.17.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
