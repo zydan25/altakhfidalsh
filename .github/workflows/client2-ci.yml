@@ -1,0 +1,59 @@
+name: Client2 Flutter compatibility
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "client2/**"
+      - ".github/workflows/client2-ci.yml"
+  pull_request:
+    paths:
+      - "client2/**"
+      - ".github/workflows/client2-ci.yml"
+
+concurrency:
+  group: client2-flutter-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  legacy-flutter:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java for the legacy Android Gradle plugin
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Set up Flutter compatible with the original project
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "2.2.3"
+          channel: stable
+          cache: true
+
+      - name: Show toolchain versions
+        run: |
+          flutter --version
+          dart --version
+          java -version
+
+      - name: Resolve dependencies
+        working-directory: client2
+        run: flutter pub get
+
+      - name: Run unit tests
+        working-directory: client2
+        run: flutter test
+
+      - name: Analyze Dart code
+        working-directory: client2
+        run: flutter analyze
+
+      - name: Build Android debug APK
+        working-directory: client2
+        run: flutter build apk --debug
