@@ -17,17 +17,57 @@
   <title>app</title>
   <link rel="manifest" href="manifest.json">
 </head>
-<body>
-  <!-- This script installs service_worker.js to provide PWA functionality to
-       application. For more information, see:
-       https://developers.google.com/web/fundamentals/primers/service-workers -->
+<body style="margin:0;background:#050505;">
+  <div id="client2-startup-fallback" role="status" aria-live="polite"
+       style="position:fixed;inset:0;z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;background:#050505;color:#fff;font-family:Arial,sans-serif;text-align:center;direction:rtl;">
+    <div style="font-size:25px;font-weight:700;">التخفيض الصح</div>
+    <div id="client2-startup-message" style="font-size:15px;line-height:1.8;">جارٍ تشغيل المتجر…</div>
+    <div id="client2-startup-detail" style="display:none;max-width:520px;color:#ffcdd2;font-size:13px;line-height:1.7;"></div>
+    <button id="client2-startup-reload" type="button"
+      style="display:none;border:0;border-radius:8px;padding:12px 20px;background:#fff;color:#111;font-size:15px;font-weight:700;"
+      onclick="window.location.reload()">إعادة المحاولة</button>
+  </div>
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', function () {
-        navigator.serviceWorker.register('flutter_service_worker.js');
+    (function () {
+      var fallback = document.getElementById('client2-startup-fallback');
+      var message = document.getElementById('client2-startup-message');
+      var detail = document.getElementById('client2-startup-detail');
+      var reload = document.getElementById('client2-startup-reload');
+      var firstFrameSeen = false;
+      function showFailure(text) {
+        if (firstFrameSeen) return;
+        message.textContent = 'تعذر تشغيل واجهة المتجر.';
+        detail.textContent = text || 'تحقق من اتصال الإنترنت ثم أعد المحاولة.';
+        detail.style.display = 'block';
+        reload.style.display = 'inline-block';
+      }
+      window.addEventListener('flutter-first-frame', function () {
+        firstFrameSeen = true;
+        if (fallback) fallback.style.display = 'none';
       });
-    }
+      window.addEventListener('error', function (event) {
+        if (event && event.target && event.target.tagName === 'SCRIPT') {
+          showFailure('تعذر تحميل ملف التطبيق: ' + (event.target.src || 'JavaScript'));
+        }
+      }, true);
+      window.setTimeout(function () {
+        if (!firstFrameSeen) showFailure('لم تظهر أول شاشة خلال 20 ثانية. قد يكون السبب خطأ JavaScript أو تعذر الاتصال بالخادم.');
+      }, 20000);
+      // Remove old service workers/caches left by previous releases; they can
+      // otherwise keep serving stale Flutter assets after a deployment.
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function (registrations) {
+          registrations.forEach(function (registration) { registration.unregister(); });
+        }).catch(function () {});
+      }
+      if ('caches' in window) {
+        caches.keys().then(function (keys) {
+          keys.forEach(function (key) { caches.delete(key); });
+        }).catch(function () {});
+      }
+    })();
   </script>
-  <script src="main.dart.js" type="application/javascript"></script>
+  <script src="main.dart.js" type="application/javascript"
+          onerror="document.getElementById('client2-startup-message').textContent='تعذر تحميل ملف Flutter. أعد تحميل الصفحة.';document.getElementById('client2-startup-reload').style.display='inline-block';"></script>
 </body>
 </html>
