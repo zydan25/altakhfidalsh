@@ -33,13 +33,15 @@
       var message = document.getElementById('client2-startup-message');
       var detail = document.getElementById('client2-startup-detail');
       var reload = document.getElementById('client2-startup-reload');
-      var startupCompleted = false;
+      var firstFrameReceived = false;
       function hideFallback() {
-        startupCompleted = true;
+        firstFrameReceived = true;
         if (fallback) fallback.style.display = 'none';
       }
       function showFailure(text) {
-        if (startupCompleted) return;
+        // Keep a visible recovery screen if Flutter fails before its first frame
+        // or a JavaScript exception occurs after the page has started.
+        if (fallback) fallback.style.display = 'flex';
         message.textContent = 'تعذر تشغيل واجهة المتجر.';
         detail.textContent = text || 'تحقق من اتصال الإنترنت ثم أعد المحاولة.';
         detail.style.display = 'block';
@@ -51,10 +53,20 @@
       window.addEventListener('error', function (event) {
         if (event && event.target && event.target.tagName === 'SCRIPT') {
           showFailure('تعذر تحميل ملف التطبيق: ' + (event.target.src || 'JavaScript'));
+          return;
+        }
+        if (event && (event.message || event.error)) {
+          showFailure('خطأ JavaScript: ' + (event.message || String(event.error)));
         }
       }, true);
+      window.addEventListener('unhandledrejection', function (event) {
+        var reason = event && event.reason;
+        showFailure('فشل تشغيل التطبيق: ' + (reason && reason.message ? reason.message : String(reason || 'خطأ غير معروف')));
+      });
       window.setTimeout(function () {
-        if (!startupCompleted) showFailure('لم يتم تحميل ملف تشغيل Flutter خلال 20 ثانية. تحقق من تحميل main.dart.js ثم أعد المحاولة.');
+        if (!firstFrameReceived) {
+          showFailure('لم تظهر أول شاشة خلال 20 ثانية. قد يكون السبب خطأ JavaScript أو تعذر الاتصال بالخادم.');
+        }
       }, 20000);
       // Remove old service workers/caches left by previous releases; they can
       // otherwise keep serving stale Flutter assets after a deployment.
@@ -71,7 +83,6 @@
     })();
   </script>
   <script id="client2-flutter-main" src="main.dart.js" type="application/javascript"
-          onload="window.setTimeout(function(){var f=document.getElementById('client2-startup-fallback');if(f){f.style.display='none';}},1200)"
-          onerror="document.getElementById('client2-startup-message').textContent='تعذر تحميل ملف Flutter. أعد تحميل الصفحة.';document.getElementById('client2-startup-detail').style.display='none';document.getElementById('client2-startup-reload').style.display='inline-block';"></script>
+          onerror="(function(){var f=document.getElementById('client2-startup-fallback');var m=document.getElementById('client2-startup-message');var d=document.getElementById('client2-startup-detail');var r=document.getElementById('client2-startup-reload');if(f)f.style.display='flex';if(m)m.textContent='تعذر تشغيل واجهة المتجر.';if(d){d.textContent='تعذر تحميل ملف Flutter main.dart.js.';d.style.display='block';}if(r)r.style.display='inline-block';})()"></script>
 </body>
 </html>
