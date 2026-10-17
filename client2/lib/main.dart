@@ -36,6 +36,37 @@ void setOverrideForDesktop() {
 Future<void> main() async {
   // Initialize the Flutter binding before calling any platform plugin.
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Keep Flutter framework build/layout failures visible on Web instead of
+  // replacing the storefront with an unexplained white canvas.
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Container(
+        color: Colors.white,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Text(
+                'تعذر عرض واجهة المتجر',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                details.exceptionAsString(),
+                style: const TextStyle(fontSize: 13, color: Colors.red),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  };
   setOverrideForDesktop();
 
   final AppStateModel model = AppStateModel();
