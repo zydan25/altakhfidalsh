@@ -72,7 +72,7 @@ dependency_overrides:
   # Replace transitive packages whose APIs were removed from Flutter 2.x.
   modal_bottom_sheet: ^2.0.0
   chewie: ^1.0.0
-  flutter_svg: ^0.22.0
+  flutter_svg: 0.19.3
 
 dev_dependencies:
   flutter_test:
