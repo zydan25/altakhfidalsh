@@ -17,6 +17,7 @@ import 'src/models/app_state_model.dart';
 import 'src/resources/api_provider.dart';
 import 'src/themes/gallery_theme_data_material.dart';
 import 'src/ui/intro/intro_slider.dart';
+import 'src/ui/flask_storefront.dart';
 
 //Directory _appDocsDir;
 
@@ -78,7 +79,9 @@ class _MyAppState extends State<MyApp> {
     if (!kIsWeb) {
       Firebase.initializeApp();
     }
-    apiProviderInt();
+    // Web storefront uses the Flask catalog API directly. The legacy
+    // WordPress bootstrap is retained only for native builds.
+    if (!kIsWeb) apiProviderInt();
     //splashIndex.shuffle();
     //startTimer();
   }
@@ -169,7 +172,9 @@ class _MyAppState extends State<MyApp> {
                       : GalleryThemeData.darkThemeData.copyWith(
                           platform: GalleryOptions.of(context).platform,
                         ),
-                  home: ScopedModelDescendant<AppStateModel>(
+                  home: kIsWeb
+                      ? FlaskStorefront()
+                      : ScopedModelDescendant<AppStateModel>(
                       builder: (context, child, model) {
                     if (_startupError != null && model.blocks == null) {
                       return Scaffold(
