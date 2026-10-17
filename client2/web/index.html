@@ -33,17 +33,20 @@
       var message = document.getElementById('client2-startup-message');
       var detail = document.getElementById('client2-startup-detail');
       var reload = document.getElementById('client2-startup-reload');
-      var firstFrameSeen = false;
+      var startupCompleted = false;
+      function hideFallback() {
+        startupCompleted = true;
+        if (fallback) fallback.style.display = 'none';
+      }
       function showFailure(text) {
-        if (firstFrameSeen) return;
+        if (startupCompleted) return;
         message.textContent = 'تعذر تشغيل واجهة المتجر.';
         detail.textContent = text || 'تحقق من اتصال الإنترنت ثم أعد المحاولة.';
         detail.style.display = 'block';
         reload.style.display = 'inline-block';
       }
       window.addEventListener('flutter-first-frame', function () {
-        firstFrameSeen = true;
-        if (fallback) fallback.style.display = 'none';
+        hideFallback();
       });
       window.addEventListener('error', function (event) {
         if (event && event.target && event.target.tagName === 'SCRIPT') {
@@ -51,7 +54,7 @@
         }
       }, true);
       window.setTimeout(function () {
-        if (!firstFrameSeen) showFailure('لم تظهر أول شاشة خلال 20 ثانية. قد يكون السبب خطأ JavaScript أو تعذر الاتصال بالخادم.');
+        if (!startupCompleted) showFailure('لم يتم تحميل ملف تشغيل Flutter خلال 20 ثانية. تحقق من تحميل main.dart.js ثم أعد المحاولة.');
       }, 20000);
       // Remove old service workers/caches left by previous releases; they can
       // otherwise keep serving stale Flutter assets after a deployment.
@@ -67,7 +70,8 @@
       }
     })();
   </script>
-  <script src="main.dart.js" type="application/javascript"
-          onerror="document.getElementById('client2-startup-message').textContent='تعذر تحميل ملف Flutter. أعد تحميل الصفحة.';document.getElementById('client2-startup-reload').style.display='inline-block';"></script>
+  <script id="client2-flutter-main" src="main.dart.js" type="application/javascript"
+          onload="window.setTimeout(function(){var f=document.getElementById('client2-startup-fallback');if(f){f.style.display='none';}},1200)"
+          onerror="document.getElementById('client2-startup-message').textContent='تعذر تحميل ملف Flutter. أعد تحميل الصفحة.';document.getElementById('client2-startup-detail').style.display='none';document.getElementById('client2-startup-reload').style.display='inline-block';"></script>
 </body>
 </html>
