@@ -34,7 +34,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        resizeToAvoidBottomPadding: false,
+        resizeToAvoidBottomInset: false,
         appBar: AppBar(
           elevation: 0,
           centerTitle: true,
@@ -188,7 +188,7 @@ class _ReviewsPageState extends State<ReviewsPage> {
   }
 
   void _thankYouMessage() {
-    showDialog(context: context, child: AlertDialog(
+    showDialog(context: context, builder: (BuildContext dialogContext) => AlertDialog(
       content: Text(appStateModel.blocks.localeText.thankYouForYourReview),
       actions: [
         RaisedButton(
