@@ -32,7 +32,7 @@ jobs:
           distribution: temurin
           java-version: "8"
 
-      - name: Set up Flutter matching client2
+      - name: Set up Flutter matching client2 dependencies
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "1.22.6"
@@ -43,7 +43,6 @@ jobs:
         run: |
           mkdir -p client2/assets client2/web/icons
           cp 20260911_164630.jpg client2/assets/app_background.jpg
-
           sudo apt-get update
           sudo apt-get install -y imagemagick
           convert 20260911_164630.jpg -auto-orient -colorspace sRGB -fuzz 10% -trim +repage -resize '470x470^' -gravity center -background '#050505' -extent 470x470 -bordercolor '#050505' -border 21 -unsharp 0x0.8+0.8+0 -strip client2/web/icons/Icon-512.png
@@ -51,18 +50,16 @@ jobs:
           cp client2/web/icons/Icon-512.png client2/web/icons/Icon-maskable-512.png
           convert client2/web/icons/Icon-512.png -resize 64x64 -strip client2/web/favicon.png
 
-      - name: Dependencies
+      - name: Resolve dependencies
         working-directory: client2
         run: flutter pub get
 
-      - name: Build Flutter web
+      - name: Build Flutter web from client2
         working-directory: client2
         env:
           API_BASE_URL: https://takhfidsh.alattab.site/api/v1
         run: |
-          flutter build web --release \
-            --base-href "/" \
-            --dart-define=API_BASE_URL="$API_BASE_URL"
+          flutter build web --release --base-href "/" --dart-define=API_BASE_URL="$API_BASE_URL"
 
       - name: Prepare Pages metadata and prevent stale cache
         working-directory: client2
@@ -73,38 +70,23 @@ jobs:
           from pathlib import Path
           import json
           import os
-          import re
 
           root = Path('build/web')
           sha = os.environ['BUILD_SHA']
           index = root / 'index.html'
           html = index.read_text(encoding='utf-8')
-
-          # Works with both legacy main.dart.js and newer Flutter bootstrap builds.
           html = html.replace('flutter_bootstrap.js', 'flutter_bootstrap.js?v=' + sha)
-          html = re.sub(
-              r'(?<![A-Za-z0-9_./-])main\\.dart\\.js(?:\\?[^"\\'\\s)]*)?',
-              'main.dart.js?v=' + sha,
-              html,
-          )
-          for path in root.rglob('*.js'):
-              js = path.read_text(encoding='utf-8')
-              js = re.sub(
-                  r'(?<![A-Za-z0-9_./-])main\\.dart\\.js(?:\\?[^"\\'\\s)]*)?',
-                  'main.dart.js?v=' + sha,
-                  js,
-              )
-              path.write_text(js, encoding='utf-8')
+          html = html.replace('main.dart.js', 'main.dart.js?v=' + sha)
 
-          guard = (
-              '\\n<meta name="altakhfid-build" content="' + sha + '">' +
-              '\\n<meta name="theme-color" content="#050505">' +
-              '\\n<meta name="application-name" content="التخفيض الصح">' +
-              '\\n<meta name="apple-mobile-web-app-title" content="التخفيض الصح">' +
-              '\\n<link rel="icon" type="image/png" href="favicon.png">' +
-              '\\n<link rel="apple-touch-icon" href="icons/Icon-192.png">\\n'
-          )
-          html = html.replace('</head>', guard + '</head>')
+          guard = chr(10).join([
+              '<meta name="altakhfid-build" content="' + sha + '">',
+              '<meta name="theme-color" content="#050505">',
+              '<meta name="application-name" content="التخفيض الصح">',
+              '<meta name="apple-mobile-web-app-title" content="التخفيض الصح">',
+              '<link rel="icon" type="image/png" href="favicon.png">',
+              '<link rel="apple-touch-icon" href="icons/Icon-192.png">',
+          ])
+          html = html.replace('</head>', guard + chr(10) + '</head>')
           index.write_text(html, encoding='utf-8')
 
           manifest = root / 'manifest.json'
@@ -123,13 +105,11 @@ jobs:
               {'src': 'icons/Icon-maskable-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
           ]
           manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
-
-          # GitHub Pages custom-domain and route fallback.
           (root / '404.html').write_text(index.read_text(encoding='utf-8'), encoding='utf-8')
-          (root / 'CNAME').write_text('takhfidsh.alattab.site\\n', encoding='utf-8')
+          (root / 'CNAME').write_text('takhfidsh.alattab.site' + chr(10), encoding='utf-8')
           PY
 
-      - name: Verify web output
+      - name: Verify client2 web output
         working-directory: client2
         run: |
           test -s build/web/index.html
