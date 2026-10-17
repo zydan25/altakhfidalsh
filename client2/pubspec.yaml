@@ -22,7 +22,7 @@ dependencies:
   path: ^1.7.0
   path_provider: ^1.6.24
   json_annotation: ^2.0.0
-  flutter_html: 2.0.0
+  flutter_html: ^1.0.2
   flutter_swiper: ^1.1.6
   cached_network_image: ^2.3.3
   shared_preferences: ^0.5.7+3
@@ -30,7 +30,7 @@ dependencies:
   url_launcher: ^5.4.11
   timeago: ^2.0.26
   flutter_rating_bar: ^3.2.0
-  webview_flutter: 2.0.4
+  webview_flutter: ^0.3.18+1
   font_awesome_flutter: ^8.5.0
   share: ^0.6.5+4
   place_picker: ^0.9.17
@@ -69,11 +69,10 @@ dependency_overrides:
   # Flutter 2.2.x requires intl 0.17.0; the legacy Paystack package still
   # declares the older 0.16 range. Keep this override isolated and tested.
   intl: 0.17.0
-  # Chewie 1.x requires the newer Cupertino icon package API.
+  # The newer modal_bottom_sheet requires the current Cupertino icon assets.
   cupertino_icons: ^1.0.2
-  # Replace transitive packages whose APIs were removed from Flutter 2.x.
-  modal_bottom_sheet: ^2.0.0
-  chewie: ^1.0.0
+  # Keep modal_bottom_sheet and SVG compatible with Flutter 2.2.
+  modal_bottom_sheet: 2.0.0
   flutter_svg: 0.19.3
 
 dev_dependencies:
