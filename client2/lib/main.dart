@@ -66,6 +66,8 @@ class _MyAppState extends State<MyApp> {
   final apiProvider = ApiProvider();
   Timer _timer;
   int _start = 0;
+  bool _loadingStore = true;
+  String _startupError;
   var splashIndex = ['0', '1', '2', '3', '4', '5'];
 
   @override
@@ -87,10 +89,43 @@ class _MyAppState extends State<MyApp> {
     //return File(pathName);
   }
 
-  void apiProviderInt() async {
-    await apiProvider.init();
-    widget.model.fetchAllBlocks();
-    widget.model.getCustomerDetails();
+  Future<void> apiProviderInt() async {
+    try {
+      await apiProvider.init();
+      await widget.model.fetchAllBlocks();
+      if (widget.model.blocks != null) {
+        // Customer details are optional for the public storefront. A session
+        // lookup failure must not prevent the catalogue from rendering.
+        try {
+          await widget.model.getCustomerDetails();
+        } catch (error) {
+          debugPrint('Could not refresh customer details: $error');
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _loadingStore = false;
+        _startupError = widget.model.blocks == null
+            ? 'لم تصل بيانات المتجر من الخادم.'
+            : null;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('Storefront startup failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (!mounted) return;
+      setState(() {
+        _loadingStore = false;
+        _startupError = 'تعذر تحميل بيانات المتجر. تحقق من اتصالك ثم أعد المحاولة.';
+      });
+    }
+  }
+
+  void _retryStorefront() {
+    setState(() {
+      _loadingStore = true;
+      _startupError = null;
+    });
+    apiProviderInt();
   }
 
   @override
@@ -135,7 +170,44 @@ class _MyAppState extends State<MyApp> {
                         ),
                   home: ScopedModelDescendant<AppStateModel>(
                       builder: (context, child, model) {
-                    if (model.hasSeenIntro == null) {
+                    if (_startupError != null && model.blocks == null) {
+                      return Scaffold(
+                        backgroundColor: Colors.white,
+                        body: SafeArea(
+                          child: Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Image.asset(
+                                    'lib/assets/images/logo.png',
+                                    width: 150,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        Icon(Icons.store, size: 64, color: Colors.black54),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Text(
+                                    _startupError,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 16, color: Colors.black87),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  if (_loadingStore)
+                                    const CircularProgressIndicator()
+                                  else
+                                    ElevatedButton(
+                                      onPressed: _retryStorefront,
+                                      child: const Text('إعادة المحاولة'),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    } else if (model.hasSeenIntro == null) {
                       return IntroScreen();
                     } else if (model.blocks != null && _start == 0) {
                       return App(); /*ShrineApp()*/
