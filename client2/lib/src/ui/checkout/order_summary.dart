@@ -275,8 +275,7 @@ class _OrderSummaryState extends State<OrderSummary> {
   void onSuccessMessage(Order order) {
     showDialog(context: context,
         barrierDismissible: false,
-        // ignore: deprecated_member_use
-        child: AlertDialog(
+        builder: (BuildContext dialogContext) => AlertDialog(
           title: new Text(widget.appStateModel.blocks.localeText.youOrderHaveBeenReceived),
           content: new Text(widget.appStateModel.blocks.localeText.thankYouForShoppingWithUs+'!'+widget.appStateModel.blocks.localeText.thankYouOrderIdIs+':'+' #${order.id.toString()}. '+ widget.appStateModel.blocks.localeText.youWillReceiveAConfirmationMessage+'.'),
           actions: <Widget>[
