@@ -76,7 +76,7 @@ jobs:
 
           path = Path("web/index.html")
           html = path.read_text(encoding="utf-8")
-          html = re.sub(r"<base\\b[^>]*>", "", html, count=1, flags=re.IGNORECASE)
+          html = re.sub(r"<base[^>]*>", "", html, count=1, flags=re.IGNORECASE)
           bootstrap = """  <script data-client3-base>
             (function () {
               var host = window.location.hostname.toLowerCase();
@@ -85,7 +85,7 @@ jobs:
             })();
           </script>"""
           if "data-client3-base" not in html:
-              html = html.replace("<head>", "<head>\\n" + bootstrap, 1)
+              html = html.replace("<head>", "<head>" + chr(10) + bootstrap, 1)
           path.write_text(html, encoding="utf-8")
           PY
 
@@ -112,7 +112,7 @@ jobs:
           html = index.read_text(encoding="utf-8")
           html = html.replace("flutter_bootstrap.js", "flutter_bootstrap.js?v=" + sha)
           html = html.replace("main.dart.js", "main.dart.js?v=" + sha)
-          guard = "\\n".join([
+          guard = chr(10).join([
               '<meta name="altakhfid-build" content="' + sha + '">',
               '<meta name="theme-color" content="#050505">',
               '<meta name="application-name" content="التخفيض الصح">',
@@ -120,7 +120,7 @@ jobs:
               '<link rel="icon" type="image/png" href="favicon.png">',
               '<link rel="apple-touch-icon" href="icons/Icon-192.png">',
           ])
-          html = html.replace("</head>", guard + "\\n</head>")
+          html = html.replace("</head>", guard + chr(10) + "</head>")
           index.write_text(html, encoding="utf-8")
 
           manifest = root / "manifest.json"
@@ -143,7 +143,7 @@ jobs:
           ]
           manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
           (root / "404.html").write_text(index.read_text(encoding="utf-8"), encoding="utf-8")
-          (root / "CNAME").write_text("takhfidsh.alattab.site\\n", encoding="utf-8")
+          (root / "CNAME").write_text("takhfidsh.alattab.site" + chr(10), encoding="utf-8")
           PY
 
       - name: Verify client3 Pages output
