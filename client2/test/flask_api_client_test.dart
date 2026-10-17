@@ -1,4 +1,4 @@
-import 'package:altakhfid_client2_bridge/src/flask_api_client.dart';
+import 'package:app/src/flask_api_client.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
