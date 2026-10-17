@@ -1,10 +1,10 @@
-name: Customer Web - GitHub Pages
+name: Customer Web - GitHub Pages (client2)
 
 on:
   push:
     branches: [main]
     paths:
-      - 'client/**'
+      - 'client2/**'
       - 'docs/CUSTOMER_SHEIN_PARITY.md'
       - '.github/workflows/client-pages.yml'
   workflow_dispatch:
@@ -21,40 +21,42 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Set up Flutter
+      - name: Set up Java for legacy Flutter tooling
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+
+      - name: Set up Flutter matching client2
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: "1.22.6"
           channel: stable
           cache: true
 
-      - name: Generate web runner
-        working-directory: client
-        run: flutter create --platforms=web .
-
       - name: Prepare branding assets
         run: |
-          mkdir -p client/assets client/web/icons
-          cp 20260911_164630.jpg client/assets/app_background.jpg
+          mkdir -p client2/assets client2/web/icons
+          cp 20260911_164630.jpg client2/assets/app_background.jpg
 
-          # Generate the same branded launcher artwork used by the Android APK.
           sudo apt-get update
           sudo apt-get install -y imagemagick
-          convert 20260911_164630.jpg             -auto-orient             -colorspace sRGB             -fuzz 10% -trim +repage             -resize '470x470^'             -gravity center             -background '#050505'             -extent 470x470             -bordercolor '#050505' -border 21             -unsharp 0x0.8+0.8+0             -strip             client/web/icons/Icon-512.png
-          convert client/web/icons/Icon-512.png -resize 192x192 -strip client/web/icons/Icon-192.png
-          cp client/web/icons/Icon-512.png client/web/icons/Icon-maskable-512.png
-          convert client/web/icons/Icon-512.png -resize 64x64 -strip client/web/favicon.png
+          convert 20260911_164630.jpg -auto-orient -colorspace sRGB -fuzz 10% -trim +repage -resize '470x470^' -gravity center -background '#050505' -extent 470x470 -bordercolor '#050505' -border 21 -unsharp 0x0.8+0.8+0 -strip client2/web/icons/Icon-512.png
+          convert client2/web/icons/Icon-512.png -resize 192x192 -strip client2/web/icons/Icon-192.png
+          cp client2/web/icons/Icon-512.png client2/web/icons/Icon-maskable-512.png
+          convert client2/web/icons/Icon-512.png -resize 64x64 -strip client2/web/favicon.png
 
       - name: Dependencies
-        working-directory: client
+        working-directory: client2
         run: flutter pub get
 
       - name: Build Flutter web
-        working-directory: client
+        working-directory: client2
         env:
           API_BASE_URL: https://takhfidsh.alattab.site/api/v1
         run: |
@@ -62,53 +64,49 @@ jobs:
             --base-href "/" \
             --dart-define=API_BASE_URL="$API_BASE_URL"
 
-      - name: Prevent stale Flutter Web cache
-        working-directory: client
+      - name: Prepare Pages metadata and prevent stale cache
+        working-directory: client2
         env:
           BUILD_SHA: ${{ github.sha }}
         run: |
           python - <<'PY'
           from pathlib import Path
+          import json
           import os
           import re
-          
+
           root = Path('build/web')
           sha = os.environ['BUILD_SHA']
-          
-          # Bust the browser cache for both Flutter's bootstrap and the
-          # generated main bundle. GitHub Pages serves immutable-looking
-          # static assets for a while, so query-version the actual JS entry.
           index = root / 'index.html'
-          s = index.read_text(encoding='utf-8')
-          s = s.replace(
-              'flutter_bootstrap.js',
-              'flutter_bootstrap.js?v=' + sha
+          html = index.read_text(encoding='utf-8')
+
+          # Works with both legacy main.dart.js and newer Flutter bootstrap builds.
+          html = html.replace('flutter_bootstrap.js', 'flutter_bootstrap.js?v=' + sha)
+          html = re.sub(
+              r'(?<![A-Za-z0-9_./-])main\\.dart\\.js(?:\\?[^"\\'\\s)]*)?',
+              'main.dart.js?v=' + sha,
+              html,
           )
-          
-          # Also version every direct main.dart.js reference that Flutter's
-          # bootstrap emits. This is the part that prevents an old app bundle
-          # from surviving after a successful Pages deployment.
-          for p in root.rglob('*.js'):
-              js = p.read_text(encoding='utf-8')
+          for path in root.rglob('*.js'):
+              js = path.read_text(encoding='utf-8')
               js = re.sub(
-                  r'(?<![A-Za-z0-9_./-])main\.dart\.js(?:\?[^"\'\s)]*)?',
+                  r'(?<![A-Za-z0-9_./-])main\\.dart\\.js(?:\\?[^"\\'\\s)]*)?',
                   'main.dart.js?v=' + sha,
                   js,
               )
-              p.write_text(js, encoding='utf-8')
-          
-          guard = '''
-          <meta name="altakhfid-build" content="BUILD_SHA_PLACEHOLDER">
-          <meta name="theme-color" content="#050505">
-          <meta name="application-name" content="التخفيض الصح">
-          <meta name="apple-mobile-web-app-title" content="التخفيض الصح">
-          <link rel="icon" type="image/png" href="favicon.png">
-          <link rel="apple-touch-icon" href="icons/Icon-192.png">
-          '''.replace('BUILD_SHA_PLACEHOLDER', sha)
-          s = s.replace('</head>', guard + '\n</head>')
-          index.write_text(s, encoding='utf-8')
+              path.write_text(js, encoding='utf-8')
 
-          import json
+          guard = (
+              '\\n<meta name="altakhfid-build" content="' + sha + '">' +
+              '\\n<meta name="theme-color" content="#050505">' +
+              '\\n<meta name="application-name" content="التخفيض الصح">' +
+              '\\n<meta name="apple-mobile-web-app-title" content="التخفيض الصح">' +
+              '\\n<link rel="icon" type="image/png" href="favicon.png">' +
+              '\\n<link rel="apple-touch-icon" href="icons/Icon-192.png">\\n'
+          )
+          html = html.replace('</head>', guard + '</head>')
+          index.write_text(html, encoding='utf-8')
+
           manifest = root / 'manifest.json'
           data = json.loads(manifest.read_text(encoding='utf-8'))
           data['name'] = 'التخفيض الصح'
@@ -126,34 +124,43 @@ jobs:
           ]
           manifest.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
 
-          # A real HTML fallback makes direct Pages routes and invitation
-          # links recover to the Flutter shell instead of a blank/404 page.
+          # GitHub Pages custom-domain and route fallback.
           (root / '404.html').write_text(index.read_text(encoding='utf-8'), encoding='utf-8')
-          (root / 'CNAME').write_text('takhfidsh.alattab.site\n', encoding='utf-8')
+          (root / 'CNAME').write_text('takhfidsh.alattab.site\\n', encoding='utf-8')
           PY
+
+      - name: Verify web output
+        working-directory: client2
+        run: |
+          test -s build/web/index.html
+          test -s build/web/main.dart.js
+          test -s build/web/manifest.json
+          test -s build/web/CNAME
+          grep -q 'التخفيض الصح' build/web/index.html
+
       - name: Upload web build artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
-          name: altakhfid-web-${{ github.sha }}
-          path: client/build/web
+          name: altakhfid-client2-web-${{ github.sha }}
+          path: client2/build/web
           if-no-files-found: error
           retention-days: 7
 
       - name: Configure GitHub Pages
-        uses: actions/configure-pages@v6
+        uses: actions/configure-pages@v4
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: client/build/web
+          path: client2/build/web
 
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Deploy client2 to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
