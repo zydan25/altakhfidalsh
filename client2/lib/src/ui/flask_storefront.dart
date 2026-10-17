@@ -101,8 +101,8 @@ class _FlaskStorefrontState extends State<FlaskStorefront> {
       _products = products;
       _loading = false;
       _error = categoriesError != null && productsError != null
-          ? 'تعذر تحميل بيانات المتجر من خادم التخفيض الصح.\\nالتصنيفات: ' +
-              categoriesError + '\\nالمنتجات: ' + productsError
+          ? 'تعذر تحميل بيانات المتجر من خادم التخفيض الصح.\nالتصنيفات: ' +
+              categoriesError + '\nالمنتجات: ' + productsError
           : null;
     });
   }
