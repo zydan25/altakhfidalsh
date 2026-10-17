@@ -1,16 +1,17 @@
-name: Client2 Flutter compatibility
+name: Client2 Flutter CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "client2/**"
       - ".github/workflows/client2-ci.yml"
+      - ".github/workflows/client-pages.yml"
   pull_request:
     paths:
       - "client2/**"
       - ".github/workflows/client2-ci.yml"
+      - ".github/workflows/client-pages.yml"
 
 concurrency:
   group: client2-flutter-${{ github.ref }}
@@ -29,10 +30,10 @@ jobs:
           distribution: temurin
           java-version: "8"
 
-      - name: Set up Flutter compatible with the original project
+      - name: Set up Flutter matching the original dependency graph
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "2.2.3"
+          flutter-version: "1.22.6"
           channel: stable
           cache: true
 
