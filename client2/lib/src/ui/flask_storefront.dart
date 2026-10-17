@@ -17,7 +17,8 @@ String get _apiBase {
   final value = configured.isEmpty
       ? 'https://takhfidsh.alattab.site/api/v1'
       : configured;
-  return value.replaceFirst(RegExp(r'/+
+  return value.replaceFirst(RegExp(r'/+$'), '');
+}
 
 class FlaskStorefront extends StatefulWidget {
   @override
