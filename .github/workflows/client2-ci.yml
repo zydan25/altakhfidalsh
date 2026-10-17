@@ -61,7 +61,7 @@ jobs:
 
       - name: Analyze Dart code
         working-directory: client2
-        run: flutter analyze lib/src/flask_api_client.dart test/flask_api_client_test.dart
+        run: dartanalyzer lib/src/flask_api_client.dart test/flask_api_client_test.dart
 
       - name: Build Android debug APK
         working-directory: client2
