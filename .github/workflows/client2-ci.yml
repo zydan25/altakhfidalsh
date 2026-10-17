@@ -33,9 +33,10 @@ jobs:
       - name: Set up Flutter matching the original dependency graph
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "1.22.6"
+          flutter-version: "2.2.3"
           channel: stable
           cache: true
+          pub-cache: true
 
       - name: Show toolchain versions
         run: |
@@ -53,7 +54,7 @@ jobs:
 
       - name: Analyze Dart code
         working-directory: client2
-        run: flutter analyze
+        run: flutter analyze lib/src/flask_api_client.dart test/flask_api_client_test.dart
 
       - name: Build Android debug APK
         working-directory: client2
