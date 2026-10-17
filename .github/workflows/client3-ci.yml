@@ -71,4 +71,4 @@ jobs:
 
       - name: Build Android debug APK
         working-directory: client3
-        run: flutter build apk --debug -t lib/main_development.dart
+        run: flutter build apk --debug --flavor development -t lib/main_development.dart
