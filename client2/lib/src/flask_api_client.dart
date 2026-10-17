@@ -66,9 +66,15 @@ class FlaskApiClient {
       throw ArgumentError.value(path, 'path', 'Must not be empty.');
     }
 
-    final isAbsolute = raw.startsWith('https://') || raw.startsWith('http://');
+    if (raw.startsWith('https://') || raw.startsWith('http://')) {
+      throw ArgumentError.value(
+        path,
+        'path',
+        'API requests must use a relative path so bearer tokens stay on the API origin.',
+      );
+    }
     final relativePath = raw.replaceFirst(RegExp(r'^/+'), '');
-    final initial = Uri.parse(isAbsolute ? raw : '$baseUrl/$relativePath');
+    final initial = Uri.parse('$baseUrl/$relativePath');
 
     final params = <String, String>{...initial.queryParameters};
     query?.forEach((key, value) {
