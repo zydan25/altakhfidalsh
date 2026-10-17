@@ -51,6 +51,28 @@ jobs:
           cp client2/web/icons/Icon-512.png client2/web/icons/Icon-maskable-512.png
           convert client2/web/icons/Icon-512.png -resize 64x64 -strip client2/web/favicon.png
 
+      - name: Exclude native-only Firebase plugins from the Web build
+        working-directory: client2
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('pubspec.yaml')
+          content = path.read_text(encoding='utf-8')
+          # The legacy Firebase 7.x Web registrants expect a global "firebase"
+          # SDK and crash before Flutter's first frame. This target uses the
+          # Flask storefront and does not need Firebase; native builds keep
+          # the original pubspec unchanged in the repository.
+          names = (
+              'firebase_auth', 'firebase_core', 'firebase_analytics',
+              'firebase_storage', 'cloud_firestore', 'firebase_messaging',
+          )
+          for name in names:
+              content = re.sub(r'^  ' + re.escape(name) + r':[^\\n]*\\n', '', content, flags=re.MULTILINE)
+          path.write_text(content, encoding='utf-8')
+          PY
+
       - name: Resolve dependencies
         working-directory: client2
         run: flutter pub get
@@ -89,7 +111,7 @@ jobs:
         env:
           API_BASE_URL: https://takhfidsh.alattab.site/api/v1
         run: |
-          flutter build web --release --dart-define=API_BASE_URL="$API_BASE_URL"
+          flutter build web --release -t lib/main_web.dart --dart-define=API_BASE_URL="$API_BASE_URL"
 
       - name: Prepare Pages metadata and prevent stale cache
         working-directory: client2
