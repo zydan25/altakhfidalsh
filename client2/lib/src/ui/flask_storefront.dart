@@ -20,7 +20,7 @@ class _FlaskStorefrontState extends State<FlaskStorefront> {
   String _error;
   List<dynamic> _categories = [];
   List<dynamic> _products = [];
-  int? _selectedCategoryId;
+  int _selectedCategoryId;
   String _search = '';
   final TextEditingController _searchController = TextEditingController();
 
