@@ -4,7 +4,9 @@ class ProductEntity extends Equatable {
   final String id;
   final String name;
   final String? description;
+  /// The undiscounted comparison price when a valid discount is available.
   final double price;
+  /// The final customer price returned by Flask, when discounted.
   final double? salePrice;
   final String categoryId;
   final String? brandId;
@@ -19,9 +21,11 @@ class ProductEntity extends Equatable {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  // Joined data
+  // Joined display fields. These are sourced from the Flask catalog response.
   final String? categoryName;
   final String? brandName;
+  final String? currencyCode;
+  final String? currencySymbol;
 
   const ProductEntity({
     required this.id,
@@ -43,15 +47,18 @@ class ProductEntity extends Equatable {
     this.updatedAt,
     this.categoryName,
     this.brandName,
+    this.currencyCode,
+    this.currencySymbol,
   });
 
   double get discountPercentage {
-    if (salePrice == null || salePrice! >= price) return 0;
+    if (salePrice == null || salePrice! >= price || price <= 0) return 0;
     return ((price - salePrice!) / price) * 100;
   }
 
   bool get hasDiscount => salePrice != null && salePrice! < price;
 
+  /// Customer-facing price. Flask calculates discounts, FX and location markup.
   double get effectivePrice => salePrice ?? price;
 
   bool get isInStock => stock > 0;
@@ -81,6 +88,10 @@ class ProductEntity extends Equatable {
         attributes,
         createdAt,
         updatedAt,
+        categoryName,
+        brandName,
+        currencyCode,
+        currencySymbol,
       ];
 
   ProductEntity copyWith({
@@ -103,6 +114,8 @@ class ProductEntity extends Equatable {
     DateTime? updatedAt,
     String? categoryName,
     String? brandName,
+    String? currencyCode,
+    String? currencySymbol,
   }) {
     return ProductEntity(
       id: id ?? this.id,
@@ -124,6 +137,8 @@ class ProductEntity extends Equatable {
       updatedAt: updatedAt ?? this.updatedAt,
       categoryName: categoryName ?? this.categoryName,
       brandName: brandName ?? this.brandName,
+      currencyCode: currencyCode ?? this.currencyCode,
+      currencySymbol: currencySymbol ?? this.currencySymbol,
     );
   }
 }

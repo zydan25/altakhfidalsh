@@ -138,7 +138,7 @@ Future<void> setupServiceLocator() async {
   // ==================== Products ====================
   // Repository
   sl.registerLazySingleton<ProductRepository>(
-    () => ProductRepositoryImpl(supabaseService: sl()),
+    () => ProductRepositoryImpl(apiClient: sl<FlaskApiClient>()),
   );
 
   // Use Cases
@@ -156,7 +156,7 @@ Future<void> setupServiceLocator() async {
   // ==================== Categories ====================
   // Repository
   sl.registerLazySingleton<CategoryRepository>(
-    () => CategoryRepositoryImpl(supabaseService: sl()),
+    () => CategoryRepositoryImpl(apiClient: sl<FlaskApiClient>()),
   );
 
   // Use Cases

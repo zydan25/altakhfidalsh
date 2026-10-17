@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
+import 'package:t_store/core/network/flask_api_client.dart';
 import 'package:t_store/core/cubits/navigation_menu_cubit/navigation_menu_cubit.dart';
 import 'package:t_store/features/shop/data/data_sources/shop_remote_data_source.dart';
 import 'package:t_store/features/shop/data/repository_impl/shop_repository_impl.dart';
@@ -17,6 +18,7 @@ void setupOldServiceLocator() {
 // register data sources
   getIt.registerSingleton<ShopRemoteDataSourceImpl>(ShopRemoteDataSourceImpl(
     dio: getIt.get<Dio>(),
+    api: getIt.get<FlaskApiClient>(),
   ));
 // register repositories
   getIt.registerSingleton<ShopRepositoryImpl>(ShopRepositoryImpl(

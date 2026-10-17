@@ -24,9 +24,14 @@ import 'package:t_store/features/shop/presentation/views/product_details_view.da
 class VerticalProductCard extends StatelessWidget {
   const VerticalProductCard({super.key, required this.product});
   final ProductEntity product;
+
   @override
   Widget build(BuildContext context) {
     final dark = THelperFunctions.isDarkMode(context);
+    final imageUrl = product.images.isNotEmpty
+        ? product.images.first
+        : (product.thumbnail ?? '');
+
     return GestureDetector(
       onTap: () {
         THelperFunctions.navigateToScreen(context, const ProductDetailsView());
@@ -35,87 +40,105 @@ class VerticalProductCard extends StatelessWidget {
         width: 180,
         padding: const EdgeInsets.all(1),
         decoration: BoxDecoration(
-            boxShadow: [TShadowStyle.verticalProductCardShadow],
-            borderRadius: const BorderRadius.all(
-              Radius.circular(TSizes.productImageRadius),
-            ),
-            color: dark ? TColors.darkerGrey : TColors.white),
+          boxShadow: [TShadowStyle.verticalProductCardShadow],
+          borderRadius: const BorderRadius.all(
+            Radius.circular(TSizes.productImageRadius),
+          ),
+          color: dark ? TColors.darkerGrey : TColors.white,
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             CircularContainer(
               circularContainerModel: CircularContainerModel(
-                  padding: const EdgeInsets.all(TSizes.sm),
-                  height: 180,
-                  color: dark ? TColors.dark : TColors.light,
-                  child: Stack(
-                    children: [
+                padding: const EdgeInsets.all(TSizes.sm),
+                height: 180,
+                color: dark ? TColors.dark : TColors.light,
+                child: Stack(
+                  children: [
+                    if (imageUrl.isNotEmpty)
                       RoundedImage(
                         roundedImageModel: RoundedImageModel(
-                            isNetworkImage: true,
+                          isNetworkImage: true,
+                          backgroundColor: dark ? TColors.dark : TColors.light,
+                          image: imageUrl,
+                          onTap: () {},
+                          applyImageRadius: true,
+                        ),
+                      )
+                    else
+                      Container(
+                        decoration: BoxDecoration(
+                          color: dark ? TColors.dark : TColors.light,
+                          borderRadius: BorderRadius.circular(
+                            TSizes.productImageRadius,
+                          ),
+                        ),
+                        child: const Center(
+                          child: Icon(Iconsax.gallery, size: 34),
+                        ),
+                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        SaleTag(
+                          discountPercentage: product.discountPercentage,
+                        ),
+                        CircularIcon(
+                          circularIconModel: CircularIconModel(
+                            height: TSizes.iconLg * 1.2,
+                            width: TSizes.iconLg * 1.2,
+                            iconSize: TSizes.iconMd,
+                            icon: Iconsax.heart5,
+                            color: Colors.red,
                             backgroundColor:
-                                dark ? TColors.dark : TColors.light,
-                            image: product.images.first,
-                            onTap: () {},
-                            applyImageRadius: true),
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          SaleTag(
-                            discountPercentage: product.discountPercentage,
+                                dark ? TColors.darkerGrey : TColors.white,
+                            onPressed: () {},
                           ),
-                          CircularIcon(
-                            circularIconModel: CircularIconModel(
-                              height: TSizes.iconLg * 1.2,
-                              width: TSizes.iconLg * 1.2,
-                              iconSize: TSizes.iconMd,
-                              icon: Iconsax.heart5,
-                              color: Colors.red,
-                              backgroundColor:
-                                  dark ? TColors.darkerGrey : TColors.white,
-                              onPressed: () {},
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  )),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
             ),
             Padding(
-                padding: const EdgeInsets.only(left: TSizes.sm),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.only(left: TSizes.sm, right: TSizes.sm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ProductTitleText(
+                    productTitleTextModel: ProductTitleTextModel(
+                      title: product.name,
+                    ),
+                  ),
+                  const SizedBox(height: TSizes.spaceBtwItems / 2),
+                  BrandTitleWithVerification(
+                    brandTitleWithVerificationModel: BrandTitleWithVerificationModel(
+                      brandName: product.brandName ?? '',
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      ProductTitleText(
-                        productTitleTextModel: ProductTitleTextModel(
-                            title: product.name,),
-                      ),
-                      const SizedBox(
-                        height: TSizes.spaceBtwItems / 2,
-                      ),
-                      BrandTitleWithVerification(
-                          brandTitleWithVerificationModel:
-                              BrandTitleWithVerificationModel(
-                        brandName: product.brandName ?? '',
-                      )),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: ProductPriceText(
-                              productPriceTextModel: ProductPriceTextModel(
-                                currencySymbol: "\$",
-                                price: product.price.toString(),
-                                maxLines: 1,
-                                smallSize: true,
-                              ),
-                            ),
+                      Expanded(
+                        child: ProductPriceText(
+                          productPriceTextModel: ProductPriceTextModel(
+                            currencySymbol: product.currencySymbol ??
+                                product.currencyCode ??
+                                'SAR',
+                            price: product.effectivePrice.toStringAsFixed(2),
+                            maxLines: 1,
+                            smallSize: true,
                           ),
-                          const AddToCartContainer()
-                        ],
+                        ),
                       ),
-                    ]))
+                      const AddToCartContainer(),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
