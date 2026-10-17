@@ -10,6 +10,8 @@ import 'package:t_store/core/common/widgets/search_container.dart';
 import 'package:t_store/core/common/widgets/section_heading.dart';
 import 'package:t_store/features/shop/presentation/widgets/home_app_bar.dart';
 import 'package:t_store/features/shop/presentation/widgets/home_categories.dart';
+import 'package:t_store/features/shop/presentation/views/product_search_view.dart';
+import 'package:t_store/core/utils/helpers/helper_functions.dart';
 
 class HomeHeaderSection extends StatelessWidget {
   const HomeHeaderSection({
@@ -28,6 +30,10 @@ class HomeHeaderSection extends StatelessWidget {
       title: TTexts.searchContainer,
       showBackground: true,
       showBorder: true,
+      onPressed: () => THelperFunctions.navigateToScreen(
+        context,
+        const ProductSearchView(),
+      ),
     );
 
     return PrimaryHeaderContainer(

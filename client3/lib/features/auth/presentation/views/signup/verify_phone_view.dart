@@ -65,7 +65,7 @@ class _VerifyPhoneViewState extends State<VerifyPhoneView> {
   Widget build(BuildContext context) {
     return BlocConsumer<AuthCubit, AuthState>(
       listener: (context, state) {
-        if (state is AuthOtpRequired) {
+        if (state is AuthOtpResent) {
           setState(() => _otpRequestId = state.otpRequestId);
           THelperFunctions.showSnackBar(
             context: context,
@@ -89,15 +89,17 @@ class _VerifyPhoneViewState extends State<VerifyPhoneView> {
       },
       builder: (context, state) {
         final isLoading = state is AuthLoading;
-        return Scaffold(
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Scaffold(
           appBar: AppBar(
             automaticallyImplyLeading: false,
             actions: [
               IconButton(
                 onPressed: () {
-                  THelperFunctions.navigateReplacementToScreen(
-                    context,
-                    const LoginView(),
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const LoginView()),
+                    (route) => false,
                   );
                 },
                 icon: const Icon(CupertinoIcons.clear),
@@ -184,6 +186,7 @@ class _VerifyPhoneViewState extends State<VerifyPhoneView> {
                 ),
               ),
             ),
+          ),
           ),
         );
       },

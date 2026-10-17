@@ -77,6 +77,10 @@ class AuthCubit extends Cubit<AuthState> {
 
     emit(AuthLoading());
     try {
+      if (await api.phoneExists(phone)) {
+        emit(const AuthError('رقم الهاتف مسجل بالفعل. سجّل الدخول بدلًا من إنشاء حساب جديد.'));
+        return;
+      }
       final request = await api.requestOtp(phone: phone, purpose: 'register');
       _pendingPhone = request.phone;
       _pendingRegistration = Map<String, dynamic>.from(registration);
@@ -97,7 +101,8 @@ class AuthCubit extends Cubit<AuthState> {
     emit(AuthLoading());
     try {
       final request = await api.requestOtp(phone: phone, purpose: 'register');
-      emit(AuthOtpRequired(phone: request.phone, otpRequestId: request.id));
+      _pendingPhone = request.phone;
+      emit(AuthOtpResent(phone: request.phone, otpRequestId: request.id));
     } catch (error) {
       emit(AuthError(_arabicAuthError(error)));
     }

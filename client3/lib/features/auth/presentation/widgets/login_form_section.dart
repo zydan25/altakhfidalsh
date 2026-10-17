@@ -79,7 +79,7 @@ class _LoginFormSectionState extends State<LoginFormSection> {
         } else if (state is AuthEmailConfirmationRequired) {
           THelperFunctions.showSnackBar(
             context: context,
-            message: 'يرجى تأكيد بريدك الإلكتروني: ${state.email}',
+            message: 'يرجى تأكيد رقم هاتفك قبل المتابعة.',
             type: SnackBarType.warning,
           );
         }

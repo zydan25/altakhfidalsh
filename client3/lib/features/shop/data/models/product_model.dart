@@ -86,7 +86,7 @@ class ProductModel extends ProductEntity {
         ? null
         : _number(json['compare_at_price']);
     final hasValidCompareAt = compareAt != null && compareAt > finalPrice;
-    final regularPrice = hasValidCompareAt ? compareAt! : finalPrice;
+    final regularPrice = hasValidCompareAt ? (compareAt ?? finalPrice) : finalPrice;
     final images = _imageUrls(json['images']);
     final imageUrl = _resolveImage(
       json['image_url'] ?? json['thumbnail'] ??

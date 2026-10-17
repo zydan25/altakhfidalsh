@@ -71,3 +71,16 @@ class AuthOtpRequired extends AuthState {
   @override
   List<Object?> get props => [phone, otpRequestId];
 }
+
+class AuthOtpResent extends AuthState {
+  const AuthOtpResent({
+    required this.phone,
+    required this.otpRequestId,
+  });
+
+  final String phone;
+  final int otpRequestId;
+
+  @override
+  List<Object?> get props => [phone, otpRequestId];
+}

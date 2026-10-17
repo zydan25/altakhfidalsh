@@ -72,6 +72,14 @@ class FlaskCustomerApi {
     }).where((option) => option.id > 0).toList(growable: false);
   }
 
+  Future<bool> phoneExists(String phone) async {
+    final response = await _client.post(
+      'customer/auth/check-phone',
+      data: <String, dynamic>{'phone': phone.trim()},
+    );
+    return _unwrap(response)['exists'] == true;
+  }
+
   Future<FlaskOtpRequest> requestOtp({
     required String phone,
     String purpose = 'login',

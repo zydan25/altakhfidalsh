@@ -16,7 +16,9 @@ class LoginView extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => sl<AuthCubit>(),
-      child: const Scaffold(
+      child: const Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
         body: SafeArea(
           child: SingleChildScrollView(
             physics: BouncingScrollPhysics(),
@@ -37,6 +39,7 @@ class LoginView extends StatelessWidget {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

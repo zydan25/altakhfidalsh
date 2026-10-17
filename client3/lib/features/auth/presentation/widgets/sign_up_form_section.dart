@@ -22,6 +22,7 @@ class _SignUpFormSectionState extends State<SignUpFormSection> {
   final _formKey = GlobalKey<FormState>();
   bool _obscurePassword = true;
   bool _loadingLookups = true;
+  bool _openedOtpScreen = false;
   String? _lookupError;
   String? _gender;
   int? _selectedCityId;
@@ -112,14 +113,15 @@ class _SignUpFormSectionState extends State<SignUpFormSection> {
   Widget build(BuildContext context) {
     return BlocListener<AuthCubit, AuthState>(
       listener: (context, state) {
-        if (state is AuthOtpRequired) {
+        if (state is AuthOtpRequired && !_openedOtpScreen) {
+          _openedOtpScreen = true;
           final cubit = context.read<AuthCubit>();
           THelperFunctions.showSnackBar(
             context: context,
             message: 'تم إرسال رمز التحقق إلى ${state.phone}',
             type: SnackBarType.success,
           );
-          THelperFunctions.navigateReplacementToScreen(
+          THelperFunctions.navigateToScreen(
             context,
             BlocProvider.value(
               value: cubit,
@@ -129,7 +131,7 @@ class _SignUpFormSectionState extends State<SignUpFormSection> {
               ),
             ),
           );
-        } else if (state is AuthError) {
+        } else if (state is AuthError && !_openedOtpScreen) {
           THelperFunctions.showSnackBar(
             context: context,
             message: state.message,
@@ -174,7 +176,7 @@ class _SignUpFormSectionState extends State<SignUpFormSection> {
             ),
             const SizedBox(height: TSizes.spaceBtwInputFields),
             DropdownButtonFormField<String>(
-              value: _gender,
+              initialValue: _gender,
               isExpanded: true,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Iconsax.user_edit),
@@ -189,7 +191,7 @@ class _SignUpFormSectionState extends State<SignUpFormSection> {
             ),
             const SizedBox(height: TSizes.spaceBtwInputFields),
             DropdownButtonFormField<int>(
-              value: _selectedCurrencyId,
+              initialValue: _selectedCurrencyId,
               isExpanded: true,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Iconsax.wallet),
@@ -225,7 +227,7 @@ class _SignUpFormSectionState extends State<SignUpFormSection> {
             ),
             const SizedBox(height: TSizes.spaceBtwInputFields),
             DropdownButtonFormField<int>(
-              value: _selectedCityId,
+              initialValue: _selectedCityId,
               isExpanded: true,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Iconsax.location),

@@ -11,6 +11,9 @@ void main() {
       () async {
     final dio = Dio();
     dio.httpClientAdapter = _LookupAdapter((options) async {
+      if (options.uri.path.endsWith('/customer/auth/check-phone')) {
+        return _jsonResponse(200, {'item': {'phone': '967700000000', 'exists': true, 'has_password': true}});
+      }
       if (options.uri.path.endsWith('/geo/cities')) {
         return _jsonResponse(200, {
           'items': [
@@ -49,6 +52,7 @@ void main() {
       ),
     );
 
+    expect(await api.phoneExists('967700000000'), isTrue);
     final cities = await api.getCities();
     final currencies = await api.getCurrencies();
 

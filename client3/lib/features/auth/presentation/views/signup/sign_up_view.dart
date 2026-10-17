@@ -15,7 +15,9 @@ class SignUpView extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => sl<AuthCubit>(),
-      child: Scaffold(
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Scaffold(
         appBar: AppBar(),
         body: SafeArea(
           child: SingleChildScrollView(
@@ -39,6 +41,7 @@ class SignUpView extends StatelessWidget {
               ),
             ),
           ),
+        ),
         ),
       ),
     );

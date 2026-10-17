@@ -75,7 +75,7 @@ class _HomeCategoriesState extends State<HomeCategories> {
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             itemCount: categories.length,
-            separatorBuilder: (_, __) =>
+            separatorBuilder: (_, _) =>
                 const SizedBox(width: TSizes.spaceBtwItems),
             itemBuilder: (context, index) =>
                 _CategoryCircle(category: categories[index]),
@@ -117,8 +117,8 @@ class _CategoryCircle extends StatelessWidget {
                       child: CachedNetworkImage(
                         imageUrl: category.imageUrl!,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) => const Icon(Iconsax.category),
-                        errorWidget: (_, __, ___) =>
+                        placeholder: (_, _) => const Icon(Iconsax.category),
+                        errorWidget: (_, _, _) =>
                             Icon(Iconsax.category, color: TColors.dark),
                       ),
                     )
