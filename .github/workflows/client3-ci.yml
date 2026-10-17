@@ -12,6 +12,12 @@ on:
       - "client3/**"
       - ".github/workflows/client3-ci.yml"
   workflow_dispatch:
+    inputs:
+      build_android_apk:
+        description: "Build APK (takes several minutes)"
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   group: client3-flutter-${{ github.ref }}
@@ -70,5 +76,6 @@ jobs:
         run: flutter analyze
 
       - name: Build Android debug APK
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_android_apk }}
         working-directory: client3
         run: flutter build apk --debug --flavor development -t lib/main_development.dart
