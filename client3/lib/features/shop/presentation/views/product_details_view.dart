@@ -158,7 +158,7 @@ class _ProductDetailsContent extends StatelessWidget {
                   children: [
                     if (product.hasDiscount)
                       Text(
-                        product.price.toStringAsFixed(2) + ' ' + symbol,
+                        '${product.price.toStringAsFixed(2)} $symbol',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               decoration: TextDecoration.lineThrough,
                               color: Theme.of(context)
@@ -167,9 +167,7 @@ class _ProductDetailsContent extends StatelessWidget {
                             ),
                       ),
                     Text(
-                      product.effectivePrice.toStringAsFixed(2) +
-                          ' ' +
-                          symbol,
+                      '${product.effectivePrice.toStringAsFixed(2)} $symbol',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: product.hasDiscount
@@ -179,7 +177,7 @@ class _ProductDetailsContent extends StatelessWidget {
                     ),
                     if (product.hasDiscount)
                       Text(
-                        '-' + product.discountPercentage.toStringAsFixed(0) + '%',
+                        '-${product.discountPercentage.toStringAsFixed(0)}%',
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
                               color: Theme.of(context).colorScheme.error,
                               fontWeight: FontWeight.bold,
@@ -204,7 +202,7 @@ class _ProductDetailsContent extends StatelessWidget {
                     ),
                     Text(
                       product.isInStock
-                          ? 'متوفر (' + product.stock.toString() + ')'
+                          ? 'متوفر (${product.stock})'
                           : 'غير متوفر حاليًا',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
@@ -212,7 +210,7 @@ class _ProductDetailsContent extends StatelessWidget {
                       const Icon(Iconsax.star1, size: 18, color: Colors.amber),
                       Text(product.rating.toStringAsFixed(1)),
                       if (product.reviewsCount > 0)
-                        Text('(' + product.reviewsCount.toString() + ' تقييم)'),
+                        Text('(${product.reviewsCount} تقييم)'),
                     ],
                   ],
                 ),
