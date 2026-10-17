@@ -94,7 +94,8 @@ jobs:
         env:
           API_BASE_URL: https://takhfidsh.alattab.site/api/v1
         run: |
-          # client3 includes a legacy icon font with codepoint 0; disable font subsetting for web.\n          flutter build web --release -t lib/main_development.dart --dart-define=API_BASE_URL="$API_BASE_URL" --no-tree-shake-icons
+          # client3 includes a legacy icon font with codepoint 0; disable font subsetting for web.
+          flutter build web --release -t lib/main_development.dart --dart-define=API_BASE_URL="$API_BASE_URL" --no-tree-shake-icons
 
       - name: Prepare Pages metadata and cache busting
         working-directory: client3
