@@ -29,6 +29,10 @@ jobs:
         with:
           distribution: temurin
           java-version: "8"
+          cache: gradle
+          cache-dependency-path: |
+            client2/android/**/*.gradle
+            client2/android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Set up Flutter matching the original dependency graph
         uses: subosito/flutter-action@v2
