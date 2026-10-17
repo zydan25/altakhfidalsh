@@ -60,6 +60,20 @@ void main() {
       client.close();
     });
 
+    test('rejects absolute API paths to protect bearer tokens', () {
+      final client = FlaskApiClient(
+        baseUrl: 'https://example.test/api/v1',
+        accessTokenReader: () async => 'should-not-leak',
+        client: MockClient((request) async => http.Response('{}', 200)),
+      );
+
+      expect(
+        () => client.uriFor('https://untrusted.example.test/collect'),
+        throwsArgumentError,
+      );
+      client.close();
+    });
+
     test('resolves root-relative media URLs at the server origin', () {
       final client = FlaskApiClient(
         baseUrl: 'https://example.test/api/v1',
