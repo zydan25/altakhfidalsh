@@ -56,7 +56,14 @@
           return;
         }
         if (event && (event.message || event.error)) {
-          showFailure('خطأ JavaScript: ' + (event.message || String(event.error)));
+          var messageText = event.message || String(event.error);
+          var locationText = event.filename
+            ? ' — ' + event.filename + ':' + (event.lineno || 0) + ':' + (event.colno || 0)
+            : '';
+          var stackText = event.error && event.error.stack
+            ? '\n' + String(event.error.stack).slice(0, 1800)
+            : '';
+          showFailure('خطأ JavaScript: ' + messageText + locationText + stackText);
         }
       }, true);
       window.addEventListener('unhandledrejection', function (event) {
