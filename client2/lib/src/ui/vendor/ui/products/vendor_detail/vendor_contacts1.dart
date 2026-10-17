@@ -208,8 +208,7 @@ class _VendorContacts1State extends State<VendorContacts1> {
   void _showThankYouDialogue() {
     showDialog(context: context,
         barrierDismissible: false,
-        // ignore: deprecated_member_use
-        child: AlertDialog(
+        builder: (BuildContext dialogContext) => AlertDialog(
           title: new Text(appStateModel.blocks.localeText.thankYou),
           content: new Text(appStateModel.blocks.localeText.thankYouForYourMessage),
           actions: <Widget>[
