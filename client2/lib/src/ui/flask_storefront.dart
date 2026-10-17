@@ -100,7 +100,8 @@ class _FlaskStorefrontState extends State<FlaskStorefront> {
       _products = products;
       _loading = false;
       _error = categoriesError != null && productsError != null
-          ? 'تعذر الاتصال بواجهة المتجر. تحقق من اتصال الإنترنت وإعدادات الخادم ثم أعد المحاولة.'
+          ? 'تعذر تحميل بيانات المتجر من خادم التخفيض الصح.\\nالتصنيفات: ' +
+              categoriesError + '\\nالمنتجات: ' + productsError
           : null;
     });
   }
