@@ -9,7 +9,7 @@ import './ui/products/products.dart';
 import './ui/vendor/ui/stores/stores.dart';
 import '../assets/presentation/m_store_icons_icons.dart';
 import 'models/app_state_model.dart';
-import 'models/category_model.dart';
+import 'models/category_model.dart' as category_model;
 import 'models/post_model.dart';
 import 'models/product_model.dart';
 import 'ui/accounts/account/account.dart';
@@ -36,7 +36,7 @@ class _AppState extends State<App> with TickerProviderStateMixin {
   FirebaseMessaging _firebaseMessaging;
   AppStateModel model = AppStateModel();
   int _currentIndex = 0;
-  List<Category> mainCategories;
+  List<category_model.Category> mainCategories;
 
   @override
   void initState() {
