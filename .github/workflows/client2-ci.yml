@@ -52,6 +52,9 @@ jobs:
         working-directory: client2
         run: flutter pub get
 
+      - name: Patch legacy media package APIs for Flutter 2.2
+        working-directory: client2
+        run: python tool/patch_legacy_packages.py
       - name: Run unit tests
         working-directory: client2
         run: flutter test
