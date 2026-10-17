@@ -128,7 +128,7 @@ class _ProductDetail2State extends State<ProductDetail2> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomPadding: false,
+      resizeToAvoidBottomInset: false,
       body: widget.product.description != null
           ? buildBody()
           : CustomScrollView(
