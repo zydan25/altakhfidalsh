@@ -1,5 +1,6 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:scoped_model/scoped_model.dart';
@@ -32,7 +33,7 @@ class App extends StatefulWidget {
 
 class _AppState extends State<App> with TickerProviderStateMixin {
 
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
+  FirebaseMessaging _firebaseMessaging;
   AppStateModel model = AppStateModel();
   int _currentIndex = 0;
   List<Category> mainCategories;
@@ -40,7 +41,12 @@ class _AppState extends State<App> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    configureFcm();
+    // The legacy firebase_messaging 7.x web implementation is not configured
+    // for this deployment. Keep push-notification startup on native platforms.
+    if (!kIsWeb) {
+      _firebaseMessaging = FirebaseMessaging();
+      configureFcm();
+    }
     initOneSignal();
   }
 
