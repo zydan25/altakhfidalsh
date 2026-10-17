@@ -69,6 +69,8 @@ dependency_overrides:
   # Flutter 2.2.x requires intl 0.17.0; the legacy Paystack package still
   # declares the older 0.16 range. Keep this override isolated and tested.
   intl: 0.17.0
+  # Chewie 1.x requires the newer Cupertino icon package API.
+  cupertino_icons: ^1.0.2
   # Replace transitive packages whose APIs were removed from Flutter 2.x.
   modal_bottom_sheet: ^2.0.0
   chewie: ^1.0.0
