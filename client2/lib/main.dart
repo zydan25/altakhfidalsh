@@ -32,11 +32,21 @@ void setOverrideForDesktop() {
   }
 }
 
-void main() async {
-  setOverrideForDesktop();
-  AppStateModel model = AppStateModel();
+Future<void> main() async {
+  // Initialize the Flutter binding before calling any platform plugin.
   WidgetsFlutterBinding.ensureInitialized();
-  await model.getLocalData();
+  setOverrideForDesktop();
+
+  final AppStateModel model = AppStateModel();
+  try {
+    await model.getLocalData();
+  } catch (error, stackTrace) {
+    // Storage can be unavailable in some browser/privacy modes. Do not let
+    // a local-preferences failure prevent Flutter from mounting the app.
+    debugPrint('Could not restore local app data: $error');
+    debugPrintStack(stackTrace: stackTrace);
+  }
+
   //UnComment when SSL site not working
   //HttpOverrides.global = new MyHttpOverrides();
   //SharedPreferences.setMockInitialValues({});
@@ -61,7 +71,11 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    Firebase.initializeApp();
+    // This app has no Firebase Web configuration. Firebase is used by the
+    // native app only; do not let an unconfigured web Firebase app block startup.
+    if (!kIsWeb) {
+      Firebase.initializeApp();
+    }
     apiProviderInt();
     //splashIndex.shuffle();
     //startTimer();
