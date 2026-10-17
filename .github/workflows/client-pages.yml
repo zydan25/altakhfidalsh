@@ -69,7 +69,7 @@ jobs:
           html = path.read_text(encoding='utf-8')
           # The deployment currently lives at /altakhfidalsh/ on github.io.
           # If a custom domain is enabled later, its app path will be /.
-          html = re.sub(r'<base\\b[^>]*>', '', html, count=1, flags=re.IGNORECASE)
+          html = re.sub(r'<base\b[^>]*>', '', html, count=1, flags=re.IGNORECASE)
           bootstrap = """  <script data-client2-base>
             (function () {
               var host = window.location.hostname.toLowerCase();
